@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===================================================================
+   DUBID · בסיס
+   הטוקנים המלאים והנימוקים שלהם: src/styles/theme.css
+   =================================================================== */
+
+@layer base {
+  :root {
+    --night: #121110;
+    --night-2: #1b1917;
+    --night-3: #262320;
+    --pitch: #0f3d2c;
+    --pitch-2: #16563e;
+    --toto: #ff5b14;
+    --chalk: #f6f3eb;
+    --chalk-dim: #8c857a;
+    --tekhelet: #1f7fd1;
+    --armband: #ffc93c;
+    --flare: #e4002b;
+    --ease: cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+
+  html {
+    color-scheme: dark;
+    /* מונע זום אוטומטי בשדות קלט ב-iOS בלי לחסום זום ידני */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-night text-chalk;
+    margin: 0;
+    font-family: 'Almoni Neue', Assistant, Heebo, system-ui, sans-serif;
+    /* אפליקציה ולא אתר: הדף לא נגלל, רק אזורים פנימיים */
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* מספרים לא מתהפכים ב-RTL ולא רוקדים בין רינדורים */
+  .num {
+    font-family: Anton, Archivo, ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  /* פוקוס נראה למקלדת בלבד */
+  :focus-visible {
+    outline: 2px solid var(--toto);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--toto);
+    color: var(--night);
+  }
+}
+
+@layer utilities {
+  .tex-turf {
+    background-image: repeating-linear-gradient(
+      100deg,
+      var(--pitch) 0 34px,
+      var(--pitch-2) 34px 68px
+    );
+  }
+  .tex-halftone {
+    background-image:
+      radial-gradient(currentColor 1.6px, transparent 1.7px),
+      radial-gradient(currentColor 1.6px, transparent 1.7px);
+    background-size: 10px 10px;
+    background-position: 0 0, 5px 5px;
+  }
+  .tex-misprint {
+    text-shadow: 3px 3px 0 var(--tekhelet);
+  }
+}

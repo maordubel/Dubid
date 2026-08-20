@@ -1,0 +1,33 @@
+{
+  "name": "dubid",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "דוביד — פנטזי מחזורי על ליגת העל הישראלית",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "build:squads": "node scripts/build-squads.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  }
+}

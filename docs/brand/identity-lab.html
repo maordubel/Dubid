@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DUBID — Identity Lab</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#121110;--night-2:#1B1917;--night-3:#262320;--night-4:#35302B;
+  --pitch:#0F3D2C;--pitch-2:#16563E;
+  --toto:#FF5B14;--toto-deep:#C63A05;
+  --chalk:#F6F3EB;--chalk-2:#C9C3B7;--chalk-dim:#8C857A;
+  --tekhelet:#1F7FD1;--armband:#FFC93C;--flare:#E4002B;
+  --f-display:"Heebo",system-ui,sans-serif;
+  --f-poster:"Anton",system-ui,sans-serif;
+  --ease:cubic-bezier(.2,.9,.3,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--night);color:var(--chalk);font-family:var(--f-display);line-height:1.65}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px 120px}
+
+/* ---------- HERO ---------- */
+.hero{position:relative;overflow:hidden;background:var(--toto);color:var(--night);
+      padding:clamp(40px,8vw,96px) 20px clamp(56px,9vw,120px);margin-bottom:8px}
+.hero-dots{position:absolute;inset:auto 0 -10px 0;height:46%;color:var(--night);opacity:.32;
+  background-image:radial-gradient(currentColor 2px,transparent 2.1px),radial-gradient(currentColor 2px,transparent 2.1px);
+  background-size:12px 12px;background-position:0 0,6px 6px;
+  -webkit-mask-image:linear-gradient(to bottom,transparent,#000);mask-image:linear-gradient(to bottom,transparent,#000)}
+.hero-inner{position:relative;max-width:1120px;margin:0 auto;display:flex;gap:clamp(20px,4vw,56px);
+            align-items:center;flex-wrap:wrap}
+.hero svg{width:clamp(140px,26vw,230px);height:auto;flex:none;
+          filter:drop-shadow(0 14px 0 rgba(18,17,16,.18))}
+.wordmark{font-family:var(--f-display);font-weight:900;letter-spacing:-.04em;line-height:.86;
+          font-size:clamp(76px,19vw,190px);
+          text-shadow:6px 6px 0 var(--tekhelet), -2px -2px 0 var(--chalk)}
+.hero p{max-width:46ch;font-size:clamp(15px,2.2vw,19px);font-weight:700;margin:14px 0 0}
+.hero .url{display:inline-block;margin-top:18px;background:var(--night);color:var(--toto);
+  font-family:var(--f-poster);letter-spacing:.06em;padding:9px 16px;border-radius:999px;font-size:14px}
+
+/* ---------- כללי ---------- */
+h2{font-size:clamp(26px,5vw,44px);font-weight:900;letter-spacing:-.03em;margin:88px 0 4px}
+h2 .n{font-family:var(--f-poster);color:var(--toto);margin-inline-end:12px;font-size:.7em}
+.sub{color:var(--chalk-dim);margin:0 0 28px;max-width:64ch}
+h3{font-size:20px;font-weight:900;margin:0 0 2px}
+.grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+.card{background:var(--night-2);border:1px solid var(--night-4);border-radius:22px;overflow:hidden;
+      display:flex;flex-direction:column}
+.stage{padding:26px;display:grid;place-items:center;background:
+  repeating-linear-gradient(45deg,var(--night-3) 0 8px,var(--night-2) 8px 16px)}
+.stage svg{width:min(200px,60vw);height:auto;border-radius:18px}
+.card .body{padding:20px}
+.tag{display:inline-block;font-family:var(--f-poster);font-size:12px;letter-spacing:.14em;
+     background:var(--toto);color:var(--night);padding:3px 10px;border-radius:4px;margin-bottom:8px}
+.card p{margin:8px 0 0;font-size:14.5px;color:var(--chalk-2)}
+.card .use{margin-top:14px;padding-top:12px;border-top:1px dashed var(--night-4);
+           font-size:13px;color:var(--chalk-dim)}
+
+/* ---------- פלטה ---------- */
+.pal{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(168px,1fr))}
+.sw{border-radius:18px;overflow:hidden;border:1px solid var(--night-4)}
+.sw .chip{height:104px;display:grid;place-items:end start;padding:12px;font-family:var(--f-poster);
+          font-size:13px;letter-spacing:.08em}
+.sw .m{padding:12px 14px;background:var(--night-2);font-size:13px}
+.sw .m b{display:block;font-size:14px}
+.sw .m code{color:var(--chalk-dim);font-family:var(--f-poster);letter-spacing:.05em;font-size:12px}
+.rule{display:flex;gap:12px;align-items:flex-start;background:var(--night-2);border-radius:16px;
+      padding:16px 18px;margin-top:14px;border-inline-start:4px solid var(--toto)}
+.rule b{color:var(--toto)}
+
+/* ---------- טיפוגרפיה ---------- */
+.spec{background:var(--night-2);border-radius:22px;padding:26px;border:1px solid var(--night-4)}
+.spec .d{font-weight:900;font-size:clamp(38px,8vw,74px);letter-spacing:-.04em;line-height:1}
+.spec .misprint{text-shadow:4px 4px 0 var(--tekhelet)}
+.spec .p{font-family:var(--f-poster);font-size:clamp(40px,9vw,86px);letter-spacing:.01em;
+         color:var(--toto);line-height:1;margin-top:18px}
+.spec .u{font-size:17px;color:var(--chalk-2);margin-top:16px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:22px}
+th,td{text-align:start;padding:12px;border-bottom:1px solid var(--night-4)}
+th{font-family:var(--f-poster);letter-spacing:.1em;font-size:12px;color:var(--toto)}
+
+/* ---------- מכשירים ---------- */
+.devices{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start;justify-content:center}
+.phone{width:300px;flex:none;background:var(--night);border:9px solid var(--night-4);
+       border-radius:40px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.6)}
+.desk{flex:1;min-width:320px;background:var(--night);border:1px solid var(--night-4);
+      border-radius:16px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.5)}
+.scr{display:flex;flex-direction:column;height:600px;position:relative;font-size:13px}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:16px 16px 12px;
+        border-bottom:1px solid var(--night-3);background:var(--night)}
+.gw{font-weight:900;font-size:18px}
+.timer{font-family:var(--f-poster);color:var(--flare);direction:ltr;font-size:15px}
+.pitch-area{flex:1;overflow:hidden;position:relative;
+  background:repeating-linear-gradient(100deg,var(--pitch) 0 26px,var(--pitch-2) 26px 52px);
+  padding:14px 10px}
+.pitch-area::before{content:"";position:absolute;inset:10px;border:2px solid rgba(246,243,235,.2);
+  border-radius:8px;pointer-events:none}
+.row{display:flex;justify-content:center;gap:7px;margin-bottom:11px}
+.pl{width:52px;text-align:center}
+.shirt{height:44px;border-radius:9px;background:var(--chalk);color:var(--night);
+       display:grid;place-items:center;font-family:var(--f-poster);font-size:15px;position:relative}
+.shirt.empty{background:rgba(246,243,235,.09);border:2px dashed rgba(246,243,235,.35);color:rgba(246,243,235,.5)}
+.shirt.cap{background:var(--armband);box-shadow:0 0 0 3px var(--night),0 0 0 5px var(--armband)}
+.pl small{display:block;font-size:9.5px;color:rgba(246,243,235,.8);margin-top:3px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge3{position:absolute;top:-7px;inset-inline-end:-5px;background:var(--night);color:var(--armband);
+        font-family:var(--f-poster);font-size:9px;padding:1px 4px;border-radius:4px}
+.cta{padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:var(--night);
+     border-top:1px solid var(--night-3)}
+.cta button{width:100%;height:46px;border:0;border-radius:999px;background:var(--toto);color:var(--night);
+            font-family:var(--f-poster);font-size:17px;letter-spacing:.02em}
+.nav{display:flex;background:var(--night-2);border-top:1px solid var(--night-3);
+     padding-bottom:env(safe-area-inset-bottom)}
+.nav a{flex:1;padding:9px 0 11px;text-align:center;color:var(--chalk-dim);text-decoration:none;font-size:10.5px}
+.nav a.on{color:var(--toto)}
+.nav .ic{display:block;font-size:19px;line-height:1.25}
+.nav a.on .ic{filter:drop-shadow(0 0 8px var(--toto))}
+
+/* דסקטופ: אותה אפליקציה, פריסה אחרת */
+.dscr{display:grid;grid-template-columns:74px 1fr 240px;height:600px}
+.rail{background:var(--night-2);border-inline-start:1px solid var(--night-3);
+      display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:14px}
+.rail a{width:52px;padding:9px 0;text-align:center;color:var(--chalk-dim);text-decoration:none;
+        font-size:9.5px;border-radius:12px}
+.rail a.on{color:var(--toto);background:rgba(255,91,20,.12)}
+.rail .ic{display:block;font-size:19px}
+.aside{background:var(--night-2);border-inline-end:1px solid var(--night-3);padding:16px}
+.lb{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--night-3);font-size:12px}
+.lb .p{font-family:var(--f-poster);color:var(--toto);direction:ltr}
+.lb.me{color:var(--armband)}
+.cover{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.dot{width:19px;height:19px;border-radius:6px;background:var(--night-4);
+     font-size:8px;display:grid;place-items:center;color:var(--chalk-dim)}
+.dot.on{background:var(--toto);color:var(--night);font-weight:900}
+
+.note{color:var(--chalk-dim);font-size:13px;text-align:center;margin-top:14px}
+footer{margin-top:96px;padding-top:22px;border-top:1px solid var(--night-3);color:var(--chalk-dim);font-size:13px}
+</style>
+</head>
+<body>
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="hero-dots"></div>
+  <div class="hero-inner">
+    <svg viewBox="0 0 512 512" role="img" aria-label="החותם">
+      <defs>
+        <pattern id="ht" width="14" height="14" patternUnits="userSpaceOnUse">
+          <circle cx="3.5" cy="3.5" r="2.7" fill="#121110" opacity=".55"/>
+          <circle cx="10.5" cy="10.5" r="2.7" fill="#121110" opacity=".55"/>
+        </pattern>
+        <clipPath id="dc"><circle cx="256" cy="256" r="228"/></clipPath>
+      </defs>
+      <circle cx="249" cy="249" r="228" fill="#1F7FD1"/>
+      <circle cx="256" cy="256" r="228" fill="#FF5B14"/>
+      <g clip-path="url(#dc)">
+        <rect x="28" y="316" width="456" height="174" fill="url(#ht)"/>
+        <path d="M112 484 C144 410 196 380 256 380 C316 380 368 410 400 484 Z" fill="#F6F3EB"/>
+        <g fill="#1F7FD1"><rect x="146" y="424" width="220" height="17"/><rect x="126" y="458" width="260" height="17"/></g>
+      </g>
+      <circle cx="256" cy="268" r="97" fill="#F6F3EB"/>
+      <path d="M158 250 C158 164 354 164 354 250 Z" fill="#121110"/>
+      <path d="M92 232 h186 a13 13 0 0 1 0 26 H92 a13 13 0 0 1 0 -26 Z" fill="#121110" transform="rotate(-7 185 245)"/>
+      <circle cx="256" cy="176" r="11" fill="#FF5B14"/>
+      <circle cx="222" cy="288" r="10" fill="#121110"/><circle cx="292" cy="288" r="10" fill="#121110"/>
+      <path d="M162 320 C198 304 234 310 256 324 C278 310 314 304 350 320 C344 358 298 366 270 346 C263 341 249 341 242 346 C214 366 168 358 162 320 Z" fill="#121110"/>
+      <circle cx="256" cy="256" r="228" fill="none" stroke="#121110" stroke-width="11"/>
+      <circle cx="256" cy="256" r="207" fill="none" stroke="#121110" stroke-width="4" stroke-dasharray="4 17" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div class="wordmark">דוביד</div>
+      <p>פנטזי מחזורי על ליגת העל. שחקן אחד מכל קבוצה, קפטן שמכפיל פי שלוש,
+         וכרטיס אחד שאתה זורק לקבוצה בוואטסאפ במוצ״ש.</p>
+      <span class="url">DUBID.DUBELTEAM.COM</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ================= הרעיון ================= -->
+<h2><span class="n">01</span>מאיפה השפה מגיעה</h2>
+<p class="sub">לא מ״ספורט-טק״. מארבעה חפצים ישראליים שכל אחד שראה משחק בבלומפילד מזהה מיד:
+טופס הטוטו הכתום, הדשא מתחת לזרקורים, קווי הגיר, ולוח התוצאות עם הנורות.
+הטקסטורות — נקודות הלפטון, המישרג של הדפוס, גרעין הנייר — הן חלק מהמותג ולא קישוט.
+בלעדיהן זה עוד דשבורד; איתן זה חפץ מודפס.</p>
+
+<!-- ================= סימנים ================= -->
+<h2><span class="n">02</span>שלושה סימנים</h2>
+<p class="sub">כולם באותה שפה: שטחים מוצקים, אפס גרדיאנטים דקורטיביים, מקסימום שלושה צבעים בסימן.</p>
+
+<div class="grid">
+  <div class="card">
+    <div class="stage">
+      <svg viewBox="0 0 512 512" aria-label="החותם">
+        <defs><pattern id="ht2" width="14" height="14" patternUnits="userSpaceOnUse">
+          <circle cx="3.5" cy="3.5" r="2.7" fill="#121110" opacity=".55"/>
+          <circle cx="10.5" cy="10.5" r="2.7" fill="#121110" opacity=".55"/></pattern>
+          <clipPath id="dc2"><circle cx="256" cy="256" r="228"/></clipPath></defs>
+        <rect width="512" height="512" fill="#121110"/>
+        <circle cx="249" cy="249" r="228" fill="#1F7FD1"/><circle cx="256" cy="256" r="228" fill="#FF5B14"/>
+        <g clip-path="url(#dc2)"><rect x="28" y="316" width="456" height="174" fill="url(#ht2)"/>
+          <path d="M112 484 C144 410 196 380 256 380 C316 380 368 410 400 484 Z" fill="#F6F3EB"/>
+          <g fill="#1F7FD1"><rect x="146" y="424" width="220" height="17"/><rect x="126" y="458" width="260" height="17"/></g></g>
+        <circle cx="256" cy="268" r="97" fill="#F6F3EB"/>
+        <path d="M158 250 C158 164 354 164 354 250 Z" fill="#121110"/>
+        <path d="M92 232 h186 a13 13 0 0 1 0 26 H92 a13 13 0 0 1 0 -26 Z" fill="#121110" transform="rotate(-7 185 245)"/>
+        <circle cx="256" cy="176" r="11" fill="#FF5B14"/>
+        <circle cx="222" cy="288" r="10" fill="#121110"/><circle cx="292" cy="288" r="10" fill="#121110"/>
+        <path d="M162 320 C198 304 234 310 256 324 C278 310 314 304 350 320 C344 358 298 366 270 346 C263 341 249 341 242 346 C214 366 168 358 162 320 Z" fill="#121110"/>
+        <circle cx="256" cy="256" r="228" fill="none" stroke="#121110" stroke-width="11"/>
+        <circle cx="256" cy="256" r="207" fill="none" stroke="#121110" stroke-width="4" stroke-dasharray="4 17" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="body">
+      <span class="tag">A · הראשי</span>
+      <h3>החותם</h3>
+      <p>דוביד עצמו: קסקט, שפם, צעיף. דמות זוכרים — סמל מועדון שוכחים.
+         הדיסק התכלת מוסט ב-7px מהכתום: זו טעות דפוס מכוונת, וזה מה שהופך
+         את הסימן לחפץ ולא לקובץ.</p>
+      <div class="use">אווטאר, אייקון אפליקציה, ספלאש, מרצ׳נדייז. עובד ב-24px.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">
+      <svg viewBox="0 0 512 512" aria-label="לוח התוצאות">
+        <defs>
+          <radialGradient id="bulb2" cx="50%" cy="38%" r="62%">
+            <stop offset="0%" stop-color="#FFD9A8"/><stop offset="42%" stop-color="#FF5B14"/>
+            <stop offset="100%" stop-color="#C63A05"/></radialGradient>
+          <filter id="gl2" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="7" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <rect width="512" height="512" rx="64" fill="#121110"/>
+        <rect x="26" y="26" width="460" height="460" rx="44" fill="#0B0A09" stroke="#2A2724" stroke-width="4"/>
+        <g fill="#221F1C" id="off"></g>
+        <g fill="url(#bulb2)" filter="url(#gl2)">
+          <circle cx="121" cy="121" r="17"/><circle cx="166" cy="121" r="17"/><circle cx="211" cy="121" r="17"/>
+          <circle cx="256" cy="121" r="17"/><circle cx="301" cy="121" r="17"/><circle cx="346" cy="121" r="17"/>
+          <circle cx="391" cy="121" r="17"/>
+          <circle cx="346" cy="166" r="17"/><circle cx="346" cy="211" r="17"/><circle cx="346" cy="256" r="17"/>
+          <circle cx="346" cy="301" r="17"/><circle cx="346" cy="346" r="17"/>
+        </g>
+      </svg>
+    </div>
+    <div class="body">
+      <span class="tag">B · המערכת</span>
+      <h3>לוח התוצאות</h3>
+      <p>מטריצת נורות שמדליקה ד׳. אותה מטריצה מציגה כל מספר במוצר — ניקוד,
+         דקה, מקום בטבלה. הסימן הוא גם רכיב ממשק חי ולא רק לוגו.</p>
+      <div class="use">מסך תוצאות, לואודר, אנימציית ״הניקוד מתעדכן״.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">
+      <svg viewBox="0 0 512 512" aria-label="היציע">
+        <defs>
+          <linearGradient id="fl3" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1D6247"/><stop offset="100%" stop-color="#0A2A1E"/></linearGradient>
+          <radialGradient id="sm3" cx="50%" cy="40%" r="50%">
+            <stop offset="0%" stop-color="#F6F3EB" stop-opacity=".16"/>
+            <stop offset="100%" stop-color="#F6F3EB" stop-opacity="0"/></radialGradient>
+          <radialGradient id="fr3" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#FF5B14" stop-opacity=".5"/>
+            <stop offset="100%" stop-color="#FF5B14" stop-opacity="0"/></radialGradient>
+          <clipPath id="rd3"><rect width="512" height="512" rx="96"/></clipPath>
+        </defs>
+        <g clip-path="url(#rd3)">
+          <rect width="512" height="512" fill="url(#fl3)"/>
+          <path d="M256 -60 L486 512 L26 512 Z" fill="#F6F3EB" opacity=".07"/>
+          <ellipse cx="256" cy="210" rx="220" ry="160" fill="url(#sm3)"/>
+          <circle cx="257" cy="212" r="110" fill="url(#fr3)"/>
+          <g><rect x="152" y="118" width="26" height="19" rx="6" fill="#1F7FD1"/><rect x="186" y="118" width="26" height="19" rx="6" fill="#1F7FD1"/><rect x="220" y="118" width="26" height="19" rx="6" fill="#F6F3EB" opacity=".85"/><rect x="254" y="118" width="26" height="19" rx="6" fill="#1F7FD1"/><rect x="288" y="118" width="26" height="19" rx="6" fill="#1F7FD1"/><rect x="322" y="118" width="26" height="19" rx="6" fill="#F6F3EB" opacity=".85"/></g>
+          <g><rect x="126" y="160" width="32" height="23" rx="7" fill="#F6F3EB" opacity=".9"/><rect x="166" y="160" width="32" height="23" rx="7" fill="#1F7FD1"/><rect x="206" y="160" width="32" height="23" rx="7" fill="#F6F3EB" opacity=".9"/><rect x="246" y="160" width="32" height="23" rx="7" fill="#F6F3EB" opacity=".9"/><rect x="286" y="160" width="32" height="23" rx="7" fill="#0A2A1E" opacity=".55"/><rect x="326" y="160" width="32" height="23" rx="7" fill="#1F7FD1"/><rect x="366" y="160" width="32" height="23" rx="7" fill="#F6F3EB" opacity=".9"/></g>
+          <g><rect x="100" y="210" width="38" height="28" rx="8" fill="#1F7FD1"/><rect x="146" y="210" width="38" height="28" rx="8" fill="#F6F3EB" opacity=".9"/><rect x="192" y="210" width="38" height="28" rx="8" fill="#1F7FD1"/><rect x="284" y="210" width="38" height="28" rx="8" fill="#1F7FD1"/><rect x="330" y="210" width="38" height="28" rx="8" fill="#F6F3EB" opacity=".9"/><rect x="376" y="210" width="38" height="28" rx="8" fill="#1F7FD1"/></g>
+          <rect x="238" y="210" width="38" height="28" rx="8" fill="#FF5B14"/>
+          <circle cx="257" cy="186" r="15" fill="#FF5B14"/>
+          <path d="M234 212 C234 197 280 197 280 212 Z" fill="#FF5B14"/>
+          <g><rect x="68" y="272" width="46" height="34" rx="10" fill="#F6F3EB" opacity=".92"/><rect x="122" y="272" width="46" height="34" rx="10" fill="#1F7FD1"/><rect x="176" y="272" width="46" height="34" rx="10" fill="#F6F3EB" opacity=".92"/><rect x="230" y="272" width="46" height="34" rx="10" fill="#1F7FD1"/><rect x="284" y="272" width="46" height="34" rx="10" fill="#F6F3EB" opacity=".92"/><rect x="338" y="272" width="46" height="34" rx="10" fill="#1F7FD1"/><rect x="392" y="272" width="46" height="34" rx="10" fill="#F6F3EB" opacity=".92"/></g>
+          <g><rect x="30" y="346" width="58" height="44" rx="13" fill="#1F7FD1"/><rect x="98" y="346" width="58" height="44" rx="13" fill="#F6F3EB" opacity=".95"/><rect x="166" y="346" width="58" height="44" rx="13" fill="#1F7FD1"/><rect x="234" y="346" width="58" height="44" rx="13" fill="#1F7FD1"/><rect x="302" y="346" width="58" height="44" rx="13" fill="#F6F3EB" opacity=".95"/><rect x="370" y="346" width="58" height="44" rx="13" fill="#1F7FD1"/></g>
+          <rect x="0" y="430" width="512" height="11" fill="#F6F3EB" opacity=".92"/>
+          <path d="M170 441 a86 86 0 0 0 172 0" fill="none" stroke="#F6F3EB" stroke-width="11" opacity=".92"/>
+        </g>
+      </svg>
+    </div>
+    <div class="body">
+      <span class="tag">C · הרגש</span>
+      <h3>היציע</h3>
+      <p>כיסאות פלסטיק בשורות, אחד מהם כתום — אתה. מושב ריק אחד בכוונה,
+         כי יציע אמיתי אף פעם לא מלא ואף פעם לא אחיד.</p>
+      <div class="use">רקעי מסך ריק, אונבורדינג, כרטיסי הזמנת חברים.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= פלטה ================= -->
+<h2><span class="n">03</span>הפלטה</h2>
+<p class="sub">שמונה צבעים. לכל אחד תפקיד אחד, ואם הוא מופיע במקום אחר — זה באג.</p>
+<div class="pal">
+  <div class="sw"><div class="chip" style="background:#FF5B14;color:#121110">PRIMARY</div>
+    <div class="m"><b>כתום הטוטו</b><code>#FF5B14</code></div></div>
+  <div class="sw"><div class="chip" style="background:#121110;color:#8C857A">BASE</div>
+    <div class="m"><b>דיו לילה</b><code>#121110</code></div></div>
+  <div class="sw"><div class="chip" style="background:#0F3D2C;color:#F6F3EB">SURFACE</div>
+    <div class="m"><b>דשא בזרקורים</b><code>#0F3D2C</code></div></div>
+  <div class="sw"><div class="chip" style="background:#F6F3EB;color:#121110">TEXT</div>
+    <div class="m"><b>גיר</b><code>#F6F3EB</code></div></div>
+  <div class="sw"><div class="chip" style="background:#FFC93C;color:#121110">CAPTAIN</div>
+    <div class="m"><b>סרט הקפטן</b><code>#FFC93C</code></div></div>
+  <div class="sw"><div class="chip" style="background:#1F7FD1;color:#F6F3EB">INFO</div>
+    <div class="m"><b>תכלת</b><code>#1F7FD1</code></div></div>
+  <div class="sw"><div class="chip" style="background:#E4002B;color:#F6F3EB">LIVE</div>
+    <div class="m"><b>נפץ</b><code>#E4002B</code></div></div>
+  <div class="sw"><div class="chip" style="background:#262320;color:#8C857A">ELEVATED</div>
+    <div class="m"><b>דיו 3</b><code>#262320</code></div></div>
+</div>
+
+<div class="rule"><div><b>שחור חם, לא שחור כחול.</b> ‎#121110‎ ולא ‎#0B1420‎. ההבדל קטן במספרים
+  וענק בתחושה: כחול-שחור זה פינטק, שחור-חם זה דיו.</div></div>
+<div class="rule"><div><b>גיר מחליף לבן בכל מקום.</b> אין ‎#FFF‎ במוצר. בכלל.</div></div>
+<div class="rule"><div><b>צהוב = קפטן בלבד.</b> אם הצהוב הופיע על כפתור, על התראה או על באנר —
+  איבדתם את המשמעות היחידה שיש לו.</div></div>
+<div class="rule"><div><b>ירוק הוא משטח, לא סטטוס.</b> הדשא הוא הרקע של המגרש ותו לא.
+  ״הצלחה״ מסומנת בכתום, ״חי״ באדום נפץ.</div></div>
+
+<!-- ================= טיפוגרפיה ================= -->
+<h2><span class="n">04</span>טיפוגרפיה</h2>
+<p class="sub">עברית כבדה וישראלית לכותרות, לטינית כרזתית למספרים. שני קולות, לא חמישה.</p>
+<div class="spec">
+  <div class="d misprint">אלוף המחזור</div>
+  <div class="p">87.5 PTS · GW7</div>
+  <div class="u">רשימת שחקנים · אילוצי הרכב · טבלת הליגה</div>
+  <table>
+    <tr><th>תפקיד</th><th>מומלץ</th><th>חלופה חינמית</th><th>הערה</th></tr>
+    <tr><td>תצוגה (עברית)</td><td><b>Narkiss Block</b> Bold/Black</td><td>Heebo 900</td>
+        <td>הפונט הישראלי הנוסטלגי מהשילוט והעיתונים. זה כל ההבדל.</td></tr>
+    <tr><td>כרזה / מספרים</td><td><b>Anton</b></td><td>Archivo Expanded</td>
+        <td>ניקוד, דקות, מקום בטבלה. תמיד <code>tabular-nums</code> ו-<code>dir="ltr"</code>.</td></tr>
+    <tr><td>ממשק</td><td><b>Almoni Neue</b></td><td>Assistant</td>
+        <td>כל השאר. משקלים 400/700 בלבד.</td></tr>
+  </table>
+</div>
+
+<!-- ================= המוצר ================= -->
+<h2><span class="n">05</span>אותה אפליקציה, שני גופים</h2>
+<p class="sub">זו לא אתר רספונסיבי — זו אפליקציית רשת. במובייל: ניווט תחתון צמוד ובטוח מ-notch.
+בדסקטופ: פס ניווט אנכי בצד ימין ועמודת טבלה קבועה. אותו קוד, פריסה אחרת.</p>
+
+<div class="devices">
+  <!-- מובייל -->
+  <div class="phone"><div class="scr">
+    <div class="topbar">
+      <div><div class="gw">מחזור 7</div>
+        <div style="color:var(--chalk-dim);font-size:11px">נעילה בעוד <span class="timer">02:14:38</span></div></div>
+      <div style="text-align:end"><div class="timer" style="color:var(--toto);font-size:20px">9/11</div>
+        <div style="color:var(--chalk-dim);font-size:10px">שחקנים</div></div>
+    </div>
+    <div class="pitch-area">
+      <div class="row"><div class="pl"><div class="shirt">1</div><small>גלזר</small></div></div>
+      <div class="row">
+        <div class="pl"><div class="shirt">4</div><small>יהזקאל</small></div>
+        <div class="pl"><div class="shirt">5</div><small>לביא</small></div>
+        <div class="pl"><div class="shirt empty">+</div><small>מגן</small></div>
+        <div class="pl"><div class="shirt">2</div><small>נחמיאס</small></div>
+      </div>
+      <div class="row">
+        <div class="pl"><div class="shirt">8</div><small>ביטון</small></div>
+        <div class="pl"><div class="shirt">6</div><small>פרץ</small></div>
+        <div class="pl"><div class="shirt">10</div><small>אברמוב</small></div>
+      </div>
+      <div class="row">
+        <div class="pl"><div class="shirt">7</div><small>דוידזדה</small></div>
+        <div class="pl"><div class="shirt cap">9<span class="badge3" dir="ltr">x3</span></div><small>אצילי</small></div>
+        <div class="pl"><div class="shirt empty">+</div><small>חלוץ</small></div>
+      </div>
+    </div>
+    <div class="cta"><button>נותרו 2 שחקנים</button></div>
+    <nav class="nav">
+      <a class="on"><span class="ic">◎</span>ההרכב</a>
+      <a><span class="ic">▦</span>שחקנים</a>
+      <a><span class="ic">⚑</span>הליגה</a>
+      <a><span class="ic">◐</span>הכרטיס</a>
+      <a><span class="ic">☰</span>עוד</a>
+    </nav>
+  </div></div>
+
+  <!-- דסקטופ -->
+  <div class="desk"><div class="dscr">
+    <div class="rail">
+      <a class="on"><span class="ic">◎</span>ההרכב</a>
+      <a><span class="ic">▦</span>שחקנים</a>
+      <a><span class="ic">⚑</span>הליגה</a>
+      <a><span class="ic">◐</span>הכרטיס</a>
+    </div>
+    <div style="display:flex;flex-direction:column">
+      <div class="topbar">
+        <div class="gw">מחזור 7 · בניית הרכב</div>
+        <div class="timer">02:14:38</div>
+      </div>
+      <div class="pitch-area">
+        <div class="row"><div class="pl"><div class="shirt">1</div><small>גלזר</small></div></div>
+        <div class="row">
+          <div class="pl"><div class="shirt">4</div><small>יהזקאל</small></div>
+          <div class="pl"><div class="shirt">5</div><small>לביא</small></div>
+          <div class="pl"><div class="shirt empty">+</div><small>מגן</small></div>
+          <div class="pl"><div class="shirt">2</div><small>נחמיאס</small></div>
+        </div>
+        <div class="row">
+          <div class="pl"><div class="shirt">8</div><small>ביטון</small></div>
+          <div class="pl"><div class="shirt">6</div><small>פרץ</small></div>
+          <div class="pl"><div class="shirt">10</div><small>אברמוב</small></div>
+        </div>
+        <div class="row">
+          <div class="pl"><div class="shirt">7</div><small>דוידזדה</small></div>
+          <div class="pl"><div class="shirt cap">9<span class="badge3" dir="ltr">x3</span></div><small>אצילי</small></div>
+          <div class="pl"><div class="shirt empty">+</div><small>חלוץ</small></div>
+        </div>
+      </div>
+    </div>
+    <aside class="aside">
+      <div style="font-weight:900;margin-bottom:6px">כיסוי קבוצות</div>
+      <div style="font-size:11px;color:var(--chalk-dim)">9 מתוך 14 אוישו</div>
+      <div class="cover">
+        <span class="dot on">מ״ח</span><span class="dot on">הב״ש</span><span class="dot on">מת״א</span>
+        <span class="dot on">בי״ר</span><span class="dot on">סכ</span><span class="dot on">נת</span>
+        <span class="dot on">חד</span><span class="dot on">הת״א</span><span class="dot on">אש</span>
+        <span class="dot">ק״ש</span><span class="dot">טב</span><span class="dot">הח</span>
+        <span class="dot">פ״ת</span><span class="dot">רי</span>
+      </div>
+      <div style="font-weight:900;margin:18px 0 4px">טבלת המחזור</div>
+      <div class="lb"><span>1 · יוסי כ.</span><span class="p">104</span></div>
+      <div class="lb"><span>2 · שירה מ.</span><span class="p">98</span></div>
+      <div class="lb me"><span>3 · אתה</span><span class="p" style="color:var(--armband)">87</span></div>
+      <div class="lb"><span>4 · אבי ל.</span><span class="p">85</span></div>
+    </aside>
+  </div></div>
+</div>
+<p class="note">שני המסכים הם אותם קומפוננטות — <code>AppShell</code> מחליף ניווט תחתון בפס צדדי מעל 1024px.</p>
+
+<footer>DUBID · Identity v2 · dubid.dubelteam.com — כל הסימנים כאן הם וקטורים חיים, מוכנים לחידוד עם מעצב/ת.</footer>
+</div>
+
+<script>
+// נורות כבויות בלוח התוצאות — נוצרות בקוד כדי לא לנפח את ה-HTML
+(function(){
+  const g = document.getElementById('off');
+  if (!g) return;
+  const lit = new Set(['121,121','166,121','211,121','256,121','301,121','346,121','391,121',
+                       '346,166','346,211','346,256','346,301','346,346']);
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+    const x = 76 + c * 45, y = 76 + r * 45;
+    if (lit.has(x + ',' + y)) continue;
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    el.setAttribute('cx', x); el.setAttribute('cy', y); el.setAttribute('r', 15);
+    g.appendChild(el);
+  }
+})();
+</script>
+</body>
+</html>

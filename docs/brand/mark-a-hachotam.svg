@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="דוביד — סימן א׳: החותם">
+  <defs>
+    <!-- רשת הלפטון: הטקסטורה של דפוס עיתון ספורט ישן -->
+    <pattern id="halftone" width="14" height="14" patternUnits="userSpaceOnUse">
+      <circle cx="3.5" cy="3.5" r="2.7" fill="#121110" opacity="0.55"/>
+      <circle cx="10.5" cy="10.5" r="2.7" fill="#121110" opacity="0.55"/>
+    </pattern>
+    <clipPath id="discClip"><circle cx="256" cy="256" r="228"/></clipPath>
+  </defs>
+
+  <rect width="512" height="512" fill="#121110"/>
+
+  <!-- מישרג לא-מדויק (misregistration): הדיסק התכלת מוסט ב-7px.
+       זו "טעות הדפוס" שהופכת את הסימן לחפץ מודפס ולא לוקטור סטרילי -->
+  <circle cx="249" cy="249" r="228" fill="#1F7FD1"/>
+  <circle cx="256" cy="256" r="228" fill="#FF5B14"/>
+
+  <g clip-path="url(#discClip)">
+    <rect x="28" y="316" width="456" height="174" fill="url(#halftone)"/>
+
+    <!-- כתפיים + צעיף אוהדים -->
+    <path d="M112 484 C144 410 196 380 256 380 C316 380 368 410 400 484 Z" fill="#F6F3EB"/>
+    <g fill="#1F7FD1">
+      <rect x="146" y="424" width="220" height="17"/>
+      <rect x="126" y="458" width="260" height="17"/>
+    </g>
+  </g>
+
+  <!-- ראש -->
+  <circle cx="256" cy="268" r="97" fill="#F6F3EB"/>
+
+  <!-- כובע קסקט -->
+  <path d="M158 250 C158 164 354 164 354 250 Z" fill="#121110"/>
+  <path d="M92 232 h186 a13 13 0 0 1 0 26 H92 a13 13 0 0 1 0 -26 Z"
+        fill="#121110" transform="rotate(-7 185 245)"/>
+  <circle cx="256" cy="176" r="11" fill="#FF5B14"/>
+
+  <!-- עיניים -->
+  <circle cx="222" cy="288" r="10" fill="#121110"/>
+  <circle cx="292" cy="288" r="10" fill="#121110"/>
+
+  <!-- שפם — הסימן המזהה של דוביד -->
+  <path d="M162 320 C198 304 234 310 256 324 C278 310 314 304 350 320
+           C344 358 298 366 270 346 C263 341 249 341 242 346
+           C214 366 168 358 162 320 Z" fill="#121110"/>
+
+  <!-- טבעת החותם -->
+  <circle cx="256" cy="256" r="228" fill="none" stroke="#121110" stroke-width="11"/>
+  <circle cx="256" cy="256" r="207" fill="none" stroke="#121110" stroke-width="4"
+          stroke-dasharray="4 17" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="דוביד — סימן ב׳: לוח התוצאות">
+  <defs>
+    <radialGradient id="bulb" cx="50%" cy="38%" r="62%">
+      <stop offset="0%" stop-color="#FFD9A8"/>
+      <stop offset="42%" stop-color="#FF5B14"/>
+      <stop offset="100%" stop-color="#C63A05"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- מארז הלוח -->
+  <rect width="512" height="512" rx="64" fill="#121110"/>
+  <rect x="26" y="26" width="460" height="460" rx="44" fill="#0B0A09"
+        stroke="#2A2724" stroke-width="4"/>
+
+  <!-- מטריצת נורות 9x9. הנורות הכבויות נשארות גלויות — זה מה שעושה את זה ללוח -->
+  <g id="grid">
+    <!-- שורות כבויות -->
+    <g fill="#221F1C">
+      <!-- נוצר פרוגרמטית בקוד; כאן פרוש ידנית לשקיפות מלאה -->
+      <circle cx="76"  cy="76"  r="15"/><circle cx="121" cy="76"  r="15"/><circle cx="166" cy="76"  r="15"/><circle cx="211" cy="76"  r="15"/><circle cx="256" cy="76"  r="15"/><circle cx="301" cy="76"  r="15"/><circle cx="346" cy="76"  r="15"/><circle cx="391" cy="76"  r="15"/><circle cx="436" cy="76"  r="15"/>
+      <circle cx="76"  cy="121" r="15"/><circle cx="436" cy="121" r="15"/>
+      <circle cx="76"  cy="166" r="15"/><circle cx="121" cy="166" r="15"/><circle cx="166" cy="166" r="15"/><circle cx="211" cy="166" r="15"/><circle cx="256" cy="166" r="15"/><circle cx="391" cy="166" r="15"/><circle cx="436" cy="166" r="15"/>
+      <circle cx="76"  cy="211" r="15"/><circle cx="121" cy="211" r="15"/><circle cx="166" cy="211" r="15"/><circle cx="211" cy="211" r="15"/><circle cx="256" cy="211" r="15"/><circle cx="391" cy="211" r="15"/><circle cx="436" cy="211" r="15"/>
+      <circle cx="76"  cy="256" r="15"/><circle cx="121" cy="256" r="15"/><circle cx="166" cy="256" r="15"/><circle cx="211" cy="256" r="15"/><circle cx="256" cy="256" r="15"/><circle cx="391" cy="256" r="15"/><circle cx="436" cy="256" r="15"/>
+      <circle cx="76"  cy="301" r="15"/><circle cx="121" cy="301" r="15"/><circle cx="166" cy="301" r="15"/><circle cx="211" cy="301" r="15"/><circle cx="256" cy="301" r="15"/><circle cx="391" cy="301" r="15"/><circle cx="436" cy="301" r="15"/>
+      <circle cx="76"  cy="346" r="15"/><circle cx="121" cy="346" r="15"/><circle cx="166" cy="346" r="15"/><circle cx="211" cy="346" r="15"/><circle cx="256" cy="346" r="15"/><circle cx="391" cy="346" r="15"/><circle cx="436" cy="346" r="15"/>
+      <circle cx="76"  cy="391" r="15"/><circle cx="121" cy="391" r="15"/><circle cx="166" cy="391" r="15"/><circle cx="211" cy="391" r="15"/><circle cx="256" cy="391" r="15"/><circle cx="301" cy="391" r="15"/><circle cx="346" cy="391" r="15"/><circle cx="391" cy="391" r="15"/><circle cx="436" cy="391" r="15"/>
+      <circle cx="76"  cy="436" r="15"/><circle cx="121" cy="436" r="15"/><circle cx="166" cy="436" r="15"/><circle cx="211" cy="436" r="15"/><circle cx="256" cy="436" r="15"/><circle cx="301" cy="436" r="15"/><circle cx="346" cy="436" r="15"/><circle cx="391" cy="436" r="15"/><circle cx="436" cy="436" r="15"/>
+    </g>
+
+    <!-- הנורות הדולקות מציירות ד׳ -->
+    <g fill="url(#bulb)" filter="url(#glow)">
+      <!-- הגג של ד׳ -->
+      <circle cx="121" cy="121" r="17"/><circle cx="166" cy="121" r="17"/>
+      <circle cx="211" cy="121" r="17"/><circle cx="256" cy="121" r="17"/>
+      <circle cx="301" cy="121" r="17"/><circle cx="346" cy="121" r="17"/>
+      <circle cx="391" cy="121" r="17"/>
+      <!-- הרגל היורדת מהקצה הימני -->
+      <circle cx="346" cy="166" r="17"/><circle cx="346" cy="211" r="17"/>
+      <circle cx="346" cy="256" r="17"/><circle cx="346" cy="301" r="17"/>
+      <circle cx="346" cy="346" r="17"/>
+    </g>
+  </g>
+</svg>
