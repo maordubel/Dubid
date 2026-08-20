@@ -19,7 +19,7 @@
 ├── db/                            01_schema · 02_dubid_captain · 03_seed_squads
 ├── supabase/functions/score-gameweek/
 ├── scripts/build-squads.mjs       JSON → TS + SQL + דוח איכות
-├── tests/                         60 טסטים
+├── tests/                         69 טסטים
 └── docs/brand/                    identity-lab.html + הסימנים
 ```
 
@@ -148,7 +148,7 @@ const score = scoreLineup(lineup, performances, outcomes, IL_PREMIER);
 ## 5 · מה אומת בפועל
 
 ```
-npm test                                          →  60 tests, 60 pass
+npm test                                          →  69 tests, 69 pass
 psql -f db/01_schema.sql, 02_..., 03_seed_squads   →  נקי, ואידמפוטנטי
 ```
 
@@ -156,6 +156,9 @@ psql -f db/01_schema.sql, 02_..., 03_seed_squads   →  נקי, ואידמפוט
   מחזור מלא שחושב ביד: אישי 32 · תוצאה 23 · קפטן 25 · וירטואלי 35 = **115**.
 * **מחולל ה-QR — 20 טסטים** בקריאה הפוכה: מסיר מסכה, קורא זיגזג, מפרק
   שזירה, מאמת Reed–Solomon, ומשחזר את המחרוזת. ארבע רמות ECC + עברית.
+* **קבצי הפריסה — 9 טסטים.** נולדו מבאג אמיתי: מפתח `"//"` בתור הערה
+  בתוך `vercel.json` הפיל את כל הפריסה. הטסטים מוודאים שאין מפתחות
+  זרים, שיש fallback ל-SPA, ושכל אייקון ב-manifest קיים.
 * **הדאטה — 9 טסטים.** כל שחקן משויך לקבוצה קיימת, אין מזהים כפולים,
   והטסט `★ אזהרה: אין מספיק קבוצות` מתעד את המחסור במפורש — **הוא
   ייכשל בכוונה** ברגע שיעלו כל הקבוצות, כתזכורת לעדכן את הציפייה.
@@ -164,10 +167,10 @@ psql -f db/01_schema.sql, 02_..., 03_seed_squads   →  נקי, ואידמפוט
 
 ### מה לא אומת
 
-* `npm run build` ו-`tsc --noEmit` **לא רצו כאן** — אין גישה ל-npm
-  registry בסביבה הזו. הסריקה שעשיתי (ייבואים לא בשימוש, `import type`,
-  מחלקות Tailwind לא חוקיות) נקייה, אבל תריץ `npm install && npm run build`
-  מקומית לפני הפוש הראשון.
+* `npm run build` **לא רץ כאן** — אין גישה ל-npm registry בסביבה הזו.
+  הסריקה שעשיתי (ייבואים לא בשימוש, `import type`, מחלקות Tailwind לא
+  חוקיות) נקייה. `build` הוא כעת `vite build` בלבד — בדיקת הטיפוסים
+  עברה ל-CI, כדי ששגיאת טיפוס אחת לא תפיל פריסה לפרודקשן.
 * `navigator.share` עם קבצים — צריך מכשיר אמיתי (iOS Safari / Chrome אנדרואיד).
 * ה-Edge Function לא הורץ מול פרויקט Supabase חי.
 
@@ -178,7 +181,7 @@ psql -f db/01_schema.sql, 02_..., 03_seed_squads   →  נקי, ואידמפוט
 ```bash
 npm install
 npm run dev            # http://localhost:5173
-npm test               # 60 טסטים
+npm test               # 69 טסטים
 npm run build:squads   # אחרי עדכון scripts/squads.source.json
 npm run build
 ```

@@ -34,7 +34,7 @@ git push -u origin main
 
 ```bash
 npm install
-npm test        # 60 טסטים
+npm test        # 69 טסטים
 npm run build   # אמור לייצר dist/
 ```
 
@@ -50,12 +50,28 @@ npm run build   # אמור לייצר dist/
 | **Root Directory** | **`./`** | ⚠️ הכי חשוב. אם זה מצביע על תת-תיקייה — הבנייה תיכשל |
 | Build Command | `npm run build` | מ-`vercel.json` |
 | Output Directory | `dist` | מ-`vercel.json` |
-| Install Command | `npm ci` | דורש `package-lock.json` בריפו |
+| Install Command | *(השאירו ריק)* | Vercel יבחר לבד: `npm ci` אם יש lockfile, אחרת `npm install` |
 | Node.js Version | **22.x** | Settings → General. נדרש בשביל הטסטים |
 
-`package-lock.json` **חייב** להיות ב-git. בלעדיו `npm ci` נכשל.
-הוא נוצר ב-`npm install` הראשון — ודאו שהוא לא ב-`.gitignore`
-(בקובץ שלנו הוא לא).
+### ⚠️ בדיקה שלוקחת 10 שניות וחוסכת שעה
+
+פתחו את הריפו ב-GitHub. **בשורש** אתם חייבים לראות ישירות:
+
+```
+package.json   index.html   vite.config.ts   vercel.json   src/
+```
+
+אם אתם רואים במקום זה **תיקייה אחת** בשם `dubid-web/` — זה מה שנכשל.
+זה קורה כשמעלים את התיקייה דרך *Add file → Upload files* בממשק של GitHub.
+שתי דרכים לתקן:
+
+* **עדיף:** למחוק את התוכן ולהעלות מחדש את *הקבצים שבתוך* התיקייה, לא את התיקייה.
+* **מהיר:** ב-Vercel → Settings → General → **Root Directory** → `dubid-web`.
+
+`package-lock.json` נוצר ב-`npm install` הראשון. אם העליתם דרך הדפדפן
+הוא כנראה לא שם — וזה בסדר, כי הסרנו את `installCommand` ו-Vercel
+נופל אוטומטית ל-`npm install`. ברגע שתעבדו עם git, הוסיפו אותו:
+`git add package-lock.json`.
 
 ---
 
@@ -117,8 +133,10 @@ supabase functions deploy score-gameweek
 
 | מה רואים | הסיבה | התיקון |
 |---|---|---|
-| `No Output Directory named "dist"` | Root Directory מצביע על תת-תיקייה | Settings → General → Root Directory = `./` |
-| `npm ci can only install with an existing package-lock.json` | ה-lock לא ב-git | `git add package-lock.json` |
+| **`headers[0] should NOT have additional property '//'`** | היה מפתח `"//"` בתור הערה בתוך `vercel.json`. **ל-JSON אין הערות**, ולסכמה של Vercel אין סובלנות למפתח לא מוכר — היא דוחה את כל הפריסה | תוקן. `tests/config.test.ts` מוודא שזה לא יחזור |
+| `No Output Directory named "dist"` | Root Directory מצביע על תת-תיקייה, או שהעליתם את התיקייה במקום את תוכנה | ראו "בדיקה שלוקחת 10 שניות" למעלה |
+| `npm ci can only install with an existing package-lock.json` | ה-lock לא ב-git | הסרנו את `installCommand` — Vercel יבחר `npm install`. עדיף בכל זאת `git add package-lock.json` |
+| הבנייה נכשלת על שגיאת טיפוס | `build` הריץ `tsc` | `build` הוא כעת `vite build` בלבד. בדיקת הטיפוסים רצה ב-CI ולא חוסמת פרודקשן |
 | `Cannot find module '.../x.ts'` | הריצו tsc בלי `allowImportingTsExtensions` | הוא כבר מוגדר ב-`tsconfig.json` — אל תסירו |
 | 404 ברענון של `/card` | אין rewrite ל-SPA | מטופל ב-`vercel.json` |
 | הפריסה עברה אבל המסך ישן | Service Worker שמור במטמון | ה-header `no-cache` על `/sw.js` ב-`vercel.json` פותר; פעם אחת נקו דרך DevTools → Application → Unregister |
@@ -136,8 +154,25 @@ supabase functions deploy score-gameweek
    ערך ידנית את `src/data/squads.ts` במקום את ה-JSON. זה מונע מצב
    שהדאטה בקוד וה-SQL מתפצלים.
 2. `npm run typecheck`
-3. `npm test` — 60 טסטים
+3. `npm test` — 69 טסטים
 4. `npm run build`
 
 Vercel בונה במקביל. אם רוצים ש-CI יחסום פריסה: Settings → Git →
 Ignored Build Step, או Deployment Protection.
+
+
+---
+
+## 8. שני כללים ל-`vercel.json`
+
+1. **אין הערות.** זה JSON, לא JSONC. מפתח כמו `"//"` או `"comment"`
+   גורם ל-Vercel לדחות את הפריסה כולה עם
+   `should NOT have additional property`. ההסברים חיים כאן, בקובץ הזה.
+
+2. **רק מפתחות מהסכמה.** `headers[]` מקבל אך ורק
+   `source` · `headers` · `has` · `missing`, וכל זוג בפנים רק
+   `key` · `value`.
+
+`npm test` מריץ את `tests/config.test.ts` שבודק את שני הכללים האלה
+על הקובץ האמיתי — כולל שיש fallback ל-SPA, שה-Service Worker לא
+נשמר במטמון, ושכל אייקון ב-manifest באמת קיים על הדיסק.
