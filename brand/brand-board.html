@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>דוביד שווייצר — Brand Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700;900&family=Archivo:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B1420; --ink-2:#12202F; --cream:#F2E9D8; --gold:#C9A227;
+    --kalanit:#D7263D; --turf:#16B37E; --slate:#7B8A9B;
+    --radius:20px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ink);color:var(--cream);
+       font-family:"Heebo",system-ui,sans-serif;font-weight:400;line-height:1.6}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 20px 96px}
+  header{padding:56px 0 32px;border-bottom:1px solid rgba(242,233,216,.14)}
+  h1{font-size:clamp(34px,7vw,64px);font-weight:900;letter-spacing:-.02em;margin:0 0 8px}
+  .kicker{color:var(--gold);font-weight:700;letter-spacing:.18em;font-size:12px}
+  .lede{color:var(--slate);max-width:62ch;margin:12px 0 0}
+  h2{font-size:clamp(22px,4vw,30px);font-weight:900;margin:64px 0 6px}
+  h3{font-size:19px;font-weight:700;margin:0 0 4px}
+  .sub{color:var(--slate);font-size:14px;margin:0 0 20px}
+  .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .card{background:var(--ink-2);border:1px solid rgba(242,233,216,.1);border-radius:var(--radius);
+        padding:22px;display:flex;flex-direction:column;gap:14px}
+  .logo-stage{background:#060D16;border-radius:16px;display:grid;place-items:center;padding:26px}
+  .logo-stage svg{width:min(190px,55vw);height:auto}
+  dl{margin:0;font-size:14px}
+  dt{color:var(--gold);font-weight:700;margin-top:12px}
+  dd{margin:2px 0 0;color:#CFC6B4}
+  .swatches{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  .sw{border-radius:14px;overflow:hidden;border:1px solid rgba(242,233,216,.12)}
+  .sw .chip{height:86px}
+  .sw .meta{padding:10px 12px;font-size:12px;background:var(--ink-2)}
+  .sw .meta b{display:block;font-size:13px}
+  .sw .meta code{font-family:"Archivo",monospace;color:var(--slate);letter-spacing:.04em}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:right;padding:11px 12px;border-bottom:1px solid rgba(242,233,216,.1);vertical-align:top}
+  th{color:var(--gold);font-weight:700;font-size:12px;letter-spacing:.1em}
+  .type-display{font-weight:900;font-size:clamp(30px,6vw,52px);letter-spacing:-.02em;line-height:1.1}
+  .type-ui{font-weight:400;font-size:17px;color:#CFC6B4}
+  .type-num{font-family:"Archivo",sans-serif;font-weight:700;font-size:44px;
+            font-variant-numeric:tabular-nums;letter-spacing:.02em;color:var(--gold)}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;
+        background:rgba(201,162,39,.16);color:var(--gold);letter-spacing:.06em}
+  .rec{border-inline-start:3px solid var(--gold);padding-inline-start:14px}
+  ul{padding-inline-start:20px;margin:8px 0}
+  li{margin:5px 0;color:#CFC6B4;font-size:14px}
+  footer{margin-top:72px;color:var(--slate);font-size:13px;border-top:1px solid rgba(242,233,216,.14);padding-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">VISUAL IDENTITY · V1</div>
+  <h1>דוביד שווייצר</h1>
+  <p class="lede">פנטזי-ליג מחזורי על ליגת העל הישראלית. השפה הוויזואלית חיה בין שני קטבים:
+  <b>נייר העיתון של מוסף הספורט משנות ה-70</b> מצד אחד, ו-<b>Sport-Tech נקי ומדויק</b> מהצד השני.
+  הנוסטלגיה היא הטקסטורה והצבע; המודרניות היא הגריד, הטיפוגרפיה והדיוק.</p>
+</header>
+
+<h2>שלושה קונספטים ללוגו</h2>
+<p class="sub">כל קונספט הוא מערכת שלמה — אייקון אפליקציה, לוקאפ, וקוד סגנוני משלו.</p>
+
+<div class="grid">
+
+  <div class="card">
+    <div class="logo-stage">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="קונספט 1: המחזור">
+        <rect width="512" height="512" rx="116" fill="#0B1420"/>
+        <g transform="rotate(-45 256 256)"><circle cx="256" cy="256" r="196" fill="none" stroke="#C9A227" stroke-width="12" stroke-linecap="round" stroke-dasharray="225.9 82"/></g>
+        <path d="M256 96 L400 140 V270 C400 340 330 392 256 420 C182 392 112 340 112 270 V140 Z" fill="none" stroke="#F2E9D8" stroke-width="16" stroke-linejoin="round"/>
+        <path d="M256 172 L330.2 225.9 L301.9 313.1 L210.1 313.1 L181.8 225.9 Z" fill="#F2E9D8"/>
+        <g stroke="#F2E9D8" stroke-width="14" stroke-linecap="round">
+          <line x1="256" y1="172" x2="256" y2="142"/><line x1="330.2" y1="225.9" x2="358.7" y2="216.6"/>
+          <line x1="301.9" y1="313.1" x2="319.5" y2="337.4"/><line x1="210.1" y1="313.1" x2="192.5" y2="337.4"/>
+          <line x1="181.8" y1="225.9" x2="153.3" y2="216.6"/>
+        </g>
+        <rect x="196" y="356" width="120" height="12" rx="6" fill="#C9A227"/>
+      </svg>
+    </div>
+    <div>
+      <span class="pill">CONCEPT 01</span>
+      <h3>המחזור — The Gameweek Crest</h3>
+    </div>
+    <dl>
+      <dt>הרעיון</dt>
+      <dd>סמל מועדון קלאסי שעבר צמצום גיאומטרי. פאנל בודד של כדור עור ישן במרכז מגן; סביבו טבעת שבורה לארבעה קשתות — ארבעת שלבי המחזור (בניית הרכב · נעילה · שידור · תוצאה).</dd>
+      <dt>הסגנון הגרפי</dt>
+      <dd>Monoline בעובי אחיד (16px @512), פינות מעוגלות, ללא גרדיאנטים וללא צל. הכל בנוי על גריד של 8. אפס פרטים מתחת ל-24px — הלוגו חייב לחיות כ-favicon.</dd>
+      <dt>מתי לבחור</dt>
+      <dd>אם המוצר רוצה להרגיש כמו <b>מוסד</b> — ליגה, התאחדות, משהו עם היסטוריה. הכי חזק על מרצ׳נדייז ועל מסך פתיחה.</dd>
+      <dt>סיכון</dt>
+      <dd>שפת ״מגן״ רוויה בקטגוריה. הבידול חייב להגיע מהטבעת השבורה — הדגישו אותה באנימציה (סיבוב איטי בזמן שהמחזור פתוח, נעילה כשהוא נסגר).</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <div class="logo-stage">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="קונספט 2: ד״ש">
+        <rect width="512" height="512" rx="116" fill="#0B1420"/>
+        <g fill="none" stroke="#F2E9D8" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M146 118 H366 V196"/>
+        </g>
+        <path d="M146 244 C146 310 192 356 256 356 C320 356 366 310 366 244" fill="none" stroke="#F2E9D8" stroke-width="34" stroke-linecap="round"/>
+        <path d="M256 212 V356" fill="none" stroke="#C9A227" stroke-width="34" stroke-linecap="round"/>
+        <g fill="#C9A227">
+          <rect x="82" y="112" width="15" height="54" rx="7.5" transform="rotate(14 89.5 139)"/>
+          <rect x="112" y="112" width="15" height="54" rx="7.5" transform="rotate(14 119.5 139)"/>
+        </g>
+        <rect x="112" y="404" width="288" height="12" rx="6" fill="#F2E9D8" opacity="0.3"/>
+      </svg>
+    </div>
+    <div>
+      <span class="pill">CONCEPT 02</span>
+      <h3>ד״ש — The Monogram</h3>
+    </div>
+    <dl>
+      <dt>הרעיון</dt>
+      <dd>ראשי התיבות של המותג, שהם גם מילה בעברית: <b>ד״ש</b>. האות ש׳ נבנית כשלושה עמודי שער כדורגל, והזרוע האמצעית שלה — בזהב — היא הכדור בדרך לרשת. הגרשיים הם אקסנט צבעוני קבוע במערכת.</dd>
+      <dt>הסגנון הגרפי</dt>
+      <dd>Monoline עבה (34px @512) עם קצוות עגולים, בנוי כולו מקווים ישרים בזוויות 0/90. שפה של Wayfinding — ברור, קריא, מודרני. עובד מצוין בניגודיות הפוכה (קרם על רקע כהה או להפך).</dd>
+      <dt>מתי לבחור</dt>
+      <dd>אם המוצר רוצה להרגיש כמו <b>אפליקציה</b> קודם כול. זה האייקון הכי חזק ב-App Store ובנוטיפיקציות, וזה הקונספט היחיד שנושא מסר עברי ישיר.</dd>
+      <dt>סיכון</dt>
+      <dd>מונוגרמה עברית לא תמיד נקראת בחו״ל. אם ליגות זרות הן ביעד — הכינו וריאנט לטיני (DS) על אותו גריד מדויק.</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <div class="logo-stage">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="קונספט 3: הכרטיס">
+        <rect width="512" height="512" rx="116" fill="#D7263D"/>
+        <mask id="ticket2"><rect width="512" height="512" fill="black"/>
+          <rect x="96" y="72" width="320" height="368" rx="36" fill="white"/>
+          <circle cx="96" cy="336" r="24" fill="black"/><circle cx="416" cy="336" r="24" fill="black"/></mask>
+        <g mask="url(#ticket2)"><rect x="96" y="72" width="320" height="368" rx="36" fill="#F2E9D8"/></g>
+        <g fill="#0B1420">
+          <circle cx="256" cy="118" r="14"/>
+          <circle cx="154" cy="170" r="14"/><circle cx="222" cy="170" r="14"/><circle cx="290" cy="170" r="14"/><circle cx="358" cy="170" r="14"/>
+          <circle cx="188" cy="222" r="14"/><circle cx="256" cy="222" r="14"/><circle cx="324" cy="222" r="14"/>
+          <circle cx="198" cy="274" r="14"/><circle cx="314" cy="274" r="14"/>
+        </g>
+        <circle cx="256" cy="274" r="18" fill="#C9A227"/>
+        <line x1="126" y1="336" x2="386" y2="336" stroke="#D7263D" stroke-width="8" stroke-linecap="round" stroke-dasharray="2 26"/>
+        <g fill="#0B1420"><rect x="164" y="374" width="184" height="14" rx="7"/>
+          <rect x="204" y="404" width="104" height="14" rx="7" opacity="0.35"/></g>
+      </svg>
+    </div>
+    <div>
+      <span class="pill">CONCEPT 03</span>
+      <h3>הכרטיס — The Lineup Stub</h3>
+    </div>
+    <dl>
+      <dt>הרעיון</dt>
+      <dd>כרטיס כניסה לאצטדיון עם ניקוב בצדדים, ובתוכו ההרכב שלך כנקודות בפיזור 4-3-3 — הקפטן בזהב. חפץ נוסטלגי שמכיל בתוכו את פעולת הליבה של המוצר.</dd>
+      <dt>הסגנון הגרפי</dt>
+      <dd>מלא ולא קווי: שטחים מוצקים, קרם על אדום כלנית, קו ניקוב מקווקו. הכי ״נייר״ מבין השלושה. הנקודות הן מערכת בפני עצמן — אותן נקודות הופכות ל-UI של בניית ההרכב.</dd>
+      <dt>מתי לבחור</dt>
+      <dd>אם רוצים חום, אנושיות ומשהו שנראה כמו <b>אספנות</b>. מצוין ל-share-cards ברשתות: כל מחזור מייצר ״כרטיס״ ייחודי לשיתוף.</dd>
+      <dt>סיכון</dt>
+      <dd>הכי עמוס מבין השלושה בגדלים קטנים. חייב וריאנט מפושט ל-32px (רק הכרטיס + נקודה זהב אחת).</dd>
+    </dl>
+  </div>
+</div>
+
+<div class="card rec" style="margin-top:24px;border-inline-start:3px solid var(--gold)">
+  <h3 style="margin:0">ההמלצה שלי</h3>
+  <p style="margin:0;color:#CFC6B4;font-size:15px">
+  <b>קונספט 02 (ד״ש)</b> כמותג הראשי — הוא היחיד שעובד מושלם ב-32px, נושא מסר עברי, ומרגיש כמו מוצר טכנולוגי ולא כמו מועדון.
+  קחו את <b>קונספט 03 (הכרטיס)</b> כ-<i>secondary device</i>: מערכת השיתוף, כרטיסי המחזור, והאיורים בתוך האפליקציה.
+  קונספט 01 שמור למרצ׳נדייז ולרגעי טקס (סוף עונה, אליפות).</p>
+</div>
+
+<h2>פלטת צבעים</h2>
+<p class="sub">חמישה צבעי ליבה + שלושה סמנטיים. יחס ניגודיות מינימלי 4.5:1 לטקסט.</p>
+<div class="swatches">
+  <div class="sw"><div class="chip" style="background:#0B1420"></div><div class="meta"><b>Midnight Pitch</b><code>#0B1420</code></div></div>
+  <div class="sw"><div class="chip" style="background:#12202F"></div><div class="meta"><b>Floodlight Slate</b><code>#12202F</code></div></div>
+  <div class="sw"><div class="chip" style="background:#F2E9D8"></div><div class="meta"><b>Newsprint Cream</b><code>#F2E9D8</code></div></div>
+  <div class="sw"><div class="chip" style="background:#C9A227"></div><div class="meta"><b>Trophy Gold</b><code>#C9A227</code></div></div>
+  <div class="sw"><div class="chip" style="background:#D7263D"></div><div class="meta"><b>Kalanit Red</b><code>#D7263D</code></div></div>
+  <div class="sw"><div class="chip" style="background:#16B37E"></div><div class="meta"><b>Live Turf · חיובי</b><code>#16B37E</code></div></div>
+  <div class="sw"><div class="chip" style="background:#E4572E"></div><div class="meta"><b>Foul Orange · שלילי</b><code>#E4572E</code></div></div>
+  <div class="sw"><div class="chip" style="background:#7B8A9B"></div><div class="meta"><b>Terrace Grey · משני</b><code>#7B8A9B</code></div></div>
+</div>
+<ul>
+  <li><b>Midnight Pitch</b> הוא ברירת המחדל — האפליקציה נולדת כהה, לא בהירה. זה מה שמייצר את תחושת הפרימיום ואת קריאות הזהב.</li>
+  <li><b>זהב = ערך</b> בלבד: קפטן, בונוס, פרס, שער וירטואלי. אם הזהב מופיע על כפתור ״שמור״ — איבדתם אותו.</li>
+  <li><b>אדום כלנית = חי</b> בלבד: משחק שמשודר עכשיו, טיימר נעילה, מחיקה. לא צבע מותג כללי.</li>
+  <li>Newsprint Cream מחליף לבן טהור בכל מקום. זה ההבדל היחיד בין ״עוד אפליקציית ספורט״ לבין הנוסטלגיה.</li>
+</ul>
+
+<h2>טיפוגרפיה</h2>
+<p class="sub">שלוש רמות. עברית ואנגלית חייבות לשבת על אותו קו בסיס ואותה גובה-x.</p>
+<div class="type-display">אלוף המחזור</div>
+<div class="type-ui">רשימת שחקנים · Fixtures · אילוצי הרכב</div>
+<div class="type-num">87.5 PTS</div>
+
+<table>
+  <thead><tr><th>תפקיד</th><th>מומלץ (פרימיום, בתשלום)</th><th>חלופה חינמית</th><th>שימוש</th></tr></thead>
+  <tbody>
+    <tr><td><b>Display</b></td><td>Ploni ML Ultrabold <span style="color:var(--slate)">(Fontef)</span></td><td>Heebo 900</td><td>כותרות, שם הקבוצה, מסך תוצאות</td></tr>
+    <tr><td><b>UI / Text</b></td><td>Almoni Neue Regular–Bold <span style="color:var(--slate)">(Fontef)</span></td><td>Assistant / Rubik</td><td>כל הממשק, טבלאות, כפתורים</td></tr>
+    <tr><td><b>Numeric</b></td><td>Archivo Expanded SemiBold</td><td>Archivo / Inter Tight</td><td>ניקוד, מספרי חולצה, טיימר — תמיד <code>tabular-nums</code></td></tr>
+  </tbody>
+</table>
+<ul>
+  <li>העברית מובילה, הלטינית משרתת. אל תבחרו פונט לטיני יפה ואז תחפשו לו עברית — הפוך.</li>
+  <li>מספרים תמיד <code>font-variant-numeric: tabular-nums</code>, אחרת טבלת הליגה תרקוד בכל רענון.</li>
+  <li>אין italic בעברית. הדגשה = משקל או צבע.</li>
+  <li>Letter-spacing שלילי (‎-0.02em) רק בכותרות ענק; בגוף טקסט עברי זה פוגע בקריאות.</li>
+</ul>
+
+<h2>כללי מערכת</h2>
+<ul>
+  <li><b>גריד 8</b>: כל מרווח, רדיוס ועובי קו הוא כפולה של 4. רדיוס כרטיס 20px, רדיוס אייקון אפליקציה 22.6% מהצלע.</li>
+  <li><b>Clear space</b>: מרווח מינימלי סביב הלוגו = גובה האות ד׳.</li>
+  <li><b>גודל מינימלי</b>: 24px דיגיטלי, 12mm בדפוס. מתחת לזה — רק וריאנט מפושט.</li>
+  <li><b>אסור</b>: להטות, להוסיף צל, לשנות פרופורציות, להניח על תמונה ללא שכבת ink ב-70%.</li>
+  <li><b>תנועה</b>: easing אחד לכל המוצר — <code>cubic-bezier(.22,1,.36,1)</code>, 240ms. הטבעת של קונספט 01 היא הלואודר.</li>
+</ul>
+
+<footer>דוביד שווייצר · Brand Board v1 · נוצר כבסיס לעבודה עם מעצב/ת. הקונספטים כאן הם וקטורים חיים — אפשר לייצא SVG לכל אחד מהם.</footer>
+
+</div>
+</body>
+</html>

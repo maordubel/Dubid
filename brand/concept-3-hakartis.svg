@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="דוביד שווייצר — קונספט 3: הכרטיס">
+  <rect width="512" height="512" rx="116" fill="#D7263D"/>
+
+  <mask id="ticket">
+    <rect width="512" height="512" fill="black"/>
+    <rect x="96" y="72" width="320" height="368" rx="36" fill="white"/>
+    <circle cx="96" cy="336" r="24" fill="black"/>
+    <circle cx="416" cy="336" r="24" fill="black"/>
+  </mask>
+  <g mask="url(#ticket)">
+    <rect x="96" y="72" width="320" height="368" rx="36" fill="#F2E9D8"/>
+  </g>
+
+  <!-- הרכב 4-3-3 -->
+  <g fill="#0B1420">
+    <circle cx="256" cy="118" r="14"/>
+    <circle cx="154" cy="170" r="14"/><circle cx="222" cy="170" r="14"/>
+    <circle cx="290" cy="170" r="14"/><circle cx="358" cy="170" r="14"/>
+    <circle cx="188" cy="222" r="14"/><circle cx="256" cy="222" r="14"/><circle cx="324" cy="222" r="14"/>
+    <circle cx="198" cy="274" r="14"/><circle cx="314" cy="274" r="14"/>
+  </g>
+  <circle cx="256" cy="274" r="18" fill="#C9A227"/>
+
+  <!-- ניקוב -->
+  <line x1="126" y1="336" x2="386" y2="336" stroke="#D7263D" stroke-width="8"
+        stroke-linecap="round" stroke-dasharray="2 26"/>
+
+  <!-- ספח: שם + מחזור -->
+  <g fill="#0B1420">
+    <rect x="164" y="374" width="184" height="14" rx="7"/>
+    <rect x="204" y="404" width="104" height="14" rx="7" opacity="0.35"/>
+  </g>
+</svg>
