@@ -43,23 +43,30 @@ test('shortName מחזיר שם משפחה', () => {
   assert.equal(shortName('פדראו'), 'פדראו');
 });
 
-test('★ אזהרה: אין מספיק קבוצות להרכב מלא של 11', () => {
-  // הטסט הזה מתעד את המצב הנוכחי במפורש. כשיעלו כל 14 הקבוצות
-  // הוא ייכשל — וזה בדיוק מה שאמור לקרות, כתזכורת לעדכן את הציפייה.
-  assert.ok(TEAMS.length < LEAGUE_TEAM_COUNT_REAL,
-    'הקובץ כבר מכיל את כל הקבוצות — עדכנו את הטסט הזה');
+test('כל 14 הקבוצות עלו — ההרכב המלא של 11 פעיל, לא מצב הדגמה', () => {
+  // הטסט הישן כאן תיעד במפורש שחסרות קבוצות ("★ אזהרה"). מאז עלו כל
+  // 14 קבוצות ליגת העל האמיתיות, וזה בדיוק הרגע שהאזהרה ניבאה: הטסט
+  // הזה מוודא שהמעבר למצב המלא קרה בפועל ולא נשאר תקוע ב"הדגמה".
+  assert.equal(TEAMS.length, LEAGUE_TEAM_COUNT_REAL,
+    `יש ${TEAMS.length} קבוצות, ליגת העל האמיתית מונה ${LEAGUE_TEAM_COUNT_REAL}`);
 
   const issue = checkLeagueCapacity(TEAMS.length, IL_PREMIER);
-  assert.ok(issue, 'עם פחות מ-11 קבוצות חייבת להיות שגיאה');
-  assert.equal(issue!.params.available, TEAMS.length);
-  assert.equal(issue!.params.missing, 11 - TEAMS.length);
+  assert.equal(issue, null, 'עם 14 קבוצות ומקסימום שחקן אחד לקבוצה, 11 שחקנים אפשריים בלי מצב הדגמה');
 });
 
-test('מצב הדגמה: ההרכב מוקטן אבל הכלל של שחקן-אחד-לקבוצה נשמר', () => {
+test('ההרכב המלא: 11 שחקנים, שחקן אחד מכל קבוצה, בלי מצב הדגמה', () => {
   const r = resolveRules(TEAMS.length);
-  assert.equal(r.isDemo, true);
+  assert.equal(r.isDemo, false);
   assert.equal(r.rules.constraints.maxPlayersPerTeam, 1);
-  assert.equal(r.rules.constraints.lineupSize, TEAMS.length);
+  assert.equal(r.rules.constraints.lineupSize, 11);
+});
+
+test('לכל קבוצה יש לפחות שוער אחד ומספיק שחקנים לכל עמדה', () => {
+  for (const t of TEAMS) {
+    const squad = PLAYERS.filter((p) => p.teamId === t.id);
+    assert.ok(squad.some((p) => p.position === 'GK'), `${t.nameHe}: אין שוער בסגל`);
+    assert.ok(squad.length >= 11, `${t.nameHe}: סגל קטן מדי (${squad.length})`);
+  }
 });
 
 test('אפשר להרכיב הרכב חוקי מהדאטה שקיים', () => {

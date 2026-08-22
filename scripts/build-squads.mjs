@@ -98,7 +98,7 @@ const teams = src.teams.map((t) => ({
   externalId: String(t.team_id),
   nameHe: t.name_he,
   nameEn: t.name_en,
-  short: SHORT[t.name_en] ?? t.name_he.split(' ').map((w) => w[0]).join(''),
+  short: t.short ?? SHORT[t.name_en] ?? t.name_he.split(' ').map((w) => w[0]).join(''),
   city: t.city ?? null,
   stadium: t.stadium ?? null,
 }));
@@ -112,6 +112,9 @@ const players = src.teams.flatMap((t) =>
     nameHe: p.name_he,
     nameEn: p.name_en,
     shirt: p.number ?? null,
+    // דרג ושווי משחק — אופציונליים במקור; ברירת מחדל ניטרלית אם חסר.
+    tier: p.tier ?? 3,
+    price: p.price ?? 1,
   })),
 );
 
@@ -141,6 +144,10 @@ export interface PlayerRow {
   nameHe: string;
   nameEn: string;
   shirt: number | null;
+  /** דרג 1 (עילית) עד 5 — לתצוגה וסינון בלבד, לא משפיע על הניקוד. */
+  tier: 1 | 2 | 3 | 4 | 5;
+  /** שווי משחק במיליוני יורו — לתצוגה בלבד, אין תקציב חוסם בגרסה זו. */
+  price: number;
 }
 
 export const LEAGUE = ${JSON.stringify(

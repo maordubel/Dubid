@@ -44,10 +44,12 @@ export interface SquadPickerProps {
   onClear: (slotNo: number) => void;
   onCaptain: (playerId: string) => void;
   onSubmit: () => void;
+  /** קיצור היריבה במחזור הנוכחי, לפי מזהה קבוצה — "נגד מי משחקים" בגיליון הבחירה. */
+  opponentShortByTeam?: Record<string, string>;
 }
 
 export function SquadPicker(props: SquadPickerProps) {
-  const { lineup, pool, teams, rules, onAssign, onClear, onCaptain, onSubmit } = props;
+  const { lineup, pool, teams, rules, onAssign, onClear, onCaptain, onSubmit, opponentShortByTeam } = props;
   const [picking, setPicking] = useState<LineupSlot | null>(null);
 
   const filled = lineup.slots.filter((s) => s.playerId).length;
@@ -131,6 +133,7 @@ export function SquadPicker(props: SquadPickerProps) {
           rules={rules}
           onClose={() => setPicking(null)}
           onSelect={(p) => { onAssign(picking.slotNo, p); setPicking(null); }}
+          opponentShortByTeam={opponentShortByTeam}
         />
       )}
     </div>
@@ -265,7 +268,7 @@ function SlotCard({
 /* ================================================================== */
 
 function PlayerSheet({
-  slot, pool, teamById, lineup, rules, onClose, onSelect,
+  slot, pool, teamById, lineup, rules, onClose, onSelect, opponentShortByTeam,
 }: {
   slot: LineupSlot;
   pool: PoolPlayer[];
@@ -274,6 +277,7 @@ function PlayerSheet({
   rules: RuleSet;
   onClose: () => void;
   onSelect: (p: PoolPlayer) => void;
+  opponentShortByTeam?: Record<string, string>;
 }) {
   const [query, setQuery] = useState('');
 
@@ -381,7 +385,9 @@ function PlayerSheet({
                         ? occupant
                           ? `${team?.name} · כבר בחרת את ${occupant}`
                           : `${team?.name} · ${block.reasonHe}`
-                        : team?.name}
+                        : opponentShortByTeam?.[p.teamId]
+                          ? `${team?.name} · נגד ${opponentShortByTeam[p.teamId]}`
+                          : team?.name}
                     </span>
                   </span>
                   {block.blocked ? (
