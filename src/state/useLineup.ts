@@ -11,7 +11,10 @@ import { createEmptyLineup } from '../lib/lineup.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import type { Lineup, Position } from '../lib/scoring/types.ts';
 
-const STORAGE_KEY = 'dubid.lineup.draft.v1';
+/** מפתח נפרד לכל הרכב (lineupId) — כדי ששתי טיוטות (מלא / 5 על 5) לא ידרסו זו את זו. */
+function storageKey(lineupId: string): string {
+  return `dubid.lineup.draft.${lineupId}.v1`;
+}
 
 export { createEmptyLineup };
 
@@ -27,7 +30,7 @@ export function useLineup(formation: string, rules: RuleSet, meta: {
   const [lineup, setLineup] = useState<Lineup>(() => {
     if (typeof localStorage !== 'undefined') {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(storageKey(meta.lineupId));
         if (raw) {
           const saved = JSON.parse(raw) as Lineup;
           // טיוטה של מערך אחר (או של מחזור אחר) לא רלוונטית
@@ -39,8 +42,8 @@ export function useLineup(formation: string, rules: RuleSet, meta: {
   });
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lineup)); } catch { /* מצב פרטי */ }
-  }, [lineup]);
+    try { localStorage.setItem(storageKey(meta.lineupId), JSON.stringify(lineup)); } catch { /* מצב פרטי */ }
+  }, [lineup, meta.lineupId]);
 
   const assign = useCallback((slotNo: number, player: AssignablePlayer) => {
     setLineup((prev) => ({

@@ -5,6 +5,9 @@
  * הזין (store.getResults), ומריץ עליהם את אותו `scoreLineup` בדיוק שה-
  * Edge Function הרשמי ירוץ עליו בעתיד. כל עוד התוצאות לא פורסמו, מוצג
  * מסך המתנה — כדי שאף אחד לא יראה דירוג חלקי/שגוי לפני שהאדמין סיים.
+ *
+ * שני מצבי המשחק (הרכב מלא / 5 על 5) חולקים אותה תשתית לגמרי —
+ * כל אחד רק עם ה-`RuleSet` שלו, ולכן שני לוחות דירוג נפרדים.
  */
 import { useMemo, useState, useEffect } from 'react';
 
@@ -15,12 +18,16 @@ import { listEntries, getResults, subscribeToStore, type LineupEntry } from '../
 import type { LineupScore } from '../lib/scoring/types.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 
-export function Leaderboard({ rules }: { rules: RuleSet }) {
+const MODE_LABEL: Record<'full' | 'five', string> = { full: 'הרכב מלא (11)', five: '5 על 5' };
+
+export function Leaderboard({ rulesByMode }: { rulesByMode: Record<'full' | 'five', RuleSet> }) {
   const [, tick] = useState(0);
   useEffect(() => subscribeToStore(() => tick((n) => n + 1)), []);
+  const [mode, setMode] = useState<'full' | 'five'>('full');
 
-  const entries = listEntries(GAMEWEEK.id);
+  const entries = listEntries(GAMEWEEK.id, mode);
   const results = getResults(GAMEWEEK.id);
+  const rules = rulesByMode[mode];
 
   const ranked = useMemo(() => {
     if (!results.published) return [];
@@ -49,6 +56,20 @@ export function Leaderboard({ rules }: { rules: RuleSet }) {
         </div>
       </div>
 
+      <div className="mb-4 flex gap-1.5 rounded-full bg-night-2 p-1">
+        {(['full', 'five'] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={`tap flex-1 rounded-full py-2 text-sm font-black transition-colors duration-200 ease-brand ${
+              mode === m ? 'bg-toto text-night' : 'text-chalk-dim'
+            }`}
+          >
+            {MODE_LABEL[m]}
+          </button>
+        ))}
+      </div>
+
       {!results.published ? (
         <div className="rounded-2xl border border-chalk/10 bg-night-2 px-4 py-8 text-center">
           <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-toto" />
@@ -59,7 +80,7 @@ export function Leaderboard({ rules }: { rules: RuleSet }) {
         </div>
       ) : ranked.length === 0 ? (
         <div className="rounded-2xl border border-chalk/10 bg-night-2 px-4 py-8 text-center text-sm text-chalk-dim">
-          עדיין אין הרכבים מוגשים למחזור הזה.
+          עדיין אין הרכבים מוגשים למחזור הזה במצב &quot;{MODE_LABEL[mode]}&quot;.
         </div>
       ) : (
         <ol className="space-y-2">

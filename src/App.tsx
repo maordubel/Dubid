@@ -19,13 +19,17 @@ import { AdminPanel } from './components/AdminPanel.tsx';
 
 import { LEAGUE, TEAMS, PLAYERS, shortName, TEAM_BY_ID } from './data/squads.ts';
 import { GAMEWEEK, OPPONENT_BY_TEAM } from './data/fixtures.ts';
-import { resolveRules } from './lib/scoring/rules.ts';
+import { resolveRules, DUBID_5X5, DUBID_5X5_BUDGET } from './lib/scoring/rules.ts';
 import { scoreLineup, rankGameweek } from './lib/scoring/engine.ts';
 import { checkLeagueCapacity, formatIssue } from './lib/scoring/validate.ts';
 import { useLineup } from './state/useLineup.ts';
 import { getResults, saveEntry, listEntries, subscribeToStore, type LineupEntry } from './lib/store.ts';
 import type { PlayerPerformance, TeamOutcome } from './lib/scoring/types.ts';
+import type { RuleSet } from './lib/scoring/rules.ts';
 import type { ShareCardData } from './lib/shareCard.ts';
+
+type Mode = 'full' | 'five';
+const MODE_LABEL: Record<Mode, string> = { full: 'הרכב מלא · 11', five: '5 על 5' };
 
 const SITE_URL = 'https://dubid.dubelteam.com';
 const USER_STORAGE_KEY = 'dubid.username.v1';
@@ -58,16 +62,20 @@ export function App() {
 
 function MainApp() {
   const [tab, setTab] = useState('home');
-  const [entry, setEntry] = useState<LineupEntry | null>(null);
+  const [mode, setMode] = useState<Mode>('full');
+  const [entryByMode, setEntryByMode] = useState<Record<Mode, LineupEntry | null>>({
+    full: null, five: null,
+  });
   const [, tick] = useState(0);
   useEffect(() => subscribeToStore(() => tick((n) => n + 1)), []);
 
   const resolved = useMemo(() => resolveRules(TEAMS.length), []);
-  const rules = resolved.rules;
-  const formation = rules.constraints.formationAllowed[0];
+  const fullRules = resolved.rules;
+  const fiveRules = DUBID_5X5;
+  const rulesByMode: Record<Mode, RuleSet> = { full: fullRules, five: fiveRules };
   const capacityIssue = useMemo(
-    () => checkLeagueCapacity(TEAMS.length, { ...rules, constraints: { ...rules.constraints, lineupSize: 11 } }),
-    [rules],
+    () => checkLeagueCapacity(TEAMS.length, { ...fullRules, constraints: { ...fullRules.constraints, lineupSize: 11 } }),
+    [fullRules],
   );
 
   const teams: TeamMeta[] = useMemo(
@@ -85,6 +93,7 @@ function MainApp() {
     })),
     [],
   );
+  const priceById = useMemo(() => new Map(PLAYERS.map((p) => [p.id, p.price])), []);
 
   /** "נגד מי משחקים" — לתצוגה בגיליון בחירת השחקן, לפי מחזור נוכחי. */
   const opponentShortByTeam: Record<string, string> = useMemo(() => {
@@ -109,9 +118,24 @@ function MainApp() {
     }
   });
 
-  const lu = useLineup(formation, rules, {
-    lineupId: 'draft-1', userId, gameweekId: GAMEWEEK.id,
+  // שני הרכבים חיים תמיד, במקביל — לא נוצרים/נהרסים עם מעבר טאב,
+  // כדי שהעבודה על אחד לא תימחק כשעוברים לשני ואז חוזרים.
+  const luFull = useLineup(fullRules.constraints.formationAllowed[0], fullRules, {
+    lineupId: 'draft-full', userId, gameweekId: GAMEWEEK.id,
   });
+  const luFive = useLineup(fiveRules.constraints.formationAllowed[0], fiveRules, {
+    lineupId: 'draft-5x5', userId, gameweekId: GAMEWEEK.id,
+  });
+  const lu = mode === 'full' ? luFull : luFive;
+  const rules = rulesByMode[mode];
+
+  const fiveCost = useMemo(
+    () => (mode === 'five'
+      ? lu.lineup.slots.reduce((sum, s) => sum + (s.playerId ? priceById.get(s.playerId) ?? 0 : 0), 0)
+      : 0),
+    [mode, lu.lineup, priceById],
+  );
+  const overBudget = mode === 'five' && fiveCost > DUBID_5X5_BUDGET;
 
   const results = getResults(GAMEWEEK.id);
 
@@ -120,19 +144,23 @@ function MainApp() {
   const screens: Record<string, ReactNode> = {
     home: (
       <HomeScreen
-        onStart={() => setTab('lineup')}
-        entriesCount={0}
+        onStart={(m) => { setMode(m); setTab('lineup'); }}
         published={results.published}
         onSeeLeaderboard={() => setTab('leaderboard')}
       />
     ),
     lineup: (
       <>
-        {resolved.isDemo && capacityIssue && (
-          <DemoBanner message={formatIssue(capacityIssue, 'he')} size={rules.constraints.lineupSize} />
+        <ModeSwitch mode={mode} onChange={setMode} />
+        {mode === 'full' && resolved.isDemo && capacityIssue && (
+          <DemoBanner message={formatIssue(capacityIssue, 'he')} size={fullRules.constraints.lineupSize} />
+        )}
+        {mode === 'five' && (
+          <BudgetBanner cost={fiveCost} budget={DUBID_5X5_BUDGET} overBudget={overBudget} />
         )}
         <FixturesStrip compact />
         <SquadPicker
+          key={mode}
           lineup={lu.lineup}
           pool={pool}
           teams={teams}
@@ -140,33 +168,37 @@ function MainApp() {
           onAssign={(slotNo, player) => lu.assign(slotNo, player)}
           onClear={lu.clear}
           onCaptain={lu.setCaptain}
-          onSubmit={() => setShowSaveModal(true)}
+          onSubmit={() => { if (!overBudget) setShowSaveModal(true); }}
           opponentShortByTeam={opponentShortByTeam}
         />
         {showSaveModal && (
           <SaveEntryModal
             onCancel={() => setShowSaveModal(false)}
             onSaved={(saved) => {
-              setEntry(saved);
+              setEntryByMode((prev) => ({ ...prev, [mode]: saved }));
               setShowSaveModal(false);
               setTab('card');
             }}
+            mode={mode}
             lineup={lu.lineup}
           />
         )}
       </>
     ),
     card: (
-      <CardScreen
-        lineup={lu.lineup}
-        pool={pool}
-        teams={teams}
-        rules={rules}
-        ready={lu.isComplete}
-        entry={entry}
-      />
+      <>
+        <ModeSwitch mode={mode} onChange={setMode} />
+        <CardScreen
+          lineup={lu.lineup}
+          pool={pool}
+          teams={teams}
+          rules={rules}
+          ready={lu.isComplete}
+          entry={entryByMode[mode]}
+        />
+      </>
     ),
-    leaderboard: <Leaderboard rules={rules} />,
+    leaderboard: <Leaderboard rulesByMode={rulesByMode} />,
     rules: <RulesScreen />,
   };
 
@@ -180,7 +212,7 @@ function MainApp() {
           title="דוביד שוויצר"
           subtitle={
             <>
-              {LEAGUE.nameHe} · {GAMEWEEK.label}
+              {LEAGUE.nameHe} · {GAMEWEEK.label} · {MODE_LABEL[mode]}
             </>
           }
           right={
@@ -200,14 +232,53 @@ function MainApp() {
 }
 
 /* ================================================================== */
+/* מתג מצב משחק — הרכב מלא / 5 על 5, אותה תשתית משני צדי המתג          */
+/* ================================================================== */
+
+function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
+  return (
+    <div className="mx-3 mt-3 flex gap-1.5 rounded-full bg-night-2 p-1">
+      {(['full', 'five'] as const).map((m) => (
+        <button
+          key={m}
+          onClick={() => onChange(m)}
+          className={`tap flex-1 rounded-full py-2 text-sm font-black transition-colors duration-200 ease-brand ${
+            mode === m ? 'bg-toto text-night' : 'text-chalk-dim'
+          }`}
+        >
+          {MODE_LABEL[m]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BudgetBanner({ cost, budget, overBudget }: { cost: number; budget: number; overBudget: boolean }) {
+  return (
+    <div className={`mx-3 mt-3 flex items-center justify-between rounded-2xl border px-4 py-3 ${
+      overBudget ? 'border-flare/40 bg-flare/10' : 'border-chalk/10 bg-night-2'
+    }`}>
+      <div>
+        <div className="text-sm font-black text-chalk">תקציב 5 על 5</div>
+        <div className="text-[11px] text-chalk-dim">
+          שוער + 4 שחקני שדה · שחקן אחד מכל קבוצה · מערך 2-1-1 או 1-2-1
+        </div>
+      </div>
+      <div className={`num text-lg font-black ${overBudget ? 'text-flare' : 'text-toto'}`}>
+        {cost}<span className="text-xs text-chalk-dim">/{budget}M</span>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
 /* עמוד הבית                                                            */
 /* ================================================================== */
 
 function HomeScreen({
   onStart, published, onSeeLeaderboard,
 }: {
-  onStart: () => void;
-  entriesCount: number;
+  onStart: (mode: Mode) => void;
   published: boolean;
   onSeeLeaderboard: () => void;
 }) {
@@ -222,13 +293,26 @@ function HomeScreen({
           בנו הרכב מ-14 קבוצות הליגה, בחרו קפטן שמכפיל פי 3, וצברו נקודות
           לפי מה שקורה באמת על המגרש ב{LEAGUE.nameHe}.
         </p>
-        <button
-          onClick={onStart}
-          className="tap mt-5 rounded-full bg-toto px-6 py-3 font-poster text-lg text-night
-                     transition-transform duration-200 ease-brand active:scale-[.98]"
-        >
-          בניית ההרכב שלי
-        </button>
+        <div className="mt-5 flex flex-wrap gap-2.5">
+          <button
+            onClick={() => onStart('full')}
+            className="tap rounded-full bg-toto px-6 py-3 font-poster text-lg text-night
+                       transition-transform duration-200 ease-brand active:scale-[.98]"
+          >
+            הרכב מלא · 11
+          </button>
+          <button
+            onClick={() => onStart('five')}
+            className="tap rounded-full border-2 border-toto px-6 py-3 font-poster text-lg text-toto
+                       transition-transform duration-200 ease-brand active:scale-[.98]"
+          >
+            5 על 5 · תקציב 15M
+          </button>
+        </div>
+        <p className="mt-3 text-[11px] text-chalk-dim">
+          5 על 5 הוא הפורמט המהיר: שוער + 4 שחקנים, תקציב סגור, ראש בראש
+          מהיר על ליגת החכמים.
+        </p>
       </section>
 
       <FixturesStrip />
@@ -242,7 +326,7 @@ function HomeScreen({
         </div>
         <p className="mt-1 text-sm text-chalk-dim">
           {published
-            ? 'המחזור פורסם — היכנסו לדירוג לראות איפה אתם עומדים.'
+            ? 'המחזור פורסם — היכנסו לדירוג לראות איפה אתם עומדים, בשני הפורמטים.'
             : 'הדירוג ייפתח ברגע שהמחזור הנוכחי יסתיים ותוצאותיו יפורסמו.'}
         </p>
       </section>
@@ -282,9 +366,10 @@ function DemoBanner({ message, size }: { message: string; size: number }) {
 /* ================================================================== */
 
 function SaveEntryModal({
-  lineup, onSaved, onCancel,
+  lineup, mode, onSaved, onCancel,
 }: {
-  lineup: Parameters<typeof saveEntry>[2];
+  lineup: Parameters<typeof saveEntry>[3];
+  mode: Mode;
   onSaved: (entry: LineupEntry) => void;
   onCancel: () => void;
 }) {
@@ -300,15 +385,15 @@ function SaveEntryModal({
           e.preventDefault();
           if (!name.trim()) return;
           try { localStorage.setItem('dubid.displayname.v1', name.trim()); } catch { /* ignore */ }
-          const saved = saveEntry(name, GAMEWEEK.id, lineup);
+          const saved = saveEntry(name, GAMEWEEK.id, mode, lineup);
           onSaved(saved);
         }}
       >
         <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-toto" />
         <h2 className="text-center font-display text-lg font-black">כמעט סיימנו</h2>
         <p className="mt-1 text-center text-xs text-chalk-dim">
-          בחרו שם תצוגה לדירוג. נייצר לכם קוד קסם לשחזור ההרכב במכשיר אחר —
-          בלי הרשמה, בלי סיסמה.
+          בחרו שם תצוגה לדירוג ({MODE_LABEL[mode]}). נייצר לכם קוד קסם לשחזור
+          ההרכב במכשיר אחר — בלי הרשמה, בלי סיסמה.
         </p>
         <input
           autoFocus
@@ -368,7 +453,7 @@ function CardScreen({
     let rank = 0;
     let totalPlayers = 0;
     if (hasRealResults && entry) {
-      const others = listEntries(GAMEWEEK.id);
+      const others = listEntries(GAMEWEEK.id, entry.mode);
       const pairs = others.flatMap((e) => {
         try {
           return [{ id: e.id, score: scoreLineup(e.lineup, results.performances, results.outcomes, rules, { validate: false }) }];

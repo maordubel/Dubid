@@ -186,7 +186,28 @@ export const EN_PREMIER: RuleSet = {
   },
 };
 
-/** טעינה מ-JSONB של scoring_rulesets. מיזוג עמוק עם ברירות המחדל. */
+/**
+ * דוביד 5 על 5 — הפורמט המהיר מהמשחק המקורי, חי עכשיו בתוך אותו מנוע.
+ * 5 שחקנים (שוער + 4 שחקני שדה), תקציב 15 מיליון יורו, שחקן אחד מכל
+ * קבוצה, שני מערכים בדיוק כמו במקור: 2-1-1 ו-1-2-1 (הגנה-קישור-התקפה,
+ * שוער תמיד בנפרד). אותו `scoreLineup`, אותו `validateLineup` —
+ * הפורמט הקטן לא צריך קוד חדש, רק ערכים אחרים.
+ */
+export const DUBID_5X5: RuleSet = {
+  ...IL_PREMIER,
+  version: 1,
+  constraints: {
+    ...IL_PREMIER.constraints,
+    lineupSize: 5,
+    maxPlayersPerTeam: 1,
+    formationAllowed: ['2-1-1', '1-2-1'],
+  },
+};
+
+/** תקציב 5 על 5, במיליוני יורו — אילוץ UI, לא חלק מהמנוע הגנרי. */
+export const DUBID_5X5_BUDGET = 15;
+
+
 export function ruleSetFromJson(
   data: Partial<RuleSet> & Record<string, unknown>,
   base: RuleSet = IL_PREMIER,

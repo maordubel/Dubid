@@ -24,6 +24,8 @@ export interface LineupEntry {
   magicCode: string;
   displayName: string;
   gameweekId: string;
+  /** באיזה פורמט הוגש ההרכב — כדי שהדירוג יציג כל מצב לחוד. */
+  mode: 'full' | 'five';
   lineup: Lineup;
   submittedAt: string;
 }
@@ -88,14 +90,17 @@ export function makeMagicCode(): string {
 /* הרכבים שהוגשו                                                       */
 /* ------------------------------------------------------------------ */
 
-export function listEntries(gameweekId?: string): LineupEntry[] {
+export function listEntries(gameweekId?: string, mode?: 'full' | 'five'): LineupEntry[] {
   const all = read<LineupEntry[]>(KEYS.entries, []);
-  return gameweekId ? all.filter((e) => e.gameweekId === gameweekId) : all;
+  return all.filter(
+    (e) => (!gameweekId || e.gameweekId === gameweekId) && (!mode || e.mode === mode),
+  );
 }
 
 export function saveEntry(
   displayName: string,
   gameweekId: string,
+  mode: 'full' | 'five',
   lineup: Lineup,
 ): LineupEntry {
   const all = read<LineupEntry[]>(KEYS.entries, []);
@@ -104,6 +109,7 @@ export function saveEntry(
     magicCode: makeMagicCode(),
     displayName: displayName.trim() || 'אלמוני',
     gameweekId,
+    mode,
     lineup,
     submittedAt: new Date().toISOString(),
   };
@@ -176,7 +182,7 @@ export function setPublished(gameweekId: string, published: boolean) {
 /* להחלפה ב-auth אמיתי (Supabase) לפני שהאתר נגיש לציבור הרחב.          */
 /* ------------------------------------------------------------------ */
 
-const ADMIN_PIN = 'dubid2027';
+const ADMIN_PIN = 'hapoelTA14!';
 
 export function tryAdminLogin(pin: string): boolean {
   const ok = pin.trim() === ADMIN_PIN;
