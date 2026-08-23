@@ -16,6 +16,8 @@ import { ShareCard } from './components/ShareCard.tsx';
 import { FixturesStrip } from './components/FixturesStrip.tsx';
 import { Leaderboard } from './components/Leaderboard.tsx';
 import { AdminPanel } from './components/AdminPanel.tsx';
+import { LockedLineup } from './components/LockedLineup.tsx';
+import { GameStatusBadge } from './components/GameStatusBadge.tsx';
 
 import { LEAGUE, TEAMS, PLAYERS, shortName, TEAM_BY_ID } from './data/squads.ts';
 import { GAMEWEEK, OPPONENT_BY_TEAM } from './data/fixtures.ts';
@@ -23,7 +25,10 @@ import { resolveRules, DUBID_5X5, DUBID_5X5_BUDGET } from './lib/scoring/rules.t
 import { scoreLineup, rankGameweek } from './lib/scoring/engine.ts';
 import { checkLeagueCapacity, formatIssue } from './lib/scoring/validate.ts';
 import { useLineup } from './state/useLineup.ts';
-import { getResults, saveEntry, listEntries, subscribeToStore, type LineupEntry } from './lib/store.ts';
+import {
+  getResults, saveEntry, listEntries, findMyEntry, deleteEntry, subscribeToStore, type LineupEntry,
+} from './lib/store.ts';
+import { computeGameStatus, STATUS_ACTION, type GameStatus } from './lib/gameStatus.ts';
 import type { PlayerPerformance, TeamOutcome } from './lib/scoring/types.ts';
 import type { RuleSet } from './lib/scoring/rules.ts';
 import type { ShareCardData } from './lib/shareCard.ts';
@@ -63,9 +68,6 @@ export function App() {
 function MainApp() {
   const [tab, setTab] = useState('home');
   const [mode, setMode] = useState<Mode>('full');
-  const [entryByMode, setEntryByMode] = useState<Record<Mode, LineupEntry | null>>({
-    full: null, five: null,
-  });
   const [, tick] = useState(0);
   useEffect(() => subscribeToStore(() => tick((n) => n + 1)), []);
 
@@ -126,7 +128,8 @@ function MainApp() {
   const luFive = useLineup(fiveRules.constraints.formationAllowed[0], fiveRules, {
     lineupId: 'draft-5x5', userId, gameweekId: GAMEWEEK.id,
   });
-  const lu = mode === 'full' ? luFull : luFive;
+  const luByMode = { full: luFull, five: luFive };
+  const lu = luByMode[mode];
   const rules = rulesByMode[mode];
 
   const fiveCost = useMemo(
@@ -138,13 +141,39 @@ function MainApp() {
   const overBudget = mode === 'five' && fiveCost > DUBID_5X5_BUDGET;
 
   const results = getResults(GAMEWEEK.id);
+  const hasRealResults = results.published && Object.keys(results.performances).length > 0;
+
+  // ★ שכבת ה"נעילה": יש הגשה רשמית או שאין. כל עוד אין, המסך עורך את
+  // הטיוטה. ברגע שיש — SquadPicker לא מוצג יותר, LockedLineup כן.
+  const entryFull = findMyEntry(GAMEWEEK.id, 'full', userId);
+  const entryFive = findMyEntry(GAMEWEEK.id, 'five', userId);
+  const entryByMode: Record<Mode, LineupEntry | undefined> = { full: entryFull, five: entryFive };
+  const entry = entryByMode[mode];
+
+  const statusByMode: Record<Mode, GameStatus> = {
+    full: computeGameStatus({
+      hasSubmission: !!entryFull, resultsPublished: results.published,
+      filled: luFull.filled, isComplete: luFull.isComplete,
+    }),
+    five: computeGameStatus({
+      hasSubmission: !!entryFive, resultsPublished: results.published,
+      filled: luFive.filled, isComplete: luFive.isComplete,
+    }),
+  };
+  const status = statusByMode[mode];
 
   const [showSaveModal, setShowSaveModal] = useState(false);
+
+  const goToMode = (m: Mode) => {
+    setMode(m);
+    setTab(statusByMode[m] === 'finished' ? 'card' : 'lineup');
+  };
 
   const screens: Record<string, ReactNode> = {
     home: (
       <HomeScreen
-        onStart={(m) => { setMode(m); setTab('lineup'); }}
+        statusByMode={statusByMode}
+        onStart={goToMode}
         published={results.published}
         onSeeLeaderboard={() => setTab('leaderboard')}
       />
@@ -152,35 +181,53 @@ function MainApp() {
     lineup: (
       <>
         <ModeSwitch mode={mode} onChange={setMode} />
-        {mode === 'full' && resolved.isDemo && capacityIssue && (
-          <DemoBanner message={formatIssue(capacityIssue, 'he')} size={fullRules.constraints.lineupSize} />
+        {entry ? (
+          <LockedLineup
+            lineup={entry.lineup}
+            pool={pool}
+            teams={teams}
+            score={hasRealResults
+              ? scoreLineup(entry.lineup, results.performances, results.outcomes, rules, { validate: false })
+              : undefined}
+            gameweekLabel={GAMEWEEK.label}
+            submittedAt={entry.submittedAt}
+            onUnlock={!results.published ? () => {
+              if (window.confirm('לבטל את ההגשה ולחזור לעריכת ההרכב? ההגשה הנוכחית תימחק.')) {
+                deleteEntry(entry.id);
+              }
+            } : undefined}
+            onViewCard={hasRealResults ? () => setTab('card') : undefined}
+          />
+        ) : (
+          <>
+            {mode === 'full' && resolved.isDemo && capacityIssue && (
+              <DemoBanner message={formatIssue(capacityIssue, 'he')} size={fullRules.constraints.lineupSize} />
+            )}
+            {mode === 'five' && (
+              <BudgetBanner cost={fiveCost} budget={DUBID_5X5_BUDGET} overBudget={overBudget} />
+            )}
+            <FixturesStrip compact />
+            <SquadPicker
+              key={mode}
+              lineup={lu.lineup}
+              pool={pool}
+              teams={teams}
+              rules={rules}
+              onAssign={(slotNo, player) => lu.assign(slotNo, player)}
+              onClear={lu.clear}
+              onCaptain={lu.setCaptain}
+              onSubmit={() => { if (!overBudget) setShowSaveModal(true); }}
+              opponentShortByTeam={opponentShortByTeam}
+              pricing={mode === 'five'}
+            />
+          </>
         )}
-        {mode === 'five' && (
-          <BudgetBanner cost={fiveCost} budget={DUBID_5X5_BUDGET} overBudget={overBudget} />
-        )}
-        <FixturesStrip compact />
-        <SquadPicker
-          key={mode}
-          lineup={lu.lineup}
-          pool={pool}
-          teams={teams}
-          rules={rules}
-          onAssign={(slotNo, player) => lu.assign(slotNo, player)}
-          onClear={lu.clear}
-          onCaptain={lu.setCaptain}
-          onSubmit={() => { if (!overBudget) setShowSaveModal(true); }}
-          opponentShortByTeam={opponentShortByTeam}
-          pricing={mode === 'five'}
-        />
         {showSaveModal && (
           <SaveEntryModal
             onCancel={() => setShowSaveModal(false)}
-            onSaved={(saved) => {
-              setEntryByMode((prev) => ({ ...prev, [mode]: saved }));
-              setShowSaveModal(false);
-              setTab('card');
-            }}
+            onSaved={() => { setShowSaveModal(false); setTab('card'); }}
             mode={mode}
+            userId={userId}
             lineup={lu.lineup}
           />
         )}
@@ -190,12 +237,12 @@ function MainApp() {
       <>
         <ModeSwitch mode={mode} onChange={setMode} />
         <CardScreen
-          lineup={lu.lineup}
+          lineup={entry ? entry.lineup : lu.lineup}
           pool={pool}
           teams={teams}
           rules={rules}
-          ready={lu.isComplete}
-          entry={entryByMode[mode]}
+          ready={entry ? true : lu.isComplete}
+          entry={entry}
         />
       </>
     ),
@@ -212,9 +259,10 @@ function MainApp() {
         <AppHeader
           title="דוביד שוויצר"
           subtitle={
-            <>
-              {LEAGUE.nameHe} · {GAMEWEEK.label} · {MODE_LABEL[mode]}
-            </>
+            <span className="flex items-center gap-2">
+              <span>{LEAGUE.nameHe} · {GAMEWEEK.label} · {MODE_LABEL[mode]}</span>
+              {tab !== 'home' && <GameStatusBadge status={status} />}
+            </span>
           }
           right={
             <div className="text-end">
@@ -277,46 +325,45 @@ function BudgetBanner({ cost, budget, overBudget }: { cost: number; budget: numb
 /* ================================================================== */
 
 function HomeScreen({
-  onStart, published, onSeeLeaderboard,
+  onStart, published, onSeeLeaderboard, statusByMode,
 }: {
   onStart: (mode: Mode) => void;
   published: boolean;
   onSeeLeaderboard: () => void;
+  statusByMode: Record<Mode, GameStatus>;
 }) {
   return (
     <div className="mx-auto max-w-2xl px-4 pb-10 pt-2">
-      <section className="mt-2 rounded-3xl border border-toto/30 bg-gradient-to-b from-toto/15 to-transparent p-5">
-        <div className="mb-2 text-xs font-black tracking-wide text-toto">DUBID · דוביד שוויצר</div>
-        <h1 className="font-display text-3xl font-black leading-tight">
-          פנטזי ליגת העל.<br />שחקן אחד מכל קבוצה. זהו הכלל.
-        </h1>
-        <p className="mt-2 max-w-md text-sm text-chalk-2">
-          בנו הרכב מ-14 קבוצות הליגה, בחרו קפטן שמכפיל פי 3, וצברו נקודות
-          לפי מה שקורה באמת על המגרש ב{LEAGUE.nameHe}.
+      <div className="mt-2 text-center">
+        <div className="text-xs font-black tracking-[0.3em] text-toto">DUBID</div>
+        <h1 className="mt-1 font-display text-3xl font-black leading-tight">בחרו את המשחק שלכם</h1>
+        <p className="mt-1.5 text-sm text-chalk-dim">
+          {LEAGUE.nameHe} · {GAMEWEEK.label} · שני פורמטים, מנוע ניקוד אחד
         </p>
-        <div className="mt-5 flex flex-wrap gap-2.5">
-          <button
-            onClick={() => onStart('full')}
-            className="tap rounded-full bg-toto px-6 py-3 font-poster text-lg text-night
-                       transition-transform duration-200 ease-brand active:scale-[.98]"
-          >
-            הרכב מלא · 11
-          </button>
-          <button
-            onClick={() => onStart('five')}
-            className="tap rounded-full border-2 border-toto px-6 py-3 font-poster text-lg text-toto
-                       transition-transform duration-200 ease-brand active:scale-[.98]"
-          >
-            5 על 5 · תקציב 15M
-          </button>
-        </div>
-        <p className="mt-3 text-[11px] text-chalk-dim">
-          5 על 5 הוא הפורמט המהיר: שוער + 4 שחקנים, תקציב סגור, ראש בראש
-          מהיר על ליגת החכמים.
-        </p>
-      </section>
+      </div>
 
-      <FixturesStrip />
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <GameCard
+          emoji="⚡"
+          title="DUBID 5"
+          subtitle="5 שחקנים · תקציב 15M€"
+          description="שוער + 4 שחקנים, מערך חופשי, תקציב סגור — פורמט מהיר לראש-בראש."
+          status={statusByMode.five}
+          onPlay={() => onStart('five')}
+        />
+        <GameCard
+          emoji="👑"
+          title="DUBID 11"
+          subtitle="ה-XI האולטימטיבי שלכם"
+          description="הרכב מלא מ-14 קבוצות הליגה, שחקן אחד מכל קבוצה, קפטן שמכפיל פי 3."
+          status={statusByMode.full}
+          onPlay={() => onStart('full')}
+        />
+      </div>
+
+      <div className="mt-6">
+        <FixturesStrip />
+      </div>
 
       <section className="mt-6 rounded-2xl border border-chalk/10 bg-night-2 p-4">
         <div className="flex items-center justify-between">
@@ -338,6 +385,38 @@ function HomeScreen({
           כניסה ללוח הניהול
         </a>
       </p>
+    </div>
+  );
+}
+
+function GameCard({
+  emoji, title, subtitle, description, status, onPlay,
+}: {
+  emoji: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  status: GameStatus;
+  onPlay: () => void;
+}) {
+  return (
+    <div className="flex flex-col rounded-3xl border border-chalk/10 bg-night-2 p-5">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-2xl leading-none">{emoji}</div>
+          <h2 className="mt-2 font-display text-2xl font-black tracking-tight">{title}</h2>
+          <div dir="ltr" className="mt-0.5 text-end text-xs font-bold text-chalk-dim">{subtitle}</div>
+        </div>
+        <GameStatusBadge status={status} />
+      </div>
+      <p className="mt-3 flex-1 text-sm text-chalk-2">{description}</p>
+      <button
+        onClick={onPlay}
+        className="tap mt-4 h-12 w-full rounded-full bg-toto font-poster text-lg text-night
+                   transition-transform duration-200 ease-brand active:scale-[.98]"
+      >
+        {STATUS_ACTION[status]}
+      </button>
     </div>
   );
 }
@@ -367,10 +446,11 @@ function DemoBanner({ message, size }: { message: string; size: number }) {
 /* ================================================================== */
 
 function SaveEntryModal({
-  lineup, mode, onSaved, onCancel,
+  lineup, mode, userId, onSaved, onCancel,
 }: {
-  lineup: Parameters<typeof saveEntry>[3];
+  lineup: Parameters<typeof saveEntry>[4];
   mode: Mode;
+  userId: string;
   onSaved: (entry: LineupEntry) => void;
   onCancel: () => void;
 }) {
@@ -386,15 +466,15 @@ function SaveEntryModal({
           e.preventDefault();
           if (!name.trim()) return;
           try { localStorage.setItem('dubid.displayname.v1', name.trim()); } catch { /* ignore */ }
-          const saved = saveEntry(name, GAMEWEEK.id, mode, lineup);
+          const saved = saveEntry(name, GAMEWEEK.id, mode, userId, lineup);
           onSaved(saved);
         }}
       >
         <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-toto" />
         <h2 className="text-center font-display text-lg font-black">כמעט סיימנו</h2>
         <p className="mt-1 text-center text-xs text-chalk-dim">
-          בחרו שם תצוגה לדירוג ({MODE_LABEL[mode]}). נייצר לכם קוד קסם לשחזור
-          ההרכב במכשיר אחר — בלי הרשמה, בלי סיסמה.
+          בחרו שם תצוגה לדירוג ({MODE_LABEL[mode]}). לאחר ההגשה ההרכב
+          ננעל למחזור — עריכה נוספת תדרוש ביטול הגשה מפורש.
         </p>
         <input
           autoFocus
@@ -433,7 +513,7 @@ function CardScreen({
   teams: TeamMeta[];
   rules: ReturnType<typeof resolveRules>['rules'];
   ready: boolean;
-  entry: LineupEntry | null;
+  entry: LineupEntry | undefined;
 }) {
   const [showDemo, setShowDemo] = useState(false);
   const results = getResults(GAMEWEEK.id);

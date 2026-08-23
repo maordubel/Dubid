@@ -26,6 +26,8 @@ export interface LineupEntry {
   gameweekId: string;
   /** באיזה פורמט הוגש ההרכב — כדי שהדירוג יציג כל מצב לחוד. */
   mode: 'full' | 'five';
+  /** מזהה מכשיר/משתמש מקומי — כדי שנוכל לשחזר "זו ההגשה שלי" אחרי רענון. */
+  userId: string;
   lineup: Lineup;
   submittedAt: string;
 }
@@ -97,10 +99,20 @@ export function listEntries(gameweekId?: string, mode?: 'full' | 'five'): Lineup
   );
 }
 
+/**
+ * ★ ההגשה הרשמית של המשתמש הזה, למצב ולמחזור הזה — אם קיימת.
+ * זה מה שהופך "טיוטה" ל"הרכב נעול": ברגע שיש הגשה, מסך ההרכב
+ * מפסיק להיות בר-עריכה ומציג את הלוח הנעול במקום ה-SquadPicker.
+ */
+export function findMyEntry(gameweekId: string, mode: 'full' | 'five', userId: string): LineupEntry | undefined {
+  return listEntries(gameweekId, mode).find((e) => e.userId === userId);
+}
+
 export function saveEntry(
   displayName: string,
   gameweekId: string,
   mode: 'full' | 'five',
+  userId: string,
   lineup: Lineup,
 ): LineupEntry {
   const all = read<LineupEntry[]>(KEYS.entries, []);
@@ -110,11 +122,21 @@ export function saveEntry(
     displayName: displayName.trim() || 'אלמוני',
     gameweekId,
     mode,
+    userId,
     lineup,
     submittedAt: new Date().toISOString(),
   };
   write(KEYS.entries, [...all, entry]);
   return entry;
+}
+
+/**
+ * ביטול הגשה — "פותח נעילה" וחוזר לטיוטה. מותר רק כל עוד תוצאות
+ * המחזור לא פורסמו (נאכף ב-UI, ב-`App.tsx`, לא כאן).
+ */
+export function deleteEntry(entryId: string) {
+  const all = read<LineupEntry[]>(KEYS.entries, []);
+  write(KEYS.entries, all.filter((e) => e.id !== entryId));
 }
 
 export function findEntry(displayName: string, magicCode: string): LineupEntry | undefined {
