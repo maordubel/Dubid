@@ -61,6 +61,25 @@ def norm_name(s):
     s = s.replace("־", " ").replace("-", " ")
     return re.sub(r"\s+", " ", s).strip()
 
+# ★ נרמול הוא כלי התאמה, לא כלי תצוגה.
+# norm_team מסיר גרשיים כדי ש-"בית\"ר" ו-"ביתר" ייחשבו זהים, אבל השם
+# שנשמר למשתמש חייב להישאר מנוקד נכון. מי שיש לו כתיב רשמי — כאן.
+DISPLAY_NAME = {
+    "ביתר ירושלים": 'בית"ר ירושלים',
+}
+
+def display_team(normalized):
+    return DISPLAY_NAME.get(normalized, normalized)
+
+
+# --- שחקנים שמדורגים בקובץ אך חסרים מגיליון הסגלים ---------------
+# מתווספים במפורש, עם החלטה מתועדת של המשתמש. לא ניחוש.
+MANUAL_PLAYERS = [
+    {"team": "ביתר ירושלים", "name": "פטריק טוומאסי", "pos": "FWD",
+     "number": None, "nat": "גאנה", "captain": False,
+     "note": "מדורג בקובץ העבודה; לא הופיע בגיליון הסגלים. שויך לפי החלטת המוצר."},
+]
+
 # עמדות: הגיליון משתמש בשפת כדורגל, לא בקודים
 POS = {
     "שוער": "GK",
@@ -159,6 +178,18 @@ def new_pid(tid):
     used_pid.add(base)
     return base
 
+# ---------- שחקנים שנוספו ידנית ----------
+manual_added = []
+for m in MANUAL_PLAYERS:
+    bucket = squads.setdefault(norm_team(m["team"]), [])
+    if any(p["name"] == norm_name(m["name"]) for p in bucket):
+        continue
+    bucket.append({
+        "name": norm_name(m["name"]), "name_raw": m["name"], "pos": m["pos"],
+        "number": m["number"], "nat": m["nat"], "captain": m["captain"],
+    })
+    manual_added.append((m["team"], m["name"], m["note"]))
+
 # ---------- הרכבה ----------
 used_ratings, fallback_used = set(), []
 teams_out, report = [], {"matched": 0, "unrated": 0, "name_only": 0, "skipped": skipped, "recovered": recovered}
@@ -200,7 +231,7 @@ for team_he, players in squads.items():
             "nationality": p["nat"], "is_club_captain": p["captain"],
         })
     teams_out.append({
-        "team_id": tid, "name_he": team_he,
+        "team_id": tid, "name_he": display_team(team_he),
         "name_en": meta.get("name_en", "TBD"), "short": meta.get("short", team_he[:3]),
         "city": meta.get("city"), "stadium": meta.get("stadium"),
         "players": out,
@@ -214,6 +245,7 @@ print(f"teams={len(teams_out)} players={sum(len(t['players']) for t in teams_out
 print(f"matched={report['matched']} (name-only fallback={report['name_only']}) unrated={report['unrated']}")
 print("recovered rows:", report["recovered"])
 print("script-fixed names:", fixed_names)
+print("manually added:", manual_added)
 print("skipped rows:", report["skipped"])
 print("name-only fallbacks:", fallback_used)
 _orphans = [f'{k[1]} ({k[0]})' for k in ratings if k not in used_ratings]

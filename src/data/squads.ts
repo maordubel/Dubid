@@ -2,7 +2,7 @@
  * src/data/squads.ts — נוצר אוטומטית מ-scripts/squads.source.json.
  * אל תערכו ידנית. עדכנו את ה-JSON והריצו: npm run build:squads
  *
- * נוצר: מ-14 קבוצות · 350 שחקנים · עונת 2026/2027
+ * נוצר: מ-14 קבוצות · 351 שחקנים · עונת 2026/2027
  */
 import type { Position } from '../lib/scoring/types.ts';
 
@@ -90,7 +90,7 @@ export const TEAMS: TeamRow[] = [
   {
     "id": "T5",
     "externalId": "5",
-    "nameHe": "ביתר ירושלים",
+    "nameHe": "בית\"ר ירושלים",
     "nameEn": "Beitar Jerusalem",
     "short": "בי״ר",
     "city": "ירושלים",
@@ -181,8 +181,8 @@ export const TEAMS: TeamRow[] = [
 
 export const PLAYERS: PlayerRow[] = [
   {
-    "id": "P128",
-    "externalId": "128",
+    "id": "P101",
+    "externalId": "101",
     "teamId": "T1",
     "position": "GK",
     "nameHe": "אופיר מרציאנו",
@@ -196,8 +196,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P129",
-    "externalId": "129",
+    "id": "P102",
+    "externalId": "102",
     "teamId": "T1",
     "position": "DEF",
     "nameHe": "גיא מזרחי",
@@ -211,8 +211,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P130",
-    "externalId": "130",
+    "id": "P103",
+    "externalId": "103",
     "teamId": "T1",
     "position": "DEF",
     "nameHe": "מתן בלטקסה",
@@ -226,8 +226,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P131",
-    "externalId": "131",
+    "id": "P104",
+    "externalId": "104",
     "teamId": "T1",
     "position": "DEF",
     "nameHe": "מיגל ויטור",
@@ -241,8 +241,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": true
   },
   {
-    "id": "P132",
-    "externalId": "132",
+    "id": "P105",
+    "externalId": "105",
     "teamId": "T1",
     "position": "DEF",
     "nameHe": "פדרו אמאדור",
@@ -256,8 +256,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P133",
-    "externalId": "133",
+    "id": "P106",
+    "externalId": "106",
     "teamId": "T1",
     "position": "MID",
     "nameHe": "אליאל פרץ",
@@ -271,8 +271,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P134",
-    "externalId": "134",
+    "id": "P107",
+    "externalId": "107",
     "teamId": "T1",
     "position": "MID",
     "nameHe": "חמודי כנעאן",
@@ -286,8 +286,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P135",
-    "externalId": "135",
+    "id": "P108",
+    "externalId": "108",
     "teamId": "T1",
     "position": "FWD",
     "nameHe": "זאהי אחמד",
@@ -301,8 +301,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P136",
-    "externalId": "136",
+    "id": "P109",
+    "externalId": "109",
     "teamId": "T1",
     "position": "MID",
     "nameHe": "דן ביטון",
@@ -316,8 +316,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P137",
-    "externalId": "137",
+    "id": "P110",
+    "externalId": "110",
     "teamId": "T1",
     "position": "MID",
     "nameHe": "אמיר גנאח",
@@ -331,8 +331,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P138",
-    "externalId": "138",
+    "id": "P111",
+    "externalId": "111",
     "teamId": "T1",
     "position": "DEF",
     "nameHe": "איתי רוטמן",
@@ -346,8 +346,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P139",
-    "externalId": "139",
+    "id": "P112",
+    "externalId": "112",
     "teamId": "T1",
     "position": "DEF",
     "nameHe": "אופיר דוידזאדה",
@@ -361,8 +361,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P140",
-    "externalId": "140",
+    "id": "P113",
+    "externalId": "113",
     "teamId": "T1",
     "position": "FWD",
     "nameHe": "יונס מלדה",
@@ -376,8 +376,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P141",
-    "externalId": "141",
+    "id": "P114",
+    "externalId": "114",
     "teamId": "T1",
     "position": "DEF",
     "nameHe": "רועי ליוי",
@@ -391,8 +391,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P142",
-    "externalId": "142",
+    "id": "P115",
+    "externalId": "115",
     "teamId": "T1",
     "position": "FWD",
     "nameHe": "ג'בון איסט",
@@ -406,8 +406,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P143",
-    "externalId": "143",
+    "id": "P116",
+    "externalId": "116",
     "teamId": "T1",
     "position": "FWD",
     "nameHe": "יואב קורן",
@@ -421,8 +421,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P144",
-    "externalId": "144",
+    "id": "P117",
+    "externalId": "117",
     "teamId": "T1",
     "position": "MID",
     "nameHe": "איתי חזות",
@@ -436,8 +436,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P145",
-    "externalId": "145",
+    "id": "P118",
+    "externalId": "118",
     "teamId": "T1",
     "position": "MID",
     "nameHe": "לוקאס ונטורה",
@@ -451,8 +451,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P146",
-    "externalId": "146",
+    "id": "P119",
+    "externalId": "119",
     "teamId": "T1",
     "position": "MID",
     "nameHe": "יוני סטויאנוב",
@@ -466,8 +466,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P147",
-    "externalId": "147",
+    "id": "P120",
+    "externalId": "120",
     "teamId": "T1",
     "position": "MID",
     "nameHe": "ניב יהושע",
@@ -481,8 +481,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P148",
-    "externalId": "148",
+    "id": "P121",
+    "externalId": "121",
     "teamId": "T1",
     "position": "GK",
     "nameHe": "מרקו וולף",
@@ -496,8 +496,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P149",
-    "externalId": "149",
+    "id": "P122",
+    "externalId": "122",
     "teamId": "T1",
     "position": "GK",
     "nameHe": "יונתן שני",
@@ -511,8 +511,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P150",
-    "externalId": "150",
+    "id": "P123",
+    "externalId": "123",
     "teamId": "T1",
     "position": "DEF",
     "nameHe": "ג'יבריל דיופ",
@@ -526,8 +526,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P151",
-    "externalId": "151",
+    "id": "P124",
+    "externalId": "124",
     "teamId": "T1",
     "position": "FWD",
     "nameHe": "מוחמד אבו רומי",
@@ -541,8 +541,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P152",
-    "externalId": "152",
+    "id": "P125",
+    "externalId": "125",
     "teamId": "T1",
     "position": "GK",
     "nameHe": "ניב אליאסי",
@@ -556,8 +556,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P153",
-    "externalId": "153",
+    "id": "P126",
+    "externalId": "126",
     "teamId": "T1",
     "position": "FWD",
     "nameHe": "איגור זלאטנוביץ'",
@@ -571,8 +571,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P154",
-    "externalId": "154",
+    "id": "P127",
+    "externalId": "127",
     "teamId": "T1",
     "position": "FWD",
     "nameHe": "ז'ואאו ויקטור",
@@ -586,8 +586,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P220",
-    "externalId": "220",
+    "id": "P201",
+    "externalId": "201",
     "teamId": "T2",
     "position": "DEF",
     "nameHe": "נועם מלמוד",
@@ -601,8 +601,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P221",
-    "externalId": "221",
+    "id": "P202",
+    "externalId": "202",
     "teamId": "T2",
     "position": "DEF",
     "nameHe": "יונתן לייש",
@@ -616,8 +616,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P222",
-    "externalId": "222",
+    "id": "P203",
+    "externalId": "203",
     "teamId": "T2",
     "position": "MID",
     "nameHe": "עומר אבוהב",
@@ -631,8 +631,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P223",
-    "externalId": "223",
+    "id": "P204",
+    "externalId": "204",
     "teamId": "T2",
     "position": "DEF",
     "nameHe": "לי און מזרחי",
@@ -646,8 +646,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P224",
-    "externalId": "224",
+    "id": "P205",
+    "externalId": "205",
     "teamId": "T2",
     "position": "MID",
     "nameHe": "איליאי מדמון",
@@ -661,8 +661,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P225",
-    "externalId": "225",
+    "id": "P206",
+    "externalId": "206",
     "teamId": "T2",
     "position": "DEF",
     "nameHe": "עידן כהן",
@@ -676,8 +676,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P226",
-    "externalId": "226",
+    "id": "P207",
+    "externalId": "207",
     "teamId": "T2",
     "position": "DEF",
     "nameHe": "עומר אגבדיש",
@@ -691,8 +691,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": true
   },
   {
-    "id": "P227",
-    "externalId": "227",
+    "id": "P208",
+    "externalId": "208",
     "teamId": "T2",
     "position": "MID",
     "nameHe": "ינאי דיסטפלד",
@@ -706,8 +706,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P228",
-    "externalId": "228",
+    "id": "P209",
+    "externalId": "209",
     "teamId": "T2",
     "position": "DEF",
     "nameHe": "אופק נדיר",
@@ -721,8 +721,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P229",
-    "externalId": "229",
+    "id": "P210",
+    "externalId": "210",
     "teamId": "T2",
     "position": "MID",
     "nameHe": "איינאו פרדה",
@@ -736,8 +736,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P230",
-    "externalId": "230",
+    "id": "P211",
+    "externalId": "211",
     "teamId": "T2",
     "position": "DEF",
     "nameHe": "תמיר חיימוביץ'",
@@ -751,8 +751,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P231",
-    "externalId": "231",
+    "id": "P212",
+    "externalId": "212",
     "teamId": "T2",
     "position": "FWD",
     "nameHe": "נתי שפראו",
@@ -766,8 +766,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P232",
-    "externalId": "232",
+    "id": "P213",
+    "externalId": "213",
     "teamId": "T2",
     "position": "DEF",
     "nameHe": "הילאי מלמן",
@@ -781,8 +781,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P233",
-    "externalId": "233",
+    "id": "P214",
+    "externalId": "214",
     "teamId": "T2",
     "position": "FWD",
     "nameHe": "אנדרו אידוקו",
@@ -796,8 +796,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P234",
-    "externalId": "234",
+    "id": "P215",
+    "externalId": "215",
     "teamId": "T2",
     "position": "GK",
     "nameHe": "עומר בן גורדין",
@@ -811,8 +811,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P235",
-    "externalId": "235",
+    "id": "P216",
+    "externalId": "216",
     "teamId": "T2",
     "position": "FWD",
     "nameHe": "ישראל דאפה",
@@ -826,8 +826,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P236",
-    "externalId": "236",
+    "id": "P217",
+    "externalId": "217",
     "teamId": "T2",
     "position": "GK",
     "nameHe": "נדב זמיר",
@@ -841,8 +841,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P237",
-    "externalId": "237",
+    "id": "P218",
+    "externalId": "218",
     "teamId": "T2",
     "position": "MID",
     "nameHe": "אוהד אלמגור",
@@ -856,8 +856,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P238",
-    "externalId": "238",
+    "id": "P219",
+    "externalId": "219",
     "teamId": "T2",
     "position": "FWD",
     "nameHe": "ויט ליייה דאמאשקאן",
@@ -871,8 +871,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P329",
-    "externalId": "329",
+    "id": "P301",
+    "externalId": "301",
     "teamId": "T3",
     "position": "DEF",
     "nameHe": "רוי רביבו",
@@ -886,8 +886,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P330",
-    "externalId": "330",
+    "id": "P302",
+    "externalId": "302",
     "teamId": "T3",
     "position": "DEF",
     "nameHe": "מוחמד עלי קמארה",
@@ -901,8 +901,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P331",
-    "externalId": "331",
+    "id": "P303",
+    "externalId": "303",
     "teamId": "T3",
     "position": "DEF",
     "nameHe": "טייריס אסאנטה",
@@ -916,8 +916,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P332",
-    "externalId": "332",
+    "id": "P304",
+    "externalId": "304",
     "teamId": "T3",
     "position": "MID",
     "nameHe": "קרווין אנדרדה",
@@ -931,8 +931,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P333",
-    "externalId": "333",
+    "id": "P305",
+    "externalId": "305",
     "teamId": "T3",
     "position": "DEF",
     "nameHe": "שגיב יחזקאל",
@@ -946,8 +946,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P334",
-    "externalId": "334",
+    "id": "P306",
+    "externalId": "306",
     "teamId": "T3",
     "position": "DEF",
     "nameHe": "רז שלמה",
@@ -961,8 +961,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P335",
-    "externalId": "335",
+    "id": "P307",
+    "externalId": "307",
     "teamId": "T3",
     "position": "DEF",
     "nameHe": "דני גרופר",
@@ -976,8 +976,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P336",
-    "externalId": "336",
+    "id": "P308",
+    "externalId": "308",
     "teamId": "T3",
     "position": "FWD",
     "nameHe": "יונס מלדה",
@@ -991,8 +991,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P337",
-    "externalId": "337",
+    "id": "P309",
+    "externalId": "309",
     "teamId": "T3",
     "position": "MID",
     "nameHe": "כריסטיאן בליץ'",
@@ -1006,8 +1006,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P338",
-    "externalId": "338",
+    "id": "P310",
+    "externalId": "310",
     "teamId": "T3",
     "position": "FWD",
     "nameHe": "אלעד מדמון",
@@ -1021,8 +1021,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P339",
-    "externalId": "339",
+    "id": "P311",
+    "externalId": "311",
     "teamId": "T3",
     "position": "DEF",
     "nameHe": "נועם בן הרוש",
@@ -1036,8 +1036,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P340",
-    "externalId": "340",
+    "id": "P312",
+    "externalId": "312",
     "teamId": "T3",
     "position": "GK",
     "nameHe": "אופק מליקה",
@@ -1051,8 +1051,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P341",
-    "externalId": "341",
+    "id": "P313",
+    "externalId": "313",
     "teamId": "T3",
     "position": "MID",
     "nameHe": "איסוף סיסוקו",
@@ -1066,8 +1066,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P342",
-    "externalId": "342",
+    "id": "P314",
+    "externalId": "314",
     "teamId": "T3",
     "position": "MID",
     "nameHe": "הליו וארלה",
@@ -1081,8 +1081,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P343",
-    "externalId": "343",
+    "id": "P315",
+    "externalId": "315",
     "teamId": "T3",
     "position": "MID",
     "nameHe": "איתמר נוי",
@@ -1096,8 +1096,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P344",
-    "externalId": "344",
+    "id": "P316",
+    "externalId": "316",
     "teamId": "T3",
     "position": "FWD",
     "nameHe": "סייד אבו פרחי",
@@ -1111,8 +1111,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P345",
-    "externalId": "345",
+    "id": "P317",
+    "externalId": "317",
     "teamId": "T3",
     "position": "MID",
     "nameHe": "עידו שחר",
@@ -1126,8 +1126,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P346",
-    "externalId": "346",
+    "id": "P318",
+    "externalId": "318",
     "teamId": "T3",
     "position": "DEF",
     "nameHe": "איתי בן חמו",
@@ -1141,8 +1141,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P347",
-    "externalId": "347",
+    "id": "P319",
+    "externalId": "319",
     "teamId": "T3",
     "position": "MID",
     "nameHe": "דור פרץ",
@@ -1156,8 +1156,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": true
   },
   {
-    "id": "P348",
-    "externalId": "348",
+    "id": "P320",
+    "externalId": "320",
     "teamId": "T3",
     "position": "GK",
     "nameHe": "שליו סעדיה",
@@ -1171,8 +1171,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P349",
-    "externalId": "349",
+    "id": "P321",
+    "externalId": "321",
     "teamId": "T3",
     "position": "MID",
     "nameHe": "עידן וינברג",
@@ -1186,8 +1186,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P350",
-    "externalId": "350",
+    "id": "P322",
+    "externalId": "322",
     "teamId": "T3",
     "position": "MID",
     "nameHe": "רועי מגור",
@@ -1201,8 +1201,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P351",
-    "externalId": "351",
+    "id": "P323",
+    "externalId": "323",
     "teamId": "T3",
     "position": "MID",
     "nameHe": "לוטם אסרס",
@@ -1216,8 +1216,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P352",
-    "externalId": "352",
+    "id": "P324",
+    "externalId": "324",
     "teamId": "T3",
     "position": "FWD",
     "nameHe": "עילאי בן סימון",
@@ -1231,8 +1231,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P353",
-    "externalId": "353",
+    "id": "P325",
+    "externalId": "325",
     "teamId": "T3",
     "position": "FWD",
     "nameHe": "אמיר סאחיטי",
@@ -1246,8 +1246,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P354",
-    "externalId": "354",
+    "id": "P326",
+    "externalId": "326",
     "teamId": "T3",
     "position": "FWD",
     "nameHe": "אושר דוידה",
@@ -1261,8 +1261,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P355",
-    "externalId": "355",
+    "id": "P327",
+    "externalId": "327",
     "teamId": "T3",
     "position": "GK",
     "nameHe": "רועי משפתי",
@@ -1276,8 +1276,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P356",
-    "externalId": "356",
+    "id": "P328",
+    "externalId": "328",
     "teamId": "T3",
     "position": "FWD",
     "nameHe": "יון ניקולאescu",
@@ -1291,8 +1291,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P435",
-    "externalId": "435",
+    "id": "P401",
+    "externalId": "401",
     "teamId": "T4",
     "position": "DEF",
     "nameHe": "זוהר זסנו",
@@ -1306,8 +1306,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P436",
-    "externalId": "436",
+    "id": "P402",
+    "externalId": "402",
     "teamId": "T4",
     "position": "DEF",
     "nameHe": "שון גולדברג",
@@ -1321,8 +1321,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P437",
-    "externalId": "437",
+    "id": "P403",
+    "externalId": "403",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "עלי מוחמד",
@@ -1336,8 +1336,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P438",
-    "externalId": "438",
+    "id": "P404",
+    "externalId": "404",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "גוני נאור",
@@ -1351,8 +1351,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P439",
-    "externalId": "439",
+    "id": "P405",
+    "externalId": "405",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "ירין לוי",
@@ -1366,8 +1366,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P440",
-    "externalId": "440",
+    "id": "P406",
+    "externalId": "406",
     "teamId": "T4",
     "position": "FWD",
     "nameHe": "אנדרייה נובאקוביץ'",
@@ -1381,8 +1381,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P441",
-    "externalId": "441",
+    "id": "P407",
+    "externalId": "407",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "ברוניניו",
@@ -1396,8 +1396,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P442",
-    "externalId": "442",
+    "id": "P408",
+    "externalId": "408",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "קנג'י חורה",
@@ -1411,8 +1411,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": true
   },
   {
-    "id": "P443",
-    "externalId": "443",
+    "id": "P409",
+    "externalId": "409",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "מנואל בנסון",
@@ -1426,8 +1426,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P444",
-    "externalId": "444",
+    "id": "P410",
+    "externalId": "410",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "ליאור קאסה",
@@ -1441,8 +1441,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P445",
-    "externalId": "445",
+    "id": "P411",
+    "externalId": "411",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "קני סייף",
@@ -1456,8 +1456,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P446",
-    "externalId": "446",
+    "id": "P412",
+    "externalId": "412",
     "teamId": "T4",
     "position": "DEF",
     "nameHe": "ינון פיינגזיכט",
@@ -1471,8 +1471,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P447",
-    "externalId": "447",
+    "id": "P413",
+    "externalId": "413",
     "teamId": "T4",
     "position": "FWD",
     "nameHe": "גיא מלמד",
@@ -1486,8 +1486,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P448",
-    "externalId": "448",
+    "id": "P414",
+    "externalId": "414",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "איתן אזולאי",
@@ -1501,8 +1501,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P449",
-    "externalId": "449",
+    "id": "P415",
+    "externalId": "415",
     "teamId": "T4",
     "position": "DEF",
     "nameHe": "נייג'ל האוסייק",
@@ -1516,8 +1516,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P450",
-    "externalId": "450",
+    "id": "P416",
+    "externalId": "416",
     "teamId": "T4",
     "position": "DEF",
     "nameHe": "יילה בטאייה",
@@ -1531,8 +1531,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P451",
-    "externalId": "451",
+    "id": "P417",
+    "externalId": "417",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "סילבה קאני",
@@ -1546,8 +1546,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P452",
-    "externalId": "452",
+    "id": "P418",
+    "externalId": "418",
     "teamId": "T4",
     "position": "DEF",
     "nameHe": "פייר קורנו",
@@ -1561,8 +1561,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P453",
-    "externalId": "453",
+    "id": "P419",
+    "externalId": "419",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "אייאד חלאילי",
@@ -1576,8 +1576,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P454",
-    "externalId": "454",
+    "id": "P420",
+    "externalId": "420",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "עמית ארזי",
@@ -1591,8 +1591,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P455",
-    "externalId": "455",
+    "id": "P421",
+    "externalId": "421",
     "teamId": "T4",
     "position": "DEF",
     "nameHe": "נועם שטייפמן",
@@ -1606,8 +1606,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P456",
-    "externalId": "456",
+    "id": "P422",
+    "externalId": "422",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "נבות רטנר",
@@ -1621,8 +1621,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P457",
-    "externalId": "457",
+    "id": "P423",
+    "externalId": "423",
     "teamId": "T4",
     "position": "DEF",
     "nameHe": "אלעד אמיר",
@@ -1636,8 +1636,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P458",
-    "externalId": "458",
+    "id": "P424",
+    "externalId": "424",
     "teamId": "T4",
     "position": "FWD",
     "nameHe": "אדם גרימברג",
@@ -1651,8 +1651,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P459",
-    "externalId": "459",
+    "id": "P425",
+    "externalId": "425",
     "teamId": "T4",
     "position": "DEF",
     "nameHe": "ארד גייסט",
@@ -1666,8 +1666,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P460",
-    "externalId": "460",
+    "id": "P426",
+    "externalId": "426",
     "teamId": "T4",
     "position": "GK",
     "nameHe": "שריף כיוף",
@@ -1681,8 +1681,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P461",
-    "externalId": "461",
+    "id": "P427",
+    "externalId": "427",
     "teamId": "T4",
     "position": "FWD",
     "nameHe": "ליאם לוסקי",
@@ -1696,8 +1696,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P462",
-    "externalId": "462",
+    "id": "P428",
+    "externalId": "428",
     "teamId": "T4",
     "position": "DEF",
     "nameHe": "פדראו",
@@ -1711,8 +1711,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P463",
-    "externalId": "463",
+    "id": "P429",
+    "externalId": "429",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "סדריק דון",
@@ -1726,8 +1726,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P464",
-    "externalId": "464",
+    "id": "P430",
+    "externalId": "430",
     "teamId": "T4",
     "position": "GK",
     "nameHe": "עומרי גלזר",
@@ -1741,8 +1741,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P465",
-    "externalId": "465",
+    "id": "P431",
+    "externalId": "431",
     "teamId": "T4",
     "position": "DEF",
     "nameHe": "אנדרסון צונאמי",
@@ -1756,8 +1756,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P466",
-    "externalId": "466",
+    "id": "P432",
+    "externalId": "432",
     "teamId": "T4",
     "position": "MID",
     "nameHe": "יאיר מרדכי",
@@ -1771,8 +1771,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P467",
-    "externalId": "467",
+    "id": "P433",
+    "externalId": "433",
     "teamId": "T4",
     "position": "GK",
     "nameHe": "גלן אלון",
@@ -1786,8 +1786,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P468",
-    "externalId": "468",
+    "id": "P434",
+    "externalId": "434",
     "teamId": "T4",
     "position": "GK",
     "nameHe": "עומר ניראון",
@@ -1801,8 +1801,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P524",
-    "externalId": "524",
+    "id": "P501",
+    "externalId": "501",
     "teamId": "T5",
     "position": "DEF",
     "nameHe": "בריאן קרבאלי",
@@ -1816,8 +1816,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P525",
-    "externalId": "525",
+    "id": "P502",
+    "externalId": "502",
     "teamId": "T5",
     "position": "DEF",
     "nameHe": "גיל כהן",
@@ -1831,8 +1831,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P526",
-    "externalId": "526",
+    "id": "P503",
+    "externalId": "503",
     "teamId": "T5",
     "position": "MID",
     "nameHe": "זיו בן שימול",
@@ -1846,8 +1846,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P527",
-    "externalId": "527",
+    "id": "P504",
+    "externalId": "504",
     "teamId": "T5",
     "position": "FWD",
     "nameHe": "ירדן שועה",
@@ -1861,8 +1861,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": true
   },
   {
-    "id": "P528",
-    "externalId": "528",
+    "id": "P505",
+    "externalId": "505",
     "teamId": "T5",
     "position": "MID",
     "nameHe": "נועם מוצ'ה",
@@ -1876,8 +1876,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P529",
-    "externalId": "529",
+    "id": "P506",
+    "externalId": "506",
     "teamId": "T5",
     "position": "FWD",
     "nameHe": "ג'ונבוסקו קאלו",
@@ -1891,8 +1891,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P530",
-    "externalId": "530",
+    "id": "P507",
+    "externalId": "507",
     "teamId": "T5",
     "position": "MID",
     "nameHe": "עדי יונה",
@@ -1906,8 +1906,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P531",
-    "externalId": "531",
+    "id": "P508",
+    "externalId": "508",
     "teamId": "T5",
     "position": "FWD",
     "nameHe": "טימוטי מוזי",
@@ -1921,8 +1921,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P532",
-    "externalId": "532",
+    "id": "P509",
+    "externalId": "509",
     "teamId": "T5",
     "position": "DEF",
     "nameHe": "רועי אלימלך",
@@ -1936,8 +1936,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P533",
-    "externalId": "533",
+    "id": "P510",
+    "externalId": "510",
     "teamId": "T5",
     "position": "MID",
     "nameHe": "דגאץ' וורקו",
@@ -1951,8 +1951,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P534",
-    "externalId": "534",
+    "id": "P511",
+    "externalId": "511",
     "teamId": "T5",
     "position": "DEF",
     "nameHe": "ירדן כהן",
@@ -1966,8 +1966,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P535",
-    "externalId": "535",
+    "id": "P512",
+    "externalId": "512",
     "teamId": "T5",
     "position": "DEF",
     "nameHe": "אורי דהן",
@@ -1981,8 +1981,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P536",
-    "externalId": "536",
+    "id": "P513",
+    "externalId": "513",
     "teamId": "T5",
     "position": "GK",
     "nameHe": "יהונתן עוזר",
@@ -1996,8 +1996,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P537",
-    "externalId": "537",
+    "id": "P514",
+    "externalId": "514",
     "teamId": "T5",
     "position": "DEF",
     "nameHe": "יובל שלו",
@@ -2011,8 +2011,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P538",
-    "externalId": "538",
+    "id": "P515",
+    "externalId": "515",
     "teamId": "T5",
     "position": "MID",
     "nameHe": "עילאי חג'ג'",
@@ -2026,8 +2026,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P539",
-    "externalId": "539",
+    "id": "P516",
+    "externalId": "516",
     "teamId": "T5",
     "position": "DEF",
     "nameHe": "אריאל מנדי",
@@ -2041,8 +2041,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P540",
-    "externalId": "540",
+    "id": "P517",
+    "externalId": "517",
     "teamId": "T5",
     "position": "MID",
     "nameHe": "בוריס אינו",
@@ -2056,8 +2056,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P541",
-    "externalId": "541",
+    "id": "P518",
+    "externalId": "518",
     "teamId": "T5",
     "position": "MID",
     "nameHe": "איילסון טבארש",
@@ -2071,8 +2071,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P542",
-    "externalId": "542",
+    "id": "P519",
+    "externalId": "519",
     "teamId": "T5",
     "position": "DEF",
     "nameHe": "לוקה גדראני",
@@ -2086,8 +2086,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P543",
-    "externalId": "543",
+    "id": "P520",
+    "externalId": "520",
     "teamId": "T5",
     "position": "GK",
     "nameHe": "מיגל סילבה",
@@ -2101,8 +2101,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": true
   },
   {
-    "id": "P544",
-    "externalId": "544",
+    "id": "P521",
+    "externalId": "521",
     "teamId": "T5",
     "position": "MID",
     "nameHe": "עומר אצילי",
@@ -2116,8 +2116,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P545",
-    "externalId": "545",
+    "id": "P522",
+    "externalId": "522",
     "teamId": "T5",
     "position": "MID",
     "nameHe": "תומר יוספי",
@@ -2131,8 +2131,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P546",
-    "externalId": "546",
+    "id": "P523",
+    "externalId": "523",
     "teamId": "T5",
     "position": "FWD",
     "nameHe": "יוג'ין אנסה",
@@ -2146,8 +2146,23 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P628",
-    "externalId": "628",
+    "id": "P547",
+    "externalId": "547",
+    "teamId": "T5",
+    "position": "FWD",
+    "nameHe": "פטריק טוומאסי",
+    "nameEn": "TBD",
+    "shirt": null,
+    "tier": 2,
+    "price": 4,
+    "overallRank": 14,
+    "rated": true,
+    "nationality": "גאנה",
+    "isClubCaptain": false
+  },
+  {
+    "id": "P601",
+    "externalId": "601",
     "teamId": "T6",
     "position": "GK",
     "nameHe": "דור בנימיני",
@@ -2161,8 +2176,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P629",
-    "externalId": "629",
+    "id": "P602",
+    "externalId": "602",
     "teamId": "T6",
     "position": "DEF",
     "nameHe": "שיקו",
@@ -2176,8 +2191,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P630",
-    "externalId": "630",
+    "id": "P603",
+    "externalId": "603",
     "teamId": "T6",
     "position": "DEF",
     "nameHe": "פרנאן מאיימבו",
@@ -2191,8 +2206,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": true
   },
   {
-    "id": "P631",
-    "externalId": "631",
+    "id": "P604",
+    "externalId": "604",
     "teamId": "T6",
     "position": "MID",
     "nameHe": "אנדריאן קרייב",
@@ -2206,8 +2221,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P632",
-    "externalId": "632",
+    "id": "P605",
+    "externalId": "605",
     "teamId": "T6",
     "position": "FWD",
     "nameHe": "רוי קורין",
@@ -2221,8 +2236,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P633",
-    "externalId": "633",
+    "id": "P606",
+    "externalId": "606",
     "teamId": "T6",
     "position": "MID",
     "nameHe": "יונתן פרבר",
@@ -2236,8 +2251,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P634",
-    "externalId": "634",
+    "id": "P607",
+    "externalId": "607",
     "teamId": "T6",
     "position": "FWD",
     "nameHe": "עמנואל בואטנג",
@@ -2251,8 +2266,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P635",
-    "externalId": "635",
+    "id": "P608",
+    "externalId": "608",
     "teamId": "T6",
     "position": "FWD",
     "nameHe": "שאנדה סילבה",
@@ -2266,8 +2281,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P636",
-    "externalId": "636",
+    "id": "P609",
+    "externalId": "609",
     "teamId": "T6",
     "position": "MID",
     "nameHe": "סתיו טוריאל",
@@ -2281,8 +2296,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P637",
-    "externalId": "637",
+    "id": "P610",
+    "externalId": "610",
     "teamId": "T6",
     "position": "MID",
     "nameHe": "אל ים קנצפולסקי",
@@ -2296,8 +2311,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P638",
-    "externalId": "638",
+    "id": "P611",
+    "externalId": "611",
     "teamId": "T6",
     "position": "MID",
     "nameHe": "רועי אלקוקין",
@@ -2311,8 +2326,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P639",
-    "externalId": "639",
+    "id": "P612",
+    "externalId": "612",
     "teamId": "T6",
     "position": "DEF",
     "nameHe": "דורון ליידנר",
@@ -2326,8 +2341,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P640",
-    "externalId": "640",
+    "id": "P613",
+    "externalId": "613",
     "teamId": "T6",
     "position": "DEF",
     "nameHe": "טל ארצ'ל",
@@ -2341,8 +2356,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P641",
-    "externalId": "641",
+    "id": "P614",
+    "externalId": "614",
     "teamId": "T6",
     "position": "FWD",
     "nameHe": "אנס מחאמיד",
@@ -2356,8 +2371,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P642",
-    "externalId": "642",
+    "id": "P615",
+    "externalId": "615",
     "teamId": "T6",
     "position": "DEF",
     "nameHe": "שחר פיבן",
@@ -2371,8 +2386,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P643",
-    "externalId": "643",
+    "id": "P616",
+    "externalId": "616",
     "teamId": "T6",
     "position": "GK",
     "nameHe": "אסף צור",
@@ -2386,8 +2401,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P644",
-    "externalId": "644",
+    "id": "P617",
+    "externalId": "617",
     "teamId": "T6",
     "position": "DEF",
     "nameHe": "עמית למקין",
@@ -2401,8 +2416,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P645",
-    "externalId": "645",
+    "id": "P618",
+    "externalId": "618",
     "teamId": "T6",
     "position": "MID",
     "nameHe": "מור בוסקילה",
@@ -2416,8 +2431,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P646",
-    "externalId": "646",
+    "id": "P619",
+    "externalId": "619",
     "teamId": "T6",
     "position": "FWD",
     "nameHe": "דאגלס אווסו",
@@ -2431,8 +2446,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P647",
-    "externalId": "647",
+    "id": "P620",
+    "externalId": "620",
     "teamId": "T6",
     "position": "FWD",
     "nameHe": "רון תלמי",
@@ -2446,8 +2461,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P648",
-    "externalId": "648",
+    "id": "P621",
+    "externalId": "621",
     "teamId": "T6",
     "position": "FWD",
     "nameHe": "דניאל דאפה",
@@ -2461,8 +2476,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P649",
-    "externalId": "649",
+    "id": "P622",
+    "externalId": "622",
     "teamId": "T6",
     "position": "FWD",
     "nameHe": "עומרי אלטמן",
@@ -2476,8 +2491,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P650",
-    "externalId": "650",
+    "id": "P623",
+    "externalId": "623",
     "teamId": "T6",
     "position": "MID",
     "nameHe": "ישי ברוש",
@@ -2491,8 +2506,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P651",
-    "externalId": "651",
+    "id": "P624",
+    "externalId": "624",
     "teamId": "T6",
     "position": "DEF",
     "nameHe": "עופר גלברד",
@@ -2506,8 +2521,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P652",
-    "externalId": "652",
+    "id": "P625",
+    "externalId": "625",
     "teamId": "T6",
     "position": "DEF",
     "nameHe": "מרקוס קוקו",
@@ -2521,8 +2536,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P653",
-    "externalId": "653",
+    "id": "P626",
+    "externalId": "626",
     "teamId": "T6",
     "position": "MID",
     "nameHe": "לוקאס פלקאו",
@@ -2536,8 +2551,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P654",
-    "externalId": "654",
+    "id": "P627",
+    "externalId": "627",
     "teamId": "T6",
     "position": "MID",
     "nameHe": "איתי שביט",
@@ -2551,8 +2566,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P711",
-    "externalId": "711",
+    "id": "P701",
+    "externalId": "701",
     "teamId": "T7",
     "position": "GK",
     "nameHe": "ניב אנטמן",
@@ -2566,8 +2581,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P728",
-    "externalId": "728",
+    "id": "P702",
+    "externalId": "702",
     "teamId": "T7",
     "position": "DEF",
     "nameHe": "גריגורי מורוזוב",
@@ -2581,8 +2596,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P729",
-    "externalId": "729",
+    "id": "P703",
+    "externalId": "703",
     "teamId": "T7",
     "position": "DEF",
     "nameHe": "איתי בן שבת",
@@ -2596,8 +2611,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P730",
-    "externalId": "730",
+    "id": "P704",
+    "externalId": "704",
     "teamId": "T7",
     "position": "DEF",
     "nameHe": "דניס קוליקוב",
@@ -2611,8 +2626,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P731",
-    "externalId": "731",
+    "id": "P705",
+    "externalId": "705",
     "teamId": "T7",
     "position": "DEF",
     "nameHe": "בפארי קונאטה",
@@ -2626,8 +2641,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P732",
-    "externalId": "732",
+    "id": "P706",
+    "externalId": "706",
     "teamId": "T7",
     "position": "MID",
     "nameHe": "דולב חזיזה",
@@ -2641,8 +2656,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P733",
-    "externalId": "733",
+    "id": "P707",
+    "externalId": "707",
     "teamId": "T7",
     "position": "MID",
     "nameHe": "עוז בילו",
@@ -2656,8 +2671,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P734",
-    "externalId": "734",
+    "id": "P708",
+    "externalId": "708",
     "teamId": "T7",
     "position": "FWD",
     "nameHe": "דור חוגי",
@@ -2671,8 +2686,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P735",
-    "externalId": "735",
+    "id": "P709",
+    "externalId": "709",
     "teamId": "T7",
     "position": "DEF",
     "nameHe": "אלון אזוגי",
@@ -2686,8 +2701,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P736",
-    "externalId": "736",
+    "id": "P710",
+    "externalId": "710",
     "teamId": "T7",
     "position": "MID",
     "nameHe": "נדב נידם",
@@ -2701,8 +2716,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P737",
-    "externalId": "737",
+    "id": "P712",
+    "externalId": "712",
     "teamId": "T7",
     "position": "MID",
     "nameHe": "ליאם כהן",
@@ -2716,8 +2731,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P738",
-    "externalId": "738",
+    "id": "P713",
+    "externalId": "713",
     "teamId": "T7",
     "position": "MID",
     "nameHe": "מאור לוי",
@@ -2731,8 +2746,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P739",
-    "externalId": "739",
+    "id": "P714",
+    "externalId": "714",
     "teamId": "T7",
     "position": "MID",
     "nameHe": "בסאם זערורה",
@@ -2746,8 +2761,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P740",
-    "externalId": "740",
+    "id": "P715",
+    "externalId": "715",
     "teamId": "T7",
     "position": "FWD",
     "nameHe": "מתאוס דאבו",
@@ -2761,8 +2776,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P741",
-    "externalId": "741",
+    "id": "P716",
+    "externalId": "716",
     "teamId": "T7",
     "position": "FWD",
     "nameHe": "ירדן אבוחצירא",
@@ -2776,8 +2791,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P742",
-    "externalId": "742",
+    "id": "P717",
+    "externalId": "717",
     "teamId": "T7",
     "position": "MID",
     "nameHe": "עמרי שמיר",
@@ -2791,8 +2806,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P743",
-    "externalId": "743",
+    "id": "P718",
+    "externalId": "718",
     "teamId": "T7",
     "position": "MID",
     "nameHe": "סאהר תאג'י",
@@ -2806,8 +2821,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P744",
-    "externalId": "744",
+    "id": "P719",
+    "externalId": "719",
     "teamId": "T7",
     "position": "MID",
     "nameHe": "אלכס טלפה",
@@ -2821,8 +2836,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P745",
-    "externalId": "745",
+    "id": "P720",
+    "externalId": "720",
     "teamId": "T7",
     "position": "GK",
     "nameHe": "סמואל דה סילבה",
@@ -2836,8 +2851,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P746",
-    "externalId": "746",
+    "id": "P721",
+    "externalId": "721",
     "teamId": "T7",
     "position": "FWD",
     "nameHe": "ליאם כהן",
@@ -2851,8 +2866,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P747",
-    "externalId": "747",
+    "id": "P722",
+    "externalId": "722",
     "teamId": "T7",
     "position": "DEF",
     "nameHe": "עמית כהן",
@@ -2866,8 +2881,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P748",
-    "externalId": "748",
+    "id": "P723",
+    "externalId": "723",
     "teamId": "T7",
     "position": "MID",
     "nameHe": "ווילאן סיפריאן",
@@ -2881,8 +2896,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P749",
-    "externalId": "749",
+    "id": "P724",
+    "externalId": "724",
     "teamId": "T7",
     "position": "DEF",
     "nameHe": "כרם ג'אבר",
@@ -2896,8 +2911,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": true
   },
   {
-    "id": "P750",
-    "externalId": "750",
+    "id": "P725",
+    "externalId": "725",
     "teamId": "T7",
     "position": "MID",
     "nameHe": "עזיז וואטרה",
@@ -2911,8 +2926,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P751",
-    "externalId": "751",
+    "id": "P726",
+    "externalId": "726",
     "teamId": "T7",
     "position": "DEF",
     "nameHe": "סאבה חוואדזאני",
@@ -2926,8 +2941,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P752",
-    "externalId": "752",
+    "id": "P727",
+    "externalId": "727",
     "teamId": "T7",
     "position": "DEF",
     "nameHe": "בני פלדמן",
@@ -2941,8 +2956,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P753",
-    "externalId": "753",
+    "id": "P754",
+    "externalId": "754",
     "teamId": "T7",
     "position": "GK",
     "nameHe": "דניאל כהן",
@@ -2956,8 +2971,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P806",
-    "externalId": "806",
+    "id": "P801",
+    "externalId": "801",
     "teamId": "T8",
     "position": "GK",
     "nameHe": "דוד בן לולו",
@@ -2971,8 +2986,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P809",
-    "externalId": "809",
+    "id": "P802",
+    "externalId": "802",
     "teamId": "T8",
     "position": "DEF",
     "nameHe": "מארון גנטוס",
@@ -2986,8 +3001,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P825",
-    "externalId": "825",
+    "id": "P803",
+    "externalId": "803",
     "teamId": "T8",
     "position": "DEF",
     "nameHe": "קרלו ברוצ'יץ'",
@@ -3001,8 +3016,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P826",
-    "externalId": "826",
+    "id": "P804",
+    "externalId": "804",
     "teamId": "T8",
     "position": "MID",
     "nameHe": "מוסטפא שייח' יוסף",
@@ -3016,8 +3031,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P827",
-    "externalId": "827",
+    "id": "P805",
+    "externalId": "805",
     "teamId": "T8",
     "position": "MID",
     "nameHe": "מייקום דויד",
@@ -3031,8 +3046,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P828",
-    "externalId": "828",
+    "id": "P807",
+    "externalId": "807",
     "teamId": "T8",
     "position": "FWD",
     "nameHe": "ארתור מיראניאן",
@@ -3046,8 +3061,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P829",
-    "externalId": "829",
+    "id": "P808",
+    "externalId": "808",
     "teamId": "T8",
     "position": "MID",
     "nameHe": "מתיו קודג'ו",
@@ -3061,8 +3076,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P830",
-    "externalId": "830",
+    "id": "P810",
+    "externalId": "810",
     "teamId": "T8",
     "position": "FWD",
     "nameHe": "אבראהימה דרמה",
@@ -3076,8 +3091,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P831",
-    "externalId": "831",
+    "id": "P811",
+    "externalId": "811",
     "teamId": "T8",
     "position": "FWD",
     "nameHe": "שאקר אבו חוסיין",
@@ -3091,8 +3106,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P832",
-    "externalId": "832",
+    "id": "P812",
+    "externalId": "812",
     "teamId": "T8",
     "position": "DEF",
     "nameHe": "חסן חילו",
@@ -3106,8 +3121,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P833",
-    "externalId": "833",
+    "id": "P813",
+    "externalId": "813",
     "teamId": "T8",
     "position": "MID",
     "nameHe": "עומר אבוהב",
@@ -3121,8 +3136,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P834",
-    "externalId": "834",
+    "id": "P814",
+    "externalId": "814",
     "teamId": "T8",
     "position": "DEF",
     "nameHe": "מוחמד גנאמה",
@@ -3136,8 +3151,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P835",
-    "externalId": "835",
+    "id": "P815",
+    "externalId": "815",
     "teamId": "T8",
     "position": "FWD",
     "nameHe": "ג'ובייר בושאנק",
@@ -3151,8 +3166,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P836",
-    "externalId": "836",
+    "id": "P816",
+    "externalId": "816",
     "teamId": "T8",
     "position": "GK",
     "nameHe": "מוחמד אבו ניל",
@@ -3166,8 +3181,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P837",
-    "externalId": "837",
+    "id": "P817",
+    "externalId": "817",
     "teamId": "T8",
     "position": "MID",
     "nameHe": "עדן שמיר",
@@ -3181,8 +3196,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P838",
-    "externalId": "838",
+    "id": "P818",
+    "externalId": "818",
     "teamId": "T8",
     "position": "DEF",
     "nameHe": "עומר קורסיה",
@@ -3196,8 +3211,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P839",
-    "externalId": "839",
+    "id": "P819",
+    "externalId": "819",
     "teamId": "T8",
     "position": "FWD",
     "nameHe": "אחמד סלמן",
@@ -3211,8 +3226,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P840",
-    "externalId": "840",
+    "id": "P820",
+    "externalId": "820",
     "teamId": "T8",
     "position": "MID",
     "nameHe": "מג'ד סלימאן",
@@ -3226,8 +3241,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P841",
-    "externalId": "841",
+    "id": "P821",
+    "externalId": "821",
     "teamId": "T8",
     "position": "DEF",
     "nameHe": "מקס גרצ'קין",
@@ -3241,8 +3256,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P842",
-    "externalId": "842",
+    "id": "P822",
+    "externalId": "822",
     "teamId": "T8",
     "position": "DEF",
     "nameHe": "יואאן אנדי",
@@ -3256,8 +3271,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P843",
-    "externalId": "843",
+    "id": "P823",
+    "externalId": "823",
     "teamId": "T8",
     "position": "FWD",
     "nameHe": "ג'יימס אדני",
@@ -3271,8 +3286,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P844",
-    "externalId": "844",
+    "id": "P824",
+    "externalId": "824",
     "teamId": "T8",
     "position": "MID",
     "nameHe": "דורל אבונו",
@@ -3286,8 +3301,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P931",
-    "externalId": "931",
+    "id": "P901",
+    "externalId": "901",
     "teamId": "T9",
     "position": "GK",
     "nameHe": "יואב ג'ראפי",
@@ -3301,8 +3316,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P932",
-    "externalId": "932",
+    "id": "P902",
+    "externalId": "902",
     "teamId": "T9",
     "position": "DEF",
     "nameHe": "תמיר ארבל",
@@ -3316,8 +3331,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P933",
-    "externalId": "933",
+    "id": "P903",
+    "externalId": "903",
     "teamId": "T9",
     "position": "DEF",
     "nameHe": "דור מלול",
@@ -3331,8 +3346,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P934",
-    "externalId": "934",
+    "id": "P904",
+    "externalId": "904",
     "teamId": "T9",
     "position": "DEF",
     "nameHe": "איוואן קריצ'אק",
@@ -3346,8 +3361,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P935",
-    "externalId": "935",
+    "id": "P905",
+    "externalId": "905",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "איתי בוגנים",
@@ -3361,8 +3376,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P936",
-    "externalId": "936",
+    "id": "P906",
+    "externalId": "906",
     "teamId": "T9",
     "position": "FWD",
     "nameHe": "והיב חביבאללה",
@@ -3376,8 +3391,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P937",
-    "externalId": "937",
+    "id": "P907",
+    "externalId": "907",
     "teamId": "T9",
     "position": "FWD",
     "nameHe": "רותם חטואל",
@@ -3391,8 +3406,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P938",
-    "externalId": "938",
+    "id": "P908",
+    "externalId": "908",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "סער פדידה",
@@ -3406,8 +3421,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P939",
-    "externalId": "939",
+    "id": "P909",
+    "externalId": "909",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "אניס פורת עיאש",
@@ -3421,8 +3436,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P940",
-    "externalId": "940",
+    "id": "P910",
+    "externalId": "910",
     "teamId": "T9",
     "position": "DEF",
     "nameHe": "אורן ביטון",
@@ -3436,8 +3451,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P941",
-    "externalId": "941",
+    "id": "P911",
+    "externalId": "911",
     "teamId": "T9",
     "position": "DEF",
     "nameHe": "דריו די'ופריץ'",
@@ -3451,8 +3466,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P942",
-    "externalId": "942",
+    "id": "P912",
+    "externalId": "912",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "רוי נאווי",
@@ -3466,8 +3481,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P943",
-    "externalId": "943",
+    "id": "P913",
+    "externalId": "913",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "יעד גונן",
@@ -3481,8 +3496,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P944",
-    "externalId": "944",
+    "id": "P914",
+    "externalId": "914",
     "teamId": "T9",
     "position": "DEF",
     "nameHe": "נפתלי בלאי",
@@ -3496,8 +3511,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P945",
-    "externalId": "945",
+    "id": "P915",
+    "externalId": "915",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "חיים מקונן",
@@ -3511,8 +3526,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P946",
-    "externalId": "946",
+    "id": "P916",
+    "externalId": "916",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "אופק ביטון",
@@ -3526,8 +3541,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P947",
-    "externalId": "947",
+    "id": "P917",
+    "externalId": "917",
     "teamId": "T9",
     "position": "FWD",
     "nameHe": "רוי זיקרי",
@@ -3541,8 +3556,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P948",
-    "externalId": "948",
+    "id": "P918",
+    "externalId": "918",
     "teamId": "T9",
     "position": "GK",
     "nameHe": "מתן עמבר",
@@ -3556,8 +3571,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P949",
-    "externalId": "949",
+    "id": "P919",
+    "externalId": "919",
     "teamId": "T9",
     "position": "DEF",
     "nameHe": "טל נעים",
@@ -3571,8 +3586,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P950",
-    "externalId": "950",
+    "id": "P920",
+    "externalId": "920",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "לירן סרדל",
@@ -3586,8 +3601,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P951",
-    "externalId": "951",
+    "id": "P921",
+    "externalId": "921",
     "teamId": "T9",
     "position": "DEF",
     "nameHe": "ג'ורג' דיבה",
@@ -3601,8 +3616,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P952",
-    "externalId": "952",
+    "id": "P922",
+    "externalId": "922",
     "teamId": "T9",
     "position": "DEF",
     "nameHe": "ברונו רמירס",
@@ -3616,8 +3631,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P953",
-    "externalId": "953",
+    "id": "P923",
+    "externalId": "923",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "נאור סבג",
@@ -3631,8 +3646,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P954",
-    "externalId": "954",
+    "id": "P924",
+    "externalId": "924",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "רז'י אנדו",
@@ -3646,8 +3661,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P955",
-    "externalId": "955",
+    "id": "P925",
+    "externalId": "925",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "סלאם זיידון",
@@ -3661,8 +3676,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P956",
-    "externalId": "956",
+    "id": "P926",
+    "externalId": "926",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "שי בלסון",
@@ -3676,8 +3691,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P957",
-    "externalId": "957",
+    "id": "P927",
+    "externalId": "927",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "ליאם נחום",
@@ -3691,8 +3706,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P958",
-    "externalId": "958",
+    "id": "P928",
+    "externalId": "928",
     "teamId": "T9",
     "position": "MID",
     "nameHe": "סאלי פחימה",
@@ -3706,8 +3721,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P959",
-    "externalId": "959",
+    "id": "P929",
+    "externalId": "929",
     "teamId": "T9",
     "position": "FWD",
     "nameHe": "איתי צפרני",
@@ -3721,8 +3736,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P960",
-    "externalId": "960",
+    "id": "P930",
+    "externalId": "930",
     "teamId": "T9",
     "position": "DEF",
     "nameHe": "אריאל מנדי",
@@ -3736,8 +3751,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1026",
-    "externalId": "1026",
+    "id": "P1001",
+    "externalId": "1001",
     "teamId": "T10",
     "position": "GK",
     "nameHe": "מתן זלמנוביץ'",
@@ -3751,8 +3766,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1027",
-    "externalId": "1027",
+    "id": "P1002",
+    "externalId": "1002",
     "teamId": "T10",
     "position": "DEF",
     "nameHe": "עמית גלזר",
@@ -3766,8 +3781,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1028",
-    "externalId": "1028",
+    "id": "P1003",
+    "externalId": "1003",
     "teamId": "T10",
     "position": "DEF",
     "nameHe": "אופיר בנבנישתי",
@@ -3781,8 +3796,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1029",
-    "externalId": "1029",
+    "id": "P1004",
+    "externalId": "1004",
     "teamId": "T10",
     "position": "MID",
     "nameHe": "פרננדו פאצ'קו",
@@ -3796,8 +3811,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1030",
-    "externalId": "1030",
+    "id": "P1005",
+    "externalId": "1005",
     "teamId": "T10",
     "position": "FWD",
     "nameHe": "אדריאן אוגריסה",
@@ -3811,8 +3826,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1031",
-    "externalId": "1031",
+    "id": "P1006",
+    "externalId": "1006",
     "teamId": "T10",
     "position": "MID",
     "nameHe": "אריאל שרצקי",
@@ -3826,8 +3841,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1032",
-    "externalId": "1032",
+    "id": "P1007",
+    "externalId": "1007",
     "teamId": "T10",
     "position": "MID",
     "nameHe": "מור סימן טוב",
@@ -3841,8 +3856,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1033",
-    "externalId": "1033",
+    "id": "P1008",
+    "externalId": "1008",
     "teamId": "T10",
     "position": "FWD",
     "nameHe": "ג'ואן חלבי",
@@ -3856,8 +3871,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1034",
-    "externalId": "1034",
+    "id": "P1009",
+    "externalId": "1009",
     "teamId": "T10",
     "position": "MID",
     "nameHe": "הראל גולדנברג",
@@ -3871,8 +3886,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1035",
-    "externalId": "1035",
+    "id": "P1010",
+    "externalId": "1010",
     "teamId": "T10",
     "position": "DEF",
     "nameHe": "איציק שולמייסטר",
@@ -3886,8 +3901,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1036",
-    "externalId": "1036",
+    "id": "P1011",
+    "externalId": "1011",
     "teamId": "T10",
     "position": "FWD",
     "nameHe": "אורי שנפר",
@@ -3901,8 +3916,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1037",
-    "externalId": "1037",
+    "id": "P1012",
+    "externalId": "1012",
     "teamId": "T10",
     "position": "GK",
     "nameHe": "דניאל טננבאום",
@@ -3916,8 +3931,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1038",
-    "externalId": "1038",
+    "id": "P1013",
+    "externalId": "1013",
     "teamId": "T10",
     "position": "DEF",
     "nameHe": "עובדיה דרויש",
@@ -3931,8 +3946,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1039",
-    "externalId": "1039",
+    "id": "P1014",
+    "externalId": "1014",
     "teamId": "T10",
     "position": "MID",
     "nameHe": "אביב אברהם",
@@ -3946,8 +3961,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1040",
-    "externalId": "1040",
+    "id": "P1015",
+    "externalId": "1015",
     "teamId": "T10",
     "position": "MID",
     "nameHe": "ואלה מוסא עלי",
@@ -3961,8 +3976,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1041",
-    "externalId": "1041",
+    "id": "P1016",
+    "externalId": "1016",
     "teamId": "T10",
     "position": "MID",
     "nameHe": "יואב כראדי",
@@ -3976,8 +3991,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1042",
-    "externalId": "1042",
+    "id": "P1017",
+    "externalId": "1017",
     "teamId": "T10",
     "position": "DEF",
     "nameHe": "נמניה ליוביסבלייביץ'",
@@ -3991,8 +4006,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1043",
-    "externalId": "1043",
+    "id": "P1018",
+    "externalId": "1018",
     "teamId": "T10",
     "position": "DEF",
     "nameHe": "עידו וייר",
@@ -4006,8 +4021,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1044",
-    "externalId": "1044",
+    "id": "P1019",
+    "externalId": "1019",
     "teamId": "T10",
     "position": "MID",
     "nameHe": "יונתן מלכה",
@@ -4021,8 +4036,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1045",
-    "externalId": "1045",
+    "id": "P1020",
+    "externalId": "1020",
     "teamId": "T10",
     "position": "DEF",
     "nameHe": "שי בן דוד",
@@ -4036,8 +4051,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1046",
-    "externalId": "1046",
+    "id": "P1021",
+    "externalId": "1021",
     "teamId": "T10",
     "position": "DEF",
     "nameHe": "ליאל דרעי",
@@ -4051,8 +4066,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1047",
-    "externalId": "1047",
+    "id": "P1022",
+    "externalId": "1022",
     "teamId": "T10",
     "position": "MID",
     "nameHe": "כריסטיאן מרטינס",
@@ -4066,8 +4081,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1048",
-    "externalId": "1048",
+    "id": "P1023",
+    "externalId": "1023",
     "teamId": "T10",
     "position": "GK",
     "nameHe": "רוי שדו",
@@ -4081,8 +4096,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1049",
-    "externalId": "1049",
+    "id": "P1024",
+    "externalId": "1024",
     "teamId": "T10",
     "position": "MID",
     "nameHe": "יאו אקה",
@@ -4096,8 +4111,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1050",
-    "externalId": "1050",
+    "id": "P1025",
+    "externalId": "1025",
     "teamId": "T10",
     "position": "FWD",
     "nameHe": "בילאל שאאין",
@@ -4111,8 +4126,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1126",
-    "externalId": "1126",
+    "id": "P1101",
+    "externalId": "1101",
     "teamId": "T11",
     "position": "GK",
     "nameHe": "גד עמוס",
@@ -4126,8 +4141,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1127",
-    "externalId": "1127",
+    "id": "P1102",
+    "externalId": "1102",
     "teamId": "T11",
     "position": "DEF",
     "nameHe": "אימרי אוזן",
@@ -4141,8 +4156,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1128",
-    "externalId": "1128",
+    "id": "P1103",
+    "externalId": "1103",
     "teamId": "T11",
     "position": "MID",
     "nameHe": "דוד קלטינס",
@@ -4156,8 +4171,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1129",
-    "externalId": "1129",
+    "id": "P1104",
+    "externalId": "1104",
     "teamId": "T11",
     "position": "DEF",
     "nameHe": "סמביניה",
@@ -4171,8 +4186,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1130",
-    "externalId": "1130",
+    "id": "P1105",
+    "externalId": "1105",
     "teamId": "T11",
     "position": "DEF",
     "nameHe": "נהוראי חן",
@@ -4186,8 +4201,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1131",
-    "externalId": "1131",
+    "id": "P1106",
+    "externalId": "1106",
     "teamId": "T11",
     "position": "MID",
     "nameHe": "גיא חדרידה",
@@ -4201,8 +4216,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1132",
-    "externalId": "1132",
+    "id": "P1107",
+    "externalId": "1107",
     "teamId": "T11",
     "position": "MID",
     "nameHe": "ארי כהן",
@@ -4216,8 +4231,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1133",
-    "externalId": "1133",
+    "id": "P1108",
+    "externalId": "1108",
     "teamId": "T11",
     "position": "FWD",
     "nameHe": "איתמר שבירו",
@@ -4231,8 +4246,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1134",
-    "externalId": "1134",
+    "id": "P1109",
+    "externalId": "1109",
     "teamId": "T11",
     "position": "MID",
     "nameHe": "בר כהן",
@@ -4246,8 +4261,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1135",
-    "externalId": "1135",
+    "id": "P1110",
+    "externalId": "1110",
     "teamId": "T11",
     "position": "MID",
     "nameHe": "ניב גוטליב",
@@ -4261,8 +4276,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1136",
-    "externalId": "1136",
+    "id": "P1111",
+    "externalId": "1111",
     "teamId": "T11",
     "position": "FWD",
     "nameHe": "קייס גאנם",
@@ -4276,8 +4291,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1137",
-    "externalId": "1137",
+    "id": "P1112",
+    "externalId": "1112",
     "teamId": "T11",
     "position": "DEF",
     "nameHe": "גיא סנקור",
@@ -4291,8 +4306,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1138",
-    "externalId": "1138",
+    "id": "P1113",
+    "externalId": "1113",
     "teamId": "T11",
     "position": "DEF",
     "nameHe": "רון אונגר",
@@ -4306,8 +4321,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1139",
-    "externalId": "1139",
+    "id": "P1114",
+    "externalId": "1114",
     "teamId": "T11",
     "position": "MID",
     "nameHe": "עדן שמיר",
@@ -4321,8 +4336,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1140",
-    "externalId": "1140",
+    "id": "P1115",
+    "externalId": "1115",
     "teamId": "T11",
     "position": "DEF",
     "nameHe": "גל מעתוק",
@@ -4336,8 +4351,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1141",
-    "externalId": "1141",
+    "id": "P1116",
+    "externalId": "1116",
     "teamId": "T11",
     "position": "GK",
     "nameHe": "עידו שרון",
@@ -4351,8 +4366,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1142",
-    "externalId": "1142",
+    "id": "P1117",
+    "externalId": "1117",
     "teamId": "T11",
     "position": "MID",
     "nameHe": "כריס קואקו",
@@ -4366,8 +4381,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1143",
-    "externalId": "1143",
+    "id": "P1118",
+    "externalId": "1118",
     "teamId": "T11",
     "position": "MID",
     "nameHe": "ירין שיביץ'",
@@ -4381,8 +4396,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1144",
-    "externalId": "1144",
+    "id": "P1119",
+    "externalId": "1119",
     "teamId": "T11",
     "position": "MID",
     "nameHe": "רועי שחר",
@@ -4396,8 +4411,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1145",
-    "externalId": "1145",
+    "id": "P1120",
+    "externalId": "1120",
     "teamId": "T11",
     "position": "MID",
     "nameHe": "ירין סוויסה",
@@ -4411,8 +4426,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1146",
-    "externalId": "1146",
+    "id": "P1121",
+    "externalId": "1121",
     "teamId": "T11",
     "position": "MID",
     "nameHe": "ננה גבמבל",
@@ -4426,8 +4441,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1147",
-    "externalId": "1147",
+    "id": "P1122",
+    "externalId": "1122",
     "teamId": "T11",
     "position": "FWD",
     "nameHe": "מנסור באדג'י",
@@ -4441,8 +4456,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1148",
-    "externalId": "1148",
+    "id": "P1123",
+    "externalId": "1123",
     "teamId": "T11",
     "position": "DEF",
     "nameHe": "אונדז'יי באצ'ה",
@@ -4456,8 +4471,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1149",
-    "externalId": "1149",
+    "id": "P1124",
+    "externalId": "1124",
     "teamId": "T11",
     "position": "GK",
     "nameHe": "ג'ונס אבו גנימה",
@@ -4471,8 +4486,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1150",
-    "externalId": "1150",
+    "id": "P1125",
+    "externalId": "1125",
     "teamId": "T11",
     "position": "FWD",
     "nameHe": "אגם יהודה",
@@ -4486,8 +4501,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1220",
-    "externalId": "1220",
+    "id": "P1201",
+    "externalId": "1201",
     "teamId": "T12",
     "position": "DEF",
     "nameHe": "אופיר בתוש / עומרי לוזון",
@@ -4501,8 +4516,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1221",
-    "externalId": "1221",
+    "id": "P1202",
+    "externalId": "1202",
     "teamId": "T12",
     "position": "DEF",
     "nameHe": "גיא דזנט",
@@ -4516,8 +4531,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1222",
-    "externalId": "1222",
+    "id": "P1203",
+    "externalId": "1203",
     "teamId": "T12",
     "position": "DEF",
     "nameHe": "מוחמד הינדי",
@@ -4531,8 +4546,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1223",
-    "externalId": "1223",
+    "id": "P1204",
+    "externalId": "1204",
     "teamId": "T12",
     "position": "GK",
     "nameHe": "דור חברון",
@@ -4546,8 +4561,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1224",
-    "externalId": "1224",
+    "id": "P1205",
+    "externalId": "1205",
     "teamId": "T12",
     "position": "GK",
     "nameHe": "מאור ארליך",
@@ -4561,8 +4576,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1225",
-    "externalId": "1225",
+    "id": "P1206",
+    "externalId": "1206",
     "teamId": "T12",
     "position": "DEF",
     "nameHe": "עומר שירי",
@@ -4576,8 +4591,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1226",
-    "externalId": "1226",
+    "id": "P1207",
+    "externalId": "1207",
     "teamId": "T12",
     "position": "DEF",
     "nameHe": "אביב סלם",
@@ -4591,8 +4606,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1227",
-    "externalId": "1227",
+    "id": "P1208",
+    "externalId": "1208",
     "teamId": "T12",
     "position": "FWD",
     "nameHe": "פרנק ריבולייה",
@@ -4606,8 +4621,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1228",
-    "externalId": "1228",
+    "id": "P1209",
+    "externalId": "1209",
     "teamId": "T12",
     "position": "MID",
     "nameHe": "עידו כהן",
@@ -4621,8 +4636,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1229",
-    "externalId": "1229",
+    "id": "P1210",
+    "externalId": "1210",
     "teamId": "T12",
     "position": "DEF",
     "nameHe": "אור דדיה",
@@ -4636,8 +4651,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1230",
-    "externalId": "1230",
+    "id": "P1211",
+    "externalId": "1211",
     "teamId": "T12",
     "position": "DEF",
     "nameHe": "פבליו קוראנה",
@@ -4651,8 +4666,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1231",
-    "externalId": "1231",
+    "id": "P1212",
+    "externalId": "1212",
     "teamId": "T12",
     "position": "DEF",
     "nameHe": "איתן טיבי",
@@ -4666,8 +4681,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1232",
-    "externalId": "1232",
+    "id": "P1213",
+    "externalId": "1213",
     "teamId": "T12",
     "position": "FWD",
     "nameHe": "סמואל אואוסו",
@@ -4681,8 +4696,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1233",
-    "externalId": "1233",
+    "id": "P1214",
+    "externalId": "1214",
     "teamId": "T12",
     "position": "FWD",
     "nameHe": "אריאל לוגסי",
@@ -4696,8 +4711,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1234",
-    "externalId": "1234",
+    "id": "P1215",
+    "externalId": "1215",
     "teamId": "T12",
     "position": "FWD",
     "nameHe": "אדר רטנר",
@@ -4711,8 +4726,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1235",
-    "externalId": "1235",
+    "id": "P1216",
+    "externalId": "1216",
     "teamId": "T12",
     "position": "MID",
     "nameHe": "אייל אינברום",
@@ -4726,8 +4741,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1236",
-    "externalId": "1236",
+    "id": "P1217",
+    "externalId": "1217",
     "teamId": "T12",
     "position": "MID",
     "nameHe": "קייל ספנס",
@@ -4741,8 +4756,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1237",
-    "externalId": "1237",
+    "id": "P1218",
+    "externalId": "1218",
     "teamId": "T12",
     "position": "MID",
     "nameHe": "לי-ים דן",
@@ -4756,8 +4771,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1238",
-    "externalId": "1238",
+    "id": "P1219",
+    "externalId": "1219",
     "teamId": "T12",
     "position": "MID",
     "nameHe": "איברהימה סומה",
@@ -4771,8 +4786,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1328",
-    "externalId": "1328",
+    "id": "P1301",
+    "externalId": "1301",
     "teamId": "T13",
     "position": "DEF",
     "nameHe": "גטאוצ'ו יבלו",
@@ -4786,8 +4801,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1329",
-    "externalId": "1329",
+    "id": "P1302",
+    "externalId": "1302",
     "teamId": "T13",
     "position": "DEF",
     "nameHe": "דניאל טישלר",
@@ -4801,8 +4816,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1330",
-    "externalId": "1330",
+    "id": "P1303",
+    "externalId": "1303",
     "teamId": "T13",
     "position": "DEF",
     "nameHe": "ז'וטה",
@@ -4816,8 +4831,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1331",
-    "externalId": "1331",
+    "id": "P1304",
+    "externalId": "1304",
     "teamId": "T13",
     "position": "MID",
     "nameHe": "משה מאיר",
@@ -4831,8 +4846,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1332",
-    "externalId": "1332",
+    "id": "P1305",
+    "externalId": "1305",
     "teamId": "T13",
     "position": "MID",
     "nameHe": "מקסים פלקושצ'נקו",
@@ -4846,8 +4861,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1333",
-    "externalId": "1333",
+    "id": "P1306",
+    "externalId": "1306",
     "teamId": "T13",
     "position": "FWD",
     "nameHe": "עידן ברנס",
@@ -4861,8 +4876,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1334",
-    "externalId": "1334",
+    "id": "P1307",
+    "externalId": "1307",
     "teamId": "T13",
     "position": "MID",
     "nameHe": "משה סמל",
@@ -4876,8 +4891,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1335",
-    "externalId": "1335",
+    "id": "P1308",
+    "externalId": "1308",
     "teamId": "T13",
     "position": "FWD",
     "nameHe": "דוד אסנקה",
@@ -4891,8 +4906,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1336",
-    "externalId": "1336",
+    "id": "P1309",
+    "externalId": "1309",
     "teamId": "T13",
     "position": "MID",
     "nameHe": "הוד מסיקה",
@@ -4906,8 +4921,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1337",
-    "externalId": "1337",
+    "id": "P1310",
+    "externalId": "1310",
     "teamId": "T13",
     "position": "FWD",
     "nameHe": "עמית צור",
@@ -4921,8 +4936,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1338",
-    "externalId": "1338",
+    "id": "P1311",
+    "externalId": "1311",
     "teamId": "T13",
     "position": "DEF",
     "nameHe": "עומר יצחק",
@@ -4936,8 +4951,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1339",
-    "externalId": "1339",
+    "id": "P1312",
+    "externalId": "1312",
     "teamId": "T13",
     "position": "GK",
     "nameHe": "אולי ברגמן",
@@ -4951,8 +4966,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1340",
-    "externalId": "1340",
+    "id": "P1313",
+    "externalId": "1313",
     "teamId": "T13",
     "position": "MID",
     "nameHe": "כריסטופר בוניפייס",
@@ -4966,8 +4981,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1341",
-    "externalId": "1341",
+    "id": "P1314",
+    "externalId": "1314",
     "teamId": "T13",
     "position": "MID",
     "nameHe": "עידו עולי",
@@ -4981,8 +4996,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1342",
-    "externalId": "1342",
+    "id": "P1315",
+    "externalId": "1315",
     "teamId": "T13",
     "position": "MID",
     "nameHe": "סרג'אן מיאיולוביץ'",
@@ -4996,8 +5011,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1343",
-    "externalId": "1343",
+    "id": "P1316",
+    "externalId": "1316",
     "teamId": "T13",
     "position": "MID",
     "nameHe": "תמיר גלזר",
@@ -5011,8 +5026,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1344",
-    "externalId": "1344",
+    "id": "P1317",
+    "externalId": "1317",
     "teamId": "T13",
     "position": "MID",
     "nameHe": "אופק עובדיה",
@@ -5026,8 +5041,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1345",
-    "externalId": "1345",
+    "id": "P1318",
+    "externalId": "1318",
     "teamId": "T13",
     "position": "DEF",
     "nameHe": "פארד אברהם",
@@ -5041,8 +5056,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1346",
-    "externalId": "1346",
+    "id": "P1319",
+    "externalId": "1319",
     "teamId": "T13",
     "position": "DEF",
     "nameHe": "דודי טויטו",
@@ -5056,8 +5071,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1347",
-    "externalId": "1347",
+    "id": "P1320",
+    "externalId": "1320",
     "teamId": "T13",
     "position": "MID",
     "nameHe": "עידו מזרחי",
@@ -5071,8 +5086,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1348",
-    "externalId": "1348",
+    "id": "P1321",
+    "externalId": "1321",
     "teamId": "T13",
     "position": "DEF",
     "nameHe": "מרסיו סילבה",
@@ -5086,8 +5101,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1349",
-    "externalId": "1349",
+    "id": "P1322",
+    "externalId": "1322",
     "teamId": "T13",
     "position": "GK",
     "nameHe": "עמית רייף",
@@ -5101,8 +5116,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1350",
-    "externalId": "1350",
+    "id": "P1323",
+    "externalId": "1323",
     "teamId": "T13",
     "position": "MID",
     "nameHe": "ליאם אלוק",
@@ -5116,8 +5131,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1351",
-    "externalId": "1351",
+    "id": "P1324",
+    "externalId": "1324",
     "teamId": "T13",
     "position": "GK",
     "nameHe": "תומר הרן",
@@ -5131,8 +5146,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1352",
-    "externalId": "1352",
+    "id": "P1325",
+    "externalId": "1325",
     "teamId": "T13",
     "position": "FWD",
     "nameHe": "לואן קמפוס",
@@ -5146,8 +5161,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1353",
-    "externalId": "1353",
+    "id": "P1326",
+    "externalId": "1326",
     "teamId": "T13",
     "position": "MID",
     "nameHe": "מתן חוזז",
@@ -5161,8 +5176,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1354",
-    "externalId": "1354",
+    "id": "P1327",
+    "externalId": "1327",
     "teamId": "T13",
     "position": "FWD",
     "nameHe": "מריוס נוביסי",
@@ -5176,8 +5191,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1418",
-    "externalId": "1418",
+    "id": "P1401",
+    "externalId": "1401",
     "teamId": "T14",
     "position": "GK",
     "nameHe": "עומר כץ",
@@ -5191,8 +5206,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": true
   },
   {
-    "id": "P1419",
-    "externalId": "1419",
+    "id": "P1402",
+    "externalId": "1402",
     "teamId": "T14",
     "position": "DEF",
     "nameHe": "אבישי כהן",
@@ -5206,8 +5221,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1420",
-    "externalId": "1420",
+    "id": "P1403",
+    "externalId": "1403",
     "teamId": "T14",
     "position": "DEF",
     "nameHe": "אלכס מוקטו-מוסונדה",
@@ -5221,8 +5236,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1421",
-    "externalId": "1421",
+    "id": "P1404",
+    "externalId": "1404",
     "teamId": "T14",
     "position": "FWD",
     "nameHe": "שביט מזל",
@@ -5236,8 +5251,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1422",
-    "externalId": "1422",
+    "id": "P1405",
+    "externalId": "1405",
     "teamId": "T14",
     "position": "MID",
     "nameHe": "תומר אלטמן",
@@ -5251,8 +5266,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1423",
-    "externalId": "1423",
+    "id": "P1406",
+    "externalId": "1406",
     "teamId": "T14",
     "position": "MID",
     "nameHe": "רוי דוד",
@@ -5266,8 +5281,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1424",
-    "externalId": "1424",
+    "id": "P1407",
+    "externalId": "1407",
     "teamId": "T14",
     "position": "FWD",
     "nameHe": "ציפיקה סонגה",
@@ -5281,8 +5296,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1425",
-    "externalId": "1425",
+    "id": "P1408",
+    "externalId": "1408",
     "teamId": "T14",
     "position": "GK",
     "nameHe": "עמית משוח",
@@ -5296,8 +5311,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1426",
-    "externalId": "1426",
+    "id": "P1409",
+    "externalId": "1409",
     "teamId": "T14",
     "position": "MID",
     "nameHe": "קארים קิมבדי",
@@ -5311,8 +5326,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1427",
-    "externalId": "1427",
+    "id": "P1410",
+    "externalId": "1410",
     "teamId": "T14",
     "position": "DEF",
     "nameHe": "סתיו ישראלי",
@@ -5326,8 +5341,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1428",
-    "externalId": "1428",
+    "id": "P1411",
+    "externalId": "1411",
     "teamId": "T14",
     "position": "GK",
     "nameHe": "רוי ששון",
@@ -5341,8 +5356,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1429",
-    "externalId": "1429",
+    "id": "P1412",
+    "externalId": "1412",
     "teamId": "T14",
     "position": "DEF",
     "nameHe": "יער זמברובסקי",
@@ -5356,8 +5371,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1430",
-    "externalId": "1430",
+    "id": "P1413",
+    "externalId": "1413",
     "teamId": "T14",
     "position": "MID",
     "nameHe": "בוני אמיאן",
@@ -5371,8 +5386,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1431",
-    "externalId": "1431",
+    "id": "P1414",
+    "externalId": "1414",
     "teamId": "T14",
     "position": "MID",
     "nameHe": "גיא בדש",
@@ -5386,8 +5401,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1432",
-    "externalId": "1432",
+    "id": "P1415",
+    "externalId": "1415",
     "teamId": "T14",
     "position": "DEF",
     "nameHe": "יזן נסאר",
@@ -5401,8 +5416,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1433",
-    "externalId": "1433",
+    "id": "P1416",
+    "externalId": "1416",
     "teamId": "T14",
     "position": "FWD",
     "nameHe": "אוקלידס אנדרדה",
@@ -5416,8 +5431,8 @@ export const PLAYERS: PlayerRow[] = [
     "isClubCaptain": false
   },
   {
-    "id": "P1434",
-    "externalId": "1434",
+    "id": "P1417",
+    "externalId": "1417",
     "teamId": "T14",
     "position": "DEF",
     "nameHe": "הראל שלום",
