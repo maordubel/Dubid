@@ -170,6 +170,7 @@ function MainApp() {
           onCaptain={lu.setCaptain}
           onSubmit={() => { if (!overBudget) setShowSaveModal(true); }}
           opponentShortByTeam={opponentShortByTeam}
+          pricing={mode === 'five'}
         />
         {showSaveModal && (
           <SaveEntryModal

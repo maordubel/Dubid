@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 import {
   teamCoverage, validateLineup, formatIssue, teamBlock,
 } from '../lib/scoring/validate.ts';
+import { Jersey, jerseyMonogram } from './Jersey.tsx';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import type { Lineup, LineupSlot, Position } from '../lib/scoring/types.ts';
 
@@ -46,10 +47,14 @@ export interface SquadPickerProps {
   onSubmit: () => void;
   /** קיצור היריבה במחזור הנוכחי, לפי מזהה קבוצה — "נגד מי משחקים" בגיליון הבחירה. */
   opponentShortByTeam?: Record<string, string>;
+  /** מצב 5 על 5: מציג עמודת/תג מחיר ליד כל שחקן, בבורר ובמגרש. */
+  pricing?: boolean;
 }
 
 export function SquadPicker(props: SquadPickerProps) {
-  const { lineup, pool, teams, rules, onAssign, onClear, onCaptain, onSubmit, opponentShortByTeam } = props;
+  const {
+    lineup, pool, teams, rules, onAssign, onClear, onCaptain, onSubmit, opponentShortByTeam, pricing,
+  } = props;
   const [picking, setPicking] = useState<LineupSlot | null>(null);
 
   const filled = lineup.slots.filter((s) => s.playerId).length;
@@ -81,13 +86,14 @@ export function SquadPicker(props: SquadPickerProps) {
                 <h2 className="mb-1.5 ps-1 text-[10px] font-bold tracking-[0.2em] text-chalk/70">
                   {POSITION_LABEL[row]}
                 </h2>
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(74px,1fr))] gap-2">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(84px,1fr))] gap-2.5">
                   {slots.map((slot) => (
                     <SlotCard
                       key={slot.slotNo}
                       slot={slot}
                       player={pool.find((p) => p.id === slot.playerId)}
                       team={teamById.get(slot.teamId)}
+                      pricing={pricing}
                       onPick={() => setPicking(slot)}
                       onClear={() => onClear(slot.slotNo)}
                       onCaptain={() => slot.playerId && onCaptain(slot.playerId)}
@@ -134,6 +140,7 @@ export function SquadPicker(props: SquadPickerProps) {
           onClose={() => setPicking(null)}
           onSelect={(p) => { onAssign(picking.slotNo, p); setPicking(null); }}
           opponentShortByTeam={opponentShortByTeam}
+          pricing={pricing}
         />
       )}
     </div>
@@ -194,11 +201,12 @@ function TeamCoverageStrip({
 /* ================================================================== */
 
 function SlotCard({
-  slot, player, team, onPick, onClear, onCaptain,
+  slot, player, team, pricing, onPick, onClear, onCaptain,
 }: {
   slot: LineupSlot;
   player?: PoolPlayer;
   team?: TeamMeta;
+  pricing?: boolean;
   onPick: () => void;
   onClear: () => void;
   onCaptain: () => void;
@@ -208,57 +216,75 @@ function SlotCard({
       <button
         onClick={onPick}
         aria-label={`הוסף ${POSITION_LABEL[slot.position]}`}
-        className="tap flex aspect-[3/4] flex-col items-center justify-center gap-1
-                   rounded-xl border-2 border-dashed border-chalk/35 text-chalk/60
-                   transition-colors duration-200 ease-brand active:border-toto active:text-toto"
+        className="tap flex flex-col items-center gap-1.5 rounded-2xl py-2
+                   text-chalk/50 transition-colors duration-200 ease-brand
+                   active:text-toto"
       >
-        <span className="text-2xl leading-none">+</span>
-        <span className="text-[10px]">{POSITION_LABEL[slot.position]}</span>
+        <span className="relative grid place-items-center">
+          <Jersey ghost position={slot.position} size={52} />
+          <span className="absolute text-2xl leading-none">+</span>
+        </span>
+        <span className="rounded-full border border-dashed border-chalk/25 px-2.5 py-1
+                          text-[10px] font-bold">
+          {POSITION_LABEL[slot.position]}
+        </span>
       </button>
     );
   }
 
   const cap = !!slot.isCaptain;
+  const price = pricing && player.price !== undefined ? player.price : undefined;
+
   return (
-    <div
-      className={[
-        'relative flex aspect-[3/4] flex-col items-center justify-center gap-0.5 rounded-xl p-1 text-center',
-        cap ? 'bg-armband text-night ring-4 ring-night' : 'bg-chalk text-night',
-      ].join(' ')}
-    >
+    <div className="relative flex flex-col items-center gap-1">
+      {/* ✕ הסרה — פינה עליונה, כמו במסכי ההשראה */}
+      <button
+        onClick={onClear}
+        aria-label="הסר שחקן"
+        className="tap absolute -top-1 end-1 z-10 grid size-6 place-items-center
+                   rounded-full bg-flare text-[11px] font-black text-white shadow-md"
+      >
+        ✕
+      </button>
+
+      {/* קפטן — פינה עליונה השנייה, בהשראת התג הסגול של FPL */}
       <button
         onClick={onCaptain}
         aria-pressed={cap}
         aria-label={cap ? 'הסר קפטן' : 'הפוך לקפטן'}
         className={[
-          'tap absolute -top-2 grid size-7 place-items-center rounded-full text-[11px] font-black',
-          'start-[-6px] transition-colors duration-200 ease-brand',
-          cap ? 'bg-night text-armband' : 'bg-night/85 text-chalk-dim',
+          'tap absolute -top-1 start-1 z-10 grid size-6 place-items-center rounded-full',
+          'text-[10px] font-black shadow-md transition-colors duration-200 ease-brand',
+          cap ? 'bg-armband text-night' : 'bg-night/80 text-chalk-dim',
         ].join(' ')}
       >
         C
       </button>
 
+      <button onClick={onPick} className="tap grid place-items-center drop-shadow-md">
+        <Jersey teamId={team?.id} position={slot.position} monogram={jerseyMonogram(team?.short)} size={56} />
+      </button>
+
       {cap && (
-        <span dir="ltr" className="absolute -top-2 end-[-6px] rounded-md
-                                   bg-night px-1.5 py-0.5 font-poster text-[10px] text-armband">
-          x3
+        <span className="rounded-md bg-armband px-1.5 py-0.5 font-poster text-[10px] text-night">
+          קפטן ×3
         </span>
       )}
 
-      <button
-        onClick={onClear}
-        aria-label="הסר שחקן"
-        className="tap absolute bottom-0 end-0 grid size-7 place-items-center
-                   text-night/45"
-      >
-        ×
-      </button>
+      {/* לוחית שם — קופסה לבנה כמו בכל המסכים שסופקו */}
+      <div className="w-full max-w-[92px] rounded-lg bg-chalk px-1.5 py-1 text-center shadow-sm">
+        <bdi className="line-clamp-1 text-[11px] font-black leading-tight text-night">
+          {player.nameShort}
+        </bdi>
+      </div>
 
-      <bdi className="line-clamp-2 px-1 text-[12px] font-black leading-tight">
-        {player.nameShort}
-      </bdi>
-      <span className="text-[10px] opacity-60">{team?.short}</span>
+      {/* תג תחתון — מחיר ב-5 על 5, אחרת קיצור קבוצה */}
+      <div className={[
+        'w-full max-w-[92px] rounded-lg px-1.5 py-0.5 text-center text-[10px] font-bold',
+        price !== undefined ? 'bg-toto/15 text-toto' : 'bg-night-3 text-chalk-dim',
+      ].join(' ')}>
+        {price !== undefined ? <span className="num" dir="ltr">{price}M€</span> : team?.short}
+      </div>
     </div>
   );
 }
@@ -268,7 +294,7 @@ function SlotCard({
 /* ================================================================== */
 
 function PlayerSheet({
-  slot, pool, teamById, lineup, rules, onClose, onSelect, opponentShortByTeam,
+  slot, pool, teamById, lineup, rules, onClose, onSelect, opponentShortByTeam, pricing,
 }: {
   slot: LineupSlot;
   pool: PoolPlayer[];
@@ -278,6 +304,7 @@ function PlayerSheet({
   onClose: () => void;
   onSelect: (p: PoolPlayer) => void;
   opponentShortByTeam?: Record<string, string>;
+  pricing?: boolean;
 }) {
   const [query, setQuery] = useState('');
 
@@ -392,6 +419,10 @@ function PlayerSheet({
                   </span>
                   {block.blocked ? (
                     <span aria-hidden className="text-sm text-flare">✕</span>
+                  ) : pricing && p.price !== undefined ? (
+                    <span dir="ltr" className="num shrink-0 rounded-lg bg-toto/15 px-2 py-1 text-xs font-bold text-toto">
+                      {p.price}M€
+                    </span>
                   ) : p.form !== undefined ? (
                     <span dir="ltr" className="num text-sm text-toto">{p.form.toFixed(1)}</span>
                   ) : null}
