@@ -49,13 +49,13 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
         <form
           className="w-full max-w-xs rounded-2xl border border-chalk/10 bg-night-2 p-6"
           onSubmit={(e) => {
+            // האימות אסינכרוני מאז שהסיסמה הוחלפה ב-hash (ראו store.ts).
             e.preventDefault();
-            if (tryAdminLogin(pin)) {
-              setAuthed(true);
-              setPinError(false);
-            } else {
-              setPinError(true);
-            }
+            void tryAdminLogin(pin).then((ok) => {
+              setAuthed(ok);
+              setPinError(!ok);
+              if (!ok) setPin('');
+            });
           }}
         >
           <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-toto" />

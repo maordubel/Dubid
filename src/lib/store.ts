@@ -200,22 +200,91 @@ export function setPublished(gameweekId: string, published: boolean) {
 }
 
 /* ------------------------------------------------------------------ */
-/* מפגש ניהול — לא אבטחה אמיתית, רק חסם כניסה למסך למי שלא צריך אותו.   */
-/* להחלפה ב-auth אמיתי (Supabase) לפני שהאתר נגיש לציבור הרחב.          */
+/* מפגש ניהול                                                          */
 /* ------------------------------------------------------------------ */
 
-const ADMIN_PIN = 'hapoelTA14!';
+/**
+ * ★★ אזהרת אבטחה — לקרוא לפני שנוגעים ★★
+ *
+ * עד לפני השינוי הזה הסיסמה הייתה כתובה כאן כמחרוזת גלויה. כל אחד
+ * שפתח את ה-bundle בדפדפן ראה אותה. הברִיף אוסר את זה פעמיים
+ * (סעיף 11 ו-33), ובצדק — זה חסם production.
+ *
+ * מה תוקן כאן: הסיסמה עצמה כבר לא נמצאת בקוד. נשמר רק hash שלה,
+ * וההשוואה נעשית מול ה-hash. בנוסף נוסף חסם ניסיונות.
+ *
+ * מה **לא** תוקן, ואי אפשר לתקן בצד לקוח:
+ *   · hash בדפדפן הוא לא אימות. מי שמריץ את הקוד יכול לדלג עליו.
+ *   · אין סשן חתום, אין revocation אמיתי, אין הרשאות.
+ *
+ * ⚠ לפני עלייה לאוויר: להעביר את בדיקת ההרשאה ל-Supabase
+ *   (Edge Function + RLS), ולהשאיר כאן רק את ה-UI. המסך הזה הוא
+ *   נוחות, לא שכבת אבטחה — ואסור להתייחס אליו ככזו.
+ */
 
-export function tryAdminLogin(pin: string): boolean {
-  const ok = pin.trim() === ADMIN_PIN;
+/** SHA-256 של סיסמת הניהול. הסיסמה עצמה לא מופיעה בקוד. */
+const ADMIN_PIN_HASH =
+  '15a4edaa167df3c9656a9d3dacb527f795dfd2007bc2e0247a27eaeefc8343bf';
+
+/** הגנה מפני ניחוש בכוח גס. נשמר לסשן בלבד. */
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 5 * 60 * 1000;
+const ATTEMPTS_KEY = 'dubid.admin.attempts.v1';
+
+async function sha256Hex(text: string): Promise<string> {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function readAttempts(): { count: number; until: number } {
+  try {
+    return JSON.parse(sessionStorage.getItem(ATTEMPTS_KEY) ?? '') as { count: number; until: number };
+  } catch {
+    return { count: 0, until: 0 };
+  }
+}
+
+function writeAttempts(v: { count: number; until: number }) {
+  try {
+    sessionStorage.setItem(ATTEMPTS_KEY, JSON.stringify(v));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** כמה שניות נותרו לנעילה. 0 = לא נעול. */
+export function adminLockoutSeconds(): number {
+  const { until } = readAttempts();
+  return Math.max(0, Math.ceil((until - Date.now()) / 1000));
+}
+
+/**
+ * אסינכרוני — `crypto.subtle` מחזיר Promise. הקורא חייב לחכות.
+ * זו הסיבה היחידה שהחתימה השתנתה.
+ */
+export async function tryAdminLogin(pin: string): Promise<boolean> {
+  if (adminLockoutSeconds() > 0) return false;
+
+  const ok = (await sha256Hex(pin.trim())) === ADMIN_PIN_HASH;
+
   if (ok) {
+    writeAttempts({ count: 0, until: 0 });
     try {
       sessionStorage.setItem(KEYS.adminSession, '1');
     } catch {
       /* ignore */
     }
+    return true;
   }
-  return ok;
+
+  const prev = readAttempts();
+  const count = prev.count + 1;
+  writeAttempts({
+    count: count >= MAX_ATTEMPTS ? 0 : count,
+    until: count >= MAX_ATTEMPTS ? Date.now() + LOCKOUT_MS : 0,
+  });
+  return false;
 }
 
 export function isAdminSession(): boolean {

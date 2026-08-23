@@ -24,6 +24,8 @@ export const Reason = {
   Red: 'red_card',
   ResultBonus: 'result_bonus',
   VirtualGoal: 'virtual_goal',
+  /** בונוס בחירה נדירה שהצליחה. מחושב ב-ranking.ts, לא ב-engine.ts. */
+  Differential: 'differential',
   CaptainMultiplier: 'captain_multiplier',
   CaptainImmunity: 'captain_immunity',
   CaptainTransferred: 'captain_transferred',
@@ -108,6 +110,11 @@ export interface LineupScore {
   captainPoints: number;
   /** שערי הרכב וירטואליים */
   virtualPoints: number;
+  /**
+   * בונוס דיפרנציאל. אופציונלי כי הוא נוסף בשלב הדירוג, אחרי שידועות
+   * כל ההגשות — `scoreLineup` לבדו לא יכול לדעת אחוזי בחירה.
+   */
+  differentialPoints?: number;
   totalPoints: number;
 }
 

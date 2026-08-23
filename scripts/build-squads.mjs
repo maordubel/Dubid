@@ -43,6 +43,13 @@ const LATIN = /[A-Za-z]/;
 
 const src = JSON.parse(readFileSync(join(HERE, 'squads.source.json'), 'utf8'));
 
+/* שחקנים שמדורגים בקובץ העבודה אך לא מופיעים באף סגל. נכתב על ידי
+   import-ratings.py. לא שגיאה קטלנית — אבל חייב להיות גלוי. */
+let orphanRatings = [];
+try {
+  orphanRatings = JSON.parse(readFileSync(join(HERE, 'ratings.orphans.json'), 'utf8'));
+} catch { /* הסקריפט לא רץ עדיין */ }
+
 /* ------------------------------------------------------------------ */
 /* 1. בדיקות איכות — מדווחות, לא "מתוקנות" בשקט                        */
 /* ------------------------------------------------------------------ */
@@ -82,6 +89,16 @@ for (const team of src.teams) {
   }
 }
 
+/* כיסוי דירוגים — לא "בעיה", אבל חייב להיות גלוי: שחקן לא מדורג
+   מתומחר ברצפת הקובץ (1M), ולכן זול מדי או יקר מדי בהכרח. */
+const ratedCount = src.teams.reduce(
+  (n, t) => n + t.players.filter((p) => p.rated).length, 0);
+const totalCount = src.teams.reduce((n, t) => n + t.players.length, 0);
+
+for (const name of orphanRatings) {
+  issues.push(`מדורג בקובץ העבודה אך לא נמצא באף סגל: ${name}`);
+}
+
 const IL_PREMIER_FULL = 14;
 if (src.teams.length < IL_PREMIER_FULL) {
   issues.unshift(
@@ -113,8 +130,14 @@ const players = src.teams.flatMap((t) =>
     nameEn: p.name_en,
     shirt: p.number ?? null,
     // דרג ושווי משחק — אופציונליים במקור; ברירת מחדל ניטרלית אם חסר.
-    tier: p.tier ?? 3,
+    tier: p.tier ?? 5,
     price: p.price ?? 1,
+    // מקור: גיליון "דירוגים" בקובץ העבודה של הליגה.
+    // overallRank = null אומר "לא מדורג בקובץ", לא "גרוע".
+    overallRank: p.overall_rank ?? null,
+    rated: p.rated === true,
+    nationality: p.nationality ?? null,
+    isClubCaptain: p.is_club_captain === true,
   })),
 );
 
@@ -146,8 +169,18 @@ export interface PlayerRow {
   shirt: number | null;
   /** דרג 1 (עילית) עד 5 — לתצוגה וסינון בלבד, לא משפיע על הניקוד. */
   tier: 1 | 2 | 3 | 4 | 5;
-  /** שווי משחק במיליוני יורו — לתצוגה בלבד, אין תקציב חוסם בגרסה זו. */
+  /**
+   * שווי משחק במיליוני יורו (1–5), נאמן לגיליון "דירוגים".
+   * ★ בדוביד 5 זהו אילוץ חוסם: 5 שחקנים בתקציב DUBID_5X5_BUDGET.
+   */
   price: number;
+  /** מיקום בדירוג הכולל של הליגה (1 = הטוב ביותר). null = לא מדורג בקובץ. */
+  overallRank: number | null;
+  /** האם השחקן מופיע בגיליון הדירוגים. false = תומחר ברצפת הקובץ. */
+  rated: boolean;
+  nationality: string | null;
+  /** קפטן המועדון במציאות — טעם ורקע, לא קשור לקפטן הדובידי. */
+  isClubCaptain: boolean;
 }
 
 export const LEAGUE = ${JSON.stringify(
@@ -353,6 +386,18 @@ const report = `# דוח איכות נתונים — סגלי ליגת העל
 | שחקנים | ${players.length} |
 | שוערים / מגנים / קשרים / חלוצים | ${byPos.GK ?? 0} / ${byPos.DEF ?? 0} / ${byPos.MID ?? 0} / ${byPos.FWD ?? 0} |
 | עונה | ${src.league.season} |
+| שחקנים מדורגים בקובץ העבודה | ${ratedCount} / ${totalCount} (${Math.round((ratedCount / totalCount) * 100)}%) |
+
+## כיסוי תמחור
+
+מקור השווי הוא גיליון **דירוגים** בקובץ העבודה של הליגה.
+${totalCount - ratedCount} שחקנים אינם מופיעים שם ולכן תומחרו ברצפת הקובץ — דרג 5 · 1M€.
+זו החלטה מודעת ולא ברירת מחדל שקטה: \`rated: false\` בכל אחד מהם, וה-Admin
+יכול לעדכן שווי בלי לגעת בקוד.
+
+| שווי (מ׳ €) | שחקנים |
+|---|---|
+${[...new Set(players.map((p) => p.price))].sort((a, b) => b - a).map((v) => `| ${v} | ${players.filter((p) => p.price === v).length} |`).join('\n')}
 
 ## ${issues.length} ממצאים
 

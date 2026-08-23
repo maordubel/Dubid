@@ -246,7 +246,7 @@ function MainApp() {
         />
       </>
     ),
-    leaderboard: <Leaderboard rulesByMode={rulesByMode} />,
+    leaderboard: <Leaderboard rulesByMode={rulesByMode} userId={userId} />,
     rules: <RulesScreen />,
   };
 
