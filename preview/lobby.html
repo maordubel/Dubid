@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DUBID — תצוגת הלובי</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Assistant:wght@400;600;700&family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
+<script>
+tailwind.config = { theme: { extend: {
+  colors: {
+        
+        night:    { DEFAULT: '#0C0A08', 2: '#16120D', 3: '#211A13', 4: '#2E251A' },
+
+        
+        gold:     { DEFAULT: '#D8B25C', light: '#F0D693', deep: '#A9822F', ink: '#241A06' },
+
+        
+        toto:     { DEFAULT: '#D8B25C', deep: '#A9822F' },
+
+        
+        chalk:    { DEFAULT: '#F4ECDC', 2: '#C6B99F', dim: '#8B7F6A' },
+
+        pitch:    { DEFAULT: '#12301F', 2: '#1B4630' },
+        tekhelet: '#4A9BD8',
+        armband:  '#FFCE4D',
+        flare:    '#E4453B',
+
+        
+        ink:      { DEFAULT: '#14181C', 2: '#24395F', deep: '#0B0E11' },
+        paper:    { DEFAULT: '#F5EFE9', 2: '#EBE2CB', dim: '#C9BFA4' },
+        tartan:   { red: '#C8332F', green: '#2E7D4F' },
+      },
+      
+  fontFamily: { display:['Heebo','sans-serif'], poster:['Anton','Heebo','sans-serif'], sans:['Assistant','Heebo','sans-serif'] },
+  boxShadow: { halo: '0 0 0 1px rgba(216,178,92,.30), 0 20px 60px -24px rgba(216,178,92,.45)' },
+  transitionTimingFunction: { brand: 'cubic-bezier(.2,.9,.3,1)' },
+  zIndex: { nav:'40', sheet:'60', toast:'80' },
+}}};
+</script>
+<style>
+:root{--night:#0c0a08;--night-2:#16120d;--night-3:#211a13;--gold:#d8b25c;--gold-light:#f0d693;--gold-deep:#a9822f;--chalk:#f4ecdc;--chalk-2:#c6b99f;--chalk-dim:#8b7f6a;--pitch:#12301f;--pitch-2:#1b4630;--paper:#f5efe9;--ink:#14181c;--tartan-red:#c8332f;--tartan-green:#2e7d4f;}
+body{margin:0;background:#0c0a08;font-family:Assistant,Heebo,system-ui,sans-serif}
+.num{font-family:Anton,ui-monospace,monospace;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.tap{min-height:44px;min-width:44px}
+
+  /* ═══════════════════════════════════════════════════════════════
+     ★ העץ הכהה — המשטח של המוצר
+     ═══════════════════════════════════════════════════════════════
+     שלוש שכבות, וכל אחת עושה עבודה אחרת:
+       1. גרדיאנט רדיאלי — נותן לפינות ליפול. בלעדיו המסך שטוח.
+       2. פסי עץ אנכיים בעוצמה של 2% — הסיב. מעל 4% זה הופך
+          למרקם שמתחרה עם התוכן.
+       3. גרעיניות — שוברת את הפסים כדי שלא ייראו כמו באג רינדור
+          על מסכי OLED.
+     כולן ב-CSS. אין תמונת רקע, אין בקשת רשת, ואין קובץ לתחזק. */
+  .tex-wood {
+    background-color: var(--night);
+    background-image:
+      radial-gradient(120% 90% at 50% -10%, rgba(216, 178, 92, 0.09), transparent 62%),
+      repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.016) 0 2px,
+        transparent 2px 5px,
+        rgba(0, 0, 0, 0.22) 5px 6px,
+        transparent 6px 13px
+      ),
+      radial-gradient(rgba(255, 255, 255, 0.02) 0.5px, transparent 0.6px);
+    background-size: auto, auto, 6px 6px;
+  }
+
+  /* מסגרת זהב דקה. הכפילות (ring + shadow) מכוונת: הטבעת היא הקו
+     הנקי, הצל הוא העומק. אחת בלי השנייה נראית שטוחה או מלוכלכת. */
+  .edge-gold {
+    box-shadow:
+      inset 0 0 0 1px rgba(216, 178, 92, 0.22),
+      inset 0 1px 0 0 rgba(240, 214, 147, 0.12),
+      0 14px 34px -24px rgba(0, 0, 0, 0.95);
+  }
+
+  /* טקסט זהב מוברש — לכותרות בלבד. על טקסט רץ זה לא נקרא. */
+  .text-gold-brushed {
+    background-image: linear-gradient(180deg, #f6e0a8 0%, #d8b25c 46%, #a9822f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ★ הלוגו על משטח כהה.
+     הקו של הלוגו דק. במקומות שבהם הוא יושב מעל תמונה או מעל
+     גרדיאנט, הוא נבלע. שכבת ה"אאוט־ליין" היא ארבעה צללים כהים
+     בארבעה כיוונים — קו מתאר של פיקסל אחד שמחזיר לו הפרדה,
+     בלי לצייר מסגרת. */
+  .logo-outline {
+    filter:
+      drop-shadow(0 1px 0 rgba(0, 0, 0, 0.85))
+      drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.85))
+      drop-shadow(1px 0 0 rgba(0, 0, 0, 0.85))
+      drop-shadow(-1px 0 0 rgba(0, 0, 0, 0.85));
+  }
+
+  .logo-glow {
+    filter: drop-shadow(0 10px 30px rgba(216, 178, 92, 0.35));
+  }
+
+  .tex-turf {
+    background-image: repeating-linear-gradient(
+      100deg,
+      var(--pitch) 0 34px,
+      var(--pitch-2) 34px 68px
+    );
+  }
+
+  .tex-halftone {
+    background-image:
+      radial-gradient(currentColor 1.6px, transparent 1.7px),
+      radial-gradient(currentColor 1.6px, transparent 1.7px);
+    background-size: 10px 10px;
+    background-position: 0 0, 5px 5px;
+  }
+
+  .tex-misprint {
+    text-shadow: 3px 3px 0 var(--tekhelet);
+  }
+
+  /* נייר — משטח הקרם של המקור, עם גרעיניות עדינה. */
+  .tex-paper {
+    background-color: var(--paper);
+    background-image:
+      radial-gradient(rgba(20, 24, 28, 0.045) 0.6px, transparent 0.7px),
+      radial-gradient(rgba(20, 24, 28, 0.03) 0.6px, transparent 0.7px);
+    background-size: 7px 7px, 11px 11px;
+    background-position: 0 0, 3px 4px;
+  }
+
+  .tex-tartan {
+    background-image:
+      repeating-linear-gradient(90deg,
+        transparent 0 11px, rgba(200, 51, 47, 0.5) 11px 14px,
+        transparent 14px 25px, rgba(46, 125, 79, 0.5) 25px 27px),
+      repeating-linear-gradient(0deg,
+        transparent 0 11px, rgba(200, 51, 47, 0.35) 11px 14px,
+        transparent 14px 25px, rgba(46, 125, 79, 0.35) 25px 27px);
+  }
+
+  /* זוהר רך מאחורי אלמנט גיבור */
+  .glow-toto {
+    box-shadow: 0 0 0 1px rgba(216, 178, 92, 0.25), 0 18px 60px -18px rgba(216, 178, 92, 0.5);
+  }
+
+.frame{max-width:430px;margin:24px auto;border-radius:34px;overflow:hidden;box-shadow:0 40px 90px -30px #000, 0 0 0 10px #17130f, 0 0 0 11px #2b2219}
+</style>
+</head><body>
+<div class="frame"><link rel="preload" as="image" href="/brand/dubid-mark-gold.png"/><link rel="preload" as="image" href="/brand/dubid-logo-gold@360.png"/><link rel="preload" as="image" href="/brand/mode-five.jpg"/><link rel="preload" as="image" href="/brand/mode-full.jpg"/><link rel="preload" as="image" href="/brand/dubel-team.png"/><div class="tex-wood flex min-h-full flex-col pb-6"><header class="mx-auto flex w-full max-w-lg items-center gap-2.5 px-4
+                         pt-[calc(0.6rem+env(safe-area-inset-top))] lg:max-w-3xl"><button type="button" disabled="" class="tap -mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-1
+                     text-start transition-colors active:bg-night-2/70"><span class="grid size-9 shrink-0 place-items-center rounded-full
+                           bg-night-2 ring-1 ring-inset ring-gold/25"><img src="../public/brand/dubid-mark-gold.png" alt="" aria-hidden="true" width="26" height="26" decoding="async" class="block shrink-0 select-none" style="width:26px;height:26px"/></span><span class="min-w-0 flex-1 leading-tight"><span class="block text-[10px] font-bold uppercase tracking-[0.18em] text-chalk-dim">מאמן</span><span class="block truncate text-[15px] font-black text-chalk">מאור</span></span></button><span class="shrink-0 rounded-full bg-night-2 px-2.5 py-1
+                           ring-1 ring-inset ring-gold/20"><span dir="ltr" class="num text-[13px] leading-none text-gold">128</span><span class="ms-1 text-[10px] text-chalk-dim">משתתפים</span></span></header><div class="relative mx-auto mt-1 flex w-full max-w-lg justify-center px-4 lg:max-w-3xl"><div class="pointer-events-none absolute left-1/2 top-2 h-32 w-64 -translate-x-1/2
+                     rounded-full bg-gold/15 blur-3xl" aria-hidden="true"></div><img src="../public/brand/dubid-logo-gold@360.png" alt="דוביד" width="168" height="168" decoding="async" class="block select-none logo-glow relative" style="width:168px;height:168px"/></div><div class="mx-auto -mt-1 w-full max-w-lg px-4 lg:max-w-3xl"><div class="flex items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 transition-colors border-gold/25 bg-gold/[0.06]"><span class="size-1.5 shrink-0 rounded-full bg-gold" aria-hidden="true"></span><span class="min-w-0 flex-1 truncate text-[11px] font-black
+                       uppercase tracking-[0.16em] text-chalk-dim">מחזור 2 · פתוח</span><span class="flex shrink-0 items-baseline gap-1.5"><span class="text-[11px] font-black text-chalk-2">עוד יומיים</span><span dir="ltr" class="num text-lg font-black leading-none text-gold-light">02:00:00</span></span></div></div><div class="mx-auto mt-2.5 w-full max-w-lg px-4 lg:max-w-3xl"><div class="grid grid-cols-4 overflow-hidden rounded-2xl bg-night-2/70 edge-gold"><div class="px-1.5 py-2.5 text-center "><div dir="ltr" class="num text-[17px] leading-none text-gold-light">2</div><div class="mt-1 truncate text-[9.5px] font-bold text-chalk-dim">המחזור</div></div><div class="px-1.5 py-2.5 text-center border-s border-gold/12"><div dir="ltr" class="num text-[17px] leading-none text-gold-light">74</div><div class="mt-1 truncate text-[9.5px] font-bold text-chalk-dim">הנקודות שלי</div></div><div class="px-1.5 py-2.5 text-center border-s border-gold/12"><div dir="ltr" class="num text-[17px] leading-none text-gold-light">#8</div><div class="mt-1 truncate text-[9.5px] font-bold text-chalk-dim">המקום שלי</div></div><div class="px-1.5 py-2.5 text-center border-s border-gold/12"><div dir="ltr" class="num text-[17px] leading-none text-gold-light">2</div><div class="mt-1 truncate text-[9.5px] font-bold text-chalk-dim">ליגות</div></div></div></div><section class="mx-auto mt-4 w-full max-w-lg px-4 lg:max-w-3xl" aria-label="בחירת מצב משחק"><h2 class="flex items-center gap-2 text-[10px] font-black uppercase
+                   tracking-[0.22em] text-chalk-dim"><span aria-hidden="true" class="h-px w-3 bg-gold/40"></span>במה משחקים</h2><div class="mt-2 space-y-2.5"><button aria-label="דוביד 5 — בחרו 5. נצחו את כולם." class="tap group relative block w-full overflow-hidden rounded-2xl bg-night-2
+                 text-start edge-gold transition-transform duration-200 ease-brand
+                 active:scale-[0.99]"><img src="../public/brand/mode-five.jpg" alt="" aria-hidden="true" loading="eager" decoding="async" class="absolute inset-0 size-full object-cover opacity-[0.30]"/><span aria-hidden="true" class="absolute inset-0 bg-gradient-to-l from-night/95 via-night/80 to-night/45"></span><span class="relative flex items-center gap-3 px-3.5 py-3.5"><span class="grid size-11 shrink-0 place-items-center rounded-xl
+                         bg-gold/10 text-gold ring-1 ring-inset ring-gold/30"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="15" rx="2" stroke="currentColor" stroke-width="1.3"></rect><path d="M12 4.5v15" stroke="currentColor" stroke-width="1" opacity=".5"></path><circle cx="7" cy="9" r="1.3" fill="currentColor"></circle><circle cx="7" cy="15" r="1.3" fill="currentColor"></circle><circle cx="17" cy="9" r="1.3" fill="currentColor"></circle><circle cx="17" cy="15" r="1.3" fill="currentColor"></circle><circle cx="12" cy="12" r="1.5" fill="currentColor"></circle></svg></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate font-poster text-[19px] leading-none text-chalk">דוביד 5</span><span class="shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-black leading-[14px] bg-gold/15 text-gold-light ring-1 ring-inset ring-gold/30">3/5</span></span><span class="mt-1 block truncate text-[12px] text-chalk-2">בחרו 5. נצחו את כולם.</span></span><svg viewBox="0 0 12 20" width="11" height="18" aria-hidden="true" class="shrink-0 text-gold/60"><path d="M9 2 3 10l6 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><span class="absolute inset-x-0 bottom-0 h-[3px] bg-black/50" aria-hidden="true"><span class="block h-full bg-gradient-to-l from-gold-deep to-gold-light
+                     transition-[width] duration-300 ease-brand" style="width:60%"></span></span></button><button aria-label="דוביד 11 — בנו הרכב. שלטו בליגה." class="tap group relative block w-full overflow-hidden rounded-2xl bg-night-2
+                 text-start edge-gold transition-transform duration-200 ease-brand
+                 active:scale-[0.99]"><img src="../public/brand/mode-full.jpg" alt="" aria-hidden="true" loading="eager" decoding="async" class="absolute inset-0 size-full object-cover opacity-[0.30]"/><span aria-hidden="true" class="absolute inset-0 bg-gradient-to-l from-night/95 via-night/80 to-night/45"></span><span class="relative flex items-center gap-3 px-3.5 py-3.5"><span class="grid size-11 shrink-0 place-items-center rounded-xl
+                         bg-gold/10 text-gold ring-1 ring-inset ring-gold/30"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="19" height="17" rx="2" stroke="currentColor" stroke-width="1.3"></rect><path d="M2.5 12h19" stroke="currentColor" stroke-width="1" opacity=".45"></path><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1" opacity=".45"></circle><circle cx="6" cy="6.5" r="1.05" fill="currentColor"></circle><circle cx="12" cy="6.5" r="1.05" fill="currentColor"></circle><circle cx="18" cy="6.5" r="1.05" fill="currentColor"></circle><circle cx="5" cy="12" r="1.05" fill="currentColor"></circle><circle cx="9.5" cy="12" r="1.05" fill="currentColor"></circle><circle cx="14.5" cy="12" r="1.05" fill="currentColor"></circle><circle cx="19" cy="12" r="1.05" fill="currentColor"></circle><circle cx="6" cy="17.5" r="1.05" fill="currentColor"></circle><circle cx="12" cy="17.5" r="1.05" fill="currentColor"></circle><circle cx="18" cy="17.5" r="1.05" fill="currentColor"></circle></svg></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate font-poster text-[19px] leading-none text-chalk">דוביד 11</span><span class="shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-black leading-[14px] bg-gold text-gold-ink">ההרכב נעול</span></span><span class="mt-1 block truncate text-[12px] text-chalk-2">בנו הרכב. שלטו בליגה.</span></span><span class="shrink-0 text-center"><span dir="ltr" class="num block text-xl leading-none text-gold-light">74</span><span class="text-[9px] text-chalk-dim">נקודות</span></span></span><span class="absolute inset-x-0 bottom-0 h-[3px] bg-black/50" aria-hidden="true"><span class="block h-full bg-gradient-to-l from-gold-deep to-gold-light
+                     transition-[width] duration-300 ease-brand" style="width:100%"></span></span></button></div></section><section class="mx-auto mt-5 w-full max-w-lg px-4 lg:max-w-3xl"><h2 class="flex items-center gap-2 text-[10px] font-black uppercase
+                   tracking-[0.22em] text-chalk-dim"><span aria-hidden="true" class="h-px w-3 bg-gold/40"></span>המשחקים הקרובים</h2><ul class="mt-2 overflow-hidden rounded-2xl bg-night-2/70 edge-gold"><li class="flex items-center gap-2 border-b border-gold/10 px-3 py-2.5 last:border-0"><span class="w-[52px] shrink-0 text-[10px] leading-tight text-chalk-dim">שבת<br/><span dir="ltr" class="num text-[11px] text-chalk-2">20:00</span></span><span class="inline-grid place-items-center rounded font-black " style="width:22px;height:22px;background:#C8102E;color:#FFFFFF;font-size:8.36px">עי</span><span class="min-w-0 flex-1 truncate text-[12px] font-bold text-chalk">עי״ט <span class="text-chalk-dim">מול</span> הב״ש</span><img src="/logos/hapoel-beer-sheva.png" alt="" loading="lazy" decoding="async" class="object-contain  " style="width:22px;height:22px"/></li><li class="flex items-center gap-2 border-b border-gold/10 px-3 py-2.5 last:border-0"><span class="w-[52px] shrink-0 text-[10px] leading-tight text-chalk-dim">שבת<br/><span dir="ltr" class="num text-[11px] text-chalk-2">20:00</span></span><img src="/logos/beitar-jerusalem.png" alt="" loading="lazy" decoding="async" class="object-contain  " style="width:22px;height:22px"/><span class="min-w-0 flex-1 truncate text-[12px] font-bold text-chalk">מ״ח <span class="text-chalk-dim">מול</span> בי״ם</span><img src="/logos/maccabi-netanya.png" alt="" loading="lazy" decoding="async" class="object-contain  " style="width:22px;height:22px"/></li><li class="flex items-center gap-2 border-b border-gold/10 px-3 py-2.5 last:border-0"><span class="w-[52px] shrink-0 text-[10px] leading-tight text-chalk-dim">ראשון<br/><span dir="ltr" class="num text-[11px] text-chalk-2">20:00</span></span><img src="/logos/hapoel-haifa.png" alt="" loading="lazy" decoding="async" class="object-contain  " style="width:22px;height:22px"/><span class="min-w-0 flex-1 truncate text-[12px] font-bold text-chalk">הפ״ת <span class="text-chalk-dim">מול</span> מ״נ</span><img src="/logos/hapoel-tel-aviv.png" alt="" loading="lazy" decoding="async" class="object-contain  " style="width:22px;height:22px"/></li></ul></section><div class="flex items-center gap-3 mx-auto my-5 max-w-lg px-8 lg:max-w-3xl" aria-hidden="true"><span class="h-px flex-1 bg-gradient-to-l from-chalk/20 to-transparent"></span><svg viewBox="0 0 200 84" width="34" height="14.28" class="text-chalk/35" aria-hidden="true" fill="none"><path d="M11 21 L1 14 M189 21 L199 14" stroke="currentColor" stroke-width="5" stroke-linecap="round"></path><path d="M20 20 H82 Q88 20 88 26 L88 52 Q88 68 72 69 L34 70
+           Q18 70 15 56 L13 28 Q12 20 20 20 Z" fill="currentColor"></path><path d="M180 20 H118 Q112 20 112 26 L112 52 Q112 68 128 69 L166 70
+           Q182 70 185 56 L187 28 Q188 20 180 20 Z" fill="currentColor"></path><path d="M89 29 Q100 20 111 29" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"></path><path d="M8 19 Q100 13 192 19" stroke="currentColor" stroke-width="9" stroke-linecap="round"></path></svg><span class="h-px flex-1 bg-gradient-to-r from-chalk/20 to-transparent"></span></div><section class="mx-auto w-full max-w-lg px-4 lg:max-w-3xl"><div class="grid grid-cols-2 gap-3"><button class="tap flex flex-col items-start gap-0.5 rounded-2xl bg-night-2 px-4 py-3.5
+                 text-start edge-gold transition-colors duration-200 ease-brand
+                 active:bg-night-3"><span aria-hidden="true" class="text-gold"><svg viewBox="0 0 28 12" width="26" height="12" aria-hidden="true"><path d="M1 2.5h10.2c.6 0 1 .5.9 1.1l-.5 4c-.2 1.4-1.4 2.4-2.8 2.4H6.4c-1.5 0-2.7-1.1-2.9-2.6L3 4" fill="currentColor" opacity=".9"></path><path d="M27 2.5H16.8c-.6 0-1 .5-.9 1.1l.5 4c.2 1.4 1.4 2.4 2.8 2.4h2.4c1.5 0 2.7-1.1 2.9-2.6l.5-3.4" fill="currentColor" opacity=".9"></path><path d="M12 4.2c1.3-.5 2.7-.5 4 0" fill="none" stroke="currentColor" stroke-width="1.1"></path></svg></span><span class="mt-1.5 text-sm font-black text-chalk">ליגות פרטיות</span><span class="text-[11px] text-chalk-dim">2 ליגות</span></button><button class="tap flex flex-col items-start gap-0.5 rounded-2xl bg-night-2 px-4 py-3.5
+                 text-start edge-gold transition-colors duration-200 ease-brand
+                 active:bg-night-3"><span aria-hidden="true" class="text-gold"><svg viewBox="0 0 28 20" width="26" height="19" aria-hidden="true"><rect x="10" y="2" width="8" height="18" rx="1.5" fill="currentColor"></rect><rect x="1" y="8" width="8" height="12" rx="1.5" fill="currentColor" opacity=".6"></rect><rect x="19" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".4"></rect></svg></span><span class="mt-1.5 text-sm font-black text-chalk">הדירוג</span><span class="text-[11px] text-chalk-dim">מי מוביל</span></button></div></section><footer class="mx-auto mt-6 w-full max-w-lg px-4 lg:max-w-3xl"><p class="flex items-center justify-center gap-2 text-[11px] text-chalk-dim "><img src="../public/brand/dubel-team.png" alt="" width="18" height="18" class="shrink-0 rounded-full object-contain" style="width:18px;height:18px"/><span>נבנה על ידי <a href="https://www.dubelteam.com/" target="_blank" rel="noopener noreferrer" class="font-black text-chalk-2 underline decoration-armband/50
+                     underline-offset-2 hover:text-chalk">Dubel Team</a></span></p></footer></div></div>
+</body></html>
