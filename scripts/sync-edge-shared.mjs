@@ -1,5 +1,5 @@
 /**
- * sync-edge-shared.mjs — מעתיק את הקוד המשותף אל תיקיית ה-Edge Functions.
+ * sync-edge-shared.mjs — מעתיק את הקוד המשותף אל תוך תיקיית הפונקציה.
  *
  * ★ הבעיה
  *
@@ -9,25 +9,30 @@
  * ה-bundler של Supabase רואה **רק** את תיקיית הפונקציה. ייבוא כמו
  * `../../../src/lib/scoring/engine.ts` עובד מקומית ונשבר בפריסה.
  *
- * ★ שתי דרכים גרועות ואחת טובה
+ * ★ ולמה לא `_shared/`
  *
- *   ✗ להעתיק את המנוע ידנית — שני עותקים שיתפצלו תוך שבועיים
- *   ✗ לפרסם חבילה ל-npm — תקורה ענקית לשלושה קבצים
- *   ✓ להעתיק אוטומטית לפני כל פריסה, ולסמן את היעד כ"נוצר אוטומטית"
+ * הניסיון הראשון העתיק ל-`supabase/functions/_shared/`. זה עובד
+ * ב-CLI — אבל **לא בעורך ה-Dashboard**, שלא מאפשר קבצים מעל שורש
+ * הפונקציה. מי שפורס דרך הדפדפן נשאר תקוע בדיוק באותה שגיאה.
  *
- * מקור האמת נשאר `src/lib/`. התיקייה `supabase/functions/_shared/`
- * היא תוצר בנייה — לא עורכים אותה, והיא ב-.gitignore.
+ * לכן היעד הוא `<function>/_lib/` — בתוך הפונקציה. עובד בשתי דרכי
+ * הפריסה, בלי תנאים ובלי "תלוי איך אתה פורס".
+ *
+ * מקור האמת נשאר `src/lib/`. `_lib/` הוא תוצר בנייה: כל קובץ בו
+ * מסומן "נוצר אוטומטית", והתיקייה ב-.gitignore.
  *
  * הרצה:  npm run sync:edge     (רץ אוטומטית לפני deploy:edge)
  */
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DEST = join(ROOT, 'supabase/functions/_shared');
 
-/** מה מועתק. הנתיבים יחסיים ל-src/lib. */
+/** כל פונקציה שצריכה את הקוד המשותף. */
+const FUNCTIONS = ['dubid-score-gameweek'];
+
+/** מה מועתק. נתיבים יחסיים ל-src/lib. */
 const SHARED = ['scoring', 'events'];
 
 const BANNER = `/**
@@ -38,25 +43,32 @@ const BANNER = `/**
  */
 `;
 
-rmSync(DEST, { recursive: true, force: true });
-mkdirSync(DEST, { recursive: true });
-
-let count = 0;
-for (const dir of SHARED) {
-  cpSync(join(ROOT, 'src/lib', dir), join(DEST, dir), { recursive: true });
-}
-
-/** מוסיף את הבאנר לכל קובץ שהועתק, כדי שאיש לא יערוך אותו בטעות. */
+/** מוסיף באנר לכל קובץ, כדי שאיש לא יערוך תוצר בנייה בטעות. */
 function stamp(dir) {
+  let n = 0;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) { stamp(full); continue; }
+    if (entry.isDirectory()) {
+      n += stamp(full);
+      continue;
+    }
     if (!entry.name.endsWith('.ts')) continue;
     writeFileSync(full, BANNER + readFileSync(full, 'utf8'));
-    count += 1;
+    n += 1;
   }
+  return n;
 }
-stamp(DEST);
 
-console.log(`✓ supabase/functions/_shared  (${count} קבצים מ-${SHARED.join(', ')})`);
-console.log('  מקור האמת: src/lib/ — אל תערכו את היעד.');
+for (const fn of FUNCTIONS) {
+  const dest = join(ROOT, 'supabase/functions', fn, '_lib');
+  rmSync(dest, { recursive: true, force: true });
+  mkdirSync(dest, { recursive: true });
+
+  for (const dir of SHARED) {
+    cpSync(join(ROOT, 'src/lib', dir), join(dest, dir), { recursive: true });
+  }
+  console.log(`✓ ${relative(ROOT, dest)}  (${stamp(dest)} קבצים)`);
+}
+
+console.log('\nמקור האמת: src/lib/ — אל תערכו את היעד.');
+console.log('פריסה דרך ה-Dashboard: להעלות את כל תיקיית הפונקציה, כולל _lib/.');
