@@ -229,3 +229,47 @@ test('מערך קצר מקבל מגרש נמוך יותר', () => {
   assert.ok(ratioForFormation('4-3-3') < PITCH_RATIO);
   assert.equal(ratioForFormation('לא-מערך'), PITCH_RATIO, 'ברירת מחדל בטוחה');
 });
+
+/* ---------------- ★ מיקום פיזי מול לוגי ---------------- */
+
+test('★ המשבצת ממוקמת ב-left פיזי — הבאג שהזיז כל שחקן במגרש', async () => {
+  /*
+   * הבאג: `insetInlineStart` ב-RTL עוגן את הכרטיס מהצד הימני,
+   * בעוד `-translate-x-1/2` הזיז אותו שמאלה. השניים לא ביטלו זה
+   * את זה, וכל כרטיס ישב במרחק של רוחב כרטיס שלם מהמקום שלו.
+   *
+   * `slot.x` הוא גאומטריה על המגרש, לא כיוון קריאה. גאומטריה
+   * לא מתהפכת עם שפת הממשק.
+   */
+  const fs = await import('node:fs/promises');
+  const tsx = await fs.readFile('src/components/Pitch.tsx', 'utf8');
+  const slot = tsx.slice(tsx.indexOf('function PlayerSlot'));
+
+  assert.ok(
+    slot.includes('left: `${slot.x}%`'),
+    'המשבצת חייבת להשתמש ב-left פיזי',
+  );
+  assert.ok(
+    !slot.includes('insetInlineStart'),
+    'inset-inline-start במשבצת מחזיר את הבאג',
+  );
+  assert.ok(
+    slot.includes('-translate-x-1/2'),
+    'בלי המירכוז, x הוא הפינה ולא המרכז',
+  );
+});
+
+test('★ אין מירכוז לוגי עם transform בשום קומפוננטה', async () => {
+  // אותו באג הופיע גם בזוהר שמאחורי הבאדג׳ בלובי.
+  // `start-*` יחד עם `-translate-x-*` הוא תמיד מירכוז שבור ב-RTL.
+  const fs = await import('node:fs/promises');
+  const files = ['src/components/Pitch.tsx', 'src/components/Lobby.tsx'];
+  for (const f of files) {
+    const src = await fs.readFile(f, 'utf8');
+    for (const line of src.split('\n')) {
+      if (line.trimStart().startsWith('//') || line.trimStart().startsWith('*')) continue;
+      const broken = /\bstart-(1\/2|\[)/.test(line) && /-translate-x-/.test(line);
+      assert.ok(!broken, `${f}: מירכוז לוגי עם transform — ${line.trim()}`);
+    }
+  }
+});

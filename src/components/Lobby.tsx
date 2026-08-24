@@ -86,7 +86,10 @@ export function Lobby({
         {/* זוהר צמוד לבאדג׳ בלבד. קודם הוא היה רחב ועז מדי
             וצבע את כל הכותרת בחום עכור. */}
         <div
-          className="pointer-events-none absolute start-1/2 top-6 h-32 w-32 -translate-x-1/2
+          // `left-1/2` ולא `start-1/2`: מירכוז גאומטרי. ב-RTL,
+          // `start` עוגן מימין בעוד ה-transform מזיז שמאלה, והזוהר
+          // יצא מוסט. אותו באג בדיוק שהיה במיקום השחקנים על המגרש.
+          className="pointer-events-none absolute left-1/2 top-6 h-32 w-32 -translate-x-1/2
                      rounded-full bg-toto/25 blur-2xl"
           aria-hidden="true"
         />
