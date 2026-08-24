@@ -1,0 +1,135 @@
+/* ===================================================================
+   DUBID · Design Tokens
+   -------------------------------------------------------------------
+   השפה בנויה על ארבעה עוגנים ישראליים אמיתיים, לא על "פלטת ספורט":
+
+     כתום הטוטו   – הצבע של טופס ההימורים. אף אחד לא ניכס אותו לדיגיטל.
+     דשא בזרקורים – ירוק בקבוק כהה, לא "ירוק אפליקציה".
+     גיר           – סימוני המגרש. מחליף לבן בכל מקום.
+     נורות לוח     – כתום לוהט על שחור חם, מלוח התוצאות הישן.
+
+   הטקסטורות (הלפטון, המישרג, הגרעין) הן חלק מהמותג ולא קישוט.
+   בלעדיהן זה נראה כמו כל דשבורד. איתן זה נראה כמו חפץ מודפס.
+   =================================================================== */
+
+:root {
+  /* --- דיו --- */
+  --night:      #121110;   /* שחור חם. לא #000, לא כחול-שחור. */
+  --night-2:    #1B1917;
+  --night-3:    #262320;
+  --night-4:    #35302B;
+
+  /* --- דשא --- */
+  --pitch:      #0F3D2C;
+  --pitch-2:    #16563E;
+  --pitch-line: rgba(246, 243, 235, 0.22);
+
+  /* --- הצבע הראשי --- */
+  --toto:       #FF5B14;
+  --toto-deep:  #C63A05;
+  --toto-glow:  rgba(255, 91, 20, 0.30);
+
+  /* --- גיר --- */
+  --chalk:      #F6F3EB;
+  --chalk-2:    #C9C3B7;
+  --chalk-dim:  #8C857A;
+
+  /* --- אקסנטים --- */
+  --tekhelet:   #1F7FD1;   /* תכלת: מידע, קישורים, מצב ניטרלי */
+  --armband:    #FFC93C;   /* סרט הקפטן. משמש אך ורק לקפטן. */
+  --flare:      #E4002B;   /* נפץ: משחק חי, טיימר נעילה, מחיקה */
+
+  /* --- סמנטיקה --- */
+  --pos:        var(--toto);
+  --neg:        var(--flare);
+  --live:       var(--flare);
+
+  /* --- מבנה --- */
+  --r-sm: 10px;  --r-md: 16px;  --r-lg: 22px;  --r-pill: 999px;
+  --ease: cubic-bezier(.2, .9, .3, 1);
+  --dur: 220ms;
+
+  /* --- שכבות --- */
+  --z-nav: 40;  --z-sheet: 60;  --z-toast: 80;
+
+  /* --- טיפוגרפיה ---
+     Narkiss Block הוא פונט התצוגה הישראלי הנוסטלגי (Masterfont, בתשלום).
+     Anton נושא את הלטינית והמספרים בסגנון כרזה. Heebo הוא ה-fallback. */
+  --f-display: "Narkiss Block", "Heebo", system-ui, sans-serif;
+  --f-poster:  "Anton", "Heebo", system-ui, sans-serif;
+  --f-ui:      "Almoni Neue", "Assistant", "Heebo", system-ui, sans-serif;
+  --f-num:     "Anton", "Archivo", ui-monospace, monospace;
+}
+
+/* ===================================================================
+   טקסטורות המותג
+   =================================================================== */
+
+/* הלפטון — נקודות דפוס. משמש כמעבר בין שטחים, לא כרקע מלא. */
+.tex-halftone {
+  background-image:
+    radial-gradient(currentColor 1.6px, transparent 1.7px),
+    radial-gradient(currentColor 1.6px, transparent 1.7px);
+  background-size: 10px 10px;
+  background-position: 0 0, 5px 5px;
+  opacity: .28;
+}
+
+/* מישרג — "טעות הדפוס". כותרת מקבלת רפאים תכלת מוסטים. */
+.tex-misprint {
+  text-shadow: 3px 3px 0 var(--tekhelet), -1px -1px 0 var(--toto);
+}
+
+/* גרעין נייר — שכבת רעש עדינה מעל הכול */
+.tex-grain::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  opacity: .06;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* דשא בפסים — כמו כיסוח מגרש אמיתי */
+.tex-turf {
+  background-image: repeating-linear-gradient(
+    100deg,
+    var(--pitch) 0 34px,
+    var(--pitch-2) 34px 68px
+  );
+}
+
+/* קו גיר — גבול שנראה מצויר ולא מוגדר ב-CSS */
+.tex-chalkline {
+  border-bottom: 2px solid var(--chalk);
+  opacity: .55;
+  mask-image: repeating-linear-gradient(90deg,
+    #000 0 22px, rgba(0,0,0,.35) 22px 26px, #000 26px 48px);
+}
+
+/* ===================================================================
+   בסיס
+   =================================================================== */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html { color-scheme: dark; }
+
+body {
+  margin: 0;
+  background: var(--night);
+  color: var(--chalk);
+  font-family: var(--f-ui);
+  /* אפליקציה, לא אתר: אין גלילת דף. אזורים פנימיים גוללים. */
+  overscroll-behavior-y: none;
+}
+
+/* מספרים לא מתהפכים ולא רוקדים */
+.num {
+  font-family: var(--f-num);
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+  letter-spacing: .01em;
+}
+
+/* יעד מגע מינימלי — לא מתפשרים */
+.tap { min-height: 44px; min-width: 44px; }

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="דוביד שווייצר — קונספט 2: מונוגרמת ד״ש">
+  <rect width="512" height="512" rx="116" fill="#0B1420"/>
+
+  <!-- ד -->
+  <g fill="none" stroke="#F2E9D8" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M146 118 H366 V196"/>
+  </g>
+
+  <!-- ש : הקערה = קשת השער / היציע -->
+  <path d="M146 244 C146 310 192 356 256 356 C320 356 366 310 366 244"
+        fill="none" stroke="#F2E9D8" stroke-width="34" stroke-linecap="round"/>
+
+  <!-- הזרוע האמצעית = הכדור בדרך לרשת -->
+  <path d="M256 212 V356" fill="none" stroke="#C9A227" stroke-width="34" stroke-linecap="round"/>
+
+  <!-- גרשיים / קווי תנועה -->
+  <g fill="#C9A227">
+    <rect x="82" y="112" width="15" height="54" rx="7.5" transform="rotate(14 89.5 139)"/>
+    <rect x="112" y="112" width="15" height="54" rx="7.5" transform="rotate(14 119.5 139)"/>
+  </g>
+
+  <!-- קו הדשא -->
+  <rect x="112" y="404" width="288" height="12" rx="6" fill="#F2E9D8" opacity="0.3"/>
+</svg>

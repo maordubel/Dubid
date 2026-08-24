@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="דוביד שווייצר — קונספט 1: המחזור">
+  <rect width="512" height="512" rx="116" fill="#0B1420"/>
+
+  <!-- טבעת המחזור: 4 קשתות = 4 מחזורי משחק -->
+  <g transform="rotate(-45 256 256)">
+    <circle cx="256" cy="256" r="196" fill="none" stroke="#C9A227" stroke-width="12"
+            stroke-linecap="round" stroke-dasharray="225.9 82"/>
+  </g>
+
+  <!-- מגן רטרו -->
+  <path d="M256 96 L400 140 V270 C400 340 330 392 256 420 C182 392 112 340 112 270 V140 Z"
+        fill="none" stroke="#F2E9D8" stroke-width="16" stroke-linejoin="round"/>
+
+  <!-- פאנל הכדור (מחומש) -->
+  <path d="M256 172 L330.2 225.9 L301.9 313.1 L210.1 313.1 L181.8 225.9 Z" fill="#F2E9D8"/>
+
+  <!-- תפרים -->
+  <g stroke="#F2E9D8" stroke-width="14" stroke-linecap="round">
+    <line x1="256" y1="172" x2="256" y2="142"/>
+    <line x1="330.2" y1="225.9" x2="358.7" y2="216.6"/>
+    <line x1="301.9" y1="313.1" x2="319.5" y2="337.4"/>
+    <line x1="210.1" y1="313.1" x2="192.5" y2="337.4"/>
+    <line x1="181.8" y1="225.9" x2="153.3" y2="216.6"/>
+  </g>
+
+  <!-- קו הבסיס -->
+  <rect x="196" y="356" width="120" height="12" rx="6" fill="#C9A227"/>
+</svg>

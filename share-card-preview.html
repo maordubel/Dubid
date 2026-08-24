@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8">
+<title>Dubid — Share Card</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Heebo:wght@400;700;900&display=block" rel="stylesheet">
+<style>body{margin:0;background:#1B1917;display:grid;place-items:center;min-height:100vh}
+canvas{width:540px;height:960px;border-radius:8px;box-shadow:0 30px 80px rgba(0,0,0,.6)}</style>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+import { renderShareCard } from './build/lib/shareCard.js';
+import { scoreLineup } from './build/lib/scoring/engine.js';
+import { resolveRules } from './build/lib/scoring/rules.js';
+import { createEmptyLineup } from './build/lib/lineup.js';
+import { TEAMS, PLAYERS, LEAGUE, shortName } from './build/data/squads.js';
+
+// הרכב חוקי אמיתי מהסגלים שהועלו: שחקן אחד מכל קבוצה
+const r = resolveRules(TEAMS.length);
+const lineup = createEmptyLineup(r.rules.constraints.formationAllowed[0],
+  { lineupId:'L', userId:'U', gameweekId:'GW7' });
+const taken = new Set();
+for (const slot of lineup.slots) {
+  const pick = PLAYERS.find(p => p.position === slot.position && !taken.has(p.teamId));
+  taken.add(pick.teamId); slot.playerId = pick.id; slot.teamId = pick.teamId;
+}
+lineup.slots[lineup.slots.length-1].isCaptain = true;
+
+const hash = s => { let h=0; for (let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return h; };
+const performances = new Map(), outcomes = new Map();
+for (const slot of lineup.slots) {
+  const h = hash(slot.playerId), played = h % 11 !== 0;
+  performances.set(slot.playerId, { playerId:slot.playerId, teamId:slot.teamId, position:slot.position,
+    minutes: played?90:0, goals: played?(h%7===0?2:h%3===0?1:0):0, assists: played&&h%5===0?1:0,
+    ownGoals:0, yellowCards:h%8===0?1:0, redCards:0, saves:0, penaltiesSaved:0, penaltiesMissed:0,
+    goalsConceded:0, cleanSheet: played&&h%4===0, played });
+  const tg = hash(slot.teamId), result = tg%3===0?'W':tg%3===1?'D':'L';
+  outcomes.set(slot.teamId, { teamId:slot.teamId, result,
+    goalsFor: result==='W'?2+(tg%2):result==='D'?1:0, goalsAgainst: result==='L'?1+(tg%2):result==='D'?1:0 });
+}
+const score = scoreLineup(lineup, performances, outcomes, r.rules);
+const teamById = new Map(TEAMS.map(t=>[t.id,t])), playerById = new Map(PLAYERS.map(p=>[p.id,p]));
+
+await document.fonts.load('900 132px Heebo');
+await document.fonts.load('400 300px Anton');
+await renderShareCard({
+  gameweekLabel:'מחזור 7', leagueLabel: LEAGUE.nameHe, userName:'מאור',
+  totalPoints: score.totalPoints, rank:3, totalPlayers:128,
+  breakdown:{ personal:score.personalPoints, result:score.resultPoints,
+              captain:score.captainPoints, virtual:score.virtualPoints },
+  url:'https://dubid.dubelteam.com/c/GW7', urlLabel:'DUBID.DUBELTEAM.COM',
+  lineup: score.players.map(p=>({ name: shortName(playerById.get(p.playerId).nameHe),
+    teamShort: teamById.get(p.teamId).short, position:p.position,
+    points:p.subtotal, isCaptain:p.isCaptain })),
+}, { canvas: document.getElementById('c') });
+document.title = 'ready:' + score.totalPoints;
+</script></body></html>
