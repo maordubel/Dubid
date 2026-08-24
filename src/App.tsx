@@ -12,6 +12,11 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppShell, AppHeader } from './components/AppShell.tsx';
 import type { NavItem } from './components/BottomNav.tsx';
 import { Lobby, type LobbyMode } from './components/Lobby.tsx';
+import { Arena } from './components/Arena.tsx';
+import { DubelCredit } from './components/DubelCredit.tsx';
+import { ShadesDivider } from './components/Shades.tsx';
+import { usePromo } from './state/usePromo.ts';
+import type { GrowthContext } from './lib/growth.ts';
 import { GameweekStatus, type Gameweek } from './lib/gameweek.ts';
 import { serverNow } from './lib/serverTime.ts';
 import { SquadPicker, type PoolPlayer, type TeamMeta } from './components/SquadPicker.tsx';
@@ -30,7 +35,7 @@ import { useLineup } from './state/useLineup.ts';
 import {
   getResults, saveEntry, listEntries, findMyEntry, deleteEntry, subscribeToStore, type LineupEntry,
 } from './lib/store.ts';
-import { computeGameStatus, STATUS_ACTION, type GameStatus } from './lib/gameStatus.ts';
+import { computeGameStatus, type GameStatus } from './lib/gameStatus.ts';
 import type { PlayerPerformance, TeamOutcome } from './lib/scoring/types.ts';
 import type { RuleSet } from './lib/scoring/rules.ts';
 import type { ShareCardData } from './lib/shareCard.ts';
@@ -41,11 +46,30 @@ const MODE_LABEL: Record<Mode, string> = { full: 'הרכב מלא · 11', five: 
 const SITE_URL = 'https://dubid.dubelteam.com';
 const USER_STORAGE_KEY = 'dubid.username.v1';
 
+/**
+ * ★ חמישה פריטים, לא שישה.
+ *
+ * "הכרטיס" ירד מהניווט התחתון והפך ליעד: מגיעים אליו מהלובי
+ * ומכפתור בהרכב הנעול, כלומר בדיוק ברגע שיש מה לראות בו. פריט
+ * ניווט קבוע למסך שרוב הזמן ריק הוא בזבוז של אחת מחמש משבצות.
+ *
+ * במקומו נכנסה "הזירה" — פיצ׳ר שלם שהיה כתוב, בדוק, ובלי דרך
+ * להגיע אליו.
+ */
+/** שם המסך בכותרת. מקור אחד, ולא מחרוזת מודבקת בכל ענף. */
+const SCREEN_TITLE: Record<string, string> = {
+  lineup: 'ההרכב',
+  arena: 'הזירה',
+  leaderboard: 'הדירוג',
+  card: 'הכרטיס',
+  rules: 'חוקי המשחק',
+};
+
 const NAV: NavItem[] = [
   { id: 'home', label: 'בית', icon: '⚑' },
   { id: 'lineup', label: 'ההרכב', icon: '◎' },
+  { id: 'arena', label: 'הזירה', icon: '◆' },
   { id: 'leaderboard', label: 'דירוג', icon: '▦' },
-  { id: 'card', label: 'הכרטיס', icon: '◐' },
   { id: 'rules', label: 'חוקים', icon: '☰' },
 ];
 
@@ -172,6 +196,30 @@ function MainApp() {
 
   const entrantCount = listEntries(GAMEWEEK.id).length;
 
+  /**
+   * ★ ההקשר של תוכנית השיווק הצולבת.
+   *
+   * כל שדה כאן הוא עובדה שהמסך כבר מחזיק — אין מעקב חדש, אין
+   * קריאה לשרת, ואין מזהה אישי. `lib/growth.ts` מחליט מזה מה
+   * להציג, דטרמיניסטית.
+   *
+   * ה-`useMemo` חיוני: הלובי מרנדר כל שנייה בגלל השעון, ואובייקט
+   * חדש בכל רינדור היה מפעיל את בחירת המסר מחדש בלי סוף.
+   */
+  const growthCtx: GrowthContext = useMemo(() => ({
+    submissionOpen: lobbyGameweek.status === GameweekStatus.Open,
+    hasSubmitted: !!entryFull || !!entryFive,
+    resultsPublished: results.published,
+    // הרגע שקובע הוא השריקה הראשונה, לא הדדליין. הם לא זהים:
+    // הדדליין הוא פתיחת המשחק המוקדם ביותר, וזה בדיוק הרגע שבו
+    // אופסיידס הופך לרלוונטי.
+    msToKickoff: Date.parse(FIRST_KICKOFF) - serverNow(),
+    entrants: entrantCount,
+  }), [lobbyGameweek.status, entryFull, entryFive, results.published, entrantCount]);
+
+  const { promo, dismiss: dismissPromo, open: openPromo } =
+    usePromo(growthCtx, lobbyGameweek.number);
+
 
   const hasRealResults = results.published && Object.keys(results.performances).length > 0;
 
@@ -237,8 +285,12 @@ function MainApp() {
         displayName={displayName}
         entrants={entrantCount}
         onPlay={goToMode}
-        onLeagues={() => setTab('leaderboard')}
+        onLeagues={() => setTab('arena')}
         onLeaderboard={() => setTab('leaderboard')}
+        promo={promo}
+        gameweekNumber={lobbyGameweek.number}
+        onDismissPromo={dismissPromo}
+        onOpenPromo={openPromo}
       />
     ),
     /**
@@ -323,6 +375,14 @@ function MainApp() {
         />
       </>
     ),
+    arena: (
+      <Arena
+        userId={userId}
+        displayName={displayName ?? ''}
+        rulesByMode={rulesByMode}
+        origin={SITE_URL}
+      />
+    ),
     leaderboard: <Leaderboard rulesByMode={rulesByMode} userId={userId} />,
     rules: <RulesScreen />,
   };
@@ -334,24 +394,39 @@ function MainApp() {
       items={NAV}
       activeId={tab}
       onSelect={setTab}
+      /*
+       * ★ הכותרת מדברת על המסך שהמשתמש נמצא בו.
+       *
+       * קודם היא הציגה תמיד "דוביד שוויצר" ומונה שחקנים —
+       * גם במסך החוקים, גם בזירה, גם בדירוג. מונה `3/11` מעל
+       * טבלת זירה הוא רעש: הוא לא נכון לשום דבר שבמסך.
+       *
+       * בלובי אין כותרת בכלל. הלובי כבר מציג לוגו, שם ושעון,
+       * ופס כותרת מעליו היה חוזר על אותו מידע פעמיים.
+       */
       header={
-        <AppHeader
-          title="דוביד שוויצר"
-          subtitle={
-            <span className="flex items-center gap-2">
-              <span>{LEAGUE.nameHe} · {GAMEWEEK.label} · {MODE_LABEL[mode]}</span>
-              {tab !== 'home' && <GameStatusBadge status={status} />}
-            </span>
-          }
-          right={
-            <div className="text-end">
-              <div className="num text-2xl text-toto">
-                {lu.filled}/{rules.constraints.lineupSize}
-              </div>
-              <div className="text-[11px] text-chalk-dim">שחקנים</div>
-            </div>
-          }
-        />
+        tab === 'home' ? undefined : (
+          <AppHeader
+            title={SCREEN_TITLE[tab] ?? 'דוביד'}
+            subtitle={
+              <span className="flex items-center gap-2">
+                <span>{LEAGUE.nameHe} · {GAMEWEEK.label}</span>
+                {(tab === 'lineup' || tab === 'card') && <GameStatusBadge status={status} />}
+              </span>
+            }
+            right={
+              // המונה רלוונטי רק כשבונים הרכב.
+              tab === 'lineup' && !entry ? (
+                <div className="text-end">
+                  <div className="num text-2xl text-toto">
+                    {lu.filled}/{rules.constraints.lineupSize}
+                  </div>
+                  <div className="text-[11px] text-chalk-dim">שחקנים</div>
+                </div>
+              ) : undefined
+            }
+          />
+        )
       }
     >
       {screens[tab]}
@@ -382,38 +457,6 @@ function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
     </div>
   );
 }
-function GameCard({
-  emoji, title, subtitle, description, status, onPlay,
-}: {
-  emoji: string;
-  title: string;
-  subtitle: string;
-  description: string;
-  status: GameStatus;
-  onPlay: () => void;
-}) {
-  return (
-    <div className="flex flex-col rounded-3xl border border-chalk/10 bg-night-2 p-5">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="text-2xl leading-none">{emoji}</div>
-          <h2 className="mt-2 font-display text-2xl font-black tracking-tight">{title}</h2>
-          <div dir="ltr" className="mt-0.5 text-end text-xs font-bold text-chalk-dim">{subtitle}</div>
-        </div>
-        <GameStatusBadge status={status} />
-      </div>
-      <p className="mt-3 flex-1 text-sm text-chalk-2">{description}</p>
-      <button
-        onClick={onPlay}
-        className="tap mt-4 h-12 w-full rounded-full bg-toto font-poster text-lg text-night
-                   transition-transform duration-200 ease-brand active:scale-[.98]"
-      >
-        {STATUS_ACTION[status]}
-      </button>
-    </div>
-  );
-}
-
 /* ================================================================== */
 
 function DemoBanner({ message, size }: { message: string; size: number }) {
@@ -703,6 +746,49 @@ function RulesScreen() {
         </li>
         <li>ציון שלילי לא מוכפל. ההימור מגדיל רווח, לא הפסד.</li>
       </ul>
+
+      {/*
+        ★ שוברי השוויון היו חסרים מהמסך הזה.
+
+        המנוע מכריע לפי היררכיה בת שמונה רמות, והדירוג אפילו
+        *אומר* מה שבר את השוויון — אבל שום מקום במוצר לא הסביר
+        מה ההיררכיה. הברִיף דורש שהניקוד יהיה "ניתן להסבר
+        למשתמשים", ומשתמש שרואה "הוכרע לפי הקפטן" בלי לדעת מה
+        זה אומר, חושב שהמערכת המציאה משהו.
+      */}
+      <h2 className="mt-6 font-display text-lg font-black">מה קורה בשוויון</h2>
+      <p className="mt-1 text-sm text-chalk-2">
+        לעולם לא הגרלה. יורדים ברשימה עד שנמצא הבדל:
+      </p>
+      <ol className="mt-2 space-y-1.5 text-sm text-chalk-2">
+        {[
+          'ניקוד כולל',
+          'ניקוד הקפטן',
+          'תרומת הבחירות הנדירות',
+          'שערים של השחקנים שנבחרו',
+          'בישולים של השחקנים שנבחרו',
+          'שערים נקיים',
+          'שאר התרומה המאומתת',
+          'זמן ההגשה הרשמי — מי שהגיש קודם',
+        ].map((label, i) => (
+          <li key={label} className="flex gap-2.5">
+            <span className="num shrink-0 text-chalk-dim">{i + 1}.</span>
+            <span>{label}</span>
+          </li>
+        ))}
+      </ol>
+
+      <h2 className="mt-6 font-display text-lg font-black">בחירה נדירה</h2>
+      <p className="mt-1 text-sm text-chalk-2">
+        שחקן שמעטים בחרו ושהביא נקודות שווה יותר. הבונוס עובד רק אם
+        השחקן באמת הופיע בגיליון — בחירה נדירה שלא שיחקה לא מזכה בכלום,
+        אחרת היה משתלם לבחור שחקנים שלא במשחק. הבונוס כבוי כשיש פחות
+        מ-<span className="num">20</span> משתתפים, כי אז "נדיר" לא אומר כלום.
+      </p>
+
+      <ShadesDivider className="my-7 px-8" />
+
+      <DubelCredit variant="card" />
     </div>
   );
 }

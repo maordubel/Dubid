@@ -26,15 +26,19 @@ SET search_path = core, game, public;
 --    "en": {"full":"Omer Atzili","short":"Atzili"}}
 -- שפת ברירת המחדל נגזרת מהליגה; חסר תרגום => fallback ל-en.
 
-CREATE DOMAIN core.i18n_name AS JSONB
-  CHECK (
-    VALUE IS NULL                                  -- עמודות nullable מותרות
-    OR (
-      jsonb_typeof(VALUE) = 'object'
-      AND VALUE ? 'en'                             -- אנגלית תמיד חובה (עוגן)
-      AND (VALUE #>> '{en,full}') IS NOT NULL
-    )
-  );
+-- ★ גם ל-CREATE DOMAIN אין IF NOT EXISTS.
+DO $do$ BEGIN
+  CREATE DOMAIN core.i18n_name AS JSONB
+    CHECK (
+      VALUE IS NULL                                -- עמודות nullable מותרות
+      OR (
+        jsonb_typeof(VALUE) = 'object'
+        AND VALUE ? 'en'                           -- אנגלית תמיד חובה (עוגן)
+        AND (VALUE #>> '{en,full}') IS NOT NULL
+      )
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $do$;
 
 -- נרמול שם עברי/לטיני לצורך מפתח חיפוש והתאמה בין ספקים.
 -- שימו לב: unaccent(text) הוא STABLE ולכן אסור בעמודה GENERATED.
@@ -68,7 +72,7 @@ $$;
 -- 1. ליגות ועונות
 -- =====================================================================
 
-CREATE TABLE core.leagues (
+CREATE TABLE IF NOT EXISTS core.leagues (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code                TEXT NOT NULL UNIQUE,          -- 'IL_PREMIER', 'EN_PL'
   country_code        CHAR(2) NOT NULL,              -- ISO-3166 'IL'
@@ -83,7 +87,7 @@ CREATE TABLE core.leagues (
 COMMENT ON COLUMN core.leagues.squad_size IS
   'גודל ההרכב הפנטזי. ליגה זרה עם חוקים אחרים = שינוי ערך, לא שינוי קוד.';
 
-CREATE TABLE core.seasons (
+CREATE TABLE IF NOT EXISTS core.seasons (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   league_id     UUID NOT NULL REFERENCES core.leagues(id) ON DELETE CASCADE,
   label         TEXT NOT NULL,                        -- '2026/27'
@@ -94,14 +98,14 @@ CREATE TABLE core.seasons (
   CHECK (ends_on > starts_on)
 );
 -- עונה נוכחית אחת לכל ליגה
-CREATE UNIQUE INDEX seasons_one_current_per_league
+CREATE UNIQUE INDEX IF NOT EXISTS seasons_one_current_per_league
   ON core.seasons (league_id) WHERE is_current;
 
 -- =====================================================================
 -- 2. קבוצות ושחקנים
 -- =====================================================================
 
-CREATE TABLE core.teams (
+CREATE TABLE IF NOT EXISTS core.teams (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   country_code    CHAR(2) NOT NULL,
   names           core.i18n_name NOT NULL,
@@ -114,20 +118,26 @@ CREATE TABLE core.teams (
   name_he         TEXT GENERATED ALWAYS AS (names #>> '{he,full}') STORED,
   name_en         TEXT GENERATED ALWAYS AS (names #>> '{en,full}') STORED
 );
-CREATE INDEX teams_name_he_trgm ON core.teams USING gin (name_he gin_trgm_ops);
-CREATE INDEX teams_name_en_trgm ON core.teams USING gin (name_en gin_trgm_ops);
-CREATE INDEX teams_names_gin    ON core.teams USING gin (names jsonb_path_ops);
+CREATE INDEX IF NOT EXISTS teams_name_he_trgm ON core.teams USING gin (name_he gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS teams_name_en_trgm ON core.teams USING gin (name_en gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS teams_names_gin    ON core.teams USING gin (names jsonb_path_ops);
 
 -- קבוצה משתתפת בליגה בעונה מסוימת (עלייה/ירידה מטופלת כאן)
-CREATE TABLE core.team_seasons (
+CREATE TABLE IF NOT EXISTS core.team_seasons (
   team_id    UUID NOT NULL REFERENCES core.teams(id)   ON DELETE CASCADE,
   season_id  UUID NOT NULL REFERENCES core.seasons(id) ON DELETE CASCADE,
   PRIMARY KEY (team_id, season_id)
 );
 
-CREATE TYPE core.position AS ENUM ('GK','DEF','MID','FWD');
+-- ★ ל-CREATE TYPE אין IF NOT EXISTS. בלי המעטפת הזו הרצה שנייה
+--   של הקובץ נופלת ב-"type already exists", וכל מה שמתחתיה
+--   לא רץ. הקובץ מוצהר כאידמפוטנטי — שיהיה.
+DO $do$ BEGIN
+  CREATE TYPE core.position AS ENUM ('GK','DEF','MID','FWD');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $do$;
 
-CREATE TABLE core.players (
+CREATE TABLE IF NOT EXISTS core.players (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   names             core.i18n_name NOT NULL,
   birth_date        DATE,
@@ -145,13 +155,13 @@ CREATE TABLE core.players (
                       (core.normalize_name(names #>> '{en,full}') || '|' ||
                        COALESCE((EXTRACT(YEAR FROM birth_date))::TEXT, '?')) STORED
 );
-CREATE INDEX players_name_he_trgm ON core.players USING gin (name_he gin_trgm_ops);
-CREATE INDEX players_name_en_trgm ON core.players USING gin (name_en gin_trgm_ops);
-CREATE INDEX players_dedupe       ON core.players (dedupe_key);
+CREATE INDEX IF NOT EXISTS players_name_he_trgm ON core.players USING gin (name_he gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS players_name_en_trgm ON core.players USING gin (name_en gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS players_dedupe       ON core.players (dedupe_key);
 
 -- כינויים/כתיבים חלופיים. זה מה שמציל אתכם כשספק אחד כותב
 -- "Omer Atzili" והשני "Omer Acili", או "מכבי ת״א" מול "מכבי תל אביב".
-CREATE TABLE core.entity_aliases (
+CREATE TABLE IF NOT EXISTS core.entity_aliases (
   id           BIGSERIAL PRIMARY KEY,
   entity_type  TEXT NOT NULL CHECK (entity_type IN ('player','team','league')),
   entity_id    UUID NOT NULL,
@@ -161,11 +171,11 @@ CREATE TABLE core.entity_aliases (
   source       TEXT,                          -- 'api_football','manual','opta'
   UNIQUE (entity_type, entity_id, locale, alias)
 );
-CREATE INDEX entity_aliases_norm_trgm ON core.entity_aliases USING gin (alias_norm gin_trgm_ops);
-CREATE INDEX entity_aliases_lookup    ON core.entity_aliases (entity_type, alias_norm);
+CREATE INDEX IF NOT EXISTS entity_aliases_norm_trgm ON core.entity_aliases USING gin (alias_norm gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS entity_aliases_lookup    ON core.entity_aliases (entity_type, alias_norm);
 
 -- מיפוי מזהים חיצוניים: מפריד בין המודל שלנו לבין כל ספק דאטה.
-CREATE TABLE core.external_refs (
+CREATE TABLE IF NOT EXISTS core.external_refs (
   provider      TEXT NOT NULL,                 -- 'api_football'
   entity_type   TEXT NOT NULL CHECK (entity_type IN ('league','season','team','player','match')),
   external_id   TEXT NOT NULL,
@@ -174,13 +184,13 @@ CREATE TABLE core.external_refs (
   synced_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (provider, entity_type, external_id)
 );
-CREATE INDEX external_refs_entity ON core.external_refs (entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS external_refs_entity ON core.external_refs (entity_type, entity_id);
 
 -- =====================================================================
 -- 3. סגלים (Squads)
 -- =====================================================================
 
-CREATE TABLE core.squads (
+CREATE TABLE IF NOT EXISTS core.squads (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   season_id      UUID NOT NULL REFERENCES core.seasons(id) ON DELETE CASCADE,
   team_id        UUID NOT NULL REFERENCES core.teams(id)   ON DELETE CASCADE,
@@ -196,14 +206,14 @@ CREATE TABLE core.squads (
   UNIQUE (season_id, team_id, player_id, valid_from)
 );
 -- שחקן לא יכול להיות בשתי קבוצות באותה עונה בו-זמנית
-CREATE INDEX squads_active ON core.squads (season_id, team_id) WHERE valid_to IS NULL;
-CREATE INDEX squads_player ON core.squads (player_id);
+CREATE INDEX IF NOT EXISTS squads_active ON core.squads (season_id, team_id) WHERE valid_to IS NULL;
+CREATE INDEX IF NOT EXISTS squads_player ON core.squads (player_id);
 
 -- =====================================================================
 -- 4. מחזורים ומשחקים
 -- =====================================================================
 
-CREATE TABLE game.gameweeks (
+CREATE TABLE IF NOT EXISTS game.gameweeks (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   season_id   UUID NOT NULL REFERENCES core.seasons(id) ON DELETE CASCADE,
   number      SMALLINT NOT NULL,
@@ -214,7 +224,7 @@ CREATE TABLE game.gameweeks (
   UNIQUE (season_id, number)
 );
 
-CREATE TABLE core.weekly_matches (
+CREATE TABLE IF NOT EXISTS core.weekly_matches (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   gameweek_id    UUID NOT NULL REFERENCES game.gameweeks(id) ON DELETE CASCADE,
   home_team_id   UUID NOT NULL REFERENCES core.teams(id),
@@ -228,7 +238,7 @@ CREATE TABLE core.weekly_matches (
   CHECK (home_team_id <> away_team_id),
   UNIQUE (gameweek_id, home_team_id, away_team_id)
 );
-CREATE INDEX weekly_matches_gw ON core.weekly_matches (gameweek_id, kickoff_at);
+CREATE INDEX IF NOT EXISTS weekly_matches_gw ON core.weekly_matches (gameweek_id, kickoff_at);
 
 -- תוצאה מנקודת מבט של קבוצה - מייתר CASE כפול בכל שאילתה
 CREATE OR REPLACE VIEW core.v_team_match_results AS
@@ -246,7 +256,7 @@ SELECT m.id, m.gameweek_id, m.status,
 FROM core.weekly_matches m WHERE m.status = 'finished';
 
 -- סטטיסטיקות אישיות למשחק. זה מקור האמת לניקוד.
-CREATE TABLE core.player_match_stats (
+CREATE TABLE IF NOT EXISTS core.player_match_stats (
   match_id        UUID NOT NULL REFERENCES core.weekly_matches(id) ON DELETE CASCADE,
   player_id       UUID NOT NULL REFERENCES core.players(id)        ON DELETE CASCADE,
   team_id         UUID NOT NULL REFERENCES core.teams(id),
@@ -266,13 +276,13 @@ CREATE TABLE core.player_match_stats (
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (match_id, player_id)
 );
-CREATE INDEX pms_player ON core.player_match_stats (player_id);
+CREATE INDEX IF NOT EXISTS pms_player ON core.player_match_stats (player_id);
 
 -- =====================================================================
 -- 5. חוקי ניקוד — דאטה, לא קוד
 -- =====================================================================
 
-CREATE TABLE game.scoring_rulesets (
+CREATE TABLE IF NOT EXISTS game.scoring_rulesets (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   league_id    UUID REFERENCES core.leagues(id) ON DELETE CASCADE, -- NULL = גלובלי
   version      INT NOT NULL,
@@ -303,7 +313,7 @@ $$דוגמה ל-rules:
 -- 6. משתמשים והרכבים
 -- =====================================================================
 
-CREATE TABLE game.users (
+CREATE TABLE IF NOT EXISTS game.users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email         CITEXT,
   display_name  TEXT NOT NULL,
@@ -311,7 +321,7 @@ CREATE TABLE game.users (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE game.user_lineups (
+CREATE TABLE IF NOT EXISTS game.user_lineups (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id            UUID NOT NULL REFERENCES game.users(id) ON DELETE CASCADE,
   gameweek_id        UUID NOT NULL REFERENCES game.gameweeks(id) ON DELETE CASCADE,
@@ -324,7 +334,7 @@ CREATE TABLE game.user_lineups (
   UNIQUE (user_id, gameweek_id)          -- הרכב אחד למשתמש למחזור
 );
 
-CREATE TABLE game.user_lineup_slots (
+CREATE TABLE IF NOT EXISTS game.user_lineup_slots (
   lineup_id   UUID NOT NULL REFERENCES game.user_lineups(id) ON DELETE CASCADE,
   slot_no     SMALLINT NOT NULL CHECK (slot_no BETWEEN 1 AND 15),
   player_id   UUID NOT NULL REFERENCES core.players(id),
@@ -377,6 +387,9 @@ BEGIN
   RETURN NEW;
 END $$;
 
+-- ל-CREATE TRIGGER אין IF NOT EXISTS. DROP קודם — אותו דפוס
+-- שכבר קיים ב-db/04.
+DROP TRIGGER IF EXISTS user_lineups_validate ON game.user_lineups;
 CREATE TRIGGER user_lineups_validate
   BEFORE UPDATE ON game.user_lineups
   FOR EACH ROW EXECUTE FUNCTION game.trg_validate_on_submit();
@@ -385,7 +398,7 @@ CREATE TRIGGER user_lineups_validate
 -- 7. תוצאות ניקוד
 -- =====================================================================
 
-CREATE TABLE game.lineup_scores (
+CREATE TABLE IF NOT EXISTS game.lineup_scores (
   lineup_id       UUID PRIMARY KEY REFERENCES game.user_lineups(id) ON DELETE CASCADE,
   gameweek_id     UUID NOT NULL REFERENCES game.gameweeks(id) ON DELETE CASCADE,
   personal_points NUMERIC(8,2) NOT NULL DEFAULT 0,
@@ -396,7 +409,7 @@ CREATE TABLE game.lineup_scores (
   computed_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   ruleset_id      UUID REFERENCES game.scoring_rulesets(id)
 );
-CREATE INDEX lineup_scores_leaderboard ON game.lineup_scores (gameweek_id, total_points DESC);
+CREATE INDEX IF NOT EXISTS lineup_scores_leaderboard ON game.lineup_scores (gameweek_id, total_points DESC);
 
 -- =====================================================================
 -- 8. שאילתת עזר: סגל פעיל עם שמות בשתי השפות

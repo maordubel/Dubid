@@ -22,7 +22,7 @@
 │       AppShell · BottomNav · SquadPicker · ShareCard
 │       FixturesStrip · Leaderboard · AdminPanel   ← חדשים באיחוד
 ├── db/                                  01_schema · 02_dubid_captain · 03_seed_squads
-├── supabase/functions/score-gameweek/
+├── supabase/functions/dubid-score-gameweek/
 ├── scripts/build-squads.mjs             JSON → TS + SQL + דוח איכות
 ├── tests/                               70 טסטים
 └── docs/brand/                          identity-lab.html + הסימנים
@@ -91,7 +91,7 @@
 * **`localStorage` = מסד הנתונים של ההדגמה.** הרכבים ותוצאות שמורים
   בדפדפן של כל מכשיר בנפרד — מעולה להדגמה על מסך אחד הערב, לא מספיק
   לכמה אנשים על מכשירים שונים. ה-Edge Function וה-DB schema כבר קיימים
-  בפרויקט (`db/`, `supabase/functions/score-gameweek/`) בדיוק בשביל
+  בפרויקט (`db/`, `supabase/functions/dubid-score-gameweek/`) בדיוק בשביל
   השלב הבא.
 * **טיוטת ההרכב של כל מצב נשמרת בנפרד עכשיו** (`useLineup.ts`,
   `dubid.lineup.draft.<lineupId>.v1`) — זה תוקן תוך כדי הוספת 5 על 5:

@@ -152,23 +152,28 @@ export function SquadPicker(props: SquadPickerProps) {
         />
       </div>
 
-      {/* ---- הודעות — צפות מעל המגרש, לא דוחפות אותו ---- */}
-      {(notice || (!ready && filled === rules.constraints.lineupSize)) && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-[7.5rem] z-10 px-4">
-          <p
-            role={notice ? 'status' : 'alert'}
-            className={`mx-auto max-w-sm rounded-xl px-3 py-2 text-center text-xs
-                        shadow-lg backdrop-blur ${
-                          notice ? 'bg-armband/90 text-night' : 'bg-flare/90 text-white'
-                        }`}
-          >
-            {notice ?? formatIssue(issues[0], 'he')}
-          </p>
-        </div>
-      )}
-
-      {/* ---- CTA ---- */}
-      <div className="shrink-0 border-t border-chalk/10 bg-night/95 px-4 pb-3 pt-2.5 backdrop-blur">
+      {/* ---- CTA + הודעות ---- */}
+      {/*
+        ★ ההודעה עוגנת ל-CTA, לא למסך.
+        קודם היא הייתה `absolute bottom-[7.5rem]` בלי אב ממוקם — כלומר
+        מרחק קסם מתחתית ה-viewport, שנשבר בכל שינוי גובה של הניווט או
+        של סרגל הכתובות. עכשיו `bottom-full` על אב `relative`: תמיד
+        בדיוק מעל הכפתור, בלי מספרים.
+      */}
+      <div className="relative shrink-0 border-t border-chalk/10 bg-night/95 px-4 pb-3 pt-2.5 backdrop-blur">
+        {(notice || (!ready && filled === rules.constraints.lineupSize)) && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-full z-10 px-4 pb-2">
+            <p
+              role={notice ? 'status' : 'alert'}
+              className={`mx-auto max-w-sm rounded-xl px-3 py-2 text-center text-xs
+                          shadow-lg backdrop-blur ${
+                            notice ? 'bg-armband/90 text-night' : 'bg-flare/90 text-white'
+                          }`}
+            >
+              {notice ?? formatIssue(issues[0], 'he')}
+            </p>
+          </div>
+        )}
         <button
           onClick={onSubmit}
           disabled={!ready}

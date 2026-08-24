@@ -15,7 +15,8 @@
     "build:squads": "node scripts/build-squads.mjs",
     "typecheck": "tsc --noEmit",
     "sync:edge": "node scripts/sync-edge-shared.mjs",
-    "deploy:edge": "npm run sync:edge && supabase functions deploy score-gameweek"
+    "deploy:edge": "npm run sync:edge && supabase functions deploy dubid-score-gameweek",
+    "export:edge": "node scripts/export-edge-to-offsides.mjs"
   },
   "dependencies": {
     "react": "^19.0.0",

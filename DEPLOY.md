@@ -124,7 +124,7 @@ psql "$DATABASE_URL" -f db/03_seed_squads.sql
 פריסת מנוע הניקוד:
 
 ```bash
-supabase functions deploy score-gameweek
+supabase functions deploy dubid-score-gameweek
 ```
 
 ---

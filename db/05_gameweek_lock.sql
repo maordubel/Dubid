@@ -106,6 +106,8 @@ DECLARE
   v_slot     JSONB;
   v_player   core.players;
   v_team     UUID;
+  v_position core."position";
+  v_price    NUMERIC(5,1);
   v_captains INT;
   v_vices    INT;
   v_count    INT;
@@ -158,10 +160,31 @@ BEGIN
 
     -- ★ הקבוצה, העמדה והשווי נלקחים מהמסד — לא מהקליינט.
     --   קליינט שישלח price=0 לא יקבל שחקן בחינם.
-    SELECT team_id INTO v_team
-      FROM core.squads
-     WHERE player_id = v_player.id
-       AND season_id = (SELECT season_id FROM game.gameweeks WHERE id = p_gameweek_id)
+    --
+    -- ★★ תוקן אחרי הרצה על מסד אמיתי ★★
+    --
+    --  הגרסה הקודמת קראה ל-`v_player.position` ול-`squads.price`.
+    --  שתי העמודות לא קיימות: בשחקן העמודה היא `primary_position`,
+    --  ובסגל היא `position`; המחיר הוא `fantasy_price`.
+    --
+    --  התוצאה הייתה ש**נתיב הכתיבה היחיד של הרכבים קרס תמיד**:
+    --    ERROR: record "v_player" has no field "position"
+    --
+    --  הנעילה עצמה עבדה (הגשה אחרי הדדליין נדחתה כראוי), ולכן
+    --  הבדיקה השטחית עברה — אבל אף הרכב תקין לא יכול היה להישמר.
+    --  בדיקה שבודקת רק את מקרה הכישלון מפספסת בדיוק את זה.
+    --
+    --  העמדה נלקחת מ**שורת הסגל** ולא מהשחקן, וזה גם נכון יותר:
+    --  שחקן יכול לשחק בעמדה אחת בקבוצה אחת ובאחרת במקום אחר.
+    --  שורת הסגל היא האמת לעונה הזו.
+    SELECT sq.team_id, sq.position, COALESCE(sq.fantasy_price, 0)
+      INTO v_team, v_position, v_price
+      FROM core.squads sq
+     WHERE sq.player_id = v_player.id
+       AND sq.season_id = (SELECT season_id FROM game.gameweeks WHERE id = p_gameweek_id)
+       AND sq.valid_to IS NULL          -- שורת הסגל הפעילה בלבד
+       AND sq.status   = 'active'
+     ORDER BY sq.valid_from DESC
      LIMIT 1;
     IF v_team IS NULL THEN RAISE EXCEPTION 'PLAYER_NOT_IN_SQUAD: %', v_player.id; END IF;
 
@@ -173,9 +196,8 @@ BEGIN
       (v_slot->>'slot_no')::SMALLINT,
       v_player.id,
       v_team,
-      v_player.position,
-      COALESCE((SELECT price FROM core.squads
-                 WHERE player_id = v_player.id LIMIT 1), 0),
+      v_position,
+      v_price,
       COALESCE((v_slot->>'is_captain')::BOOLEAN, FALSE),
       COALESCE((v_slot->>'is_vice')::BOOLEAN, FALSE),
       COALESCE((v_slot->>'is_bench')::BOOLEAN, FALSE)

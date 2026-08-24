@@ -21,6 +21,9 @@
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { Shades, ShadesDivider } from './Shades.tsx';
+import { OffsidesBanner } from './OffsidesBanner.tsx';
+import { DubelCredit } from './DubelCredit.tsx';
+import type { Promo } from '../lib/growth.ts';
 import {
   GameweekStatus, STATUS_LABEL_HE, countdown, daysLabel,
   isSubmissionOpen, msUntilDeadline, type Gameweek,
@@ -52,12 +55,20 @@ export interface LobbyProps {
   onPlay: (mode: ModeId) => void;
   onLeagues: () => void;
   onLeaderboard: () => void;
-  onOffsides?: () => void;
+  /**
+   * הפרסומת לאופסיידס. `null` = אין מה להציג עכשיו (נדחתה, או
+   * שהתקרה נגמרה). מי שמחליט הוא `lib/growth.ts`, לא המסך הזה.
+   */
+  promo?: Promo | null;
+  gameweekNumber?: number;
+  onDismissPromo?: () => void;
+  onOpenPromo?: (promo: Promo) => void;
 }
 
 export function Lobby({
   gameweek, nowMs, modes, displayName, entrants, leagueCount,
-  onPlay, onLeagues, onLeaderboard, onOffsides,
+  onPlay, onLeagues, onLeaderboard,
+  promo, gameweekNumber = gameweek.number, onDismissPromo, onOpenPromo,
 }: LobbyProps) {
   // הספירה מתקתקת מקומית בין סנכרונים. `nowMs` הוא נקודת האמת,
   // וה-tick רק מזיז אותה קדימה כדי שהמסך לא ירגיש קפוא.
@@ -75,111 +86,92 @@ export function Lobby({
   const clock = countdown(remaining);
 
   return (
-    <div className="min-h-full bg-night pb-10">
-      {/* ═══════════ גיבור ═══════════ */}
-      <header className="relative overflow-hidden px-4 pb-5 pt-[calc(1rem+env(safe-area-inset-top))]">
-        {/* סימן מים — המשקפיים בענק, כמעט בלתי נראות */}
-        {/* ★ אין כאן סימן מים של משקפיים, בכוונה.
-            הבאדג׳ עצמו כבר מציג אותן. לחזור על אותה צורה מיד
-            מאחוריה יצר כתם כהה שנקרא כאובייקט זר ולא כמרקם.
-            המוטיב חוזר במפריד, בכרטיסים ובאריחים — שם הוא מוסיף. */}
-        {/* זוהר צמוד לבאדג׳ בלבד. קודם הוא היה רחב ועז מדי
-            וצבע את כל הכותרת בחום עכור. */}
+    <div className="flex min-h-full flex-col bg-night pb-6">
+      {/* ═══════════ כותרת — שורה אחת, לא כרזה ═══════════ */}
+      {/*
+        ★ מה השתנה ולמה
+        קודם הכותרת הייתה מגדל: באדג׳ 104px, כותרת 44px, שורת ברכה,
+        ואז קופסת שעון בגובה 92px. יחד — כמעט 300 פיקסלים, כשליש
+        ממסך טלפון, לפני שהמשתמש ראה **דבר אחד שאפשר ללחוץ עליו**.
+
+        השעון הוא מידע, לא פעולה. הוא לא צריך את המספר הכי גדול
+        במסך — הוא צריך להיות ברור. הפעולה היא שני הכפתורים, ולכן
+        הם מקבלים את המקום שהתפנה.
+
+        הכותרת עכשיו שורה אופקית אחת (~72px), והשעון פס אחד (~40px).
+        התפנו כ-190 פיקסלים, וכולם הלכו לכפתורי המשחק.
+      */}
+      <header className="relative overflow-hidden px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
         <div
           // `left-1/2` ולא `start-1/2`: מירכוז גאומטרי. ב-RTL,
-          // `start` עוגן מימין בעוד ה-transform מזיז שמאלה, והזוהר
-          // יצא מוסט. אותו באג בדיוק שהיה במיקום השחקנים על המגרש.
-          className="pointer-events-none absolute left-1/2 top-6 h-32 w-32 -translate-x-1/2
-                     rounded-full bg-toto/25 blur-2xl"
+          // `start` עוגן מימין בעוד ה-transform מזיז שמאלה.
+          className="pointer-events-none absolute left-1/2 top-0 h-24 w-56 -translate-x-1/2
+                     rounded-full bg-toto/20 blur-3xl"
           aria-hidden="true"
         />
 
-        <div className="relative mx-auto flex max-w-lg flex-col items-center lg:max-w-3xl">
+        <div className="relative mx-auto flex max-w-lg items-center gap-3 lg:max-w-3xl">
           <img
             src="/brand/dubid-badge.png"
             alt="דוביד"
-            width={104}
-            height={104}
-            className="h-[104px] w-[104px] drop-shadow-[0_10px_30px_rgba(0,0,0,.55)]"
+            width={60}
+            height={60}
+            className="size-[60px] shrink-0 drop-shadow-[0_6px_18px_rgba(0,0,0,.5)]"
           />
-
-          <h1 className="mt-2.5 font-poster text-[2.75rem] leading-none tracking-tight text-chalk">
-            דוביד
-          </h1>
-          <p className="mt-1 text-sm font-bold text-chalk-dim">
-            {displayName ? `יאללה ${displayName}` : 'מי מבין יותר בכדורגל'}
-          </p>
-
-          {/* ───── השעון ───── */}
-          <div
-            className={[
-              'mt-4 w-full rounded-3xl border px-5 py-3.5 text-center transition-colors',
-              urgent
-                ? 'border-flare/40 bg-flare/10'
-                : open
-                  ? 'border-toto/30 bg-toto/[0.07]'
-                  : 'border-chalk/10 bg-night-2',
-            ].join(' ')}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <span
-                className={[
-                  'inline-block size-1.5 rounded-full',
-                  open ? (urgent ? 'animate-pulse bg-flare' : 'bg-toto') : 'bg-chalk-dim',
-                ].join(' ')}
-                aria-hidden="true"
-              />
-              <span className="text-[11px] font-black uppercase tracking-[0.22em] text-chalk-dim">
-                {gameweek.label} · {STATUS_LABEL_HE[gameweek.status]}
-              </span>
-            </div>
-
-            {open ? (
-              <>
-                {/* ★ המספר לחוד, העברית לחוד. עירוב ביניהם הופך
-                    "4ד 02:12:38" ל-"402:12:38 ד" ברינדור. */}
-                {clock.days > 0 && (
-                  <div className="mt-1 text-sm font-black text-chalk">
-                    {daysLabel(clock.days)}
-                  </div>
-                )}
-                <div
-                  dir="ltr"
-                  className={`num mt-1 text-4xl font-black leading-none ${
-                    urgent ? 'text-flare' : 'text-toto'
-                  }`}
-                >
-                  {clock.clock}
-                </div>
-                <div className="mt-1 text-[11px] text-chalk-dim">
-                  {urgent ? 'ההרכב ננעל עוד מעט' : 'עד נעילת ההרכבים'}
-                </div>
-              </>
-            ) : (
-              <div className="mt-1.5 font-display text-xl font-black text-chalk">
-                {gameweek.status === GameweekStatus.Published
-                  ? 'התוצאות פורסמו'
-                  : 'ההרכבים נעולים'}
-              </div>
-            )}
+          <div className="min-w-0 flex-1">
+            <h1 className="font-poster text-[2rem] leading-none tracking-tight text-chalk">
+              דוביד
+            </h1>
+            <p className="mt-0.5 truncate text-[12px] font-bold text-chalk-dim">
+              {displayName ? `יאללה ${displayName}` : 'מי מבין יותר בכדורגל'}
+            </p>
           </div>
+          {entrants ? (
+            <div className="shrink-0 text-end">
+              <div dir="ltr" className="num text-lg leading-none text-chalk-2">{entrants}</div>
+              <div className="text-[10px] text-chalk-dim">משתתפים</div>
+            </div>
+          ) : null}
         </div>
       </header>
 
-      {/* ═══════════ שני המצבים — הפעולה ═══════════ */}
-      <section className="mx-auto max-w-lg px-4 lg:max-w-3xl" aria-label="בחירת מצב משחק">
-        {/* ★ תמיד זה לצד זה, גם במובייל.
-            הברִיף מפורש: "side-by-side, not vertically stacked".
-            יחס 1.72 מאפשר את זה — שני כרטיסים ברוחב 46% נשארים
-            קריאים גם ב-320 פיקסלים. */}
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+      {/* ───── השעון — פס, לא קופסה ───── */}
+      <div className="mx-auto w-full max-w-lg px-4 lg:max-w-3xl">
+        <DeadlineStrip
+          label={`${gameweek.label} · ${STATUS_LABEL_HE[gameweek.status]}`}
+          open={open}
+          urgent={urgent}
+          clock={clock}
+          closedText={
+            gameweek.status === GameweekStatus.Published
+              ? 'התוצאות פורסמו'
+              : 'ההרכבים נעולים'
+          }
+        />
+      </div>
+
+      {/* ═══════════ שני המצבים — הפעולה, ורוב המסך ═══════════ */}
+      {/*
+        `flex-1` על הסקשן הזה הוא ההצהרה: כל מקום פנוי שנשאר
+        במסך שייך לכפתורי המשחק, ולא לכרום שמעליהם.
+      */}
+      <section
+        className="mx-auto mt-3 w-full max-w-lg flex-1 px-4 lg:max-w-3xl"
+        aria-label="בחירת מצב משחק"
+      >
+        <h2 className="mb-2 text-[11px] font-black uppercase tracking-[0.2em] text-chalk-dim">
+          במה משחקים
+        </h2>
+        {/* ★ תמיד זה לצד זה, גם במובייל — כך שההשוואה בין שני
+            המצבים היא מיידית ולא דורשת גלילה. */}
+        <div className="grid grid-cols-2 gap-3">
           {modes.map((m) => (
             <ModeCard key={m.id} mode={m} open={open} onPlay={() => onPlay(m.id)} />
           ))}
         </div>
       </section>
 
-      <ShadesDivider className="mx-auto my-7 max-w-lg px-8 lg:max-w-3xl" />
+      <ShadesDivider className="mx-auto my-5 max-w-lg px-8 lg:max-w-3xl" />
 
       {/* ═══════════ משני ═══════════ */}
       <section className="mx-auto max-w-lg px-4 lg:max-w-3xl">
@@ -192,35 +184,105 @@ export function Lobby({
           />
           <TileButton
             label="הדירוג"
-            hint={entrants ? `${entrants} משתתפים` : 'מי מוביל'}
+            hint="מי מוביל"
             onClick={onLeaderboard}
             icon={<TilePodium />}
           />
         </div>
       </section>
 
-      {/* ═══════════ אופסיידס ═══════════ */}
-      {onOffsides && (
-        <section className="mx-auto mt-7 max-w-lg px-4 lg:max-w-3xl">
-          <button
-            onClick={onOffsides}
-            className="tap group flex w-full items-center gap-3 overflow-hidden rounded-2xl
-                       border border-chalk/10 bg-night-2 px-4 py-3 text-start
-                       transition-colors duration-200 ease-brand hover:border-chalk/20"
-          >
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-ink text-paper">
-              <Shades size={26} glint={false} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-black text-chalk">אופסיידס</span>
-              <span className="block truncate text-[11px] text-chalk-dim">
-                חיזוי משחקים חי · אותו חשבון
-              </span>
-            </span>
-            <span aria-hidden className="text-chalk-dim transition-transform
-                                          group-hover:-translate-x-0.5">←</span>
-          </button>
+      {/* ═══════════ אופסיידס — הפרסומת ═══════════ */}
+      {promo && (
+        <section className="mx-auto mt-6 w-full max-w-lg px-4 lg:max-w-3xl">
+          <OffsidesBanner
+            promo={promo}
+            placement="lobby"
+            gameweekNumber={gameweekNumber}
+            onDismiss={onDismissPromo}
+            onOpen={onOpenPromo}
+          />
         </section>
+      )}
+
+      {/* ═══════════ קרדיט ═══════════ */}
+      <footer className="mx-auto mt-6 w-full max-w-lg px-4 lg:max-w-3xl">
+        <DubelCredit />
+      </footer>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/* השעון                                                               */
+/* ================================================================== */
+
+/**
+ * ★ פס, לא קופסה.
+ *
+ * הגרסה הקודמת נתנה לשעון קופסה בגובה 92 פיקסלים עם מספר בגודל
+ * 36px — הדבר הכי גדול במסך. אבל שעון הוא **מידע**: הוא אומר
+ * "כמה נשאר", לא "מה לעשות". המספר הכי גדול במסך צריך להיות
+ * הפעולה, ובלובי הפעולה היא שני כפתורי המשחק.
+ *
+ * הפס נותן בדיוק את אותו מידע בשורה אחת: נקודת מצב, שם המחזור,
+ * והזמן. הוא נקרא באותה מהירות ותופס פחות מחצי מהגובה.
+ *
+ * מה נשמר מהגרסה הקודמת, כי זה היה נכון:
+ *   · המספר מבודד ב-`dir="ltr"` — אחרת "4 ימים 02:12" מתהפך.
+ *   · מתחת לשעה הצבע מתחלף לאדום. דחיפות היא צבע, לא סימן קריאה.
+ */
+function DeadlineStrip({
+  label, open, urgent, clock, closedText,
+}: {
+  label: string;
+  open: boolean;
+  urgent: boolean;
+  clock: { days: number; clock: string };
+  closedText: string;
+}) {
+  return (
+    <div
+      className={[
+        'flex items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 transition-colors',
+        urgent
+          ? 'border-flare/40 bg-flare/10'
+          : open
+            ? 'border-toto/25 bg-toto/[0.06]'
+            : 'border-chalk/10 bg-night-2',
+      ].join(' ')}
+    >
+      <span
+        className={[
+          'size-1.5 shrink-0 rounded-full',
+          open ? (urgent ? 'animate-pulse bg-flare' : 'bg-toto') : 'bg-chalk-dim',
+        ].join(' ')}
+        aria-hidden="true"
+      />
+      <span className="min-w-0 flex-1 truncate text-[11px] font-black
+                       uppercase tracking-[0.16em] text-chalk-dim">
+        {label}
+      </span>
+
+      {open ? (
+        <span className="flex shrink-0 items-baseline gap-1.5">
+          {clock.days > 0 && (
+            <span className="text-[11px] font-black text-chalk-2">
+              {daysLabel(clock.days)}
+            </span>
+          )}
+          {/* המספר לחוד, העברית לחוד. עירוב ביניהם הופך
+              "4ד 02:12:38" ל-"402:12:38 ד" ברינדור. */}
+          <span
+            dir="ltr"
+            className={`num text-lg font-black leading-none ${
+              urgent ? 'text-flare' : 'text-toto'
+            }`}
+          >
+            {clock.clock}
+          </span>
+        </span>
+      ) : (
+        <span className="shrink-0 text-[12px] font-black text-chalk">{closedText}</span>
       )}
     </div>
   );
