@@ -49,8 +49,32 @@
  * והמצב מוזרקים. אותו קוד נבדק במלואו בלי דפדפן.
  */
 
-/** לאן הקישור מוביל. נקודת אמת אחת. */
-export const OFFSIDES_URL = 'https://offsidebets.dubel.team';
+/**
+ * ★ שם המוצר השני — נקודת אמת אחת.
+ *
+ * הוא נכתב במוצר בשלוש צורות שונות: "אופסיידס", "Offsides",
+ * ו-"OFFSIDE BETS" (בתמונת הפרסומת). השלישית פשוט לא נכונה — שם
+ * המוצר הוא **Offsides**. שם שגוי בנכס גרפי הוא הסוג שהכי קשה
+ * לתפוס, כי אף בדיקה לא קוראת תמונות.
+ *
+ * מכאן: כל מקום שמזכיר את המוצר מייבא מהבלוק הזה. אין מחרוזת
+ * חופשית, ואין שם באנגלית שנכתב ידנית פעמיים.
+ *
+ * ⚠ הדומיין נשאר `offsidebets.dubel.team` כי זה המארח החי. אם הוא
+ *   יוחלף — שורה אחת כאן, ו-`tests/growth.test.ts` יתפוס אם מישהו
+ *   שכח לעדכן את הבדיקה.
+ */
+export const OFFSIDES = {
+  /** השם באנגלית. לא "Offside", לא "Offside Bets". */
+  name: 'Offsides',
+  nameHe: 'אופסיידס',
+  url: 'https://offsidebets.dubel.team',
+  /** לתצוגה בתוך נכסים גרפיים — אותיות גדולות, בלי פרוטוקול. */
+  domainLabel: 'OFFSIDEBETS.DUBEL.TEAM',
+} as const;
+
+/** לאן הקישור מוביל. שם היסטורי; המקור הוא `OFFSIDES.url`. */
+export const OFFSIDES_URL = OFFSIDES.url;
 
 /** איפה במוצר הבאנר יושב. משמש גם לשיוך המקור. */
 export type Placement = 'lobby' | 'locked' | 'result';
@@ -163,7 +187,7 @@ export const PROMOS: Record<PromoId, Promo> = {
   },
   idle: {
     id: 'idle',
-    headline: 'אופסיידס',
+    headline: OFFSIDES.nameHe,
     body: 'חיזוי משחקים חי, זירות מול חברים. אותו חשבון בדיוק.',
     cta: 'להעיף מבט',
     tone: 'calm',

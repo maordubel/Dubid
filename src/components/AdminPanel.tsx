@@ -47,7 +47,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
     return (
       <div dir="rtl" className="grid h-[100dvh] place-items-center bg-night px-6 text-chalk">
         <form
-          className="w-full max-w-xs rounded-2xl border border-chalk/10 bg-night-2 p-6"
+          className="w-full max-w-xs rounded-2xl border border-gold/15 bg-night-2 p-6"
           onSubmit={(e) => {
             // האימות אסינכרוני מאז שהסיסמה הוחלפה ב-hash (ראו store.ts).
             e.preventDefault();
@@ -58,7 +58,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
             });
           }}
         >
-          <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-toto" />
+          <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-gold" />
           <h1 className="text-center font-display text-xl font-black">לוח ניהול · דוביד</h1>
           <p className="mt-1 text-center text-xs text-chalk-dim">
             כניסת צוות בלבד — קוד גישה זמני עד שיחובר אימות אמיתי.
@@ -68,8 +68,8 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             placeholder="קוד גישה"
-            className="mt-5 w-full rounded-xl border border-chalk/20 bg-night px-3 py-2.5 text-center
-                       text-chalk outline-none focus:border-toto"
+            className="mt-5 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5 text-center
+                       text-chalk outline-none focus:border-gold"
             autoFocus
           />
           {pinError && (
@@ -77,7 +77,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
           )}
           <button
             type="submit"
-            className="tap mt-4 w-full rounded-full bg-toto py-2.5 font-poster text-night"
+            className="tap mt-4 w-full rounded-full bg-gold py-2.5 font-poster text-night"
           >
             כניסה
           </button>
@@ -98,12 +98,12 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
   return (
     <div dir="rtl" className="h-[100dvh] overflow-y-auto bg-night text-chalk">
       <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b
-                          border-chalk/10 bg-night/95 px-4 py-3 backdrop-blur">
+                          border-gold/15 bg-night/95 px-4 py-3 backdrop-blur">
         <div>
           <h1 className="font-display text-lg font-black">לוח ניהול</h1>
           <p className="text-xs text-chalk-dim">
             {GAMEWEEK.label} · {GAMEWEEK.seasonLabel} ·{' '}
-            <span className={results.published ? 'text-toto' : 'text-chalk-dim'}>
+            <span className={results.published ? 'text-gold' : 'text-chalk-dim'}>
               {results.published ? 'התוצאות פורסמו' : 'טיוטה — עוד לא פורסם'}
             </span>
           </p>
@@ -112,14 +112,14 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
           <button
             onClick={() => setPublished(GAMEWEEK.id, !results.published)}
             className={`tap rounded-full px-4 py-2 text-sm font-black transition-colors ${
-              results.published ? 'bg-chalk/10 text-chalk' : 'bg-toto text-night'
+              results.published ? 'bg-chalk/10 text-chalk' : 'bg-gold text-night'
             }`}
           >
             {results.published ? 'בטל פרסום' : 'פרסם דירוג'}
           </button>
           <button
             onClick={() => { adminLogout(); onExit(); }}
-            className="tap rounded-full border border-chalk/20 px-3 py-2 text-xs text-chalk-dim"
+            className="tap rounded-full border border-gold/25 px-3 py-2 text-xs text-chalk-dim"
           >
             יציאה
           </button>
@@ -138,7 +138,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
             const score = results.fixtureScores[f.id];
             const open = openFixture === f.id;
             return (
-              <div key={f.id} className="overflow-hidden rounded-2xl border border-chalk/10 bg-night-2">
+              <div key={f.id} className="overflow-hidden rounded-2xl border border-gold/15 bg-night-2">
                 <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                   <div>
                     <div className="text-sm font-bold">{fixtureLabel(f)}</div>
@@ -149,13 +149,13 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
                   <FixtureScoreForm fixture={f} existing={score} />
                   <button
                     onClick={() => setOpenFixture(open ? null : f.id)}
-                    className="tap rounded-full border border-chalk/20 px-3 py-1.5 text-xs text-chalk-2"
+                    className="tap rounded-full border border-gold/25 px-3 py-1.5 text-xs text-chalk-2"
                   >
                     {open ? 'סגירה' : 'הזנת שחקנים'}
                   </button>
                 </div>
                 {open && (
-                  <div className="grid grid-cols-1 gap-4 border-t border-chalk/10 bg-night p-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 border-t border-gold/15 bg-night p-4 sm:grid-cols-2">
                     <TeamStatEntry teamId={f.homeTeamId} gameweekId={GAMEWEEK.id} performances={results.performances} />
                     <TeamStatEntry teamId={f.awayTeamId} gameweekId={GAMEWEEK.id} performances={results.performances} />
                   </div>
@@ -209,21 +209,21 @@ function FixtureScoreForm({
       <input
         type="number" min={0} inputMode="numeric" value={home}
         onChange={(e) => setHome(Math.max(0, Number(e.target.value) || 0))}
-        className="num w-12 rounded-lg border border-chalk/20 bg-night px-2 py-1.5 text-center"
+        className="num w-12 rounded-lg border border-gold/25 bg-night px-2 py-1.5 text-center"
       />
       <span className="text-chalk-dim">:</span>
       <input
         type="number" min={0} inputMode="numeric" value={away}
         onChange={(e) => setAway(Math.max(0, Number(e.target.value) || 0))}
-        className="num w-12 rounded-lg border border-chalk/20 bg-night px-2 py-1.5 text-center"
+        className="num w-12 rounded-lg border border-gold/25 bg-night px-2 py-1.5 text-center"
       />
       <button
         onClick={save}
-        className="tap rounded-full bg-toto/90 px-3 py-1.5 text-xs font-black text-night"
+        className="tap rounded-full bg-gold/90 px-3 py-1.5 text-xs font-black text-night"
       >
         שמירה
       </button>
-      {existing?.final && <span className="text-xs text-toto">✓</span>}
+      {existing?.final && <span className="text-xs text-gold">✓</span>}
     </div>
   );
 }
@@ -280,7 +280,7 @@ function PlayerStatRow({
 
   return (
     <div className={`rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${
-      active ? 'border-toto/40 bg-toto/5' : 'border-chalk/10 bg-night-2'
+      active ? 'border-gold/40 bg-gold/5' : 'border-gold/15 bg-night-2'
     }`}>
       <button
         type="button"
@@ -294,7 +294,7 @@ function PlayerStatRow({
           <span className="truncate">{name}</span>
         </span>
         {active && (
-          <span className="num shrink-0 text-toto">
+          <span className="num shrink-0 text-gold">
             {perf.goals > 0 && `⚽${perf.goals} `}
             {perf.assists > 0 && `🎯${perf.assists} `}
             {perf.yellowCards > 0 && '🟨'}
@@ -313,7 +313,7 @@ function PlayerStatRow({
                 const minutes = Number(e.target.value);
                 save({ ...perf, minutes, played: minutes > 0 });
               }}
-              className="rounded border border-chalk/20 bg-night px-1 py-1"
+              className="rounded border border-gold/25 bg-night px-1 py-1"
             >
               <option value={0}>0</option>
               <option value={30}>30</option>
@@ -360,7 +360,7 @@ function NumField({ label, value, onChange }: { label: string; value: number; on
       <input
         type="number" min={0} inputMode="numeric" value={value}
         onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
-        className="num rounded border border-chalk/20 bg-night px-1 py-1"
+        className="num rounded border border-gold/25 bg-night px-1 py-1"
       />
     </label>
   );

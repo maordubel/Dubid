@@ -24,7 +24,7 @@ export function FormationPicker({
       <div className="mx-auto max-w-3xl">
         <div className="mb-2 flex items-baseline justify-between">
           <h2 className="text-[11px] font-black tracking-widest text-chalk-dim">מערך</h2>
-          <span className="num text-xs font-black text-toto" dir="ltr">{value}</span>
+          <span className="num text-xs font-black text-gold" dir="ltr">{value}</span>
         </div>
 
         {/* גלילה אופקית רק כאן, ורק כשצריך. שאר המסך לא זז. */}
@@ -46,15 +46,15 @@ export function FormationPicker({
                   'tap flex w-[86px] flex-col items-center gap-1 rounded-xl border p-1.5',
                   'transition-colors duration-200 ease-brand disabled:opacity-40',
                   o.id === value
-                    ? 'border-toto bg-toto/10'
-                    : 'border-chalk/10 bg-night-2 hover:border-chalk/25',
+                    ? 'border-gold bg-gold/10'
+                    : 'border-gold/15 bg-night-2 hover:border-chalk/25',
                 ].join(' ')}
               >
                 <MiniPitch formation={o.id} active={o.id === value} />
                 <span
                   dir="ltr"
                   className={`num text-[11px] font-black ${
-                    o.id === value ? 'text-toto' : 'text-chalk'
+                    o.id === value ? 'text-gold' : 'text-chalk'
                   }`}
                 >
                   {o.id}

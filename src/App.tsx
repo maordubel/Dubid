@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { AppShell, AppHeader } from './components/AppShell.tsx';
 import type { NavItem } from './components/BottomNav.tsx';
-import { Lobby, type LobbyMode } from './components/Lobby.tsx';
+import { Lobby, type LobbyMode, type LobbyFixture } from './components/Lobby.tsx';
 import { Arena } from './components/Arena.tsx';
 import { DubelCredit } from './components/DubelCredit.tsx';
 import { ShadesDivider } from './components/Shades.tsx';
@@ -25,13 +25,19 @@ import { Leaderboard } from './components/Leaderboard.tsx';
 import { AdminPanel } from './components/AdminPanel.tsx';
 import { LockedLineup } from './components/LockedLineup.tsx';
 import { GameStatusBadge } from './components/GameStatusBadge.tsx';
+import { IconHome, IconLineup, IconArena, IconRanking, IconRules } from './components/NavIcons.tsx';
 
 import { LEAGUE, TEAMS, PLAYERS, shortName, TEAM_BY_ID } from './data/squads.ts';
-import { GAMEWEEK, GAMEWEEK_DEADLINE, FIRST_KICKOFF, OPPONENT_BY_TEAM } from './data/fixtures.ts';
+import {
+  GAMEWEEK, GAMEWEEK_DEADLINE, FIRST_KICKOFF, OPPONENT_BY_TEAM,
+  FIXTURES, kickoffTimeLabel,
+} from './data/fixtures.ts';
 import { resolveRules, DUBID_5X5, DUBID_5X5_BUDGET } from './lib/scoring/rules.ts';
 import { scoreLineup, rankGameweek } from './lib/scoring/engine.ts';
+import { buildLeaderboard } from './lib/leaderboard.ts';
 import { checkLeagueCapacity, formatIssue } from './lib/scoring/validate.ts';
 import { useLineup } from './state/useLineup.ts';
+import { myLeagues } from './lib/leagueStore.ts';
 import {
   getResults, saveEntry, listEntries, findMyEntry, deleteEntry, subscribeToStore, type LineupEntry,
 } from './lib/store.ts';
@@ -65,12 +71,20 @@ const SCREEN_TITLE: Record<string, string> = {
   rules: 'חוקי המשחק',
 };
 
+/**
+ * ★ הסדר כאן הוא הסדר על המסך, וההרכב יושב באמצע בכוונה.
+ *
+ * `primary` מרים אותו לעיגול זהב שחורג מעל הפס. הפעולה שכל
+ * המוצר משרת לא צריכה להיראות כמו אחת מחמש אפשרויות שוות.
+ * ב-RTL הפריט הראשון במערך מופיע מימין; האמצעי נשאר באמצע
+ * בשני הכיוונים, ולכן אין כאן תלות בשפה.
+ */
 const NAV: NavItem[] = [
-  { id: 'home', label: 'בית', icon: '⚑' },
-  { id: 'lineup', label: 'ההרכב', icon: '◎' },
-  { id: 'arena', label: 'הזירה', icon: '◆' },
-  { id: 'leaderboard', label: 'דירוג', icon: '▦' },
-  { id: 'rules', label: 'חוקים', icon: '☰' },
+  { id: 'home',        label: 'בית',    icon: <IconHome /> },
+  { id: 'leaderboard', label: 'דירוג',  icon: <IconRanking /> },
+  { id: 'lineup',      label: 'ההרכב',  icon: <IconLineup />, primary: true },
+  { id: 'arena',       label: 'הזירה',  icon: <IconArena /> },
+  { id: 'rules',       label: 'חוקים',  icon: <IconRules /> },
 ];
 
 function useHashRoute() {
@@ -196,6 +210,20 @@ function MainApp() {
 
   const entrantCount = listEntries(GAMEWEEK.id).length;
 
+  /* ★ סדר ההצהרות כאן אינו סגנוני.
+     `growthCtx` קורא את שתי ההגשות, ולכן הן חייבות להיות מוצהרות
+     לפניו. קודם הן היו אחריו — ו-`const` ב-TDZ הפיל את הרינדור
+     הראשון ב-ReferenceError, כלומר מסך לבן. אל תזיזו את הבלוק הזה
+     מתחת ל-`growthCtx`. */
+  const hasRealResults = results.published && Object.keys(results.performances).length > 0;
+
+  // ★ שכבת ה"נעילה": יש הגשה רשמית או שאין. כל עוד אין, המסך עורך את
+  // הטיוטה. ברגע שיש — SquadPicker לא מוצג יותר, LockedLineup כן.
+  const entryFull = findMyEntry(GAMEWEEK.id, 'full', userId);
+  const entryFive = findMyEntry(GAMEWEEK.id, 'five', userId);
+  const entryByMode: Record<Mode, LineupEntry | undefined> = { full: entryFull, five: entryFive };
+
+
   /**
    * ★ ההקשר של תוכנית השיווק הצולבת.
    *
@@ -221,14 +249,6 @@ function MainApp() {
     usePromo(growthCtx, lobbyGameweek.number);
 
 
-  const hasRealResults = results.published && Object.keys(results.performances).length > 0;
-
-  // ★ שכבת ה"נעילה": יש הגשה רשמית או שאין. כל עוד אין, המסך עורך את
-  // הטיוטה. ברגע שיש — SquadPicker לא מוצג יותר, LockedLineup כן.
-  const entryFull = findMyEntry(GAMEWEEK.id, 'full', userId);
-  const entryFive = findMyEntry(GAMEWEEK.id, 'five', userId);
-  const entryByMode: Record<Mode, LineupEntry | undefined> = { full: entryFull, five: entryFive };
-
   /**
    * שני הכרטיסים בלובי. המצב נגזר מאותם מקורות שכבר קיימים —
    * הטיוטה, ההגשה, והתוצאות. אין כאן state חדש.
@@ -252,6 +272,54 @@ function MainApp() {
       size,
     } as LobbyMode;
   }), [entryByMode, luByMode, rulesByMode, hasRealResults, results]);
+
+  /**
+   * ★ המדדים בפס העליון של הלובי.
+   *
+   * המקום מגיע מ-`buildLeaderboard` — אותו צינור בדיוק שמזין את
+   * מסך הדירוג. זה לא חיסכון בקוד אלא נכונות: לובי שמחשב דירוג
+   * בעצמו יראה, ביום שבו שובר שוויון יכריע, מספר אחר מהטבלה.
+   *
+   * מחושב רק כשיש תוצאות. לפני זה `undefined`, והלובי מציג מקף.
+   */
+  const myStanding = useMemo(() => {
+    if (!hasRealResults) return { rank: undefined, points: undefined };
+    let best: { rank: number; points: number } | undefined;
+    for (const m of ['five', 'full'] as const) {
+      const mine = entryByMode[m];
+      if (!mine) continue;
+      const rows = buildLeaderboard({
+        entries: listEntries(GAMEWEEK.id, m),
+        performances: results.performances,
+        outcomes: results.outcomes,
+        rules: rulesByMode[m],
+        userId,
+      });
+      const row = rows.find((r) => r.isMe);
+      if (!row) continue;
+      // כשיש שתי הגשות מציגים את החזקה. הלובי הוא כרזה, לא דוח.
+      if (!best || row.score.totalPoints > best.points) {
+        best = { rank: row.rank, points: row.score.totalPoints };
+      }
+    }
+    return { rank: best?.rank, points: best?.points };
+  }, [hasRealResults, entryByMode, results, rulesByMode, userId]);
+
+  /** לוח המשחקים כפי שהלובי צריך אותו — בלי לחשוף לו את מבנה הדאטה. */
+  const lobbyFixtures: LobbyFixture[] = useMemo(
+    () => FIXTURES.map((f) => ({
+      id: f.id,
+      homeTeamId: f.homeTeamId,
+      awayTeamId: f.awayTeamId,
+      homeShort: TEAM_BY_ID.get(f.homeTeamId)?.short ?? f.homeTeamId,
+      awayShort: TEAM_BY_ID.get(f.awayTeamId)?.short ?? f.awayTeamId,
+      dayLabel: f.dayLabel,
+      timeLabel: kickoffTimeLabel(f.kickoff, f.timeConfirmed),
+    })),
+    [],
+  );
+
+  const leagueCount = myLeagues(userId).length;
 
   const entry = entryByMode[mode];
 
@@ -284,6 +352,10 @@ function MainApp() {
         modes={lobbyModes}
         displayName={displayName}
         entrants={entrantCount}
+        leagueCount={leagueCount}
+        myRank={myStanding.rank}
+        myPoints={myStanding.points}
+        fixtures={lobbyFixtures}
         onPlay={goToMode}
         onLeagues={() => setTab('arena')}
         onLeaderboard={() => setTab('leaderboard')}
@@ -418,7 +490,7 @@ function MainApp() {
               // המונה רלוונטי רק כשבונים הרכב.
               tab === 'lineup' && !entry ? (
                 <div className="text-end">
-                  <div className="num text-2xl text-toto">
+                  <div className="num text-2xl text-gold">
                     {lu.filled}/{rules.constraints.lineupSize}
                   </div>
                   <div className="text-[11px] text-chalk-dim">שחקנים</div>
@@ -442,13 +514,15 @@ function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
   return (
     // shrink-0: המחליף הוא כרום ולא תוכן. בלי זה הוא מתחרה
     // עם המגרש על הגובה שנשאר.
-    <div className="mx-3 mt-2 flex shrink-0 gap-1.5 rounded-full bg-night-2 p-1">
+    <div className="mx-3 mt-2 flex shrink-0 gap-1.5 rounded-full bg-night-2 p-1 edge-gold">
       {(['full', 'five'] as const).map((m) => (
         <button
           key={m}
           onClick={() => onChange(m)}
           className={`tap flex-1 rounded-full py-1.5 text-[13px] font-black transition-colors duration-200 ease-brand ${
-            mode === m ? 'bg-toto text-night' : 'text-chalk-dim'
+            mode === m
+              ? 'bg-gradient-to-b from-gold-light to-gold text-gold-ink'
+              : 'text-chalk-dim'
           }`}
         >
           {MODE_LABEL[m]}
@@ -499,7 +573,7 @@ function SaveEntryModal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-night/80 px-6 backdrop-blur-sm">
       <form
-        className="w-full max-w-xs rounded-2xl border border-chalk/10 bg-night-2 p-6"
+        className="w-full max-w-xs rounded-2xl border border-gold/15 bg-night-2 p-6"
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
@@ -508,7 +582,7 @@ function SaveEntryModal({
           onSaved(saved);
         }}
       >
-        <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-toto" />
+        <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-gold" />
         <h2 className="text-center font-display text-lg font-black">כמעט סיימנו</h2>
         <p className="mt-1 text-center text-xs text-chalk-dim">
           בחרו שם תצוגה לדירוג ({MODE_LABEL[mode]}). לאחר ההגשה ההרכב
@@ -519,13 +593,13 @@ function SaveEntryModal({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="השם שלכם בדירוג"
-          className="mt-5 w-full rounded-xl border border-chalk/20 bg-night px-3 py-2.5 text-center
-                     text-chalk outline-none focus:border-toto"
+          className="mt-5 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5 text-center
+                     text-chalk outline-none focus:border-gold"
         />
         <button
           type="submit"
           disabled={!name.trim()}
-          className="tap mt-4 w-full rounded-full bg-toto py-2.5 font-poster text-night disabled:opacity-40"
+          className="tap mt-4 w-full rounded-full bg-gold py-2.5 font-poster text-night disabled:opacity-40"
         >
           שמירת ההרכב
         </button>
@@ -617,7 +691,7 @@ function CardScreen({
   return (
     <div className="grid h-full place-items-center px-6 text-center">
       <div className="max-w-sm">
-        <div className="mx-auto mb-4 h-1 w-16 rounded-full bg-toto" />
+        <div className="mx-auto mb-4 h-1 w-16 rounded-full bg-gold" />
         <h2 className="font-display text-2xl font-black">עוד אין תוצאות למחזור</h2>
         <p className="mt-2 text-sm text-chalk-dim">
           {ready
@@ -627,7 +701,7 @@ function CardScreen({
         {ready && (
           <button
             onClick={() => setShowDemo(true)}
-            className="tap mt-6 rounded-full bg-toto px-6 font-poster text-lg text-night
+            className="tap mt-6 rounded-full bg-gold px-6 font-poster text-lg text-night
                        transition-transform duration-200 ease-brand active:scale-[.98]"
           >
             הצג כרטיס לדוגמה
@@ -711,8 +785,8 @@ function RulesScreen() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5">
-      <section className="rounded-2xl border border-toto/30 bg-toto/10 p-4">
-        <h2 className="font-display text-xl font-black text-toto">הכלל היחיד שחשוב</h2>
+      <section className="rounded-2xl border border-gold/30 bg-gold/10 p-4">
+        <h2 className="font-display text-xl font-black text-gold">הכלל היחיד שחשוב</h2>
         <p className="mt-1 text-sm text-chalk-2">
           שחקן אחד מכל קבוצה. אי אפשר לקחת שניים מאותה קבוצה, גם לא ליום אחד.
         </p>
@@ -722,9 +796,9 @@ function RulesScreen() {
       <table className="mt-2 w-full text-sm">
         <tbody>
           {rows.map(([label, value]) => (
-            <tr key={label} className="border-b border-chalk/10">
+            <tr key={label} className="border-b border-gold/15">
               <td className="py-2.5 text-start">{label}</td>
-              <td className="num py-2.5 text-end text-toto">{value}</td>
+              <td className="num py-2.5 text-end text-gold">{value}</td>
             </tr>
           ))}
         </tbody>

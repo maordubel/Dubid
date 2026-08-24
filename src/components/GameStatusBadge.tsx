@@ -3,9 +3,9 @@ import { STATUS_LABEL, type GameStatus } from '../lib/gameStatus.ts';
 const DOT_CLASS: Record<GameStatus, string> = {
   not_started: 'bg-chalk-dim',
   draft: 'bg-armband',
-  ready: 'bg-toto',
+  ready: 'bg-gold',
   locked: 'bg-tekhelet',
-  finished: 'bg-toto',
+  finished: 'bg-gold',
 };
 
 export function GameStatusBadge({ status }: { status: GameStatus }) {

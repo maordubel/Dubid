@@ -40,10 +40,10 @@ export function LockedLineup({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mx-3 mt-3 flex items-center justify-between rounded-2xl border border-toto/30
-                       bg-toto/10 px-4 py-3">
+      <div className="mx-3 mt-3 flex items-center justify-between rounded-2xl border border-gold/30
+                       bg-gold/10 px-4 py-3">
         <div>
-          <div className="flex items-center gap-1.5 text-sm font-black text-toto">
+          <div className="flex items-center gap-1.5 text-sm font-black text-gold">
             <span aria-hidden>🔒</span> ההרכב הוגש ונעול
           </div>
           <div className="mt-0.5 text-[11px] text-chalk-dim">
@@ -52,7 +52,7 @@ export function LockedLineup({
         </div>
         {score && (
           <div className="text-end">
-            <div className="num text-2xl font-black text-toto">{score.totalPoints}</div>
+            <div className="num text-2xl font-black text-gold">{score.totalPoints}</div>
             <div className="text-[10px] text-chalk-dim">נקודות</div>
           </div>
         )}
@@ -96,7 +96,7 @@ export function LockedLineup({
                         </div>
                         <div className={[
                           'w-full max-w-[92px] rounded-lg px-1.5 py-0.5 text-center text-[10px] font-bold',
-                          points !== undefined ? 'bg-toto/15 text-toto' : 'bg-night-3 text-chalk-dim',
+                          points !== undefined ? 'bg-gold/15 text-gold' : 'bg-night-3 text-chalk-dim',
                         ].join(' ')}>
                           {points !== undefined ? <span className="num" dir="ltr">{points} נק'</span> : team?.short}
                         </div>
@@ -110,12 +110,12 @@ export function LockedLineup({
         </div>
       </div>
 
-      <div className="sticky bottom-0 border-t border-chalk/10 bg-night/95 px-4
+      <div className="sticky bottom-0 border-t border-gold/15 bg-night/95 px-4
                       pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         {score && onViewCard ? (
           <button
             onClick={onViewCard}
-            className="tap h-14 w-full rounded-full bg-toto font-poster text-xl text-night
+            className="tap h-14 w-full rounded-full bg-gold font-poster text-xl text-night
                        transition-transform duration-200 ease-brand active:scale-[.98]"
           >
             לצפייה בכרטיס המלא

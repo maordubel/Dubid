@@ -46,7 +46,7 @@ export function Table<T>({
 }: TableProps<T>) {
   if (rows.length === 0) {
     return (
-      <div className="rounded-2xl border border-chalk/10 bg-night-2 px-4 py-10 text-center
+      <div className="rounded-2xl border border-gold/15 bg-night-2 px-4 py-10 text-center
                       text-sm text-chalk-dim">
         {empty ?? 'אין נתונים להצגה.'}
       </div>
@@ -56,9 +56,9 @@ export function Table<T>({
   const mobileCols = columns.filter((c) => c.primary !== false);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-chalk/10 bg-night-2">
+    <div className="overflow-hidden rounded-2xl border border-gold/15 bg-night-2">
       {caption ? (
-        <div className="border-b border-chalk/10 px-4 py-2.5 text-[11px] font-black
+        <div className="border-b border-gold/15 px-4 py-2.5 text-[11px] font-black
                         uppercase tracking-wide text-chalk-dim">
           {caption}
         </div>
@@ -67,7 +67,7 @@ export function Table<T>({
       {/* ---------- דסקטופ ---------- */}
       <table className="hidden w-full border-collapse text-sm md:table">
         <thead>
-          <tr className="border-b border-chalk/10 bg-night-3/60">
+          <tr className="border-b border-gold/15 bg-night-3/60">
             {columns.map((c) => (
               <th
                 key={c.key}
@@ -90,8 +90,8 @@ export function Table<T>({
               key={rowKey(row, i)}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
               className={[
-                'border-b border-chalk/5 last:border-0 transition-colors duration-150 ease-brand',
-                highlight?.(row) ? 'bg-toto/10' : 'hover:bg-night-3/50',
+                'border-b border-gold/10 last:border-0 transition-colors duration-150 ease-brand',
+                highlight?.(row) ? 'bg-gold/10' : 'hover:bg-night-3/50',
                 onRowClick ? 'cursor-pointer' : '',
               ].join(' ')}
             >
@@ -114,14 +114,14 @@ export function Table<T>({
       </table>
 
       {/* ---------- מובייל ---------- */}
-      <ul className="divide-y divide-chalk/5 md:hidden">
+      <ul className="divide-y divide-gold/10 md:hidden">
         {rows.map((row, i) => (
           <li
             key={rowKey(row, i)}
             onClick={onRowClick ? () => onRowClick(row) : undefined}
             className={[
               'flex items-center gap-3 px-3 py-3',
-              highlight?.(row) ? 'bg-toto/10' : '',
+              highlight?.(row) ? 'bg-gold/10' : '',
               onRowClick ? 'tap active:bg-night-3' : '',
             ].join(' ')}
           >

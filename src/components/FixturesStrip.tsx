@@ -23,7 +23,7 @@ export function FixturesStrip({ compact = false }: { compact?: boolean }) {
           return (
             <div
               key={f.id}
-              className="flex w-40 shrink-0 flex-col gap-1.5 rounded-xl border border-chalk/10
+              className="flex w-40 shrink-0 flex-col gap-1.5 rounded-xl border border-gold/15
                          bg-night-2 px-3 py-2.5"
             >
               <div className="flex items-center justify-between text-[10px] text-chalk-dim">
@@ -35,7 +35,7 @@ export function FixturesStrip({ compact = false }: { compact?: boolean }) {
                 <span className="text-chalk-dim">–</span>
                 <span className="truncate">{away?.short}</span>
               </div>
-              <div className={`text-center text-[11px] ${f.timeConfirmed ? 'num text-toto' : 'text-chalk-dim'}`}>
+              <div className={`text-center text-[11px] ${f.timeConfirmed ? 'num text-gold' : 'text-chalk-dim'}`}>
                 {kickoffTimeLabel(f.kickoff, f.timeConfirmed)}
               </div>
             </div>

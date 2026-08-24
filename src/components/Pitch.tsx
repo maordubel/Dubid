@@ -64,7 +64,7 @@ export function Pitch({
   if (!layout) {
     // מערך לא מוכר — לא מפילים את המסך ולא מנחשים פריסה.
     return (
-      <div className="grid place-items-center rounded-3xl border border-chalk/10
+      <div className="grid place-items-center rounded-3xl border border-gold/15
                       bg-night-2 p-8 text-center text-sm text-chalk-dim">
         המערך {formation} אינו נתמך.
       </div>

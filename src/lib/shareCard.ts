@@ -18,19 +18,30 @@ import type { Position } from './scoring/types.ts';
 export const CARD_W = 1080;
 export const CARD_H = 1920;
 
-export const PALETTE = {
-  night: '#121110',
-  night2: '#1B1917',
-  night3: '#262320',
-  pitch: '#0F3D2C',
-  pitch2: '#16563E',
-  toto: '#FF5B14',
-  totoDeep: '#C63A05',
-  chalk: '#F6F3EB',
-  chalkDim: '#8C857A',
-  tekhelet: '#1F7FD1',
-  armband: '#FFC93C',
-  flare: '#E4002B',
+export /**
+ * ★ הפלטה כאן היא עותק, וזה מכוון.
+ *
+ * הכרטיס מצויר על `<canvas>`, ולקנבס אין גישה למחלקות Tailwind.
+ * שמות המפתחות זהים לטוקנים ב-`tailwind.config.ts`, והערכים
+ * חייבים להישאר זהים להם. שינוי שם — כאן ושם.
+ *
+ * `toto` נשמר כשם היסטורי, בדיוק כמו בטוקנים, כדי שלא יהיה רגע
+ * שבו הקנפיג והקנבס לא מסכימים על שם צבע.
+ */
+const PALETTE = {
+  night: '#0C0A08',
+  night2: '#16120D',
+  night3: '#211A13',
+  pitch: '#12301F',
+  pitch2: '#1B4630',
+  toto: '#D8B25C',        // = gold
+  totoDeep: '#A9822F',    // = gold.deep
+  goldLight: '#F0D693',
+  chalk: '#F4ECDC',
+  chalkDim: '#8B7F6A',
+  tekhelet: '#4A9BD8',
+  armband: '#FFCE4D',
+  flare: '#E4453B',
 } as const;
 
 const F_DISPLAY = '"Narkiss Block", "Heebo", system-ui, sans-serif';

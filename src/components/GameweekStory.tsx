@@ -21,12 +21,11 @@ export function GameweekStory({
   onNext?: () => void;
 }) {
   const up = (story.rankDelta ?? 0) > 0;
-  const down = (story.rankDelta ?? 0) < 0;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 lg:max-w-2xl">
       {/* ---------- הכותרת ---------- */}
-      <div className="relative overflow-hidden rounded-3xl border border-chalk/10 bg-night-2">
+      <div className="relative overflow-hidden rounded-3xl border border-gold/15 bg-night-2">
         {/* דשא: רמז, לא איור. */}
         <div className="tex-turf absolute inset-x-0 top-0 h-1.5 opacity-70" aria-hidden="true" />
 
@@ -35,7 +34,7 @@ export function GameweekStory({
             {label}
           </div>
 
-          <div className="num mt-1 text-7xl font-black leading-none text-toto" dir="ltr">
+          <div className="num mt-1 text-7xl font-black leading-none text-gold" dir="ltr">
             {story.totalPoints}
           </div>
           <div className="mt-0.5 text-xs font-bold text-chalk-dim">נקודות</div>
@@ -63,8 +62,8 @@ export function GameweekStory({
         </div>
 
         {/* ---------- דירוג ואחוזון ---------- */}
-        <div className="grid grid-cols-2 divide-x divide-x-reverse divide-chalk/10
-                        border-t border-chalk/10">
+        <div className="grid grid-cols-2 divide-x divide-x-reverse divide-gold/15
+                        border-t border-gold/15">
           <Stat label="המקום שלך" value={`#${story.rank}`} sub={`מתוך ${story.entrants}`} />
           <Stat
             label="ניצחת"
@@ -112,7 +111,7 @@ export function GameweekStory({
         <button
           type="button"
           onClick={onNext}
-          className="tap mt-5 w-full rounded-2xl bg-toto py-4 font-display text-base
+          className="tap mt-5 w-full rounded-2xl bg-gold py-4 font-display text-base
                      font-black text-night transition-transform duration-200
                      ease-brand active:scale-[0.98]"
         >
@@ -147,7 +146,7 @@ function PickRow({
 }) {
   const team = TEAM_BY_ID.get(pick.teamId);
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-chalk/10 bg-night-2 px-4 py-3">
+    <div className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-night-2 px-4 py-3">
       <Jersey teamId={pick.teamId} size={38} captain={pick.isCaptain} />
       <div className="min-w-0 flex-1">
         <div className="text-[11px] font-black uppercase tracking-wide text-chalk-dim">{title}</div>

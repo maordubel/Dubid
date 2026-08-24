@@ -59,18 +59,18 @@ export function ScoreBreakdown({
     .filter((g) => g.points !== 0);
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-chalk/10 bg-night-2">
+    <section className="overflow-hidden rounded-2xl border border-gold/15 bg-night-2">
       {/* ---- הכותרת: הציון, גדול ---- */}
-      <header className="flex items-baseline justify-between gap-3 border-b border-chalk/10
+      <header className="flex items-baseline justify-between gap-3 border-b border-gold/15
                          bg-night-3/50 px-4 py-3">
         <h3 className="font-display text-sm font-black text-chalk-dim">פירוט הניקוד</h3>
-        <div className="num text-3xl font-black leading-none text-toto" dir="ltr">
+        <div className="num text-3xl font-black leading-none text-gold" dir="ltr">
           {score.totalPoints}
         </div>
       </header>
 
       {/* ---- סיכום לפי קטגוריה ---- */}
-      <dl className="divide-y divide-chalk/5">
+      <dl className="divide-y divide-gold/10">
         {groups.map(({ group, points }) => (
           <div key={group} className="flex items-center justify-between gap-3 px-4 py-2.5">
             <dt className="text-sm text-chalk">{GROUP_LABELS[group]}</dt>
@@ -80,10 +80,10 @@ export function ScoreBreakdown({
       </dl>
 
       {/* ---- הסך הכול ---- */}
-      <div className="flex items-center justify-between gap-3 border-t border-chalk/10
+      <div className="flex items-center justify-between gap-3 border-t border-gold/15
                       bg-night-3/40 px-4 py-3">
         <span className="font-display text-sm font-black">סך הכול</span>
-        <span className="num text-xl font-black text-toto" dir="ltr">{score.totalPoints}</span>
+        <span className="num text-xl font-black text-gold" dir="ltr">{score.totalPoints}</span>
       </div>
 
       {/* ---- פירוט לפי שחקן, מקופל ---- */}
@@ -91,7 +91,7 @@ export function ScoreBreakdown({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="tap flex w-full items-center justify-center gap-1.5 border-t border-chalk/10
+        className="tap flex w-full items-center justify-center gap-1.5 border-t border-gold/15
                    py-3 text-xs font-black text-chalk-dim transition-colors
                    duration-200 ease-brand hover:text-chalk"
       >
@@ -100,7 +100,7 @@ export function ScoreBreakdown({
       </button>
 
       {open && (
-        <ul className="divide-y divide-chalk/5 border-t border-chalk/10">
+        <ul className="divide-y divide-gold/10 border-t border-gold/15">
           {[...score.players]
             .sort((a, b) => b.subtotal - a.subtotal)
             .map((p) => (

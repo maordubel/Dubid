@@ -92,7 +92,7 @@ export function ShareCard({ data }: { data: ShareCardData }) {
       <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3">
         <div className="mx-auto w-full max-w-[380px]">
           <div className="relative overflow-hidden rounded-2xl bg-night-2 shadow-2xl
-                          ring-1 ring-chalk/10">
+                          ring-1 ring-gold/15">
             <canvas
               ref={canvasRef}
               width={CARD_W}
@@ -116,12 +116,12 @@ export function ShareCard({ data }: { data: ShareCardData }) {
       </div>
 
       {/* פעולות — צמודות לתחתית, מעל הניווט, עם safe-area */}
-      <div className="border-t border-chalk/10 bg-night/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))]
+      <div className="border-t border-gold/15 bg-night/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))]
                       pt-3 backdrop-blur">
         <button
           onClick={handleShare}
           disabled={status !== 'ready'}
-          className="tap h-14 w-full rounded-full bg-toto font-poster text-xl text-night
+          className="tap h-14 w-full rounded-full bg-gold font-poster text-xl text-night
                      transition-transform duration-200 ease-brand active:scale-[.98]
                      disabled:bg-night-3 disabled:text-chalk-dim"
         >

@@ -33,7 +33,7 @@ export function DubelCredit({ variant = 'quiet', className = '' }: DubelCreditPr
         href={DUBEL_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className={`tap flex items-center gap-3 rounded-2xl border border-chalk/10
+        className={`tap flex items-center gap-3 rounded-2xl border border-gold/15
                     bg-night-2 px-4 py-3 transition-colors duration-200 ease-brand
                     hover:border-armband/30 ${className}`}
       >

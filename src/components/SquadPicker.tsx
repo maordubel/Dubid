@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   teamCoverage, validateLineup, formatIssue, teamBlock,
 } from '../lib/scoring/validate.ts';
-import { Jersey, jerseyMonogram } from './Jersey.tsx';
+import { Jersey } from './Jersey.tsx';
 import { teamColor } from '../data/teamColors.ts';
 import { TeamCrest } from './TeamCrest.tsx';
 import { Pitch } from './Pitch.tsx';
@@ -118,7 +118,6 @@ export function SquadPicker(props: SquadPickerProps) {
     <div className="flex h-full min-h-0 flex-col">
       <ControlBar
         coverage={coverage}
-        teamById={teamById}
         budget={budget}
         spent={spent}
         filled={filled}
@@ -160,7 +159,7 @@ export function SquadPicker(props: SquadPickerProps) {
         של סרגל הכתובות. עכשיו `bottom-full` על אב `relative`: תמיד
         בדיוק מעל הכפתור, בלי מספרים.
       */}
-      <div className="relative shrink-0 border-t border-chalk/10 bg-night/95 px-4 pb-3 pt-2.5 backdrop-blur">
+      <div className="relative shrink-0 border-t border-gold/15 bg-night/95 px-4 pb-3 pt-2.5 backdrop-blur">
         {(notice || (!ready && filled === rules.constraints.lineupSize)) && (
           <div className="pointer-events-none absolute inset-x-0 bottom-full z-10 px-4 pb-2">
             <p
@@ -177,7 +176,7 @@ export function SquadPicker(props: SquadPickerProps) {
         <button
           onClick={onSubmit}
           disabled={!ready}
-          className="tap h-12 w-full rounded-2xl bg-toto font-poster text-lg text-night
+          className="tap h-12 w-full rounded-2xl bg-gold font-poster text-lg text-night
                      transition-transform duration-200 ease-brand active:scale-[.98]
                      disabled:bg-night-3 disabled:text-chalk-dim"
         >
@@ -240,10 +239,9 @@ export function SquadPicker(props: SquadPickerProps) {
  * המסך למגרש במקום שלוש רצועות שאף אחת מהן לא נקראת עד הסוף.
  */
 function ControlBar({
-  coverage, teamById, budget, spent, filled, size, formation, onOpen,
+  coverage, budget, spent, filled, size, formation, onOpen,
 }: {
   coverage: ReturnType<typeof teamCoverage>;
-  teamById: Map<string, TeamMeta>;
   budget?: number;
   spent: number;
   filled: number;
@@ -256,7 +254,7 @@ function ControlBar({
   const over = remaining !== undefined && remaining < 0;
 
   return (
-    <div className="shrink-0 border-b border-chalk/10 bg-night px-2.5 py-2">
+    <div className="shrink-0 border-b border-gold/15 bg-night px-2.5 py-2">
       <div className="mx-auto flex max-w-3xl items-stretch gap-2">
         <Chip label="קבוצות" onClick={() => onOpen('teams')}>
           <span className="num" dir="ltr">{used}/{coverage.length}</span>
@@ -273,7 +271,7 @@ function ControlBar({
         </Chip>
 
         <div className="grid shrink-0 place-items-center rounded-xl bg-night-2 px-3">
-          <span className="num text-sm font-black text-toto" dir="ltr">{filled}/{size}</span>
+          <span className="num text-sm font-black text-gold" dir="ltr">{filled}/{size}</span>
         </div>
       </div>
     </div>
@@ -351,11 +349,11 @@ function TeamCoverageGrid({
             title={meta?.name}
             className={[
               'flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-center',
-              c.filled ? 'bg-toto/15 ring-1 ring-inset ring-toto/40' : 'bg-night-3 opacity-60',
+              c.filled ? 'bg-gold/15 ring-1 ring-inset ring-gold/40' : 'bg-night-3 opacity-60',
             ].join(' ')}
           >
             <TeamCrest teamId={c.teamId} short={meta?.short} size={26} />
-            <span className={`text-[10px] font-bold ${c.filled ? 'text-toto' : 'text-chalk-dim'}`}>
+            <span className={`text-[10px] font-bold ${c.filled ? 'text-gold' : 'text-chalk-dim'}`}>
               {meta?.short ?? c.teamId}
             </span>
           </li>
@@ -379,7 +377,7 @@ function BudgetDetail({
       <div className="mb-2 h-2 overflow-hidden rounded-full bg-night-3">
         <div
           className={`h-full rounded-full transition-[width] duration-300 ease-brand ${
-            over ? 'bg-flare' : 'bg-toto'
+            over ? 'bg-flare' : 'bg-gold'
           }`}
           style={{ width: `${Math.max(0, Math.min(100, (spent / budget) * 100))}%` }}
         />
@@ -445,7 +443,7 @@ function SlotCard({
         onClick={onPick}
         aria-label={`הוסף ${POSITION_LABEL[slot.position]}`}
         className="tap flex w-full flex-col items-center gap-1 text-chalk/60
-                   transition-colors duration-200 ease-brand active:text-toto"
+                   transition-colors duration-200 ease-brand active:text-gold"
       >
         <span className="relative grid w-[62%] max-w-[40px] place-items-center">
           <Jersey ghost position={slot.position} size="fluid" />
@@ -498,7 +496,7 @@ function SlotCard({
       {/* מחיר ב-5 על 5, אחרת קיצור הקבוצה */}
       <span className={[
         'w-full truncate rounded px-1 text-center text-[8.5px] font-black leading-[1.5]',
-        price !== undefined ? 'bg-night/75 text-toto' : 'bg-night/65 text-chalk-dim',
+        price !== undefined ? 'bg-night/75 text-gold' : 'bg-night/65 text-chalk-dim',
       ].join(' ')}>
         {price !== undefined ? <span className="num" dir="ltr">{price}</span> : team?.short}
       </span>
@@ -654,7 +652,7 @@ function PlayerSheet({
             שחקנים מקבוצה שכבר בחרת מוצגים מואפרים — שחקן אחד מכל קבוצה.
             {remaining !== undefined && (
               <>
-                {' '}נותרו <span dir="ltr" className="num text-toto">{remaining.toFixed(1)}</span>M€.
+                {' '}נותרו <span dir="ltr" className="num text-gold">{remaining.toFixed(1)}</span>M€.
               </>
             )}
           </p>
@@ -671,7 +669,7 @@ function PlayerSheet({
                 onClick={() => { setBrowse(id); setOpenTeam(null); }}
                 className={`tap flex-1 rounded-full py-1.5 text-xs font-black
                             transition-colors duration-200 ease-brand ${
-                              browse === id ? 'bg-toto text-night' : 'text-chalk-dim'
+                              browse === id ? 'bg-gold text-night' : 'text-chalk-dim'
                             }`}
               >
                 {label}
@@ -687,7 +685,7 @@ function PlayerSheet({
             enterKeyHint="search"
             autoComplete="off"
             className="tap mt-3 w-full rounded-full bg-night px-4 text-start text-chalk
-                       placeholder:text-chalk-dim focus:outline-none focus:ring-2 focus:ring-toto"
+                       placeholder:text-chalk-dim focus:outline-none focus:ring-2 focus:ring-gold"
           />
         </div>
 
@@ -769,13 +767,13 @@ function PlayerSheet({
                       dir="ltr"
                       className={[
                         'num shrink-0 rounded-lg px-2 py-1 text-xs font-bold',
-                        tooExpensive ? 'bg-flare/15 text-flare' : 'bg-toto/15 text-toto',
+                        tooExpensive ? 'bg-flare/15 text-flare' : 'bg-gold/15 text-gold',
                       ].join(' ')}
                     >
                       {p.price}M€
                     </span>
                   ) : p.form !== undefined ? (
-                    <span dir="ltr" className="num text-sm text-toto">{p.form.toFixed(1)}</span>
+                    <span dir="ltr" className="num text-sm text-gold">{p.form.toFixed(1)}</span>
                   ) : null}
                 </button>
               </li>
@@ -835,7 +833,7 @@ function TeamGrid({
               onClick={() => onPick(t.id)}
               className={[
                 'tap flex w-full flex-col items-center gap-1 rounded-2xl px-2 py-3',
-                'ring-1 ring-inset ring-chalk/10 transition-transform duration-200 ease-brand',
+                'ring-1 ring-inset ring-gold/15 transition-transform duration-200 ease-brand',
                 block.blocked || n === 0
                   ? 'cursor-not-allowed opacity-40 grayscale'
                   : 'active:scale-[0.97]',

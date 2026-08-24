@@ -12,6 +12,7 @@
  */
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { BottomNav, SideRail, NAV_HEIGHT_PX, type NavItem } from './BottomNav.tsx';
+import { LogoMark } from './Logo.tsx';
 
 export interface AppShellProps {
   items: NavItem[];
@@ -38,7 +39,7 @@ export function AppShell({
     <div
       dir="rtl"
       style={{ '--nav-h': `${NAV_HEIGHT_PX}px` } as CSSProperties}
-      className="flex h-[100dvh] w-full overflow-hidden bg-night text-chalk"
+      className="tex-wood flex h-[100dvh] w-full overflow-hidden text-chalk"
     >
       <SideRail items={items} activeId={activeId} onSelect={onSelect} />
 
@@ -71,7 +72,7 @@ export function AppShell({
           </main>
 
           {aside ? (
-            <aside className="hidden w-[300px] shrink-0 overflow-y-auto border-chalk/10
+            <aside className="hidden w-[300px] shrink-0 overflow-y-auto border-gold/12
                               bg-night-2 p-4 border-s xl:block">
               {aside}
             </aside>
@@ -88,16 +89,29 @@ export function AppShell({
 /* כותרת סטנדרטית                                                      */
 /* ------------------------------------------------------------------ */
 
+/**
+ * ★ הסמל בכותרת — 30px, לא הלוגו המלא.
+ *
+ * הלוגו המלא הוא דיוקן + חתימה + כדור. בשורת כותרת בגובה 60px
+ * שלושתם נדחסים לכתם. הסמל (הדיוקן בלבד) נשאר קריא, ומחזיק את
+ * הנוכחות של המותג בכל מסך בלי לגזול מקום מהכותרת עצמה.
+ *
+ * הקו התחתון בזהב שקוף ולא באפור: זה הפרט שקושר את הכותרת לשאר
+ * השפה. גבול אפור על עץ כהה נראה כמו קו שנשכח.
+ */
 export function AppHeader({
   title, subtitle, right,
 }: { title: string; subtitle?: ReactNode; right?: ReactNode }) {
   return (
     <header
-      className="flex shrink-0 items-center justify-between gap-3 border-b border-chalk/10
-                 bg-night px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]"
+      className="flex shrink-0 items-center gap-3 border-b border-gold/15
+                 bg-night/80 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur"
     >
-      <div className="min-w-0">
-        <h1 className="truncate font-display text-xl font-black leading-tight">{title}</h1>
+      <LogoMark size={30} className="opacity-90" />
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate font-display text-xl font-black leading-tight text-chalk">
+          {title}
+        </h1>
         {subtitle ? <div className="text-xs text-chalk-dim">{subtitle}</div> : null}
       </div>
       {right}

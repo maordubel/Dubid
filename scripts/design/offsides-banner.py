@@ -133,10 +133,10 @@ d.text((RIGHT, 118 * S), 'LIVE · IN-MATCH PREDICTION', font=f_kick,
        fill=DIM, anchor='rt')
 
 # השם. גדול מאוד. נקרא ראשון, ואין ויכוח.
-d.text((RIGHT, 142 * S), 'OFFSIDE BETS', font=f_word, fill=CHALK, anchor='rt')
+d.text((RIGHT, 142 * S), 'OFFSIDES', font=f_word, fill=CHALK, anchor='rt')
 
 # קו האור מתחת לשם — דק, והוא מה שהופך טקסט לשלט
-_, _, wl, _ = d.textbbox((0, 0), 'OFFSIDE BETS', font=f_word)
+_, _, wl, _ = d.textbbox((0, 0), 'OFFSIDES', font=f_word)
 d.line([(RIGHT - wl, 258 * S), (RIGHT, 258 * S)], fill=GLOW, width=int(2.4 * S))
 
 # עברית — שתי שורות, ולא פסקה

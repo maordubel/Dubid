@@ -4,36 +4,41 @@
 
 /* ===================================================================
    DUBID · בסיס
-   הטוקנים המלאים והנימוקים שלהם: src/styles/theme.css
+   הטוקנים חיים ב-tailwind.config.ts. כאן רק המשתנים שנדרשים
+   ל-CSS גולמי (טקסטורות, פוקוס), ואותם ערכים בדיוק.
    =================================================================== */
 
 @layer base {
   :root {
-    --night: #121110;
-    --night-2: #1b1917;
-    --night-3: #262320;
-    --pitch: #0f3d2c;
-    --pitch-2: #16563e;
-    --toto: #ff5b14;
-    --chalk: #f6f3eb;
-    --chalk-dim: #8c857a;
-    --tekhelet: #1f7fd1;
-    --armband: #ffc93c;
-    --flare: #e4002b;
+    --night: #0c0a08;
+    --night-2: #16120d;
+    --night-3: #211a13;
+    --night-4: #2e251a;
 
-    /* פלטת הלוגו */
-    --ink: #1a2b4c;
-    --ink-2: #24395f;
-    --paper: #f5eedc;
-    --paper-2: #ebe2cb;
+    --gold: #d8b25c;
+    --gold-light: #f0d693;
+    --gold-deep: #a9822f;
+
+    --chalk: #f4ecdc;
+    --chalk-2: #c6b99f;
+    --chalk-dim: #8b7f6a;
+
+    --pitch: #12301f;
+    --pitch-2: #1b4630;
+    --tekhelet: #4a9bd8;
+    --armband: #ffce4d;
+    --flare: #e4453b;
+
+    --paper: #f5efe9;
+    --ink: #14181c;
     --tartan-red: #c8332f;
     --tartan-green: #2e7d4f;
+
     --ease: cubic-bezier(0.2, 0.9, 0.3, 1);
   }
 
   html {
     color-scheme: dark;
-    /* מונע זום אוטומטי בשדות קלט ב-iOS בלי לחסום זום ידני */
     -webkit-text-size-adjust: 100%;
   }
 
@@ -54,19 +59,77 @@
     unicode-bidi: isolate;
   }
 
-  /* פוקוס נראה למקלדת בלבד */
   :focus-visible {
-    outline: 2px solid var(--toto);
+    outline: 2px solid var(--gold);
     outline-offset: 2px;
   }
 
   ::selection {
-    background: var(--toto);
+    background: var(--gold);
     color: var(--night);
   }
 }
 
 @layer utilities {
+  /* ═══════════════════════════════════════════════════════════════
+     ★ העץ הכהה — המשטח של המוצר
+     ═══════════════════════════════════════════════════════════════
+     שלוש שכבות, וכל אחת עושה עבודה אחרת:
+       1. גרדיאנט רדיאלי — נותן לפינות ליפול. בלעדיו המסך שטוח.
+       2. פסי עץ אנכיים בעוצמה של 2% — הסיב. מעל 4% זה הופך
+          למרקם שמתחרה עם התוכן.
+       3. גרעיניות — שוברת את הפסים כדי שלא ייראו כמו באג רינדור
+          על מסכי OLED.
+     כולן ב-CSS. אין תמונת רקע, אין בקשת רשת, ואין קובץ לתחזק. */
+  .tex-wood {
+    background-color: var(--night);
+    background-image:
+      radial-gradient(120% 90% at 50% -10%, rgba(216, 178, 92, 0.09), transparent 62%),
+      repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.016) 0 2px,
+        transparent 2px 5px,
+        rgba(0, 0, 0, 0.22) 5px 6px,
+        transparent 6px 13px
+      ),
+      radial-gradient(rgba(255, 255, 255, 0.02) 0.5px, transparent 0.6px);
+    background-size: auto, auto, 6px 6px;
+  }
+
+  /* מסגרת זהב דקה. הכפילות (ring + shadow) מכוונת: הטבעת היא הקו
+     הנקי, הצל הוא העומק. אחת בלי השנייה נראית שטוחה או מלוכלכת. */
+  .edge-gold {
+    box-shadow:
+      inset 0 0 0 1px rgba(216, 178, 92, 0.22),
+      inset 0 1px 0 0 rgba(240, 214, 147, 0.12),
+      0 14px 34px -24px rgba(0, 0, 0, 0.95);
+  }
+
+  /* טקסט זהב מוברש — לכותרות בלבד. על טקסט רץ זה לא נקרא. */
+  .text-gold-brushed {
+    background-image: linear-gradient(180deg, #f6e0a8 0%, #d8b25c 46%, #a9822f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ★ הלוגו על משטח כהה.
+     הקו של הלוגו דק. במקומות שבהם הוא יושב מעל תמונה או מעל
+     גרדיאנט, הוא נבלע. שכבת ה"אאוט־ליין" היא ארבעה צללים כהים
+     בארבעה כיוונים — קו מתאר של פיקסל אחד שמחזיר לו הפרדה,
+     בלי לצייר מסגרת. */
+  .logo-outline {
+    filter:
+      drop-shadow(0 1px 0 rgba(0, 0, 0, 0.85))
+      drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.85))
+      drop-shadow(1px 0 0 rgba(0, 0, 0, 0.85))
+      drop-shadow(-1px 0 0 rgba(0, 0, 0, 0.85));
+  }
+
+  .logo-glow {
+    filter: drop-shadow(0 10px 30px rgba(216, 178, 92, 0.35));
+  }
+
   .tex-turf {
     background-image: repeating-linear-gradient(
       100deg,
@@ -74,6 +137,7 @@
       var(--pitch-2) 34px 68px
     );
   }
+
   .tex-halftone {
     background-image:
       radial-gradient(currentColor 1.6px, transparent 1.7px),
@@ -81,24 +145,21 @@
     background-size: 10px 10px;
     background-position: 0 0, 5px 5px;
   }
+
   .tex-misprint {
     text-shadow: 3px 3px 0 var(--tekhelet);
   }
 
-  /* ★ נייר — משטח הקרם של הלוגו, עם גרעיניות עדינה.
-     הגרעיניות היא מה שמונע מהקרם להיראות כמו "לבן מלוכלך":
-     שתי שכבות רדיאליות דקות בזוויות שונות, בעוצמה נמוכה מאוד. */
+  /* נייר — משטח הקרם של המקור, עם גרעיניות עדינה. */
   .tex-paper {
     background-color: var(--paper);
     background-image:
-      radial-gradient(rgba(26, 43, 76, 0.045) 0.6px, transparent 0.7px),
-      radial-gradient(rgba(26, 43, 76, 0.03) 0.6px, transparent 0.7px);
+      radial-gradient(rgba(20, 24, 28, 0.045) 0.6px, transparent 0.7px),
+      radial-gradient(rgba(20, 24, 28, 0.03) 0.6px, transparent 0.7px);
     background-size: 7px 7px, 11px 11px;
     background-position: 0 0, 3px 4px;
   }
 
-  /* משבצות — רמז לחולצה של דוביד. רקע לאזורי חגיגה בלבד,
-     אף פעם מתחת לטקסט. */
   .tex-tartan {
     background-image:
       repeating-linear-gradient(90deg,
@@ -111,6 +172,6 @@
 
   /* זוהר רך מאחורי אלמנט גיבור */
   .glow-toto {
-    box-shadow: 0 0 0 1px rgba(255, 91, 20, 0.25), 0 18px 60px -18px rgba(255, 91, 20, 0.55);
+    box-shadow: 0 0 0 1px rgba(216, 178, 92, 0.25), 0 18px 60px -18px rgba(216, 178, 92, 0.5);
   }
 }

@@ -68,7 +68,7 @@ export function Arena({ userId, displayName, rulesByMode, origin }: ArenaProps) 
               onClick={() => setActiveId(l.id)}
               className={`tap shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-black
                           transition-colors duration-200 ease-brand ${
-                            l.id === active?.id ? 'bg-toto text-night' : 'bg-night-2 text-chalk-dim'
+                            l.id === active?.id ? 'bg-gold text-night' : 'bg-night-2 text-chalk-dim'
                           }`}
             >
               {l.name}
@@ -100,9 +100,9 @@ export function Arena({ userId, displayName, rulesByMode, origin }: ArenaProps) 
 function ArenaEmpty({ userId, displayName }: { userId: string; displayName: string }) {
   return (
     <div className="mx-auto max-w-lg px-4 pb-8 pt-6 lg:max-w-3xl">
-      <div className="rounded-3xl border border-chalk/10 bg-night-2 p-6 text-center">
+      <div className="rounded-3xl border border-gold/15 bg-night-2 p-6 text-center">
         <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-night">
-          <svg viewBox="0 0 28 20" width="26" height="19" aria-hidden="true" className="text-toto">
+          <svg viewBox="0 0 28 20" width="26" height="19" aria-hidden="true" className="text-gold">
             <rect x="10" y="2" width="8" height="18" rx="1.5" fill="currentColor" />
             <rect x="1" y="8" width="8" height="12" rx="1.5" fill="currentColor" opacity=".6" />
             <rect x="19" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".4" />
@@ -153,7 +153,7 @@ function ArenaActions({
   return (
     <div className={compact ? '' : 'mt-4'}>
       {/* ── הצטרפות: הפעולה הראשית. רוב האנשים מגיעים עם קוד ── */}
-      <form onSubmit={submitJoin} className="rounded-2xl border border-chalk/10 bg-night-2 p-4">
+      <form onSubmit={submitJoin} className="rounded-2xl border border-gold/15 bg-night-2 p-4">
         <label htmlFor="arena-code" className="block text-[12px] font-black text-chalk">
           יש לך קוד זירה?
         </label>
@@ -172,11 +172,11 @@ function ArenaActions({
             maxLength={12}
             className="num h-12 min-w-0 flex-1 rounded-xl bg-night px-3 text-center text-lg
                        tracking-[0.3em] text-chalk placeholder:text-chalk-dim
-                       focus:outline-none focus:ring-2 focus:ring-toto"
+                       focus:outline-none focus:ring-2 focus:ring-gold"
           />
           <button
             type="submit"
-            className="tap h-12 shrink-0 rounded-xl bg-toto px-5 font-poster text-base text-night
+            className="tap h-12 shrink-0 rounded-xl bg-gold px-5 font-poster text-base text-night
                        transition-transform duration-200 ease-brand active:scale-[.98]"
           >
             להצטרף
@@ -189,9 +189,9 @@ function ArenaActions({
       {!creating ? (
         <button
           onClick={() => setCreating(true)}
-          className="tap mt-2.5 w-full rounded-2xl border border-chalk/10 px-4 py-3
+          className="tap mt-2.5 w-full rounded-2xl border border-gold/15 px-4 py-3
                      text-[13px] font-black text-chalk-2 transition-colors duration-200
-                     ease-brand hover:border-chalk/20 hover:text-chalk"
+                     ease-brand hover:border-gold/25 hover:text-chalk"
         >
           או לפתוח זירה חדשה
         </button>
@@ -206,7 +206,7 @@ function ArenaActions({
             setName('');
             onDone(lg.id);
           }}
-          className="mt-2.5 rounded-2xl border border-chalk/10 bg-night-2 p-4"
+          className="mt-2.5 rounded-2xl border border-gold/15 bg-night-2 p-4"
         >
           <label htmlFor="arena-name" className="block text-[12px] font-black text-chalk">
             שם הזירה
@@ -218,7 +218,7 @@ function ArenaActions({
             placeholder="הקבוצה של העבודה"
             maxLength={40}
             className="mt-2 h-12 w-full rounded-xl bg-night px-3 text-[15px] text-chalk
-                       placeholder:text-chalk-dim focus:outline-none focus:ring-2 focus:ring-toto"
+                       placeholder:text-chalk-dim focus:outline-none focus:ring-2 focus:ring-gold"
           />
 
           <div className="mt-3 flex gap-1.5 rounded-full bg-night p-1">
@@ -229,7 +229,7 @@ function ArenaActions({
                 onClick={() => setMode(m)}
                 className={`tap flex-1 rounded-full py-1.5 text-[13px] font-black
                             transition-colors duration-200 ease-brand ${
-                              mode === m ? 'bg-toto text-night' : 'text-chalk-dim'
+                              mode === m ? 'bg-gold text-night' : 'text-chalk-dim'
                             }`}
               >
                 {MODE_LABEL[m]}
@@ -246,7 +246,7 @@ function ArenaActions({
           <div className="mt-3 flex gap-2">
             <button
               type="submit"
-              className="tap h-11 flex-1 rounded-xl bg-toto font-poster text-base text-night"
+              className="tap h-11 flex-1 rounded-xl bg-gold font-poster text-base text-night"
             >
               לפתוח
             </button>
@@ -321,8 +321,8 @@ function ArenaTable({
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate font-bold">{r.displayName}</span>
           {r.userId === userId && (
-            <span className="shrink-0 rounded bg-toto/20 px-1.5 py-0.5 text-[9px]
-                             font-black text-toto">
+            <span className="shrink-0 rounded bg-gold/20 px-1.5 py-0.5 text-[9px]
+                             font-black text-gold">
               אתה
             </span>
           )}
@@ -339,7 +339,7 @@ function ArenaTable({
     },
     {
       key: 'total', header: 'נק׳', primary: true, numeric: true, width: '3.5rem',
-      render: (r) => <span className="num text-base text-toto">{r.totalPoints}</span>,
+      render: (r) => <span className="num text-base text-gold">{r.totalPoints}</span>,
     },
   ];
 
@@ -419,7 +419,7 @@ function InviteCard({
   };
 
   return (
-    <div className="rounded-2xl border border-chalk/10 bg-night-2 p-4">
+    <div className="rounded-2xl border border-gold/15 bg-night-2 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="truncate font-display text-lg font-black text-chalk">{league.name}</h2>
@@ -430,7 +430,7 @@ function InviteCard({
         </div>
         <div className="shrink-0 text-end">
           <div className="text-[9px] uppercase tracking-[0.18em] text-chalk-dim">קוד</div>
-          <div dir="ltr" className="num text-xl tracking-[0.18em] text-toto">{league.code}</div>
+          <div dir="ltr" className="num text-xl tracking-[0.18em] text-gold">{league.code}</div>
         </div>
       </div>
 
