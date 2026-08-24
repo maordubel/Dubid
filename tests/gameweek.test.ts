@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import {
   GameweekStatus, canTransition, nextStatuses, dueStatus,
   isSubmissionOpen, msUntilDeadline, areResultsVisible, isVisibleToUsers,
-  formatCountdown, type Gameweek,
+  countdown, daysLabel, type Gameweek,
 } from '../src/lib/gameweek.ts';
 
 const DEADLINE = '2026-08-29T18:00:00Z';
@@ -104,12 +104,24 @@ test('מחזור בהכנה מוסתר ממשתמשים', () => {
 
 /* ---------------- תצוגה ---------------- */
 
-test('ספירה לאחור קריאה', () => {
-  assert.equal(formatCountdown(0), '00:00:00');
-  assert.equal(formatCountdown(-5), '00:00:00');
-  assert.equal(formatCountdown(3661_000), '01:01:01');
-  assert.equal(formatCountdown(90_000), '00:01:30');
-  assert.equal(formatCountdown(2 * 86400_000 + 3600_000), 'ד2 01:00:00'.replace('ד2', '2ד'));
+test('ספירה לאחור מחזירה ספרות בלבד', () => {
+  assert.deepEqual(countdown(0), { clock: '00:00:00', days: 0, done: true });
+  assert.deepEqual(countdown(-5), { clock: '00:00:00', days: 0, done: true });
+  assert.equal(countdown(3661_000).clock, '01:01:01');
+  assert.equal(countdown(90_000).clock, '00:01:30');
+});
+
+test('★ אין עברית בתוך המספר — הבאג שהפך "4ד 02:12" ל-"402:12 ד"', () => {
+  const c = countdown(4 * 86400_000 + 2 * 3600_000);
+  assert.match(c.clock, /^\d{2}:\d{2}:\d{2}$/, 'המחוגה חייבת להיות ספרות ונקודתיים בלבד');
+  assert.equal(c.days, 4, 'הימים חוזרים כמספר נפרד');
+});
+
+test('תווית הימים בעברית תקינה', () => {
+  assert.equal(daysLabel(0), '');
+  assert.equal(daysLabel(1), 'עוד יום');
+  assert.equal(daysLabel(2), 'עוד יומיים');
+  assert.equal(daysLabel(5), 'עוד 5 ימים');
 });
 
 /* ---------------- התאמה בין הקוד ל-SQL ---------------- */

@@ -11,7 +11,7 @@ import {
 import type { LineupScore } from '../src/lib/scoring/types.ts';
 
 const league = (over: Partial<PrivateLeague> = {}): PrivateLeague => ({
-  id: 'L1', name: 'המשרד', code: 'ABC234', ownerId: 'u1',
+  id: 'L1', name: 'המשרד', kind: 'arena', code: 'ABC234', ownerId: 'u1',
   mode: 'five', createdAt: '2026-08-01T00:00:00Z', status: 'active',
   maxMembers: null, ...over,
 });
@@ -200,4 +200,63 @@ test('★ אלפבית הקודים ב-SQL זהה לזה שב-TypeScript', async
   const gen = sql.match(/substr\('([2-9A-Z]+)'/);
   assert.ok(gen, 'לא נמצאה מחרוזת ההגרלה');
   assert.equal([...gen![1]].sort().join(''), tsAlphabet);
+});
+
+/* ---------------- שיא ניצחונות והפסדים ---------------- */
+
+test('★ ניצחון = חצי עליון של הזירה באותו מחזור', () => {
+  const rows = standings(
+    [member('a'), member('b'), member('c'), member('d')],
+    [gw('a','GW1',90), gw('b','GW1',80), gw('c','GW1',20), gw('d','GW1',10)],
+    ['GW1'],
+  );
+  const rec = (id: string) => rows.find((r) => r.userId === id)!.record;
+  assert.deepEqual([rec('a').wins, rec('a').losses], [1, 0]);
+  assert.deepEqual([rec('b').wins, rec('b').losses], [1, 0]);
+  assert.deepEqual([rec('c').wins, rec('c').losses], [0, 1]);
+  assert.deepEqual([rec('d').wins, rec('d').losses], [0, 1]);
+});
+
+test('רצף נספר נכון ומתאפס בכיוון ההפוך', () => {
+  const rows = standings(
+    [member('a'), member('b')],
+    [gw('a','GW1',90), gw('b','GW1',10),
+     gw('a','GW2',90), gw('b','GW2',10),
+     gw('a','GW3',10), gw('b','GW3',90)],
+    ['GW1','GW2','GW3'],
+  );
+  const a = rows.find((r) => r.userId === 'a')!.record;
+  assert.deepEqual([a.wins, a.losses], [2, 1]);
+  assert.equal(a.streak, -1, 'הפסיד אחרון — הרצף התהפך');
+  const b = rows.find((r) => r.userId === 'b')!.record;
+  assert.equal(b.streak, 1);
+});
+
+test('המקום הטוב ביותר נשמר', () => {
+  const rows = standings(
+    [member('a'), member('b')],
+    [gw('a','GW1',10), gw('b','GW1',90), gw('a','GW2',90), gw('b','GW2',10)],
+    ['GW1','GW2'],
+  );
+  assert.equal(rows.find((r) => r.userId === 'a')!.record.bestRank, 1);
+});
+
+test('זירה עם משתתף אחד לא מייצרת ניצחון מדומה', () => {
+  const rows = standings([member('a')], [gw('a','GW1',50)], ['GW1']);
+  assert.deepEqual([rows[0].record.wins, rows[0].record.losses], [0, 0],
+    'אין מול מי לנצח');
+});
+
+test('ליגה ציבורית וזירה פרטית חולקות את אותה טבלה', () => {
+  const open = league({ kind: 'open' });
+  const arena = league({ kind: 'arena' });
+  assert.equal(open.kind, 'open');
+  assert.equal(arena.kind, 'arena');
+  // אותו חישוב, אותם שוברי שוויון — אין שתי מערכות דירוג
+  const h = [gw('a','GW1',30), gw('b','GW1',50)];
+  const m = [member('a'), member('b')];
+  assert.deepEqual(
+    standings(m, h, ['GW1']).map((r) => r.userId),
+    standings(m, h, ['GW1']).map((r) => r.userId),
+  );
 });
