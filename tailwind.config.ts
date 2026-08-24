@@ -17,6 +17,17 @@ export default {
         tekhelet: '#1F7FD1',
         armband:  '#FFC93C',
         flare:    '#E4002B',
+
+        /* ★ פלטת הלוגו — הוספה, לא החלפה.
+           הדיוקן צויר בדיו נייבי על נייר קרם, עם משבצות אדום/ירוק
+           בחולצה. שלושת הצבעים האלה הם מה שיזהו אותנו, ולכן הם
+           טוקנים ולא ערכים מקומיים בקומפוננטה כלשהי.
+
+           `paper` הוא משטח ולא צבע טקסט: כרטיס על נייר קרם נותן את
+           תחושת אלבום המדבקות בלי שנצייר אף מדבקה. */
+        ink:      { DEFAULT: '#1A2B4C', 2: '#24395F', deep: '#111D33' },
+        paper:    { DEFAULT: '#F5EEDC', 2: '#EBE2CB', dim: '#C9BFA4' },
+        tartan:   { red: '#C8332F', green: '#2E7D4F' },
       },
       fontFamily: {
         display: ['"Narkiss Block"', 'Heebo', 'system-ui', 'sans-serif'],

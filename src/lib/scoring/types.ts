@@ -65,6 +65,16 @@ export interface LineupSlot {
   /** snapshot מרגע ההגשה — הסגל משתנה, ההרכב לא. */
   teamId: string;
   position: Position;
+  /**
+   * ★ שווי השחקן ברגע ההגשה, קפוא.
+   *
+   * מחירים משתנים במהלך העונה. בלי ההקפאה, הרכב מלפני חודש
+   * "מתייקר" רטרואקטיבית ופתאום נראה כאילו חרג מהתקציב —
+   * למרות שבזמן אמת הוא היה חוקי לגמרי.
+   *
+   * אופציונלי כי טיוטה עוד לא הגישה כלום. מתמלא ב-`saveEntry`.
+   */
+  price?: number;
   isCaptain?: boolean;
   isVice?: boolean;
   isBench?: boolean;

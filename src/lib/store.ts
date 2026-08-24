@@ -114,8 +114,25 @@ export function saveEntry(
   mode: 'full' | 'five',
   userId: string,
   lineup: Lineup,
+  /**
+   * ★ שווי לכל שחקן, לצורך הקפאת ה-snapshot (§10).
+   * מגיע מהקורא כי `store` לא מכיר את קטלוג השחקנים — וגם לא צריך.
+   */
+  priceById?: Map<string, number> | Record<string, number>,
 ): LineupEntry {
   const all = read<LineupEntry[]>(KEYS.entries, []);
+
+  // ★ ההגשה מקפיאה את המחיר. מרגע זה ההרכב הוא מסמך היסטורי:
+  //   שינוי מחיר בקטלוג לא נוגע בו יותר.
+  const prices = priceById instanceof Map ? priceById : new Map(Object.entries(priceById ?? {}));
+  const frozen: Lineup = {
+    ...lineup,
+    slots: lineup.slots.map((s) => ({
+      ...s,
+      price: s.price ?? (s.playerId ? prices.get(s.playerId) : undefined),
+    })),
+  };
+
   const entry: LineupEntry = {
     id: `entry-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     magicCode: makeMagicCode(),
@@ -123,7 +140,7 @@ export function saveEntry(
     gameweekId,
     mode,
     userId,
-    lineup,
+    lineup: frozen,
     submittedAt: new Date().toISOString(),
   };
   write(KEYS.entries, [...all, entry]);

@@ -19,7 +19,12 @@ export interface Fixture {
   dayLabel: string;
 }
 
-export const GAMEWEEK = { id: 'gw-1', label: 'מחזור 1', seasonLabel: 'ליגת העל 2026/27' };
+export const GAMEWEEK = {
+  id: 'gw-1',
+  number: 1,
+  label: 'מחזור 1',
+  seasonLabel: 'ליגת העל 2026/27',
+};
 
 export const FIXTURES: Fixture[] = [
   { id: 'gw1-1', homeTeamId: 'T12', awayTeamId: 'T10', kickoff: '2026-08-22T20:00:00+03:00', dayLabel: 'שבת' },
@@ -56,3 +61,18 @@ export function kickoffDateLabel(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
 }
+
+/**
+ * ★ הדדליין נגזר מהמשחקים ולא מוקלד בנפרד.
+ *
+ * נעילת ההרכבים היא בעיטת הפתיחה הראשונה במחזור. אילו זה היה שדה
+ * נפרד, יום אחד מישהו היה מזיז משחק ושוכח לעדכן אותו — והמשחק היה
+ * ממשיך לקבל הרכבים אחרי שהכדור כבר מתגלגל.
+ *
+ * זהו ערך תצוגה בלבד. האכיפה היא `game.gameweeks.lock_at` בשרת.
+ */
+export const GAMEWEEK_DEADLINE: string = FIXTURES
+  .map((f) => f.kickoff)
+  .sort()[0] ?? new Date().toISOString();
+
+export const FIRST_KICKOFF = GAMEWEEK_DEADLINE;

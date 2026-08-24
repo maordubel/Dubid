@@ -20,6 +20,14 @@
     --tekhelet: #1f7fd1;
     --armband: #ffc93c;
     --flare: #e4002b;
+
+    /* פלטת הלוגו */
+    --ink: #1a2b4c;
+    --ink-2: #24395f;
+    --paper: #f5eedc;
+    --paper-2: #ebe2cb;
+    --tartan-red: #c8332f;
+    --tartan-green: #2e7d4f;
     --ease: cubic-bezier(0.2, 0.9, 0.3, 1);
   }
 
@@ -75,5 +83,34 @@
   }
   .tex-misprint {
     text-shadow: 3px 3px 0 var(--tekhelet);
+  }
+
+  /* ★ נייר — משטח הקרם של הלוגו, עם גרעיניות עדינה.
+     הגרעיניות היא מה שמונע מהקרם להיראות כמו "לבן מלוכלך":
+     שתי שכבות רדיאליות דקות בזוויות שונות, בעוצמה נמוכה מאוד. */
+  .tex-paper {
+    background-color: var(--paper);
+    background-image:
+      radial-gradient(rgba(26, 43, 76, 0.045) 0.6px, transparent 0.7px),
+      radial-gradient(rgba(26, 43, 76, 0.03) 0.6px, transparent 0.7px);
+    background-size: 7px 7px, 11px 11px;
+    background-position: 0 0, 3px 4px;
+  }
+
+  /* משבצות — רמז לחולצה של דוביד. רקע לאזורי חגיגה בלבד,
+     אף פעם מתחת לטקסט. */
+  .tex-tartan {
+    background-image:
+      repeating-linear-gradient(90deg,
+        transparent 0 11px, rgba(200, 51, 47, 0.5) 11px 14px,
+        transparent 14px 25px, rgba(46, 125, 79, 0.5) 25px 27px),
+      repeating-linear-gradient(0deg,
+        transparent 0 11px, rgba(200, 51, 47, 0.35) 11px 14px,
+        transparent 14px 25px, rgba(46, 125, 79, 0.35) 25px 27px);
+  }
+
+  /* זוהר רך מאחורי אלמנט גיבור */
+  .glow-toto {
+    box-shadow: 0 0 0 1px rgba(255, 91, 20, 0.25), 0 18px 60px -18px rgba(255, 91, 20, 0.55);
   }
 }

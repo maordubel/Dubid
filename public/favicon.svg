@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" rx="44" fill="#1A2B4C"/><g transform="translate(14,58)">
+      <path
+        d="M11 21 L1 14 M189 21 L199 14"
+        stroke="#F5EEDC"
+        stroke-width="5"
+        stroke-linecap="round"
+      />
+
+      
+      <path
+        d="M20 20 H82 Q88 20 88 26 L88 52 Q88 68 72 69 L34 70
+           Q18 70 15 56 L13 28 Q12 20 20 20 Z"
+        fill="#F5EEDC"
+      />
+
+      
+      <path
+        d="M180 20 H118 Q112 20 112 26 L112 52 Q112 68 128 69 L166 70
+           Q182 70 185 56 L187 28 Q188 20 180 20 Z"
+        fill="#F5EEDC"
+      />
+
+      
+      <path
+        d="M89 29 Q100 20 111 29"
+        stroke="#F5EEDC"
+        stroke-width="5.5"
+        stroke-linecap="round"
+      />
+
+      
+      <path
+        d="M8 19 Q100 13 192 19"
+        stroke="#F5EEDC"
+        stroke-width="9"
+        stroke-linecap="round"
+      />
+
+      </g></svg>
