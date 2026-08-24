@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import {
   FORMATIONS_11, FORMATIONS_5, MIN_CARD, PITCH_RATIO, cardHeight, cardWidth,
   formationsFor, layoutFormation, minPitchWidth, parseFormation, positionCounts,
+  ratioForFormation,
 } from '../src/lib/formation.ts';
 
 const ALL = [...FORMATIONS_11, ...FORMATIONS_5].map((f) => f.id);
@@ -70,7 +71,7 @@ test('★ כרטיסים באותה שורה לא חופפים בשום רוחב
     const layout = layoutFormation(id)!;
     for (const pitch of WIDTHS) {
       if (pitch < minPitchWidth(layout.maxRow)) continue; // רוחב שלא נתמך, נבדק בנפרד
-      const w = cardWidth(pitch, layout.maxRow);
+      const w = cardWidth(pitch, layout.maxRow, ratioForFormation(id));
 
       // מקבצים לפי שורה ובודקים מרחק בין מרכזים סמוכים
       const rows = new Map<number, number[]>();
@@ -97,7 +98,7 @@ test('★ אף שחקן לא חורג מגבולות המגרש', () => {
     const layout = layoutFormation(id)!;
     for (const pitch of WIDTHS) {
       if (pitch < minPitchWidth(layout.maxRow)) continue;
-      const half = cardWidth(pitch, layout.maxRow) / 2;
+      const half = cardWidth(pitch, layout.maxRow, ratioForFormation(id)) / 2;
       for (const s of layout.slots) {
         const cx = (s.x / 100) * pitch;
         assert.ok(cx - half >= -1, `${id} @${pitch}: גולש מימין`);
@@ -174,8 +175,8 @@ test('★ שורות לא חופפות אנכית — הבאג שדחף את ה�
     const layout = layoutFormation(id)!;
     for (const pitchW of WIDTHS) {
       if (pitchW < minPitchWidth(layout.maxRow)) continue;
-      const pitchH = pitchW * PITCH_RATIO;
-      const ch = cardHeight(cardWidth(pitchW, layout.maxRow));
+      const pitchH = pitchW * ratioForFormation(id);
+      const ch = cardHeight(cardWidth(pitchW, layout.maxRow, ratioForFormation(id)));
 
       const ys = [...new Set(layout.slots.map((s) => s.y))].sort((a, b) => a - b);
       for (let i = 1; i < ys.length; i++) {
@@ -194,8 +195,8 @@ test('★ אף כרטיס לא חורג מהמגרש אנכית — כולל ה�
     const layout = layoutFormation(id)!;
     for (const pitchW of WIDTHS) {
       if (pitchW < minPitchWidth(layout.maxRow)) continue;
-      const pitchH = pitchW * PITCH_RATIO;
-      const half = cardHeight(cardWidth(pitchW, layout.maxRow)) / 2;
+      const pitchH = pitchW * ratioForFormation(id);
+      const half = cardHeight(cardWidth(pitchW, layout.maxRow, ratioForFormation(id))) / 2;
       for (const s of layout.slots) {
         const cy = (s.y / 100) * pitchH;
         assert.ok(cy - half >= -1, `${id} @${pitchW}: ${s.position} גולש מלמעלה`);
@@ -213,9 +214,18 @@ test('★ ה-clamp ב-CSS זהה ל-cardWidth ב-TypeScript', async () => {
 
   assert.ok(tsx.includes('calc(100% / var(--max-row) - ${GUTTER_PX}px)'),
     'החסם האופקי ב-CSS לא משתמש ב-GUTTER_PX המשותף');
-  assert.ok(tsx.includes('calc(100cqw * ${VERTICAL_CAP.toFixed(4)})'),
-    'החסם האנכי ב-CSS לא משתמש ב-VERTICAL_CAP המשותף');
+  assert.ok(tsx.includes("'calc(100cqw * var(--vcap))'"),
+    'החסם האנכי ב-CSS לא קורא את --vcap');
+  assert.ok(tsx.includes("'--vcap': verticalCap(r).toFixed(4)"),
+    '--vcap לא נגזר מ-verticalCap — ה-CSS וה-TS ייפרדו');
   assert.ok(tsx.includes(`clamp(${'${MIN_CARD}'}px`), 'ה-clamp לא משתמש ב-MIN_CARD המשותף');
   assert.ok(tsx.includes('[container-type:inline-size]'),
     '100cqw לא יעבוד בלי container-type על המגרש');
+});
+
+test('מערך קצר מקבל מגרש נמוך יותר', () => {
+  assert.equal(ratioForFormation('4-2-3-1'), PITCH_RATIO, 'חמש שורות — מגרש מלא');
+  assert.ok(ratioForFormation('2-1-1') < PITCH_RATIO, 'קט-רגל על מגרש קטן');
+  assert.ok(ratioForFormation('4-3-3') < PITCH_RATIO);
+  assert.equal(ratioForFormation('לא-מערך'), PITCH_RATIO, 'ברירת מחדל בטוחה');
 });

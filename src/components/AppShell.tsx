@@ -20,10 +20,20 @@ export interface AppShellProps {
   header?: ReactNode;
   /** עמודה שמופיעה רק בדסקטופ (טבלת מחזור, כיסוי קבוצות) */
   aside?: ReactNode;
+  /**
+   * ★ מסך שמנהל את הגובה בעצמו ולא נגלל.
+   *
+   * מסך בניית ההרכב חייב את זה: המגרש אמור למלא בדיוק את המקום
+   * שנשאר ולהיראות במלואו. כשהאזור נגלל, המגרש נדחף מתחת לקפל
+   * והמשתמש רואה חצי מגרש — בדיוק התלונה.
+   */
+  fill?: boolean;
   children: ReactNode;
 }
 
-export function AppShell({ items, activeId, onSelect, header, aside, children }: AppShellProps) {
+export function AppShell({
+  items, activeId, onSelect, header, aside, fill = false, children,
+}: AppShellProps) {
   return (
     <div
       dir="rtl"
@@ -37,9 +47,14 @@ export function AppShell({ items, activeId, onSelect, header, aside, children }:
 
         <div className="flex min-h-0 flex-1">
           <main
-            className="min-w-0 flex-1 overflow-y-auto overscroll-contain
-                       pb-[calc(var(--nav-h)+env(safe-area-inset-bottom))]
-                       lg:pb-0"
+            className={[
+              'min-w-0 flex-1 overscroll-contain',
+              fill
+                // הילד מנהל גובה בעצמו. אין גלילה, ואין ריפוד תחתון —
+                // הילד כבר יודע להשאיר מקום לניווט.
+                ? 'flex min-h-0 flex-col overflow-hidden'
+                : 'overflow-y-auto pb-[calc(var(--nav-h)+env(safe-area-inset-bottom))] lg:pb-0',
+            ].join(' ')}
           >
             {children}
           </main>

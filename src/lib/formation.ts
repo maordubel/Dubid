@@ -66,6 +66,21 @@ export interface FormationLayout {
  */
 export const PITCH_RATIO = 1.38;
 
+/**
+ * ★ יחס לפי מספר השורות.
+ *
+ * 4-2-3-1 הוא חמש שורות וצריך את כל הגובה. 2-1-1 הוא ארבע שורות
+ * ובאותו יחס הוא נראה ריק — חצי מגרש דשא בלי אף שחקן.
+ *
+ * מגרש נמוך יותר לפורמט הקטן הוא גם נכון מבחינת המשחק: קט-רגל
+ * מתנהל על מגרש קטן, וזה בדיוק הבידול שהברִיף ביקש בין המצבים.
+ */
+export function ratioForFormation(formation: string): number {
+  const rows = parseFormation(formation);
+  if (!rows) return PITCH_RATIO;
+  return rows.length >= 4 ? PITCH_RATIO : 1.2;
+}
+
 /** השוער למטה, במרכז. 90 ולא 96 — לכרטיס יש חצי גובה מתחת למרכז. */
 const GK_Y = 90;
 
@@ -212,10 +227,27 @@ const MIN_ROW_GAP_PCT = Math.min(
 
 /**
  * החסם האנכי כמקדם של **רוחב** המגרש.
- * מאפשר לבטא אותו גם ב-CSS (`100cqw × VERTICAL_CAP`) בלי לדעת
- * את גובה המגרש — הגובה ממילא נגזר מהרוחב דרך `PITCH_RATIO`.
+ *
+ * ★ תלוי ביחס, ולכן תלוי במערך.
+ *
+ * באג שנתפס: כשהוספתי מגרש נמוך יותר למערכים קצרים, החסם נשאר
+ * מחושב לפי `PITCH_RATIO` הקבוע. התוצאה — כרטיס גדול מדי למגרש
+ * נמוך, והשוער שוב נדחף החוצה. הבדיקה תפסה את זה מיד.
+ *
+ * מבוטא כמקדם של **רוחב** כדי שאפשר יהיה להשתמש בו גם ב-CSS
+ * (`100cqw × var(--vcap)`) בלי להכיר את הגובה.
  */
-export const VERTICAL_CAP = (MIN_ROW_GAP_PCT / 100) * PITCH_RATIO / CARD_ASPECT;
+export function verticalCap(ratio: number): number {
+  // ★ שולי ביטחון של 4%.
+  //   `CARD_ASPECT` הוא הערכה של גובה הכרטיס, וגם העיגול שלו
+  //   לפיקסלים שלמים יכול להוסיף שבר. בלי השוליים האלה חישוב
+  //   "מדויק" גלש ב-0.06 פיקסל — וכרטיס נגע בשכן שלו.
+  //   עדיף כרטיס קטן בפיקסל מאשר חפיפה.
+  return (MIN_ROW_GAP_PCT / 100) * ratio / (CARD_ASPECT * 1.04);
+}
+
+/** נשמר לתאימות — החסם של המגרש המלא. */
+export const VERTICAL_CAP = verticalCap(PITCH_RATIO);
 
 /**
  * ★ רוחב הכרטיס נחסם משני כיוונים, לא רק אחד.
@@ -229,9 +261,13 @@ export const VERTICAL_CAP = (MIN_ROW_GAP_PCT / 100) * PITCH_RATIO / CARD_ASPECT;
  *   אנכי  — המרווח בין שתי שורות סמוכות, חלקי יחס הכרטיס
  * והקטן מביניהם מנצח.
  */
-export function cardWidth(pitchWidth: number, maxRow: number): number {
+export function cardWidth(
+  pitchWidth: number,
+  maxRow: number,
+  ratio: number = PITCH_RATIO,
+): number {
   const byWidth = pitchWidth / maxRow - GUTTER;
-  const byHeight = pitchWidth * VERTICAL_CAP;
+  const byHeight = pitchWidth * verticalCap(ratio);
   return Math.max(MIN_CARD, Math.min(MAX_CARD, Math.floor(Math.min(byWidth, byHeight))));
 }
 

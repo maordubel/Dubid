@@ -32,32 +32,28 @@ export const GAMEWEEK = {
 };
 
 /**
- * ★ מחזור 2 — שבת, 29 באוגוסט 2026.
+ * ★ מחזור 2 — הלוח הרשמי.
  *
- * שבעת המשחקים סופקו על ידי בעל המוצר ומופיעים כאן כלשונם.
+ * חמישה משחקים בשבת 29/08, אחד בראשון 30/08, ואחד בשני 31/08.
+ * כל השעות אושרו מול הלוח שסופק — `timeConfirmed: true`.
  *
- * ⚠ **שעות הפתיחה טרם אושרו.**
+ * ★ למה זה משנה לנעילה
  *
- * הברִיף אומר מפורשות "אל תמציא שעות פתיחה", ולכן `kickoff` מסומן
- * `timeConfirmed: false` וכולם נושאים את אותה שעת בסיס בטוחה.
- * המשמעות המעשית:
- *   · לוח המשחקים מציג "שעה תיקבע" ולא שעה שקרית.
- *   · הדדליין נגזר משעת הבסיס, שהיא **לפני** כל בעיטת פתיחה
- *     סבירה בליגה — כך שאי אפשר להגיש אחרי שהמשחק התחיל.
- * ברגע שהשעות מתפרסמות: לעדכן `kickoff` ולהעביר ל-`true`.
+ * הדדליין נגזר מבעיטת הפתיחה **המוקדמת ביותר** (שבת 20:00), ולא
+ * מהמאוחרת. אחרת מי שמחכה עד ראשון היה בוחר שחקן אחרי שכבר ראה
+ * חמישה משחקים — יתרון מידע שהורס את התחרות.
  */
-const MATCHDAY = '2026-08-29';
-/** שעת בסיס שמרנית — מוקדמת מכל פתיחה ריאלית בליגת העל. */
-const TBD_TIME = 'T16:00:00+03:00';
-
 export const FIXTURES: Fixture[] = [
-  { id: 'gw2-1', homeTeamId: 'T8',  awayTeamId: 'T12', kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
-  { id: 'gw2-2', homeTeamId: 'T5',  awayTeamId: 'T7',  kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
-  { id: 'gw2-3', homeTeamId: 'T9',  awayTeamId: 'T6',  kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
-  { id: 'gw2-4', homeTeamId: 'T13', awayTeamId: 'T1',  kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
-  { id: 'gw2-5', homeTeamId: 'T3',  awayTeamId: 'T4',  kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
-  { id: 'gw2-6', homeTeamId: 'T14', awayTeamId: 'T2',  kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
-  { id: 'gw2-7', homeTeamId: 'T10', awayTeamId: 'T11', kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
+  // שבת 29/08
+  { id: 'gw2-1', homeTeamId: 'T8',  awayTeamId: 'T12', kickoff: '2026-08-29T20:00:00+03:00', dayLabel: 'שבת',   timeConfirmed: true },
+  { id: 'gw2-2', homeTeamId: 'T5',  awayTeamId: 'T7',  kickoff: '2026-08-29T20:00:00+03:00', dayLabel: 'שבת',   timeConfirmed: true },
+  { id: 'gw2-3', homeTeamId: 'T13', awayTeamId: 'T1',  kickoff: '2026-08-29T20:00:00+03:00', dayLabel: 'שבת',   timeConfirmed: true },
+  { id: 'gw2-4', homeTeamId: 'T14', awayTeamId: 'T2',  kickoff: '2026-08-29T20:00:00+03:00', dayLabel: 'שבת',   timeConfirmed: true },
+  { id: 'gw2-5', homeTeamId: 'T10', awayTeamId: 'T11', kickoff: '2026-08-29T20:00:00+03:00', dayLabel: 'שבת',   timeConfirmed: true },
+  // ראשון 30/08
+  { id: 'gw2-6', homeTeamId: 'T9',  awayTeamId: 'T6',  kickoff: '2026-08-30T20:00:00+03:00', dayLabel: 'ראשון', timeConfirmed: true },
+  // שני 31/08
+  { id: 'gw2-7', homeTeamId: 'T3',  awayTeamId: 'T4',  kickoff: '2026-08-31T20:00:00+03:00', dayLabel: 'שני',   timeConfirmed: true },
 ];
 
 /** מפה: מזהה קבוצה → היריבה שלה במחזור הנוכחי (או null אם אין לה משחק). */
@@ -76,18 +72,32 @@ export function fixtureLabel(f: Fixture): string {
   return `${home} – ${away}`;
 }
 
+/**
+ * ★ אזור הזמן ננעל על ישראל, ולא נגזר מהמכשיר.
+ *
+ * באג שנתפס: `toLocaleTimeString('he-IL')` בלי `timeZone` משתמש
+ * באזור הזמן של המכשיר. משחק ב-20:00 שעון ישראל הוצג כ-17:00
+ * לכל מי שהמכשיר שלו ב-UTC — וגם בכל רינדור בצד שרת.
+ *
+ * הליגה משחקת בישראל. השעה שמוצגת היא שעת המשחק, נקודה — גם
+ * למשתמש שיושב בניו יורק.
+ */
+const LEAGUE_TZ = 'Asia/Jerusalem';
+
 export function kickoffTimeLabel(iso: string, confirmed = true): string {
   if (!confirmed) return 'שעה תיקבע';
-  const d = new Date(iso);
-  return d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString('he-IL', {
+    hour: '2-digit', minute: '2-digit', timeZone: LEAGUE_TZ,
+  });
 }
 
 /** האם יש ולו משחק אחד בלי שעה מאושרת. מוצג כאזהרה באדמין. */
 export const HAS_UNCONFIRMED_TIMES = FIXTURES.some((f) => !f.timeConfirmed);
 
 export function kickoffDateLabel(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+  return new Date(iso).toLocaleDateString('he-IL', {
+    day: '2-digit', month: '2-digit', timeZone: LEAGUE_TZ,
+  });
 }
 
 /**

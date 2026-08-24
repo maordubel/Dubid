@@ -14,14 +14,26 @@
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { scoreLineup, buildInputs, toBreakdown } from '../../../src/lib/scoring/engine.ts';
+/*
+ * ★ הייבוא הוא מ-`../_shared/` ולא מ-`../../../src/`.
+ *
+ * ה-bundler של Supabase רואה רק את תיקיית `supabase/functions`.
+ * נתיב שיוצא ממנה נכשל בפריסה עם "Module not found", גם כשהוא
+ * עובד מצוין מקומית.
+ *
+ * `_shared/` נוצר אוטומטית מ-`src/lib/` על ידי:
+ *     npm run sync:edge
+ * שרץ מעצמו כחלק מ-`npm run deploy:edge`.
+ */
+
+import { scoreLineup, buildInputs, toBreakdown } from '../_shared/scoring/engine.ts';
 // ★ אותה היררכיית דירוג בדיוק שרצה בקליינט. הברִיף דורש שהיא תהיה
 //   זהה בשני הצדדים — ולכן היא מיובאת, לא ממומשת כאן מחדש.
 import { rankEntries, applyDifferential, selectionRates }
-  from '../../../src/lib/scoring/ranking.ts';
-import { ruleSetFromJson, IL_PREMIER } from '../../../src/lib/scoring/rules.ts';
-import { LineupInvalidError } from '../../../src/lib/scoring/validate.ts';
-import type { Lineup } from '../../../src/lib/scoring/types.ts';
+  from '../_shared/scoring/ranking.ts';
+import { ruleSetFromJson, IL_PREMIER } from '../_shared/scoring/rules.ts';
+import { LineupInvalidError } from '../_shared/scoring/validate.ts';
+import type { Lineup } from '../_shared/scoring/types.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': Deno.env.get('APP_ORIGIN') ?? 'https://dubid.dubelteam.com',

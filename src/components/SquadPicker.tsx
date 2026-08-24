@@ -7,7 +7,7 @@
  * ובגיליון הבחירה שחקנים מקבוצה תפוסה מוצגים נעולים ולא נעלמים —
  * ככה המשתמש מבין למה, ורואה את מי הוא צריך להחליף.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   teamCoverage, validateLineup, formatIssue, teamBlock,
 } from '../lib/scoring/validate.ts';
@@ -73,6 +73,12 @@ export function SquadPicker(props: SquadPickerProps) {
     opponentShortByTeam, pricing, budget, onVice, onFormation, droppedNames,
   } = props;
   const [picking, setPicking] = useState<LineupSlot | null>(null);
+  const [sheet, setSheet] = useState<'teams' | 'formation' | 'budget' | null>(null);
+
+  /** הודעה חולפת אחת. עדיפה על ערימת התראות שדוחפת את המגרש. */
+  const notice = droppedNames && droppedNames.length > 0
+    ? `המערך השתנה — ירדו: ${droppedNames.join(', ')}`
+    : null;
 
   // ★ מקור אמת אחד לעלות. חושב כאן ולא מתקבל כ-prop, כי אחרת
   //   המחוון והבדיקה "אפשר להרשות?" יכולים להיפרד — וזה בדיוק
@@ -94,87 +100,107 @@ export function SquadPicker(props: SquadPickerProps) {
   );
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
+  /**
+   * ★ המהפך במובייל.
+   *
+   * מה היה: כותרת, רצועת כיסוי, פס תקציב ובורר מערכים — כל אחד
+   * שורה מלאה, בזה אחר זה. יחד הם בלעו את חצי המסך, המגרש נדחף
+   * מתחת לקפל, והמשתמש ראה חצי מגרש שנגלל.
+   *
+   * מה עכשיו: **שורת בקרה אחת** של צ׳יפים. כל צ׳יפ מציג את המספר
+   * שחשוב (3/14 · 4.0M · 2-1-1) ונפתח לגיליון בלחיצה. כל מה
+   * שנחסך הולך למגרש.
+   *
+   * המגרש מקבל `fit="height"` — הוא ממלא בדיוק את מה שנשאר
+   * ונראה במלואו. אין גלילה במסך הזה בכלל.
+   */
   return (
-    <div className="flex h-full flex-col">
-      {/* ---- מפת כיסוי הקבוצות ---- */}
-      <TeamCoverageStrip coverage={coverage} teamById={teamById} />
+    <div className="flex h-full min-h-0 flex-col">
+      <ControlBar
+        coverage={coverage}
+        teamById={teamById}
+        budget={budget}
+        spent={spent}
+        filled={filled}
+        size={rules.constraints.lineupSize}
+        formation={lineup.formation}
+        onOpen={setSheet}
+      />
 
-      {/* ---- מחוון התקציב — דביק, תמיד נראה ---- */}
-      {budget !== undefined && (
-        <BudgetBar budget={budget} spent={spent} filled={filled} size={rules.constraints.lineupSize} />
-      )}
-
-      {/* ---- בורר המערך ---- */}
-      {onFormation && (
-        <FormationPicker
-          options={formationsFor(rules.constraints.lineupSize)}
-          value={lineup.formation}
-          onChange={onFormation}
+      {/* ---- המגרש — כל מה שנשאר, ובלי גלילה ---- */}
+      <div className="grid min-h-0 flex-1 place-items-center px-2 py-2">
+        <Pitch
+          formation={lineup.formation}
+          fit="height"
+          className="ring-1 ring-inset ring-chalk/15"
+          renderSlot={(slotNo) => {
+            const slot = lineup.slots.find((x) => x.slotNo === slotNo);
+            if (!slot) return null;
+            return (
+              <SlotCard
+                slot={slot}
+                player={pool.find((p) => p.id === slot.playerId)}
+                team={teamById.get(slot.teamId)}
+                pricing={pricing}
+                onPick={() => setPicking(slot)}
+                onClear={() => onClear(slot.slotNo)}
+                onCaptain={() => slot.playerId && onCaptain(slot.playerId)}
+                onVice={onVice && slot.playerId ? () => onVice(slot.playerId) : undefined}
+              />
+            );
+          }}
         />
-      )}
-
-      {/* ---- המגרש ---- */}
-      <div className="flex-1 overflow-y-auto px-3 pb-4 pt-3">
-        {/* ★ רוחב מוגבל בכוונה.
-            מגרש שנמתח על 1400 פיקסלים הופך כרטיס שחקן לבול בודד
-            באמצע ריק. `max-w-md` שומר על צפיפות נכונה בדסקטופ,
-            ובמובייל הוא ממילא לא נכנס לפעולה. */}
-        <div className="mx-auto w-full max-w-[420px] lg:max-w-[460px]">
-          <Pitch
-            formation={lineup.formation}
-            className="ring-1 ring-inset ring-chalk/15"
-            renderSlot={(slotNo) => {
-              const slot = lineup.slots.find((x) => x.slotNo === slotNo);
-              if (!slot) return null;
-              const player = pool.find((p) => p.id === slot.playerId);
-              return (
-                <SlotCard
-                  slot={slot}
-                  player={player}
-                  team={teamById.get(slot.teamId)}
-                  pricing={pricing}
-                  onPick={() => setPicking(slot)}
-                  onClear={() => onClear(slot.slotNo)}
-                  onCaptain={() => slot.playerId && onCaptain(slot.playerId)}
-                  onVice={onVice && slot.playerId ? () => onVice(slot.playerId) : undefined}
-                />
-              );
-            }}
-          />
-        </div>
-
-        {/* שחקנים שנפלו בהחלפת מערך — נאמר בפירוש ולא נעלמים */}
-        {droppedNames && droppedNames.length > 0 && (
-          <p role="status" className="mx-auto mt-3 max-w-[420px] rounded-xl bg-armband/12
-                                      px-3 py-2 text-xs text-armband">
-            המערך השתנה — ירדו מההרכב: {droppedNames.join(', ')}
-          </p>
-        )}
-
-        {/* הבעיה הראשונה בלבד — לא שופכים על המשתמש רשימת שגיאות */}
-        {!ready && filled === rules.constraints.lineupSize && (
-          <p role="alert" className="mx-auto mt-3 max-w-[420px] rounded-xl bg-flare/12 px-3 py-2
-                                     text-sm text-flare">
-            {formatIssue(issues[0], 'he')}
-          </p>
-        )}
       </div>
 
-      {/* ---- CTA צף ---- */}
-      <div className="sticky bottom-0 border-t border-chalk/10 bg-night/95 px-4
-                      pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+      {/* ---- הודעות — צפות מעל המגרש, לא דוחפות אותו ---- */}
+      {(notice || (!ready && filled === rules.constraints.lineupSize)) && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[7.5rem] z-10 px-4">
+          <p
+            role={notice ? 'status' : 'alert'}
+            className={`mx-auto max-w-sm rounded-xl px-3 py-2 text-center text-xs
+                        shadow-lg backdrop-blur ${
+                          notice ? 'bg-armband/90 text-night' : 'bg-flare/90 text-white'
+                        }`}
+          >
+            {notice ?? formatIssue(issues[0], 'he')}
+          </p>
+        </div>
+      )}
+
+      {/* ---- CTA ---- */}
+      <div className="shrink-0 border-t border-chalk/10 bg-night/95 px-4 pb-3 pt-2.5 backdrop-blur">
         <button
           onClick={onSubmit}
           disabled={!ready}
-          className="tap h-14 w-full rounded-full bg-toto font-poster text-xl text-night
+          className="tap h-12 w-full rounded-2xl bg-toto font-poster text-lg text-night
                      transition-transform duration-200 ease-brand active:scale-[.98]
                      disabled:bg-night-3 disabled:text-chalk-dim"
         >
-          {ready
-            ? 'נעילת ההרכב'
-            : `נותרו ${rules.constraints.lineupSize - filled} שחקנים`}
+          {ready ? 'נעילת ההרכב' : `נותרו ${rules.constraints.lineupSize - filled} שחקנים`}
         </button>
       </div>
+
+      {/* ---- גיליונות הבקרה ---- */}
+      {sheet === 'teams' && (
+        <ControlSheet title="כיסוי קבוצות" onClose={() => setSheet(null)}>
+          <TeamCoverageGrid coverage={coverage} teamById={teamById} />
+        </ControlSheet>
+      )}
+      {sheet === 'formation' && onFormation && (
+        <ControlSheet title="מערך טקטי" onClose={() => setSheet(null)}>
+          <FormationPicker
+            options={formationsFor(rules.constraints.lineupSize)}
+            value={lineup.formation}
+            onChange={(f) => { onFormation(f); setSheet(null); }}
+          />
+        </ControlSheet>
+      )}
+      {sheet === 'budget' && budget !== undefined && (
+        <ControlSheet title="תקציב" onClose={() => setSheet(null)}>
+          <BudgetDetail budget={budget} spent={spent} filled={filled}
+                        size={rules.constraints.lineupSize} />
+        </ControlSheet>
+      )}
 
       {picking && (
         <PlayerSheet
@@ -196,127 +222,183 @@ export function SquadPicker(props: SquadPickerProps) {
 }
 
 /* ================================================================== */
-/* רצועת כיסוי הקבוצות — הרכיב שהופך את האילוץ למשחק                   */
+/* שורת הבקרה                                                          */
 /* ================================================================== */
 
-function TeamCoverageStrip({
+/**
+ * ★ שורה אחת, שלושה מספרים, אפס בזבוז.
+ *
+ * כל צ׳יפ עונה על שאלה אחת שהמשתמש שואל תוך כדי בנייה:
+ *   "כמה קבוצות תפסתי?" · "כמה כסף נשאר?" · "באיזה מערך אני?"
+ *
+ * התשובה גלויה תמיד; הפירוט נפתח בלחיצה. זה מה שמשחרר את
+ * המסך למגרש במקום שלוש רצועות שאף אחת מהן לא נקראת עד הסוף.
+ */
+function ControlBar({
+  coverage, teamById, budget, spent, filled, size, formation, onOpen,
+}: {
+  coverage: ReturnType<typeof teamCoverage>;
+  teamById: Map<string, TeamMeta>;
+  budget?: number;
+  spent: number;
+  filled: number;
+  size: number;
+  formation: string;
+  onOpen: (sheet: 'teams' | 'formation' | 'budget') => void;
+}) {
+  const used = coverage.filter((c) => c.filled).length;
+  const remaining = budget !== undefined ? budget - spent : undefined;
+  const over = remaining !== undefined && remaining < 0;
+
+  return (
+    <div className="shrink-0 border-b border-chalk/10 bg-night px-2.5 py-2">
+      <div className="mx-auto flex max-w-3xl items-stretch gap-2">
+        <Chip label="קבוצות" onClick={() => onOpen('teams')}>
+          <span className="num" dir="ltr">{used}/{coverage.length}</span>
+        </Chip>
+
+        {remaining !== undefined && (
+          <Chip label={over ? 'חריגה' : 'תקציב'} onClick={() => onOpen('budget')} alert={over}>
+            <span className="num" dir="ltr">{remaining.toFixed(1)}M</span>
+          </Chip>
+        )}
+
+        <Chip label="מערך" onClick={() => onOpen('formation')}>
+          <span className="num" dir="ltr">{formation}</span>
+        </Chip>
+
+        <div className="grid shrink-0 place-items-center rounded-xl bg-night-2 px-3">
+          <span className="num text-sm font-black text-toto" dir="ltr">{filled}/{size}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Chip({
+  label, children, onClick, alert = false,
+}: { label: string; children: ReactNode; onClick: () => void; alert?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        'tap flex flex-1 flex-col items-center justify-center rounded-xl px-2 py-1.5',
+        'transition-colors duration-200 ease-brand',
+        alert ? 'bg-flare/15 text-flare' : 'bg-night-2 text-chalk active:bg-night-3',
+      ].join(' ')}
+    >
+      <span className="text-[9px] font-bold tracking-wide text-chalk-dim">{label}</span>
+      <span className="text-sm font-black leading-tight">{children}</span>
+    </button>
+  );
+}
+
+/* ================================================================== */
+/* גיליון בקרה                                                         */
+/* ================================================================== */
+
+/** גיליון תחתון קצר. נסגר בלחיצה מחוץ אליו או ב-Escape. */
+function ControlSheet({
+  title, onClose, children,
+}: { title: string; onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-sheet flex items-end bg-night/70 backdrop-blur-sm"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[70dvh] w-full overflow-y-auto rounded-t-3xl bg-night-2 pb-[env(safe-area-inset-bottom)]
+                   motion-safe:animate-slideUp lg:mx-auto lg:mb-8 lg:max-w-lg lg:rounded-3xl"
+      >
+        <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-chalk/25" />
+        <h2 className="px-4 pb-1 pt-3 font-display text-base font-black">{title}</h2>
+        <div className="pb-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** רשת כיסוי הקבוצות — בגיליון, לא ברצועה שגוזלת גובה. */
+function TeamCoverageGrid({
   coverage, teamById,
 }: {
   coverage: ReturnType<typeof teamCoverage>;
   teamById: Map<string, TeamMeta>;
 }) {
-  const done = coverage.filter((c) => c.filled).length;
   return (
-    <div className="shrink-0 px-3 pb-2 pt-3">
-      <div className="mx-auto flex max-w-3xl items-center justify-between pb-1.5">
-        <span className="text-[11px] font-bold tracking-widest text-chalk-dim">
-          כיסוי קבוצות
-        </span>
-        <span dir="ltr" className="num text-xs text-chalk-dim">
-          {done}/{coverage.length}
-        </span>
-      </div>
-
-      {/* גלילה אופקית במובייל, שורה מלאה בדסקטופ */}
-      <ul className="mx-auto flex max-w-3xl gap-1.5 overflow-x-auto pb-1
-                     [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {coverage.map((c) => {
-          const meta = teamById.get(c.teamId);
-          return (
-            <li
-              key={c.teamId}
-              title={meta?.name}
-              aria-label={`${meta?.name ?? c.teamId}: ${c.filled ? 'אויש' : 'פנוי'}`}
-              className={[
-                'grid h-8 min-w-[42px] shrink-0 place-items-center rounded-lg px-2',
-                'text-[11px] font-bold transition-colors duration-200 ease-brand',
-                c.filled
-                  ? 'bg-toto text-night'
-                  : 'bg-night-3 text-chalk-dim ring-1 ring-inset ring-chalk/10',
-              ].join(' ')}
-            >
+    <ul className="grid grid-cols-4 gap-2 px-4 sm:grid-cols-7">
+      {coverage.map((c) => {
+        const meta = teamById.get(c.teamId);
+        return (
+          <li
+            key={c.teamId}
+            title={meta?.name}
+            className={[
+              'flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-center',
+              c.filled ? 'bg-toto/15 ring-1 ring-inset ring-toto/40' : 'bg-night-3 opacity-60',
+            ].join(' ')}
+          >
+            <TeamCrest teamId={c.teamId} short={meta?.short} size={26} />
+            <span className={`text-[10px] font-bold ${c.filled ? 'text-toto' : 'text-chalk-dim'}`}>
               {meta?.short ?? c.teamId}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
-/* ================================================================== */
-/* מחוון תקציב                                                         */
-/* ================================================================== */
-
-/**
- * ★ הברִיף: "תמיד להציג תקציב שנותר · מחוון צף/דביק · עדכון מיידי
- *   · להראות בבירור כשאי אפשר להרשות שחקן".
- *
- * שלוש החלטות שכדאי להסביר:
- *
- *  1. **מציגים את הנותר, לא את המנוצל.** "נותרו 4M" הוא המספר
- *     שהמשתמש מקבל בו החלטה. "בזבזת 11M" הוא טריוויה.
- *
- *  2. **הפס מתמלא ולא מתרוקן.** מילוי = התקדמות. פס שמתרוקן
- *     מייצר חרדה בכל בחירה, וזה ההפך מ"מהיר וכיפי".
- *
- *  3. **חריגה היא מצב מוצג, לא שגיאה קופצת.** המשתמש רואה מספר
- *     אדום ויודע בדיוק כמה להוריד — בלי טוסט שנעלם.
- */
-function BudgetBar({
+/** פירוט התקציב. הצ׳יפ מראה את המספר; כאן ההסבר. */
+function BudgetDetail({
   budget, spent, filled, size,
 }: { budget: number; spent: number; filled: number; size: number }) {
   const remaining = budget - spent;
   const over = remaining < 0;
-  const pct = Math.max(0, Math.min(100, (spent / budget) * 100));
-
-  // כמה נשאר *לשחקן* מבין אלה שעוד לא נבחרו. זה המספר שבאמת
-  // עוזר: "נותרו 4M לשני שחקנים" הוא מידע, "נותרו 4M" הוא חצי מידע.
   const left = size - filled;
   const perPlayer = left > 0 ? remaining / left : null;
 
   return (
-    <div className="sticky top-0 z-20 shrink-0 border-b border-chalk/10 bg-night/95 px-3 py-2
-                    backdrop-blur">
-      <div className="mx-auto max-w-3xl">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-[11px] font-bold tracking-widest text-chalk-dim">תקציב</span>
-          <span className="flex items-baseline gap-1.5">
-            <span
-              dir="ltr"
-              className={`num text-lg font-black leading-none ${over ? 'text-flare' : 'text-toto'}`}
-            >
-              {over ? remaining.toFixed(1) : remaining.toFixed(1)}M
-            </span>
-            <span className="text-[11px] text-chalk-dim">
-              {over ? 'חריגה' : 'נותרו'}
-            </span>
-          </span>
-        </div>
-
-        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-night-3">
-          <div
-            className={`h-full rounded-full transition-[width] duration-300 ease-brand ${
-              over ? 'bg-flare' : 'bg-toto'
-            }`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-
-        <div className="mt-1 flex justify-between text-[10px] text-chalk-dim">
-          <span>
-            <span dir="ltr" className="num">{spent.toFixed(1)}</span>
-            {' / '}
-            <span dir="ltr" className="num">{budget}</span>M€
-          </span>
-          {perPlayer !== null && !over && (
-            <span>
-              עד <span dir="ltr" className="num">{perPlayer.toFixed(1)}</span>M לכל אחד מ-
-              <span dir="ltr" className="num">{left}</span> הנותרים
-            </span>
-          )}
-        </div>
+    <div className="px-4">
+      <div className="mb-2 h-2 overflow-hidden rounded-full bg-night-3">
+        <div
+          className={`h-full rounded-full transition-[width] duration-300 ease-brand ${
+            over ? 'bg-flare' : 'bg-toto'
+          }`}
+          style={{ width: `${Math.max(0, Math.min(100, (spent / budget) * 100))}%` }}
+        />
       </div>
+      <dl className="space-y-1.5 text-sm">
+        <Row label="תקציב" value={`${budget}M€`} />
+        <Row label="נוצל" value={`${spent.toFixed(1)}M€`} />
+        <Row label={over ? 'חריגה' : 'נותר'} value={`${remaining.toFixed(1)}M€`} accent={over} />
+        {perPlayer !== null && !over && (
+          <Row
+            label={`עד כמה לכל אחד מ-${left} הנותרים`}
+            value={`${perPlayer.toFixed(1)}M€`}
+          />
+        )}
+      </dl>
+    </div>
+  );
+}
+
+function Row({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-chalk-dim">{label}</dt>
+      <dd className={`num font-black ${accent ? 'text-flare' : 'text-chalk'}`} dir="ltr">{value}</dd>
     </div>
   );
 }

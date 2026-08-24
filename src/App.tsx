@@ -16,7 +16,6 @@ import { GameweekStatus, type Gameweek } from './lib/gameweek.ts';
 import { serverNow } from './lib/serverTime.ts';
 import { SquadPicker, type PoolPlayer, type TeamMeta } from './components/SquadPicker.tsx';
 import { ShareCard } from './components/ShareCard.tsx';
-import { FixturesStrip } from './components/FixturesStrip.tsx';
 import { Leaderboard } from './components/Leaderboard.tsx';
 import { AdminPanel } from './components/AdminPanel.tsx';
 import { LockedLineup } from './components/LockedLineup.tsx';
@@ -242,8 +241,19 @@ function MainApp() {
         onLeaderboard={() => setTab('leaderboard')}
       />
     ),
+    /**
+     * ★ מסך בניית ההרכב הוא עמודה בגובה קבוע, לא דף שנגלל.
+     *
+     * ה-`min-h-0` על העמודה ועל אזור ה-SquadPicker הוא מה שמאפשר
+     * ל-flex לכווץ אותם. בלעדיו ילד עם תוכן גבוה דוחף את העמודה
+     * מעבר למסך — וזה בדיוק מה שדחף את המגרש מתחת לקפל.
+     *
+     * מה ירד מהמסך הזה בכוונה: רצועת המשחקים. היריבה כבר מופיעה
+     * ליד כל שחקן בגיליון הבחירה, ושורה שלמה עבורה עלתה בגובה
+     * שהמגרש צריך יותר.
+     */
     lineup: (
-      <>
+      <div className="flex h-full min-h-0 flex-col">
         <ModeSwitch mode={mode} onChange={setMode} />
         {entry ? (
           <LockedLineup
@@ -263,13 +273,10 @@ function MainApp() {
             onViewCard={hasRealResults ? () => setTab('card') : undefined}
           />
         ) : (
-          <>
+          <div className="relative flex min-h-0 flex-1 flex-col">
             {mode === 'full' && resolved.isDemo && capacityIssue && (
               <DemoBanner message={formatIssue(capacityIssue, 'he')} size={fullRules.constraints.lineupSize} />
             )}
-            {/* מחוון התקציב עבר לתוך SquadPicker (דביק, תמיד נראה).
-                שני מחוונים לאותו מספר = שתי אמיתות שיכולות להיפרד. */}
-            <FixturesStrip compact />
             <SquadPicker
               key={mode}
               lineup={lu.lineup}
@@ -289,7 +296,7 @@ function MainApp() {
               pricing={mode === 'five'}
               budget={mode === 'five' ? DUBID_5X5_BUDGET : undefined}
             />
-          </>
+          </div>
         )}
         {showSaveModal && (
           <SaveEntryModal
@@ -301,7 +308,7 @@ function MainApp() {
             priceById={priceById}
           />
         )}
-      </>
+      </div>
     ),
     card: (
       <>
@@ -322,6 +329,8 @@ function MainApp() {
 
   return (
     <AppShell
+      // רק מסך הבנייה מנהל גובה בעצמו. שאר המסכים נגללים כרגיל.
+      fill={tab === 'lineup' && !entry}
       items={NAV}
       activeId={tab}
       onSelect={setTab}
@@ -356,12 +365,14 @@ function MainApp() {
 
 function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
   return (
-    <div className="mx-3 mt-3 flex gap-1.5 rounded-full bg-night-2 p-1">
+    // shrink-0: המחליף הוא כרום ולא תוכן. בלי זה הוא מתחרה
+    // עם המגרש על הגובה שנשאר.
+    <div className="mx-3 mt-2 flex shrink-0 gap-1.5 rounded-full bg-night-2 p-1">
       {(['full', 'five'] as const).map((m) => (
         <button
           key={m}
           onClick={() => onChange(m)}
-          className={`tap flex-1 rounded-full py-2 text-sm font-black transition-colors duration-200 ease-brand ${
+          className={`tap flex-1 rounded-full py-1.5 text-[13px] font-black transition-colors duration-200 ease-brand ${
             mode === m ? 'bg-toto text-night' : 'text-chalk-dim'
           }`}
         >

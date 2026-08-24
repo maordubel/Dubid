@@ -13,11 +13,14 @@
     "preview": "vite preview --port 4173",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "build:squads": "node scripts/build-squads.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sync:edge": "node scripts/sync-edge-shared.mjs",
+    "deploy:edge": "npm run sync:edge && supabase functions deploy score-gameweek"
   },
   "dependencies": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "@supabase/supabase-js": "^2.45.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

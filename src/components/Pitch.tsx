@@ -25,8 +25,8 @@
  */
 import type { CSSProperties, ReactNode } from 'react';
 import {
-  GUTTER_PX, MAX_CARD, MIN_CARD, PITCH_RATIO, VERTICAL_CAP,
-  layoutFormation, type SlotPosition,
+  GUTTER_PX, MAX_CARD, MIN_CARD,
+  layoutFormation, ratioForFormation, verticalCap, type SlotPosition,
 } from '../lib/formation.ts';
 import type { Position } from '../lib/scoring/types.ts';
 
@@ -39,11 +39,27 @@ export interface PitchProps {
    * ב-`PITCH_RATIO`. אל תשנו ל"לרוחב" בלי לבדוק שחמש שורות נכנסות.
    */
   ratio?: number;
+  /**
+   * ★ מה קובע את גודל המגרש.
+   *
+   * `'width'`  — הרוחב נתון, הגובה נגזר. מתאים לדף שנגלל.
+   * `'height'` — **הגובה נתון, הרוחב נגזר.** זה מה שמבטיח שרואים
+   *              את כל המגרש בלי גלילה, וזו הדרישה במובייל:
+   *              "המגרש קבוע, בלי תזוזה, שרואים את כולו".
+   *
+   * במצב `'height'` המגרש ממלא את גובה ההורה ומתמרכז אופקית.
+   * `max-width: 100%` מגן על מסך צר במיוחד.
+   */
+  fit?: 'width' | 'height';
   className?: string;
 }
 
-export function Pitch({ formation, renderSlot, ratio = PITCH_RATIO, className = '' }: PitchProps) {
+export function Pitch({
+  formation, renderSlot, ratio, fit = 'width', className = '',
+}: PitchProps) {
   const layout = layoutFormation(formation);
+  // יחס נגזר מהמערך אלא אם הקורא כפה אחד.
+  const r = ratio ?? ratioForFormation(formation);
 
   if (!layout) {
     // מערך לא מוכר — לא מפילים את המסך ולא מנחשים פריסה.
@@ -55,10 +71,24 @@ export function Pitch({ formation, renderSlot, ratio = PITCH_RATIO, className = 
     );
   }
 
-  const style = {
-    aspectRatio: `1 / ${ratio}`,
-    '--max-row': String(layout.maxRow),
-  } as CSSProperties;
+  const style = (
+    fit === 'height'
+      ? {
+          // גובה נתון → רוחב נגזר. המגרש נכנס במלואו, תמיד.
+          height: '100%',
+          width: 'auto',
+          maxWidth: '100%',
+          aspectRatio: `1 / ${r}`,
+          '--max-row': String(layout.maxRow),
+          '--vcap': verticalCap(r).toFixed(4),
+        }
+      : {
+          width: '100%',
+          aspectRatio: `1 / ${r}`,
+          '--max-row': String(layout.maxRow),
+          '--vcap': verticalCap(r).toFixed(4),
+        }
+  ) as CSSProperties;
 
   // ★ הביטוי היחיד שקובע גודל כרטיס — ותאום מדויק של `cardWidth()`.
   //   שני חסמים, בדיוק כמו בפונקציה: משבצת אופקית, ומרווח אנכי.
@@ -67,13 +97,13 @@ export function Pitch({ formation, renderSlot, ratio = PITCH_RATIO, className = 
   //   אם שורה כאן משתנה, `cardWidth()` חייבת להשתנות איתה —
   //   יש בדיקה שמוודאת שהשתיים לא נפרדות.
   const byWidth = `calc(100% / var(--max-row) - ${GUTTER_PX}px)`;
-  const byHeight = `calc(100cqw * ${VERTICAL_CAP.toFixed(4)})`;
+  const byHeight = 'calc(100cqw * var(--vcap))';
   const card = `clamp(${MIN_CARD}px, min(${byWidth}, ${byHeight}), ${MAX_CARD}px)`;
 
   return (
     <div
       style={style}
-      className={`relative w-full overflow-hidden rounded-3xl [container-type:inline-size] ${className}`}
+      className={`relative overflow-hidden rounded-3xl [container-type:inline-size] ${className}`}
     >
       <PitchSurface />
 
