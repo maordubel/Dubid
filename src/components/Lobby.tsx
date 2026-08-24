@@ -22,7 +22,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Shades, ShadesDivider } from './Shades.tsx';
 import {
-  GameweekStatus, STATUS_LABEL_HE, formatCountdown,
+  GameweekStatus, STATUS_LABEL_HE, countdown, daysLabel,
   isSubmissionOpen, msUntilDeadline, type Gameweek,
 } from '../lib/gameweek.ts';
 import type { ModeId } from '../lib/events/bus.ts';
@@ -72,6 +72,7 @@ export function Lobby({
   const open = isSubmissionOpen(gameweek, now);
   // פחות משעה = דחוף. הצבע משתנה, לא רק המספר.
   const urgent = open && remaining < 3600_000;
+  const clock = countdown(remaining);
 
   return (
     <div className="min-h-full bg-night pb-10">
@@ -132,13 +133,20 @@ export function Lobby({
 
             {open ? (
               <>
+                {/* ★ המספר לחוד, העברית לחוד. עירוב ביניהם הופך
+                    "4ד 02:12:38" ל-"402:12:38 ד" ברינדור. */}
+                {clock.days > 0 && (
+                  <div className="mt-1 text-sm font-black text-chalk">
+                    {daysLabel(clock.days)}
+                  </div>
+                )}
                 <div
                   dir="ltr"
-                  className={`num mt-1.5 text-4xl font-black leading-none ${
+                  className={`num mt-1 text-4xl font-black leading-none ${
                     urgent ? 'text-flare' : 'text-toto'
                   }`}
                 >
-                  {formatCountdown(remaining)}
+                  {clock.clock}
                 </div>
                 <div className="mt-1 text-[11px] text-chalk-dim">
                   {urgent ? 'ההרכב ננעל עוד מעט' : 'עד נעילת ההרכבים'}
@@ -157,7 +165,11 @@ export function Lobby({
 
       {/* ═══════════ שני המצבים — הפעולה ═══════════ */}
       <section className="mx-auto max-w-lg px-4 lg:max-w-3xl" aria-label="בחירת מצב משחק">
-        <div className="grid gap-3 lg:grid-cols-2">
+        {/* ★ תמיד זה לצד זה, גם במובייל.
+            הברִיף מפורש: "side-by-side, not vertically stacked".
+            יחס 1.72 מאפשר את זה — שני כרטיסים ברוחב 46% נשארים
+            קריאים גם ב-320 פיקסלים. */}
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
           {modes.map((m) => (
             <ModeCard key={m.id} mode={m} open={open} onPlay={() => onPlay(m.id)} />
           ))}
@@ -216,11 +228,23 @@ export function Lobby({
 /* ================================================================== */
 
 /**
- * ★ שני הכרטיסים חייבים להיראות **שונים**, לא רק להיקרא שונה.
+ * ★ הכרטיס **הוא** התמונה שסופקה.
  *
- * דוביד 5 הוא כתום, מהיר, עם מספר ענק — הוא צועק "היכנס עכשיו".
- * דוביד 11 הוא ירוק־דשא ועמוק, עם מרקם משבצות — הוא רומז שיש
- * כאן עבודה. הבחירה ביניהם צריכה להיות תחושה, לא קריאת טקסט.
+ * הברִיף מפורש: "אם סופקה תמונת כפתור, השתמש בה ככפתור החזותי
+ * במקום לשחזר כפתור CSS גנרי." לכן אין כאן גרדיאנטים, אין
+ * טיפוגרפיה משוחזרת, ואין ניסיון לחקות את העיצוב — התמונה
+ * מרונדרת כמו שהיא, והיא כולה שטח לחיץ.
+ *
+ * ★ מה כן מצויר מעליה
+ *
+ * התמונה סטטית; מצב המשחק לא. שתי שכבות דקות בלבד, ושתיהן
+ * ממוקמות במכוון בשוליים כדי לא לכסות את האיור או הטקסט:
+ *
+ *   · תג מצב בפינה העליונה־שמאלית — מול מספר המצב שבתמונה
+ *   · פס התקדמות/תוצאה לאורך הקצה התחתון
+ *
+ * ה-CTA שמוטבע בתמונה נשאר. הוא נכון ברוב המצבים, ותג המצב
+ * מוסיף את מה שהוא לא יכול לדעת.
  */
 function ModeCard({
   mode, open, onPlay,
@@ -228,98 +252,76 @@ function ModeCard({
   const five = mode.id === 'five';
   const done = mode.state === 'submitted' || mode.state === 'scored';
   const progress = mode.size > 0 ? Math.min(1, mode.filled / mode.size) : 0;
+  const accent = five ? '#3FA9F5' : '#3ED07A';
 
   return (
     <button
       onClick={onPlay}
-      className={[
-        'tap relative w-full overflow-hidden rounded-3xl p-5 text-start',
-        'transition-transform duration-200 ease-brand active:scale-[0.985]',
-        five
-          ? 'bg-gradient-to-br from-toto to-toto-deep text-night'
-          : 'bg-gradient-to-br from-pitch-2 to-pitch text-chalk',
-      ].join(' ')}
+      aria-label={`${mode.title} — ${mode.tagline}`}
+      className="tap group relative block w-full overflow-hidden rounded-2xl
+                 ring-1 ring-inset ring-chalk/10 transition-transform duration-200
+                 ease-brand active:scale-[0.985]"
     >
-      {/* מרקם — משבצות ל-11, ללא ל-5. אותו הבדל של אופי. */}
-      {!five && (
-        <span className="tex-tartan pointer-events-none absolute inset-0 opacity-[0.13]"
-              aria-hidden="true" />
-      )}
-      {/* משקפיים מוטבעות בפינה */}
+      <img
+        src={five ? '/brand/mode-five.jpg' : '/brand/mode-full.jpg'}
+        alt=""
+        width={760}
+        height={442}
+        loading="eager"
+        decoding="async"
+        className="block w-full"
+      />
+
+      {/* תג מצב — פינה עליונה־שמאלית, הצד הפנוי בשתי התמונות */}
       <span
-        className={`pointer-events-none absolute -bottom-3 -start-4 ${
-          five ? 'text-night/10' : 'text-chalk/[0.07]'
-        }`}
-        aria-hidden="true"
+        className="absolute top-2 rounded-full px-2.5 py-1 text-[10px] font-black
+                   backdrop-blur-sm"
+        style={{
+          insetInlineEnd: 'auto',
+          insetInlineStart: '0.5rem',
+          background: done ? accent : 'rgba(0,0,0,.55)',
+          color: done ? '#08141F' : '#F6F3EB',
+        }}
       >
-        <Shades size={150} glint={false} />
+        {statusChip(mode, open)}
       </span>
 
-      <div className="relative">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="font-poster text-3xl leading-none">{mode.title}</div>
-            <div className={`mt-1 text-xs font-bold ${five ? 'text-night/70' : 'text-chalk/70'}`}>
-              {mode.tagline}
-            </div>
-          </div>
+      {/* פס תחתון — התקדמות בבנייה, או ניקוד כשיש */}
+      <span className="absolute inset-x-0 bottom-0 h-1.5 bg-black/45" aria-hidden="true">
+        <span
+          className="block h-full transition-[width] duration-300 ease-brand"
+          style={{ width: `${(done ? 1 : progress) * 100}%`, background: accent }}
+        />
+      </span>
 
-          {done && mode.points !== undefined ? (
-            <div className="shrink-0 text-center">
-              <div dir="ltr" className="num text-3xl font-black leading-none">{mode.points}</div>
-              {mode.rank !== undefined && (
-                <div className={`mt-0.5 text-[11px] ${five ? 'text-night/70' : 'text-chalk/70'}`}>
-                  מקום <span dir="ltr" className="num">{mode.rank}</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            // מספר דהוי לבדו נראה כמו תקלה. תווית קטנה הופכת אותו
-            // למידע: "כמה שחקנים צריך כאן".
-            <div className={`shrink-0 rounded-xl px-2.5 py-1.5 text-center ${
-              five ? 'bg-night/15' : 'bg-chalk/12'
-            }`}>
-              <div dir="ltr" className="num text-xl font-black leading-none">{mode.size}</div>
-              <div className={`text-[9px] font-bold ${five ? 'text-night/60' : 'text-chalk/60'}`}>
-                שחקנים
-              </div>
-            </div>
+      {/* תוצאה — רק כשיש. נצמד לקצה התחתון־שמאלי, מעל הפס. */}
+      {done && mode.points !== undefined && (
+        <span
+          className="absolute bottom-3 flex items-baseline gap-1 rounded-lg bg-black/60
+                     px-2 py-1 backdrop-blur-sm"
+          style={{ insetInlineStart: '0.5rem' }}
+        >
+          <span dir="ltr" className="num text-lg font-black leading-none" style={{ color: accent }}>
+            {mode.points}
+          </span>
+          {mode.rank !== undefined && (
+            <span className="text-[10px] text-chalk/80">
+              מקום <span dir="ltr" className="num">{mode.rank}</span>
+            </span>
           )}
-        </div>
-
-        {/* פס התקדמות — רק כשיש מה להתקדם בו */}
-        {!done && mode.filled > 0 && (
-          <div className={`mt-4 h-1 overflow-hidden rounded-full ${
-            five ? 'bg-night/20' : 'bg-chalk/15'
-          }`}>
-            <div
-              className={`h-full rounded-full transition-[width] duration-300 ease-brand ${
-                five ? 'bg-night' : 'bg-chalk'
-              }`}
-              style={{ width: `${progress * 100}%` }}
-            />
-          </div>
-        )}
-
-        <div className={`mt-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5
-                         text-xs font-black ${
-                           five ? 'bg-night/15 text-night' : 'bg-chalk/15 text-chalk'
-                         }`}>
-          {ctaFor(mode, open)}
-          <span aria-hidden>←</span>
-        </div>
-      </div>
+        </span>
+      )}
     </button>
   );
 }
 
-/** הטקסט על הכפתור — תמיד הפעולה הבאה, אף פעם לא תיאור מצב. */
-function ctaFor(mode: LobbyMode, open: boolean): string {
-  if (mode.state === 'scored') return 'צפייה בתוצאה';
-  if (mode.state === 'submitted') return 'ההרכב שלי';
-  if (!open) return 'המחזור נעול';
-  if (mode.state === 'draft') return `עוד ${mode.size - mode.filled} שחקנים`;
-  return 'בניית ההרכב';
+/** תג המצב. קצר בכוונה — הוא יושב על איור, לא על רקע נקי. */
+function statusChip(mode: LobbyMode, open: boolean): string {
+  if (mode.state === 'scored') return 'התוצאה מוכנה';
+  if (mode.state === 'submitted') return 'ההרכב נעול';
+  if (!open) return 'נעול';
+  if (mode.state === 'draft') return `${mode.filled}/${mode.size}`;
+  return 'חדש';
 }
 
 /* ================================================================== */

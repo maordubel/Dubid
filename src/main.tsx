@@ -2,7 +2,14 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './App.tsx';
+import { purgeDemoDataOnce } from './lib/store.ts';
 import './styles/index.css';
+
+/* ★ לפני שהאפליקציה עולה: מנקים נתוני הדגמה של מחזורים קודמים.
+   רץ פעם אחת לכל epoch (ראו store.ts). קבוצת הניסוי חייבת
+   להתחיל מדף חלק — הגשה ישנה או ניקוד פיקטיבי הורסים את האמון
+   בדיוק ברגע שבו הוא הכי שביר. */
+purgeDemoDataOnce();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('#root לא נמצא');

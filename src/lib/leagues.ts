@@ -1,5 +1,5 @@
 /**
- * lib/leagues.ts — ליגות פרטיות.
+ * lib/leagues.ts — זירות וליגות.
  *
  * ★ מה זה כן: תחרות בין חברים.
  * ★ מה זה לא:  רשת חברתית.
@@ -23,9 +23,28 @@ import type { ModeId } from './events/bus.ts';
 /* מודל                                                                */
 /* =================================================================== */
 
+/**
+ * ★ "זירה" ו"ליגה פרטית" הן אותו דבר.
+ *
+ * בעל המוצר הבהיר: זירה היא תחרות מול חברים עם קוד הצטרפות,
+ * טבלה פנימית, וניקוד בלבד — **בלי קופה ובלי פרסים**. זה בדיוק
+ * מה שהמודל הזה כבר עושה.
+ *
+ * לכן אין כאן מערכת שנייה. יש `kind` אחד שמבדיל בין שני סוגי
+ * תחרות שחולקים את אותה טבלה ואותם שוברי שוויון:
+ *
+ *   'arena'  — פרטית. נכנסים עם קוד. ראש בראש מול חברים.
+ *   'open'   — ציבורית. כולם בפנים, אין קוד.
+ *
+ * בניית שתי מערכות לשני הסוגים הייתה שכפול — ובדיוק מה
+ * שהברִיף אוסר.
+ */
+export type CompetitionKind = 'arena' | 'open';
+
 export interface PrivateLeague {
   id: string;
   name: string;
+  kind: CompetitionKind;
   /** קוד ההצטרפות, מנורמל לאותיות גדולות. */
   code: string;
   ownerId: string;
@@ -157,6 +176,23 @@ export interface MemberGameweek {
   submittedAt: string;
 }
 
+/**
+ * ★ תחושת "ניצחון" ו"הפסד" בלי קופה.
+ *
+ * בעל המוצר ביקש אלמנטים של זכייה והפסד, אבל בלי כסף שמתחלק.
+ * הפתרון: כל מחזור הוא **קרב** מול הטבלה. מי שסיים בחצי העליון
+ * "ניצח" את המחזור, מי שבחצי התחתון "הפסיד". זה נותן שיא,
+ * רצף, וסיפור — בלי מטבע ובלי תשלום.
+ */
+export interface Record_ {
+  wins: number;
+  losses: number;
+  /** רצף נוכחי. חיובי = ניצחונות ברצף, שלילי = הפסדים. */
+  streak: number;
+  /** המקום הטוב ביותר שהושג בליגה. */
+  bestRank: number | null;
+}
+
 export interface StandingRow {
   rank: number;
   /** המקום במחזור הקודם. null = טרם שיחק. */
@@ -172,6 +208,7 @@ export interface StandingRow {
   /** מצטבר בליגה. */
   totalPoints: number;
   played: number;
+  record: Record_;
 }
 
 /**
@@ -243,6 +280,35 @@ export function standings(
   const prevRanks = rankAt(previous);
   const totals = totalsFor(latest ?? null);
 
+  // ★ שיא ניצחונות/הפסדים — מחושב מחזור אחר מחזור.
+  //   "ניצחון" = סיום בחצי העליון של הזירה באותו מחזור.
+  const records = new Map<string, Record_>();
+  for (const m of members) {
+    records.set(m.userId, { wins: 0, losses: 0, streak: 0, bestRank: null });
+  }
+  for (const gwId of gameweekOrder) {
+    const played = members
+      .map((m) => ({ userId: m.userId, pts: at(m.userId, gwId)?.score.totalPoints }))
+      .filter((x): x is { userId: string; pts: number } => x.pts !== undefined)
+      .sort((a, b) => b.pts - a.pts || a.userId.localeCompare(b.userId));
+    if (played.length < 2) continue;   // פחות משניים — אין מול מי לנצח
+
+    const half = played.length / 2;
+    played.forEach((entry, i) => {
+      const rec = records.get(entry.userId);
+      if (!rec) return;
+      const rank = i + 1;
+      rec.bestRank = rec.bestRank === null ? rank : Math.min(rec.bestRank, rank);
+      if (i < half) {
+        rec.wins += 1;
+        rec.streak = rec.streak >= 0 ? rec.streak + 1 : 1;
+      } else {
+        rec.losses += 1;
+        rec.streak = rec.streak <= 0 ? rec.streak - 1 : -1;
+      }
+    });
+  }
+
   const rows = members.map((mem) => {
     const last = at(mem.userId, latest ?? null);
     const base: LineupScore =
@@ -276,6 +342,7 @@ export function standings(
       gameweekPoints: src.gameweekPoints,
       totalPoints: src.score.totalPoints,
       played: src.played,
+      record: records.get(r.entry.userId) ?? { wins: 0, losses: 0, streak: 0, bestRank: null },
     };
   });
 }

@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS game.leagues (
   code        TEXT NOT NULL UNIQUE
               CHECK (code ~ '^[2-9A-HJKMNP-Z]{6}$'),
   owner_id    UUID NOT NULL REFERENCES game.users(id) ON DELETE CASCADE,
+  -- ★ זירה פרטית (קוד) מול ליגה ציבורית (פתוחה לכולם).
+  --   אותה טבלה, אותם שוברי שוויון, בלי קופה בשני המקרים.
+  kind        TEXT NOT NULL DEFAULT 'arena' CHECK (kind IN ('arena','open')),
   -- ★ ליגה שייכת למצב משחק אחד. הברִיף אוסר למזג ניקוד של
   --   דוביד 5 ודוביד 11 לטבלה תחרותית אחת.
   mode        TEXT NOT NULL CHECK (mode IN ('five','full')),

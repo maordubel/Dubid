@@ -280,6 +280,10 @@ function MainApp() {
               onClear={lu.clear}
               onCaptain={lu.setCaptain}
               onVice={lu.setVice}
+              onFormation={lu.setFormation}
+              droppedNames={lu.lastDropped
+                .map((id) => pool.find((p) => p.id === id)?.nameShort)
+                .filter((n): n is string => !!n)}
               onSubmit={() => { if (!overBudget) setShowSaveModal(true); }}
               opponentShortByTeam={opponentShortByTeam}
               pricing={mode === 'five'}

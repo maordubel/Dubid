@@ -143,7 +143,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
                   <div>
                     <div className="text-sm font-bold">{fixtureLabel(f)}</div>
                     <div className="text-[11px] text-chalk-dim">
-                      {f.dayLabel} · <span className="num">{kickoffTimeLabel(f.kickoff)}</span>
+                      {f.dayLabel} · <span className="num">{kickoffTimeLabel(f.kickoff, f.timeConfirmed)}</span>
                     </div>
                   </div>
                   <FixtureScoreForm fixture={f} existing={score} />

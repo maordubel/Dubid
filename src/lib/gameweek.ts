@@ -162,19 +162,42 @@ export const STATUS_CTA_HE: Record<GameweekStatusValue, string> = {
 };
 
 /**
- * ספירה לאחור קריאה. תמיד LTR, תמיד שתי ספרות.
- * מחזירה מחרוזת ולא אובייקט כי זה מה שהמסך צריך, ו-`num`
- * ב-CSS כבר מטפל בכיווניות.
+ * ספירה לאחור, מפורקת לחלקים.
+ *
+ * ★ למה לא מחרוזת אחת
+ *
+ * הגרסה הקודמת החזירה "4ד 02:12:38" והציגה אותה בתוך אלמנט
+ * `dir="ltr"`. התוצאה על המסך הייתה "402:12:38 ד" — האות
+ * העברית נדדה לקצה השני. עירוב טקסט עברי בתוך מספר LTR הוא
+ * תמיד באג דו-כיווני שמחכה לקרות.
+ *
+ * הפתרון: המספר חוזר נקי, והתווית העברית היא אלמנט נפרד
+ * שהמסך מציב לידו. כל אחד בכיוון שלו.
  */
-export function formatCountdown(ms: number): string {
-  if (ms <= 0) return '00:00:00';
+export interface Countdown {
+  /** "02:12:38" — ספרות בלבד, בטוח לעטוף ב-dir="ltr". */
+  clock: string;
+  /** מספר הימים השלמים. 0 = לא להציג תווית ימים. */
+  days: number;
+  /** האם נגמר הזמן. */
+  done: boolean;
+}
+
+export function countdown(ms: number): Countdown {
+  if (ms <= 0) return { clock: '00:00:00', days: 0, done: true };
   const total = Math.floor(ms / 1000);
   const days = Math.floor(total / 86400);
   const h = Math.floor((total % 86400) / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
   const pad = (n: number) => String(n).padStart(2, '0');
-  return days > 0
-    ? `${days}ד ${pad(h)}:${pad(m)}:${pad(s)}`
-    : `${pad(h)}:${pad(m)}:${pad(s)}`;
+  return { clock: `${pad(h)}:${pad(m)}:${pad(s)}`, days, done: false };
+}
+
+/** תווית ימים בעברית, או ריק. */
+export function daysLabel(days: number): string {
+  if (days <= 0) return '';
+  if (days === 1) return 'עוד יום';
+  if (days === 2) return 'עוד יומיים';
+  return `עוד ${days} ימים`;
 }

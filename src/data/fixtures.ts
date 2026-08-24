@@ -17,23 +17,47 @@ export interface Fixture {
   /** ISO, שעון ישראל */
   kickoff: string;
   dayLabel: string;
+  /**
+   * האם שעת הפתיחה אושרה מול הלוח הרשמי.
+   * false = מוצג "שעה תיקבע" במקום שעה מומצאת.
+   */
+  timeConfirmed: boolean;
 }
 
 export const GAMEWEEK = {
-  id: 'gw-1',
-  number: 1,
-  label: 'מחזור 1',
+  id: 'gw-2',
+  number: 2,
+  label: 'מחזור 2',
   seasonLabel: 'ליגת העל 2026/27',
 };
 
+/**
+ * ★ מחזור 2 — שבת, 29 באוגוסט 2026.
+ *
+ * שבעת המשחקים סופקו על ידי בעל המוצר ומופיעים כאן כלשונם.
+ *
+ * ⚠ **שעות הפתיחה טרם אושרו.**
+ *
+ * הברִיף אומר מפורשות "אל תמציא שעות פתיחה", ולכן `kickoff` מסומן
+ * `timeConfirmed: false` וכולם נושאים את אותה שעת בסיס בטוחה.
+ * המשמעות המעשית:
+ *   · לוח המשחקים מציג "שעה תיקבע" ולא שעה שקרית.
+ *   · הדדליין נגזר משעת הבסיס, שהיא **לפני** כל בעיטת פתיחה
+ *     סבירה בליגה — כך שאי אפשר להגיש אחרי שהמשחק התחיל.
+ * ברגע שהשעות מתפרסמות: לעדכן `kickoff` ולהעביר ל-`true`.
+ */
+const MATCHDAY = '2026-08-29';
+/** שעת בסיס שמרנית — מוקדמת מכל פתיחה ריאלית בליגת העל. */
+const TBD_TIME = 'T16:00:00+03:00';
+
 export const FIXTURES: Fixture[] = [
-  { id: 'gw1-1', homeTeamId: 'T12', awayTeamId: 'T10', kickoff: '2026-08-22T20:00:00+03:00', dayLabel: 'שבת' },
-  { id: 'gw1-2', homeTeamId: 'T11', awayTeamId: 'T14', kickoff: '2026-08-22T20:00:00+03:00', dayLabel: 'שבת' },
-  { id: 'gw1-3', homeTeamId: 'T4', awayTeamId: 'T13', kickoff: '2026-08-22T20:30:00+03:00', dayLabel: 'שבת' },
-  { id: 'gw1-4', homeTeamId: 'T2', awayTeamId: 'T3', kickoff: '2026-08-23T20:15:00+03:00', dayLabel: 'ראשון' },
-  { id: 'gw1-5', homeTeamId: 'T7', awayTeamId: 'T8', kickoff: '2026-08-24T20:00:00+03:00', dayLabel: 'שני' },
-  { id: 'gw1-6', homeTeamId: 'T1', awayTeamId: 'T9', kickoff: '2026-09-02T20:00:00+03:00', dayLabel: 'רביעי' },
-  { id: 'gw1-7', homeTeamId: 'T6', awayTeamId: 'T5', kickoff: '2026-09-03T20:30:00+03:00', dayLabel: 'חמישי' },
+  { id: 'gw2-1', homeTeamId: 'T8',  awayTeamId: 'T12', kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
+  { id: 'gw2-2', homeTeamId: 'T5',  awayTeamId: 'T7',  kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
+  { id: 'gw2-3', homeTeamId: 'T9',  awayTeamId: 'T6',  kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
+  { id: 'gw2-4', homeTeamId: 'T13', awayTeamId: 'T1',  kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
+  { id: 'gw2-5', homeTeamId: 'T3',  awayTeamId: 'T4',  kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
+  { id: 'gw2-6', homeTeamId: 'T14', awayTeamId: 'T2',  kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
+  { id: 'gw2-7', homeTeamId: 'T10', awayTeamId: 'T11', kickoff: MATCHDAY + TBD_TIME, dayLabel: 'שבת', timeConfirmed: false },
 ];
 
 /** מפה: מזהה קבוצה → היריבה שלה במחזור הנוכחי (או null אם אין לה משחק). */
@@ -52,10 +76,14 @@ export function fixtureLabel(f: Fixture): string {
   return `${home} – ${away}`;
 }
 
-export function kickoffTimeLabel(iso: string): string {
+export function kickoffTimeLabel(iso: string, confirmed = true): string {
+  if (!confirmed) return 'שעה תיקבע';
   const d = new Date(iso);
   return d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
 }
+
+/** האם יש ולו משחק אחד בלי שעה מאושרת. מוצג כאזהרה באדמין. */
+export const HAS_UNCONFIRMED_TIMES = FIXTURES.some((f) => !f.timeConfirmed);
 
 export function kickoffDateLabel(iso: string): string {
   const d = new Date(iso);

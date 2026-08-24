@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { validateLineup, teamsUsed } from '../lib/scoring/validate.ts';
-import { createEmptyLineup } from '../lib/lineup.ts';
+import { changeFormation, createEmptyLineup } from '../lib/lineup.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import type { Lineup, Position } from '../lib/scoring/types.ts';
 
@@ -98,12 +98,26 @@ export function useLineup(formation: string, rules: RuleSet, meta: {
     setLineup(createEmptyLineup(formation, meta));
   }, [formation, meta]);
 
+  /**
+   * מעבר מערך. מחזיר את השחקנים שנפלו, כדי שה-UI יוכל לומר
+   * "הורדנו מגן אחד" במקום שהם ייעלמו בשקט.
+   */
+  const [lastDropped, setLastDropped] = useState<string[]>([]);
+  const setFormation = useCallback((next: string) => {
+    setLineup((prev) => {
+      if (prev.formation === next) return prev;
+      const result = changeFormation(prev, next);
+      setLastDropped(result.dropped);
+      return result.lineup;
+    });
+  }, []);
+
   const issues = useMemo(() => validateLineup(lineup, rules), [lineup, rules]);
   const usedTeams = useMemo(() => teamsUsed(lineup), [lineup]);
   const filled = lineup.slots.filter((s) => s.playerId).length;
 
   return {
-    lineup, assign, clear, setCaptain, setVice, reset,
+    lineup, assign, clear, setCaptain, setVice, reset, setFormation, lastDropped,
     issues, usedTeams, filled,
     isComplete: issues.length === 0,
   };

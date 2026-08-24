@@ -13,6 +13,10 @@ import {
 } from '../lib/scoring/validate.ts';
 import { Jersey, jerseyMonogram } from './Jersey.tsx';
 import { teamColor } from '../data/teamColors.ts';
+import { TeamCrest } from './TeamCrest.tsx';
+import { Pitch } from './Pitch.tsx';
+import { FormationPicker } from './FormationPicker.tsx';
+import { formationsFor } from '../lib/formation.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import type { Lineup, LineupSlot, Position } from '../lib/scoring/types.ts';
 
@@ -57,12 +61,16 @@ export interface SquadPickerProps {
   budget?: number;
   /** בחירת סגן קפטן. בלי זה תג ה-V לא מוצג. */
   onVice?: (playerId: string) => void;
+  /** החלפת מערך טקטי. בלי זה הבורר לא מוצג. */
+  onFormation?: (formation: string) => void;
+  /** שחקנים שנפלו בהחלפת המערך האחרונה — מוצגים כהודעה. */
+  droppedNames?: string[];
 }
 
 export function SquadPicker(props: SquadPickerProps) {
   const {
     lineup, pool, teams, rules, onAssign, onClear, onCaptain, onSubmit,
-    opponentShortByTeam, pricing, budget, onVice,
+    opponentShortByTeam, pricing, budget, onVice, onFormation, droppedNames,
   } = props;
   const [picking, setPicking] = useState<LineupSlot | null>(null);
 
@@ -86,8 +94,6 @@ export function SquadPicker(props: SquadPickerProps) {
   );
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
-  const rows: Position[] = ['GK', 'DEF', 'MID', 'FWD'];
-
   return (
     <div className="flex h-full flex-col">
       {/* ---- מפת כיסוי הקבוצות ---- */}
@@ -98,41 +104,56 @@ export function SquadPicker(props: SquadPickerProps) {
         <BudgetBar budget={budget} spent={spent} filled={filled} size={rules.constraints.lineupSize} />
       )}
 
+      {/* ---- בורר המערך ---- */}
+      {onFormation && (
+        <FormationPicker
+          options={formationsFor(rules.constraints.lineupSize)}
+          value={lineup.formation}
+          onChange={onFormation}
+        />
+      )}
+
       {/* ---- המגרש ---- */}
-      <div className="flex-1 px-3 pb-4">
-        <div className="mx-auto w-full max-w-3xl rounded-3xl p-3 tex-turf
-                        ring-1 ring-inset ring-chalk/15">
-          {rows.map((row) => {
-            const slots = lineup.slots.filter((s) => s.position === row && !s.isBench);
-            if (!slots.length) return null;
-            return (
-              <section key={row} aria-label={POSITION_LABEL[row]} className="mb-4 last:mb-1">
-                <h2 className="mb-1.5 ps-1 text-[10px] font-bold tracking-[0.2em] text-chalk/70">
-                  {POSITION_LABEL[row]}
-                </h2>
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(84px,1fr))] gap-2.5">
-                  {slots.map((slot) => (
-                    <SlotCard
-                      key={slot.slotNo}
-                      slot={slot}
-                      player={pool.find((p) => p.id === slot.playerId)}
-                      team={teamById.get(slot.teamId)}
-                      pricing={pricing}
-                      onPick={() => setPicking(slot)}
-                      onClear={() => onClear(slot.slotNo)}
-                      onCaptain={() => slot.playerId && onCaptain(slot.playerId)}
-                      onVice={onVice && slot.playerId ? () => onVice(slot.playerId) : undefined}
-                    />
-                  ))}
-                </div>
-              </section>
-            );
-          })}
+      <div className="flex-1 overflow-y-auto px-3 pb-4 pt-3">
+        {/* ★ רוחב מוגבל בכוונה.
+            מגרש שנמתח על 1400 פיקסלים הופך כרטיס שחקן לבול בודד
+            באמצע ריק. `max-w-md` שומר על צפיפות נכונה בדסקטופ,
+            ובמובייל הוא ממילא לא נכנס לפעולה. */}
+        <div className="mx-auto w-full max-w-[420px] lg:max-w-[460px]">
+          <Pitch
+            formation={lineup.formation}
+            className="ring-1 ring-inset ring-chalk/15"
+            renderSlot={(slotNo) => {
+              const slot = lineup.slots.find((x) => x.slotNo === slotNo);
+              if (!slot) return null;
+              const player = pool.find((p) => p.id === slot.playerId);
+              return (
+                <SlotCard
+                  slot={slot}
+                  player={player}
+                  team={teamById.get(slot.teamId)}
+                  pricing={pricing}
+                  onPick={() => setPicking(slot)}
+                  onClear={() => onClear(slot.slotNo)}
+                  onCaptain={() => slot.playerId && onCaptain(slot.playerId)}
+                  onVice={onVice && slot.playerId ? () => onVice(slot.playerId) : undefined}
+                />
+              );
+            }}
+          />
         </div>
+
+        {/* שחקנים שנפלו בהחלפת מערך — נאמר בפירוש ולא נעלמים */}
+        {droppedNames && droppedNames.length > 0 && (
+          <p role="status" className="mx-auto mt-3 max-w-[420px] rounded-xl bg-armband/12
+                                      px-3 py-2 text-xs text-armband">
+            המערך השתנה — ירדו מההרכב: {droppedNames.join(', ')}
+          </p>
+        )}
 
         {/* הבעיה הראשונה בלבד — לא שופכים על המשתמש רשימת שגיאות */}
         {!ready && filled === rules.constraints.lineupSize && (
-          <p role="alert" className="mx-auto mt-3 max-w-3xl rounded-xl bg-flare/12 px-3 py-2
+          <p role="alert" className="mx-auto mt-3 max-w-[420px] rounded-xl bg-flare/12 px-3 py-2
                                      text-sm text-flare">
             {formatIssue(issues[0], 'he')}
           </p>
@@ -304,6 +325,21 @@ function BudgetBar({
 /* משבצת שחקן                                                          */
 /* ================================================================== */
 
+/**
+ * כרטיס שחקן על המגרש.
+ *
+ * ★ הכרטיס לא קובע את רוחבו — המגרש קובע.
+ *
+ * `w-full` בתוך משבצת שרוחבה `clamp(...)` הוא מה שמונע את הבאג
+ * המקורי. קודם היה כאן חולצה בגודל קבוע 56 פיקסלים ולוחית שם
+ * ברוחב 92, וברגע שהשורה הכילה יותר משלושה שחקנים הם נדחסו
+ * זה על זה. עכשיו הכל יחסי, וגודל הסמל נגזר באחוזים.
+ *
+ * ★ סמל המועדון ולא חולצה
+ *
+ * הברִיף ביקש סמלים אמיתיים, מאותו מקור כמו אופסיידס.
+ * `TeamCrest` נופל לחולצה רק לשתי הקבוצות שאין להן סמל.
+ */
 function SlotCard({
   slot, player, team, pricing, onPick, onClear, onCaptain, onVice,
 }: {
@@ -321,16 +357,15 @@ function SlotCard({
       <button
         onClick={onPick}
         aria-label={`הוסף ${POSITION_LABEL[slot.position]}`}
-        className="tap flex flex-col items-center gap-1.5 rounded-2xl py-2
-                   text-chalk/50 transition-colors duration-200 ease-brand
-                   active:text-toto"
+        className="tap flex w-full flex-col items-center gap-1 text-chalk/60
+                   transition-colors duration-200 ease-brand active:text-toto"
       >
-        <span className="relative grid place-items-center">
-          <Jersey ghost position={slot.position} size={52} />
-          <span className="absolute text-2xl leading-none">+</span>
+        <span className="relative grid w-[62%] max-w-[40px] place-items-center">
+          <Jersey ghost position={slot.position} size="fluid" />
+          <span className="absolute text-lg font-black leading-none">+</span>
         </span>
-        <span className="rounded-full border border-dashed border-chalk/25 px-2.5 py-1
-                          text-[10px] font-bold">
+        <span className="w-full truncate rounded-md border border-dashed border-chalk/30
+                         bg-night/40 px-1 py-0.5 text-center text-[9px] font-bold">
           {POSITION_LABEL[slot.position]}
         </span>
       </button>
@@ -342,83 +377,82 @@ function SlotCard({
   const price = pricing && player.price !== undefined ? player.price : undefined;
 
   return (
-    <div className="relative flex flex-col items-center gap-1">
-      {/* ✕ הסרה — פינה עליונה, כמו במסכי ההשראה */}
+    <div className="group relative flex w-full flex-col items-center gap-1">
+      {/* הסמל — גם הוא הכפתור לפתיחת הבחירה מחדש */}
       <button
-        onClick={onClear}
-        aria-label="הסר שחקן"
-        className="tap absolute -top-1 end-1 z-10 grid size-6 place-items-center
-                   rounded-full bg-flare text-[11px] font-black text-white shadow-md"
+        onClick={onPick}
+        aria-label={`החלף את ${player.nameShort}`}
+        className="relative grid w-[62%] max-w-[42px] place-items-center"
       >
-        ✕
-      </button>
-
-      {/* קפטן — פינה עליונה השנייה, בהשראת התג הסגול של FPL */}
-      <button
-        onClick={onCaptain}
-        aria-pressed={cap}
-        aria-label={cap ? 'הסר קפטן' : 'הפוך לקפטן'}
-        className={[
-          'tap absolute -top-1 start-1 z-10 grid size-6 place-items-center rounded-full',
-          'text-[10px] font-black shadow-md transition-colors duration-200 ease-brand',
-          cap ? 'bg-armband text-night' : 'bg-night/80 text-chalk-dim',
-        ].join(' ')}
-      >
-        C
-      </button>
-
-      {/* ★ סגן — רשת ביטחון לקפטן שלא ירד למגרש.
-          מוצג רק כשהמשבצת אינה הקפטן עצמו: שחקן אחד לא יכול
-          להיות גם קפטן וגם הסגן של עצמו. */}
-      {onVice && !cap && (
-        <button
-          onClick={onVice}
-          aria-pressed={vice}
-          aria-label={vice ? 'הסר סגן' : 'הפוך לסגן קפטן'}
-          className={[
-            'tap absolute -top-1 start-8 z-10 grid size-6 place-items-center rounded-full',
-            'text-[10px] font-black shadow-md transition-colors duration-200 ease-brand',
-            vice ? 'bg-tekhelet text-white' : 'bg-night/80 text-chalk-dim',
-          ].join(' ')}
-        >
-          V
-        </button>
-      )}
-
-      <button onClick={onPick} className="tap grid place-items-center drop-shadow-md">
-        <Jersey
-          teamId={team?.id}
-          position={slot.position}
-          monogram={jerseyMonogram(team?.short)}
-          size={56}
-          captain={cap}
-        />
-      </button>
-
-      {cap && (
-        <span className="rounded-md bg-armband px-1.5 py-0.5 font-poster text-[10px] text-night">
-          קפטן ×3
+        <span className="w-full drop-shadow-[0_2px_5px_rgba(0,0,0,.6)]">
+          <TeamCrest teamId={slot.teamId} short={team?.short} size="fluid" />
         </span>
-      )}
-      {vice && !cap && (
-        <span className="rounded-md bg-tekhelet px-1.5 py-0.5 font-poster text-[10px] text-white">
-          סגן
-        </span>
-      )}
 
-      {/* לוחית שם — קופסה לבנה כמו בכל המסכים שסופקו */}
-      <div className="w-full max-w-[92px] rounded-lg bg-chalk px-1.5 py-1 text-center shadow-sm">
-        <bdi className="line-clamp-1 text-[11px] font-black leading-tight text-night">
-          {player.nameShort}
-        </bdi>
-      </div>
+        {cap && (
+          <span className="absolute -top-1 -end-1.5 rounded bg-armband px-1 text-[8px]
+                           font-black leading-[1.5] text-night shadow">
+            C
+          </span>
+        )}
+        {vice && !cap && (
+          <span className="absolute -top-1 -end-1.5 rounded bg-tekhelet px-1 text-[8px]
+                           font-black leading-[1.5] text-white shadow">
+            V
+          </span>
+        )}
+      </button>
 
-      {/* תג תחתון — מחיר ב-5 על 5, אחרת קיצור קבוצה */}
-      <div className={[
-        'w-full max-w-[92px] rounded-lg px-1.5 py-0.5 text-center text-[10px] font-bold',
-        price !== undefined ? 'bg-toto/15 text-toto' : 'bg-night-3 text-chalk-dim',
+      {/* לוחית שם */}
+      <bdi className="w-full truncate rounded-md bg-chalk px-1 py-px text-center text-[9.5px]
+                      font-black leading-[1.4] text-night shadow-sm">
+        {player.nameShort}
+      </bdi>
+
+      {/* מחיר ב-5 על 5, אחרת קיצור הקבוצה */}
+      <span className={[
+        'w-full truncate rounded px-1 text-center text-[8.5px] font-black leading-[1.5]',
+        price !== undefined ? 'bg-night/75 text-toto' : 'bg-night/65 text-chalk-dim',
       ].join(' ')}>
-        {price !== undefined ? <span className="num" dir="ltr">{price}M€</span> : team?.short}
+        {price !== undefined ? <span className="num" dir="ltr">{price}</span> : team?.short}
+      </span>
+
+      {/* ★ פעולות מופיעות בלחיצה/ריחוף ולא תמיד.
+          שלושה כפתורים קבועים על כרטיס ברוחב 44 פיקסלים היו
+          מכסים את השחקן עצמו — בדיוק התלונה על כפתורים שעולים
+          זה על זה. */}
+      <div className="absolute -top-1.5 start-0 flex gap-0.5 opacity-0 transition-opacity
+                      duration-150 focus-within:opacity-100 group-hover:opacity-100
+                      group-active:opacity-100">
+        <button
+          onClick={onClear}
+          aria-label="הסר שחקן"
+          className="grid size-5 place-items-center rounded-full bg-flare text-[10px]
+                     font-black text-white shadow-md"
+        >
+          ✕
+        </button>
+        <button
+          onClick={onCaptain}
+          aria-pressed={cap}
+          aria-label={cap ? 'הסר קפטן' : 'הפוך לקפטן'}
+          className={`grid size-5 place-items-center rounded-full text-[9px] font-black shadow-md ${
+            cap ? 'bg-armband text-night' : 'bg-night/90 text-chalk'
+          }`}
+        >
+          C
+        </button>
+        {onVice && !cap && (
+          <button
+            onClick={onVice}
+            aria-pressed={vice}
+            aria-label={vice ? 'הסר סגן' : 'הפוך לסגן'}
+            className={`grid size-5 place-items-center rounded-full text-[9px] font-black shadow-md ${
+              vice ? 'bg-tekhelet text-white' : 'bg-night/90 text-chalk'
+            }`}
+          >
+            V
+          </button>
+        )}
       </div>
     </div>
   );

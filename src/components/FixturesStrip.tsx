@@ -35,7 +35,9 @@ export function FixturesStrip({ compact = false }: { compact?: boolean }) {
                 <span className="text-chalk-dim">–</span>
                 <span className="truncate">{away?.short}</span>
               </div>
-              <div className="num text-center text-[11px] text-toto">{kickoffTimeLabel(f.kickoff)}</div>
+              <div className={`text-center text-[11px] ${f.timeConfirmed ? 'num text-toto' : 'text-chalk-dim'}`}>
+                {kickoffTimeLabel(f.kickoff, f.timeConfirmed)}
+              </div>
             </div>
           );
         })}

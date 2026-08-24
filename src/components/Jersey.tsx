@@ -35,17 +35,25 @@ export function Jersey({
   monogram?: string;
   /** משבצת ריקה — מתאר מקווקו בלבד. */
   ghost?: boolean;
-  size?: number;
+  /**
+   * גודל בפיקסלים. העבירו `'fluid'` כדי שהחולצה תמלא את הרוחב
+   * של ההורה — כך המגרש קובע את הגודל ולא הקומפוננטה.
+   */
+  size?: number | 'fluid';
   /** סרט קפטן על השרוול. */
   captain?: boolean;
 }) {
   const kit = position === 'GK' ? GK_KIT : teamColor(teamId ?? '');
+  const fluid = size === 'fluid';
+  const dims = fluid
+    ? { width: '100%', height: 'auto' as const }
+    : { width: size as number, height: size as number };
   // מזהה ייחודי ל-clipPath: שתי חולצות באותו מסך לא יגנבו זו לזו את החיתוך.
   const uid = `${teamId ?? 'x'}-${position ?? 'x'}`;
 
   if (ghost) {
     return (
-      <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
+      <svg viewBox="0 0 100 100" {...dims} aria-hidden="true" className={fluid ? 'w-full' : undefined}>
         <path d={SHIRT} fill="none" stroke="currentColor" strokeWidth="3"
               strokeDasharray="5 5" opacity="0.35" />
       </svg>
@@ -53,7 +61,7 @@ export function Jersey({
   }
 
   return (
-    <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
+    <svg viewBox="0 0 100 100" {...dims} aria-hidden="true" className={fluid ? 'w-full' : undefined}>
       <defs>
         <clipPath id={`body-${uid}`}><path d={BODY} /></clipPath>
       </defs>

@@ -48,6 +48,49 @@ export interface GameweekResults {
   updatedAt: string;
 }
 
+/* ------------------------------------------------------------------ */
+/* מעבר ממצב הדגמה למשחק אמיתי                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * ★ ניקוי חד-פעמי לקראת המשחק האמיתי.
+ *
+ * במהלך הפיתוח נצברו במכשירים הגשות ותוצאות של מחזור 1 — נתוני
+ * הדגמה. קבוצת הניסוי חייבת להתחיל מדף חלק, אחרת מישהו ייכנס
+ * ויראה הרכב ישן, ניקוד פיקטיבי, ודירוג שלא קרה.
+ *
+ * הניקוי רץ פעם אחת לכל ערך של `DATA_EPOCH`. העלאת המספר =
+ * ניקוי נוסף בפעם הבאה שהמשתמש נכנס, בלי לגעת בקוד אחר.
+ *
+ * ★ מה נשמר בכוונה: השם ומזהה המשתמש. אין סיבה להכריח מישהו
+ *   להקליד את שמו מחדש רק כי החלפנו מחזור.
+ */
+const DATA_EPOCH = 'gw2-live-1';
+const EPOCH_KEY = 'dubid.epoch.v1';
+
+export function purgeDemoDataOnce(): boolean {
+  try {
+    if (localStorage.getItem(EPOCH_KEY) === DATA_EPOCH) return false;
+
+    const doomed: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      // הגשות, תוצאות, וכל טיוטה — כולל טיוטות של מחזורים ישנים
+      if (k === KEYS.entries || k === KEYS.results || k.startsWith('dubid.lineup.draft.')) {
+        doomed.push(k);
+      }
+    }
+    for (const k of doomed) localStorage.removeItem(k);
+
+    localStorage.setItem(EPOCH_KEY, DATA_EPOCH);
+    notify();
+    return doomed.length > 0;
+  } catch {
+    return false;   // מצב פרטי — לא שוברים את האפליקציה בשביל ניקיון
+  }
+}
+
 function notify() {
   try {
     window.dispatchEvent(new Event('dubid:store'));
