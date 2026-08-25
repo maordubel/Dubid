@@ -26,6 +26,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { buildLeaderboard, beatPercent, type LeaderboardRow } from '../lib/leaderboard.ts';
 import type { TieBreakStage } from '../lib/scoring/ranking.ts';
 import { TEAM_BY_ID } from '../data/squads.ts';
+import { OffsidesInline, OffsidesRail } from './OffsidesAds.tsx';
 import { GAMEWEEK } from '../data/fixtures.ts';
 import { listEntries, getResults, subscribeToStore, type LineupEntry } from '../lib/store.ts';
 import type { LineupScore } from '../lib/scoring/types.ts';
@@ -203,6 +204,9 @@ export function Leaderboard({
             empty={`עדיין אין הרכבים מוגשים ב"${MODE_LABEL[mode]}".`}
           />
 
+          {/* ★ מתחת לטבלה ולא מעליה.
+              מי שפתח דירוג בא לראות מספר אחד: שלו. שורת פרסום
+              מעל הטבלה דוחפת אותו מטה בדיוק ברגע שהוא מחפש. */}
           {meOutsideTop && (
             <>
               <div className="py-2 text-center text-chalk-dim" aria-hidden="true">⋯</div>
@@ -216,6 +220,16 @@ export function Leaderboard({
           )}
         </>
       )}
+      <OffsidesInline
+        placement="leaderboard"
+        gameweekNumber={GAMEWEEK.number}
+        className="mt-6"
+      />
+      <OffsidesRail
+        placement="leaderboard"
+        gameweekNumber={GAMEWEEK.number}
+        className="mt-3"
+      />
     </div>
   );
 }

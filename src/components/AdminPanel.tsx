@@ -7,19 +7,32 @@
  * בדיוק הטיפוסים שמנוע הניקוד (`scoreLineup`) כבר יודע לקרוא. ברגע
  * שיוזן API אמיתי, השכבה היחידה שמוחלפת היא זו שממלאת את הטפסים.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { TEAMS, TEAM_BY_ID, PLAYERS_BY_TEAM } from '../data/squads.ts';
 import { FIXTURES, GAMEWEEK, fixtureLabel, kickoffTimeLabel } from '../data/fixtures.ts';
 import {
   getResults, upsertFixtureScore, upsertPerformance, setPublished,
   tryAdminLogin, isAdminSession, adminLogout, subscribeToStore,
+  isDatabaseAdmin, errorMessageHe, hydrate,
 } from '../lib/store.ts';
 import type { PlayerPerformance, Position, TeamOutcome } from '../lib/scoring/types.ts';
+import { AdminSquads } from './AdminSquads.tsx';
 
 const POSITION_LABEL: Record<Position, string> = {
   GK: 'שוער', DEF: 'הגנה', MID: 'קישור', FWD: 'התקפה',
 };
+
+/**
+ * ★ המפתח של תוצאת משחק.
+ *
+ * הקליינט מכיר `gw2-3`; המסד לא. שניהם כן מכירים את זוג הקבוצות.
+ * הפונקציה הזו היא החוזה, והיא חייבת להישאר זהה למה ש-
+ * `game.results()` בונה ב-db/09.
+ */
+function fixtureKey(homeTeamId: string, awayTeamId: string): string {
+  return `${homeTeamId}-${awayTeamId}`;
+}
 
 function emptyPerf(playerId: string, teamId: string, position: Position): PlayerPerformance {
   return {
@@ -37,11 +50,38 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
   const [openFixture, setOpenFixture] = useState<string | null>(null);
+  /**
+   * ★ שתי הרשאות שונות, ורק אחת מהן אמיתית.
+   *
+   * ה-PIN פותח את המסך. ההרשאה **במסד** היא מה שמאפשר לשמור. הן
+   * יכולות להיפרד: מי שיודע את הקוד אבל אינו אדמין ב-`game.users`
+   * יראה מסך מלא, ילחץ שמירה, ויקבל `ADMIN_REQUIRED` על כל שדה.
+   *
+   * לכן זה נבדק פעם אחת בכניסה ונאמר במפורש, במקום להתגלות
+   * בשגיאה השלישית.
+   */
+  const [dbAdmin, setDbAdmin] = useState<boolean | null>(null);
+  /**
+   * ★ שתי משימות שונות לגמרי, ולכן שתי לשוניות.
+   *
+   *   תוצאות — נעשה פעם בשבוע, אחרי המחזור, בלחץ זמן.
+   *   סגלים  — נעשה לפני העונה ואחרי חלון העברות, בנחת.
+   *
+   * ערבוב שלהן במסך אחד היה מכריח את מי שממהר להזין תוצאות
+   * לגלול מעבר ל-351 שחקנים.
+   */
+  const [section, setSection] = useState<'results' | 'squads'>('results');
 
   useMemo(() => {
     const unsub = subscribeToStore(() => forceTick((n) => n + 1));
     return unsub;
   }, []);
+
+  useEffect(() => {
+    if (!authed) return;
+    void hydrate(GAMEWEEK.id, true);
+    void isDatabaseAdmin().then(setDbAdmin);
+  }, [authed]);
 
   if (!authed) {
     return (
@@ -96,7 +136,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
   const results = getResults(GAMEWEEK.id);
 
   return (
-    <div dir="rtl" className="h-[100dvh] overflow-y-auto bg-night text-chalk">
+    <div dir="rtl" className="tex-wood h-[100dvh] overflow-y-auto text-chalk">
       <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b
                           border-gold/15 bg-night/95 px-4 py-3 backdrop-blur">
         <div>
@@ -110,7 +150,11 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setPublished(GAMEWEEK.id, !results.published)}
+            onClick={() => {
+              void setPublished(GAMEWEEK.id, !results.published).catch((e: unknown) => {
+                window.alert(errorMessageHe(e instanceof Error ? e.message : 'NETWORK'));
+              });
+            }}
             className={`tap rounded-full px-4 py-2 text-sm font-black transition-colors ${
               results.published ? 'bg-chalk/10 text-chalk' : 'bg-gold text-night'
             }`}
@@ -127,15 +171,48 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
       </header>
 
       <div className="mx-auto max-w-3xl px-4 py-5">
+        <div className="mb-4 flex gap-1 rounded-full bg-night-2 p-1 edge-gold">
+          {([['results', 'תוצאות המחזור'], ['squads', 'סגלים ושחקנים']] as const)
+            .map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setSection(id)}
+                className={`tap flex-1 rounded-full py-2 text-[13px] font-black transition-colors
+                            ${section === id
+                              ? 'bg-gradient-to-b from-gold-light to-gold text-gold-ink'
+                              : 'text-chalk-dim'}`}
+              >
+                {label}
+              </button>
+            ))}
+        </div>
+
+        {dbAdmin === false && (
+          <div role="alert" className="mb-4 rounded-xl border border-flare/40 bg-flare/10 px-4 py-3">
+            <div className="text-sm font-black text-flare">אין לך הרשאת ניהול במסד</div>
+            <p className="mt-1 text-[12.5px] leading-snug text-chalk-2">
+              המסך נפתח, אבל כל שמירה תידחה. ההרשאה נבדקת בשרת ולא כאן —
+              וזה מכוון. להפעלה, פעם אחת, מה-SQL Editor של Supabase:
+            </p>
+            <code dir="ltr" className="mt-2 block overflow-x-auto rounded-lg bg-night px-3 py-2
+                                       text-[11px] text-gold-light">
+              UPDATE game.users SET is_admin = TRUE WHERE id = auth.uid();
+            </code>
+          </div>
+        )}
+
+        {section === 'squads' && <AdminSquads />}
+
+        {section === 'results' && (<>
         <p className="mb-4 rounded-xl border border-tekhelet/30 bg-tekhelet/10 px-4 py-3 text-[13px] text-chalk-2">
           מלאו תוצאה סופית לכל משחק, ואז פתחו אותו כדי להזין דקות / שערים / בישולים / כרטיסים
-          לכל שחקן. הדירוג בעמוד &quot;דירוג&quot; מחושב חי מהנתונים כאן — ברגע שמפרסמים, המשתמשים
-          רואים ניקוד עדכני. זה בדיוק המקום שיוחלף בחיבור API כדורגל בהמשך.
+          לכל שחקן. הכל נשמר ב-Supabase — ברגע שמפרסמים, כל המשתמשים רואים את הדירוג
+          המעודכן, גם בלי לרענן. זה המקום שיוחלף בחיבור API כדורגל בהמשך.
         </p>
 
         <div className="space-y-3">
           {FIXTURES.map((f) => {
-            const score = results.fixtureScores[f.id];
+            const score = results.fixtureScores[fixtureKey(f.homeTeamId, f.awayTeamId)];
             const open = openFixture === f.id;
             return (
               <div key={f.id} className="overflow-hidden rounded-2xl border border-gold/15 bg-night-2">
@@ -168,6 +245,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
         <div className="mt-8 text-[11px] text-chalk-dim">
           קבוצות בליגה: {TEAMS.length} · שחקנים בסגלים: {Object.values(PLAYERS_BY_TEAM).reduce((s, t) => s + t.players.length, 0)}
         </div>
+        </>)}
       </div>
     </div>
   );
@@ -183,6 +261,8 @@ function FixtureScoreForm({
 }) {
   const [home, setHome] = useState(existing?.homeGoals ?? 0);
   const [away, setAway] = useState(existing?.awayGoals ?? 0);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   const save = () => {
     const homeOutcome: TeamOutcome = {
@@ -197,11 +277,18 @@ function FixtureScoreForm({
       goalsFor: away,
       goalsAgainst: home,
     };
-    upsertFixtureScore(
+    setBusy(true);
+    setErr(null);
+    void upsertFixtureScore(
       GAMEWEEK.id,
-      { fixtureId: fixture.id, homeGoals: home, awayGoals: away, final: true },
+      {
+        fixtureId: fixtureKey(fixture.homeTeamId, fixture.awayTeamId),
+        homeGoals: home, awayGoals: away, final: true,
+      },
       [homeOutcome, awayOutcome],
-    );
+    )
+      .catch((e: unknown) => setErr(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')))
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -219,11 +306,14 @@ function FixtureScoreForm({
       />
       <button
         onClick={save}
-        className="tap rounded-full bg-gold/90 px-3 py-1.5 text-xs font-black text-night"
+        disabled={busy}
+        className="tap rounded-full bg-gold/90 px-3 py-1.5 text-xs font-black text-gold-ink
+                   disabled:opacity-50"
       >
-        שמירה
+        {busy ? '…' : 'שמירה'}
       </button>
-      {existing?.final && <span className="text-xs text-gold">✓</span>}
+      {existing?.final && !err && <span className="text-xs text-gold">✓</span>}
+      {err && <span className="text-[11px] text-flare">{err}</span>}
     </div>
   );
 }
@@ -270,9 +360,21 @@ function PlayerStatRow({
   const [perf, setPerf] = useState<PlayerPerformance>(existing ?? emptyPerf(playerId, teamId, position));
   const [expanded, setExpanded] = useState(false);
 
+  const [err, setErr] = useState<string | null>(null);
+
+  /**
+   * ★ המסך מתעדכן מיד, השרת אחריו.
+   *
+   * הזנת סטטיסטיקה היא עשרות שדות ברצף. לחכות לשרת אחרי כל תו
+   * הופך את המסך לבלתי שמיש. לכן העדכון המקומי מיידי, והכישלון —
+   * אם יש — מוצג ליד השורה עצמה ולא כהודעה גלובלית שאי אפשר לקשר
+   * לשום שדה.
+   */
   const save = (next: PlayerPerformance) => {
     setPerf(next);
-    upsertPerformance(gameweekId, next);
+    setErr(null);
+    void upsertPerformance(gameweekId, next)
+      .catch((e: unknown) => setErr(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')));
   };
 
   const active = perf.played || perf.minutes > 0 || perf.goals > 0 || perf.assists > 0
@@ -293,6 +395,7 @@ function PlayerStatRow({
           </span>
           <span className="truncate">{name}</span>
         </span>
+        {err && <span className="shrink-0 text-[10px] text-flare">שגיאה</span>}
         {active && (
           <span className="num shrink-0 text-gold">
             {perf.goals > 0 && `⚽${perf.goals} `}

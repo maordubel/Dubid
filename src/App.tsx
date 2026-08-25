@@ -19,6 +19,7 @@ import { DubelCredit } from './components/DubelCredit.tsx';
 import { ShadesDivider } from './components/Shades.tsx';
 import { usePromo } from './state/usePromo.ts';
 import { DUBID_URL, type GrowthContext } from './lib/growth.ts';
+import { OffsidesHero, OffsidesInline, OffsidesRail } from './components/OffsidesAds.tsx';
 import { GameweekStatus, type Gameweek } from './lib/gameweek.ts';
 import { serverNow } from './lib/serverTime.ts';
 import { SquadPicker, type PoolPlayer, type TeamMeta } from './components/SquadPicker.tsx';
@@ -442,6 +443,7 @@ function MainApp() {
               ? scoreLineup(entry.lineup, results.performances, results.outcomes, rules, { validate: false })
               : undefined}
             gameweekLabel={GAMEWEEK.label}
+            gameweekNumber={GAMEWEEK.number}
             submittedAt={entry.submittedAt}
             onUnlock={!results.published ? () => {
               if (window.confirm('לבטל את ההגשה ולחזור לעריכת ההרכב? ההגשה הנוכחית תימחק.')) {
@@ -814,7 +816,33 @@ function CardScreen({
     };
   }, [ready, showDemo, hasRealResults, results, lineup, pool, teams, rules, entry]);
 
-  if (data) return <ShareCard data={data} />;
+  if (data) {
+    return (
+      <div className="mx-auto max-w-lg px-4 pb-6">
+        <ShareCard data={data} />
+
+        {/* ═══════════ הרגע החזק ביותר בתוכנית ═══════════
+            המשתמש בדיוק ראה כמה עשה. יש רגש טרי — ניצחון או
+            הפסד, ושניהם עובדים — ואין לו שום משימה פתוחה. זה
+            המסך היחיד שבו כרזה בגודל מלא היא המשך ולא הפרעה. */}
+        <OffsidesHero
+          className="mt-5"
+          placement="card"
+          gameweekNumber={GAMEWEEK.number}
+          headline={data.rank === 1
+            ? 'מקום ראשון. עכשיו בלי שבוע להתכונן.'
+            : 'הריוונג׳ כאן הוא בעוד שבוע. שם — הערב.'}
+          body="אותם משחקים, ניחושים חיים, זירות מול החברים שלכם."
+        />
+
+        <OffsidesInline
+          placement="card"
+          gameweekNumber={GAMEWEEK.number}
+          className="mt-3 text-center"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="grid h-full place-items-center px-6 text-center">
@@ -987,6 +1015,16 @@ function RulesScreen() {
         אחרת היה משתלם לבחור שחקנים שלא במשחק. הבונוס כבוי כשיש פחות
         מ-<span className="num">20</span> משתתפים, כי אז "נדיר" לא אומר כלום.
       </p>
+
+      <ShadesDivider className="my-7 px-8" />
+
+      {/* ★ שורת טקסט ולא באנר.
+          מסך החוקים הוא הרגע הקר ביותר במוצר — המשתמש קורא, הוא
+          לא מחליט כלום, ואין לו רגש. באנר כאן היה מוקפץ; משפט
+          שממשיך את מה שהוא כבר קורא הוא פשוט מידע נוסף. */}
+      <OffsidesInline placement="rules" gameweekNumber={GAMEWEEK.number} className="px-1" />
+
+      <OffsidesRail placement="rules" gameweekNumber={GAMEWEEK.number} className="mt-4" />
 
       <ShadesDivider className="my-7 px-8" />
 

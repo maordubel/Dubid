@@ -29,12 +29,16 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { standings, inviteUrl, JOIN_ERROR_HE, type MemberGameweek, type StandingRow }
   from '../lib/leagues.ts';
-import { createLeague, joinByCode, listMembers, myLeagues } from '../lib/leagueStore.ts';
+import {
+  createLeague, joinByCode, listMembers, myLeagues,
+  hydrateLeagues, leagueMessageHe,
+} from '../lib/leagueStore.ts';
 import { listEntries, getResults, subscribeToStore } from '../lib/store.ts';
 import { scoreLineup } from '../lib/scoring/engine.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import { GAMEWEEK } from '../data/fixtures.ts';
 import { Table, type Column } from './Table.tsx';
+import { OffsidesInline } from './OffsidesAds.tsx';
 import { ShadesDivider } from './Shades.tsx';
 
 const MODE_LABEL: Record<'full' | 'five', string> = { full: 'דוביד 11', five: 'דוביד 5' };
@@ -48,6 +52,10 @@ export interface ArenaProps {
 
 export function Arena({ userId, displayName, rulesByMode, origin }: ArenaProps) {
   const [, force] = useState(0);
+  // ★ הזירות נטענות מהשרת בכניסה למסך. `subscribeToStore` כבר
+  //   מאזין לאותו אירוע שה-hydrate משדר, ולכן אין כאן state נוסף.
+  useEffect(() => { void hydrateLeagues(); }, []);
+
   useEffect(() => subscribeToStore(() => force((n) => n + 1)), []);
 
   const leagues = myLeagues(userId);
@@ -116,6 +124,16 @@ function ArenaEmpty({ userId, displayName }: { userId: string; displayName: stri
       </div>
 
       <ArenaActions userId={userId} displayName={displayName} onDone={() => {}} />
+
+      {/* ★ הקהל הכי חם במוצר.
+          מי שפתח זירה כבר עשה את הפעולה שאנחנו מבקשים באופסיידס
+          — הזמין חברים והתחרה מולם. המשפט לא מסביר מה זו זירה;
+          הוא מציע את אותה זירה בקצב אחר. */}
+      <OffsidesInline
+        placement="arena"
+        gameweekNumber={GAMEWEEK.number}
+        className="mt-5"
+      />
     </div>
   );
 }
@@ -137,17 +155,32 @@ function ArenaActions({
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [mode, setMode] = useState<'full' | 'five'>('five');
+  /**
+   * ★ `busy` נולד ברגע שהזירות עברו לשרת.
+   *
+   * הצטרפות היא עכשיו הלוך-ושוב. בלי נעילה, לחיצה כפולה שולחת
+   * שתי בקשות — והשנייה חוזרת `ALREADY_MEMBER`, כלומר המשתמש
+   * מצטרף בהצלחה ורואה הודעת שגיאה.
+   */
+  const [busy, setBusy] = useState(false);
 
   const submitJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    const res = joinByCode(code, userId, displayName || 'אנונימי');
-    if (!res.ok) {
-      setError(res.error ? JOIN_ERROR_HE[res.error] : 'לא הצלחנו לצרף');
-      return;
-    }
+    if (busy) return;
+    setBusy(true);
     setError(null);
-    setCode('');
-    if (res.league) onDone(res.league.id);
+    void joinByCode(code, userId, displayName || 'אנונימי')
+      .then((res) => {
+        if (!res.ok) {
+          setError(res.error ? JOIN_ERROR_HE[res.error] : 'לא הצלחנו לצרף');
+          return;
+        }
+        setCode('');
+        if (res.league) onDone(res.league.id);
+      })
+      .catch((err: unknown) =>
+        setError(leagueMessageHe(err instanceof Error ? err.message : 'NETWORK')))
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -176,10 +209,12 @@ function ArenaActions({
           />
           <button
             type="submit"
-            className="tap h-12 shrink-0 rounded-xl bg-gold px-5 font-poster text-base text-night
-                       transition-transform duration-200 ease-brand active:scale-[.98]"
+            disabled={busy || code.trim().length < 6}
+            className="tap h-12 shrink-0 rounded-xl bg-gradient-to-b from-gold-light to-gold
+                       px-5 font-poster text-base text-gold-ink transition-transform
+                       duration-200 ease-brand active:scale-[.98] disabled:opacity-40"
           >
-            להצטרף
+            {busy ? '…' : 'להצטרף'}
           </button>
         </div>
         {error && <p role="alert" className="mt-2 text-[12px] font-bold text-flare">{error}</p>}
@@ -199,12 +234,16 @@ function ArenaActions({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            const lg = createLeague({
+            if (busy) return;
+            setBusy(true);
+            setError(null);
+            void createLeague({
               name, mode, ownerId: userId, ownerName: displayName || 'אנונימי',
-            });
-            setCreating(false);
-            setName('');
-            onDone(lg.id);
+            })
+              .then((lg) => { setCreating(false); setName(''); onDone(lg.id); })
+              .catch((err: unknown) =>
+                setError(leagueMessageHe(err instanceof Error ? err.message : 'NETWORK')))
+              .finally(() => setBusy(false));
           }}
           className="mt-2.5 rounded-2xl border border-gold/15 bg-night-2 p-4"
         >

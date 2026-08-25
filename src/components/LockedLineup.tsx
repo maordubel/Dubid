@@ -33,12 +33,14 @@
  * "קופץ" ברגע שהתוצאות נכנסות; הוא רק מתמלא במשמעות.
  */
 import { Pitch } from './Pitch.tsx';
+import { OffsidesInline } from './OffsidesAds.tsx';
 import { TeamCrest } from './TeamCrest.tsx';
 import type { PoolPlayer, TeamMeta } from './SquadPicker.tsx';
 import type { Lineup, LineupScore, LineupSlot, Position } from '../lib/scoring/types.ts';
 
 export function LockedLineup({
   lineup, pool, teams, score, gameweekLabel, submittedAt, onUnlock, onViewCard,
+  gameweekNumber = 0,
 }: {
   lineup: Lineup;
   pool: PoolPlayer[];
@@ -50,6 +52,8 @@ export function LockedLineup({
   /** מוצג רק כשמותר לבטל הגשה — כלומר לפני שהתוצאות פורסמו. */
   onUnlock?: () => void;
   onViewCard?: () => void;
+  /** מספר המחזור — לשיוך המקור בקישור לאופסיידס. */
+  gameweekNumber?: number;
 }) {
   const poolById = new Map(pool.map((p) => [p.id, p]));
   const teamById = new Map(teams.map((t) => [t.id, t]));
@@ -148,9 +152,20 @@ export function LockedLineup({
             </button>
           </>
         ) : (
-          <p className="py-1 text-center text-xs text-chalk-dim">
-            הניקוד יופיע כאן ברגע שהמחזור יסתיים ויפורסם.
-          </p>
+          <>
+            <p className="py-1 text-center text-xs text-chalk-dim">
+              הניקוד יופיע כאן ברגע שהמחזור יסתיים ויפורסם.
+            </p>
+            {/* ★ המסך היחיד שבו למשתמש **אין מה לעשות**.
+                ההרכב נעול, התוצאות לא פורסמו, והוא ממתין. משפט
+                אחד שמציע לו משהו לעשות עד השריקה הוא שירות, לא
+                הפרעה — ולכן הוא כאן ורק כאן. */}
+            <OffsidesInline
+              placement="locked"
+              gameweekNumber={gameweekNumber}
+              className="mt-1 text-center"
+            />
+          </>
         )}
       </div>
     </div>

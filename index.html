@@ -28,6 +28,26 @@
   <meta property="og:locale" content="he_IL" />
   <meta name="twitter:card" content="summary_large_image" />
 
+  <!-- ═══════════════════════════════════════════════════════════
+       Google Analytics · G-F75FRV6MMR
+
+       ★ `async` ו-`preconnect` — הסקריפט לא חוסם את הרינדור.
+         בלי ה-preconnect, הבקשה הראשונה ל-googletagmanager משלמת
+         DNS + TLS מלאים בדיוק בשנייה שבה המסך הראשון נטען.
+
+       ⚠ אין כאן מסך הסכמה (consent). לתעבורה ישראלית זה מקובל;
+         אם תגיע תעבורה מהאיחוד האירופי, GA4 דורש Consent Mode —
+         זו הוספה נפרדת ולא שורה בקובץ הזה.
+       ═══════════════════════════════════════════════════════════ -->
+  <link rel="preconnect" href="https://www.googletagmanager.com" />
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-F75FRV6MMR"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-F75FRV6MMR');
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Assistant:wght@400;600;700&family=Heebo:wght@400;700;900&display=swap" rel="stylesheet" />
