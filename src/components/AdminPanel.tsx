@@ -16,7 +16,7 @@ import {
   tryAdminLogin, isAdminSession, adminLogout, subscribeToStore,
   isDatabaseAdmin, errorMessageHe, hydrate,
   claimAdmin, releaseAdmin, runHealthChecks,
-  ADMIN_ERROR_HE, type HealthCheck,
+  adminMessageHe, type HealthCheck,
 } from '../lib/store.ts';
 import type { PlayerPerformance, Position, TeamOutcome } from '../lib/scoring/types.ts';
 import { AdminSquads } from './AdminSquads.tsx';
@@ -460,6 +460,16 @@ function AdminLogin({ onIn, onExit }: { onIn: () => void; onExit: () => void }) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [triesLeft, setTriesLeft] = useState<number | null>(null);
+  /**
+   * ★ מסך כניסה שאפשר להיתקע בו הוא מסך שבור.
+   *
+   * הגרסה הראשונה הציגה "השרת לא ענה" ונגמרה שם. בדיקת המערכת
+   * הייתה **בתוך** לוח הניהול — כלומר מעבר לדלת שלא נפתחת.
+   * מי שהסיבה שלו היא סכימה לא חשופה לא יכול היה לגלות את זה.
+   *
+   * עכשיו הבדיקות זמינות מהמסך הזה, בלי להיכנס.
+   */
+  const [showHealth, setShowHealth] = useState(false);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -475,16 +485,43 @@ function AdminLogin({ onIn, onExit }: { onIn: () => void; onExit: () => void }) 
 
       if (res.ok) { onIn(); return; }
 
-      if (!localOk && res.error === 'NETWORK') {
-        setError(ADMIN_ERROR_HE.BAD_SECRET);
-      } else {
-        setError(ADMIN_ERROR_HE[res.error ?? 'NETWORK'] ?? ADMIN_ERROR_HE.NETWORK);
-      }
+      // סיסמה שגויה מקומית **וגם** השרת לא ענה → זו כנראה באמת
+      // סיסמה שגויה, ואין טעם להאשים את השרת.
+      const code = !localOk && res.error === 'NETWORK' ? 'BAD_SECRET' : (res.error ?? 'NETWORK');
+      setError(adminMessageHe(code));
       setTriesLeft(res.triesLeft ?? null);
+      // תקלת תשתית → פותחים את הבדיקות מיד. הוא ממילא הולך לשם.
+      if (code !== 'BAD_SECRET' && code !== 'LOCKED') setShowHealth(true);
       setPin('');
       setBusy(false);
     })();
   };
+
+  if (showHealth) {
+    return (
+      <div dir="rtl" className="tex-wood h-[100dvh] overflow-y-auto px-5 py-6 text-chalk">
+        <div className="mx-auto max-w-md">
+          <div className="mb-4 flex items-center gap-3">
+            <LogoMark size={34} />
+            <div className="flex-1">
+              <h1 className="font-display text-lg font-black">בדיקת מערכת</h1>
+              <p className="text-[11px] text-chalk-dim">
+                מה חסר כדי שהשרת יעבוד
+              </p>
+            </div>
+            <button
+              onClick={() => { setShowHealth(false); setError(null); }}
+              className="tap rounded-full border border-gold/30 px-3 py-1.5 text-[12px]
+                         font-bold text-gold-light"
+            >
+              חזרה
+            </button>
+          </div>
+          <AdminHealth />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div dir="rtl" className="tex-wood grid h-[100dvh] place-items-center px-6 text-chalk">
@@ -510,7 +547,7 @@ function AdminLogin({ onIn, onExit }: { onIn: () => void; onExit: () => void }) 
         />
 
         {error && (
-          <p role="alert" className="mt-2 text-center text-[12px] font-bold text-flare">
+          <p role="alert" className="mt-2 text-center text-[12px] font-bold leading-snug text-flare">
             {error}
             {triesLeft !== null && triesLeft > 0 && (
               <span className="ms-1 font-normal text-chalk-dim">
@@ -529,10 +566,19 @@ function AdminLogin({ onIn, onExit }: { onIn: () => void; onExit: () => void }) 
           {busy ? 'בודק…' : 'כניסה'}
         </button>
 
+        {/* ★ תמיד זמין, לא רק אחרי כישלון. */}
+        <button
+          type="button"
+          onClick={() => setShowHealth(true)}
+          className="mt-4 w-full text-center text-[12px] text-gold-light underline underline-offset-2"
+        >
+          בדיקת מערכת — מה חסר בשרת
+        </button>
+
         <button
           type="button"
           onClick={onExit}
-          className="mt-3 w-full text-center text-[12px] text-chalk-dim underline underline-offset-2"
+          className="mt-2 w-full text-center text-[12px] text-chalk-dim underline underline-offset-2"
         >
           חזרה לאפליקציה
         </button>

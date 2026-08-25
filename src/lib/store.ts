@@ -775,7 +775,18 @@ export async function adminSetPlayerStatus(
  */
 export interface AdminClaimResult {
   ok: boolean;
-  error?: 'BAD_SECRET' | 'LOCKED' | 'AUTH_REQUIRED' | 'NO_SECRET_CONFIGURED' | 'NETWORK';
+  /**
+   * ★ הקוד המדויק, לא "NETWORK" גורף.
+   *
+   * הגרסה הראשונה מיפתה **כל** שגיאה שאינה "המיגרציה חסרה"
+   * ל-`NETWORK`, והציגה "השרת לא ענה. בדקו חיבור ונסו שוב."
+   * זה שלח לחפש בעיית רשת כשהבעיה הייתה סכימה לא חשופה או
+   * כניסת אורחים כבויה — והשאיר את המשתמש בלי דרך להתקדם,
+   * כי אי אפשר להיכנס כדי לראות את בדיקת המערכת.
+   *
+   * עכשיו הקוד עובר כמו שהוא, והמסך יודע להסביר אותו.
+   */
+  error?: string;
   triesLeft?: number;
   retryInSeconds?: number;
 }
@@ -785,14 +796,17 @@ export async function claimAdmin(secret: string): Promise<AdminClaimResult> {
     await ensureIdentity();
     const { data, error } = await supabase.rpc('claim_admin', { p_secret: secret });
     if (error) {
-      // הפונקציה לא קיימת = db/12 לא רץ. הודעה מדויקת עדיפה על
-      // "סיסמה שגויה", שהיא שקר שישלח אותך לחפש במקום הלא נכון.
-      return { ok: false, error: errorCode(error) === 'MIGRATION_MISSING'
-        ? 'NO_SECRET_CONFIGURED' : 'NETWORK' };
+      const code = errorCode(error);
+      return {
+        ok: false,
+        // הפונקציה לא קיימת = db/12 לא רץ. הודעה מדויקת עדיפה
+        // על "סיסמה שגויה", שהיא שקר שישלח לחפש במקום הלא נכון.
+        error: code === 'MIGRATION_MISSING' ? 'NO_SECRET_CONFIGURED' : code,
+      };
     }
     return (data ?? { ok: false, error: 'NETWORK' }) as AdminClaimResult;
-  } catch {
-    return { ok: false, error: 'NETWORK' };
+  } catch (err) {
+    return { ok: false, error: errorCode(err) };
   }
 }
 
@@ -804,9 +818,16 @@ export const ADMIN_ERROR_HE: Record<string, string> = {
   BAD_SECRET: 'סיסמה שגויה.',
   LOCKED: 'יותר מדי ניסיונות. נסו שוב בעוד כמה דקות.',
   AUTH_REQUIRED: 'אין זהות פעילה. רעננו את הדף.',
-  NO_SECRET_CONFIGURED: 'הסיסמה לא הוגדרה במסד — צריך להריץ את db/12_admin_access.sql.',
-  NETWORK: 'השרת לא ענה. בדקו חיבור ונסו שוב.',
+  NO_SECRET_CONFIGURED: 'המסד לא הוגדר עדיין. צריך להריץ את db/RUN-ALL.sql.',
 };
+
+/**
+ * ההודעה למסך הכניסה. נופלת ל-`ERROR_HE` הכללי, שכבר יודע
+ * להסביר סכימה לא חשופה, אורחים כבויים, והרשאות.
+ */
+export function adminMessageHe(code: string): string {
+  return ADMIN_ERROR_HE[code] ?? errorMessageHe(code);
+}
 
 /* ================================================================== */
 /* בדיקת מערכת                                                         */
