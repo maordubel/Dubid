@@ -241,7 +241,19 @@ CREATE TABLE IF NOT EXISTS core.weekly_matches (
 CREATE INDEX IF NOT EXISTS weekly_matches_gw ON core.weekly_matches (gameweek_id, kickoff_at);
 
 -- תוצאה מנקודת מבט של קבוצה - מייתר CASE כפול בכל שאילתה
-CREATE OR REPLACE VIEW core.v_team_match_results AS
+-- ★ `DROP` ולא `CREATE OR REPLACE`.
+--
+--   PostgreSQL לא מרשה ל-`CREATE OR REPLACE VIEW` לשנות את
+--   רשימת העמודות — רק להוסיף בסוף. מיגרציה מאוחרת שהרחיבה
+--   תצוגה, ואז הרצה חוזרת של המיגרציה המוקדמת שמצמצמת אותה
+--   בחזרה, נופלת על:
+--
+--       ERROR: 42P16: cannot drop columns from view
+--
+--   וזה קורה בפועל: הקבצים אידמפוטנטיים, ולכן טבעי להריץ אותם
+--   שוב בסדר כלשהו. `DROP` הופך את הסדר ללא רלוונטי.
+DROP VIEW IF EXISTS core.v_team_match_results;
+CREATE VIEW core.v_team_match_results AS
 SELECT m.id AS match_id, m.gameweek_id, m.status,
        m.home_team_id AS team_id, m.away_team_id AS opponent_id,
        m.home_goals AS goals_for, m.away_goals AS goals_against,
@@ -414,7 +426,19 @@ CREATE INDEX IF NOT EXISTS lineup_scores_leaderboard ON game.lineup_scores (game
 -- =====================================================================
 -- 8. שאילתת עזר: סגל פעיל עם שמות בשתי השפות
 -- =====================================================================
-CREATE OR REPLACE VIEW core.v_active_squads AS
+-- ★ `DROP` ולא `CREATE OR REPLACE`.
+--
+--   PostgreSQL לא מרשה ל-`CREATE OR REPLACE VIEW` לשנות את
+--   רשימת העמודות — רק להוסיף בסוף. מיגרציה מאוחרת שהרחיבה
+--   תצוגה, ואז הרצה חוזרת של המיגרציה המוקדמת שמצמצמת אותה
+--   בחזרה, נופלת על:
+--
+--       ERROR: 42P16: cannot drop columns from view
+--
+--   וזה קורה בפועל: הקבצים אידמפוטנטיים, ולכן טבעי להריץ אותם
+--   שוב בסדר כלשהו. `DROP` הופך את הסדר ללא רלוונטי.
+DROP VIEW IF EXISTS core.v_active_squads;
+CREATE VIEW core.v_active_squads AS
 SELECT s.season_id, s.team_id,
        t.names #>> '{he,full}' AS team_he,
        t.names #>> '{en,full}' AS team_en,

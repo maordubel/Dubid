@@ -81,7 +81,19 @@ END $$;
 --  מצפה לו — בשקט, בלי שגיאה.
 --
 --  התצוגה נשארת בפרויקט. כדאי להריץ עליה SELECT אחרי כל שחזור.
-CREATE OR REPLACE VIEW shared.name_collisions AS
+-- ★ `DROP` ולא `CREATE OR REPLACE`.
+--
+--   PostgreSQL לא מרשה ל-`CREATE OR REPLACE VIEW` לשנות את
+--   רשימת העמודות — רק להוסיף בסוף. מיגרציה מאוחרת שהרחיבה
+--   תצוגה, ואז הרצה חוזרת של המיגרציה המוקדמת שמצמצמת אותה
+--   בחזרה, נופלת על:
+--
+--       ERROR: 42P16: cannot drop columns from view
+--
+--   וזה קורה בפועל: הקבצים אידמפוטנטיים, ולכן טבעי להריץ אותם
+--   שוב בסדר כלשהו. `DROP` הופך את הסדר ללא רלוונטי.
+DROP VIEW IF EXISTS shared.name_collisions;
+CREATE VIEW shared.name_collisions AS
 WITH dubid_public AS (
   -- כל מה שדוביד יצר ב-public. נכון להיום: server_now בלבד.
   SELECT 'server_now'::TEXT AS obj_name, 'function'::TEXT AS obj_kind
@@ -210,7 +222,19 @@ COMMENT ON FUNCTION public.pending_rewards() IS
 -- ---------------------------------------------------------------------
 -- 5. תצוגת בריאות
 -- ---------------------------------------------------------------------
-CREATE OR REPLACE VIEW shared.integration_health AS
+-- ★ `DROP` ולא `CREATE OR REPLACE`.
+--
+--   PostgreSQL לא מרשה ל-`CREATE OR REPLACE VIEW` לשנות את
+--   רשימת העמודות — רק להוסיף בסוף. מיגרציה מאוחרת שהרחיבה
+--   תצוגה, ואז הרצה חוזרת של המיגרציה המוקדמת שמצמצמת אותה
+--   בחזרה, נופלת על:
+--
+--       ERROR: 42P16: cannot drop columns from view
+--
+--   וזה קורה בפועל: הקבצים אידמפוטנטיים, ולכן טבעי להריץ אותם
+--   שוב בסדר כלשהו. `DROP` הופך את הסדר ללא רלוונטי.
+DROP VIEW IF EXISTS shared.integration_health;
+CREATE VIEW shared.integration_health AS
 SELECT
   (to_regnamespace('core')   IS NOT NULL) AS core_schema,
   (to_regnamespace('game')   IS NOT NULL) AS game_schema,

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex, nofollow" />
+<title>לוח ניהול · דוביד</title>
+
+<!--
+  ═══════════════════════════════════════════════════════════════
+  ★ למה הקובץ הזה קיים, ולמה הוא לא סתם rewrite
+  ═══════════════════════════════════════════════════════════════
+
+  `/admin` החזיר 404 בייצור. `vercel.json` כן מכיל
+  `rewrites: /(.*) → /index.html`, אבל הוא לא נכנס לתוקף — וזה
+  יכול לקרות מכמה סיבות שקשה להבחין ביניהן מבחוץ: Root Directory
+  שמוגדר אחרת בפרויקט, framework preset שדורס, או פריסה שלא
+  קלטה את הקובץ.
+
+  ★ הפתרון: להפסיק להיות תלוי בזה.
+
+  זהו **קובץ אמיתי**. `Vite` מעתיק את `public/` לשורש ה-build,
+  ולכן `/admin` מקבל תשובה מהדיסק — בלי rewrite, בלי הגדרה,
+  ובכל שרת סטטי שקיים. עלות: קפיצה אחת של כמה עשרות מילישניות.
+
+  ⚠ אם משנים את `#admin` באפליקציה — לשנות גם כאן.
+
+  שני קבצים זהים מכוסים בכוונה:
+      public/admin.html         ← מוגש כש-`cleanUrls: true`
+      public/admin/index.html   ← מוגש בשרתים שמצפים לתיקייה
+  ═══════════════════════════════════════════════════════════════
+-->
+
+<script>
+  /* ★ `replace` ולא `href`: הקפיצה לא נכנסת להיסטוריה, ולכן
+     "אחורה" מהאפליקציה חוזר לאתר שהמשתמש הגיע ממנו ולא
+     ללולאה אינסופית דרך הדף הזה. */
+  location.replace('/#admin');
+</script>
+
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; height: 100%;
+    background: #0C0A08;
+    color: #8B7F6A;
+    font-family: Assistant, Heebo, system-ui, sans-serif;
+  }
+  .wrap {
+    height: 100%;
+    display: grid; place-items: center;
+    gap: 14px; grid-auto-flow: row;
+    text-align: center;
+  }
+  .ring {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 2px solid rgba(216, 178, 92, .18);
+    border-top-color: #D8B25C;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  a { color: #F0D693; }
+  /* מכבדים העדפת תנועה מופחתת — הסיבוב אינו מידע. */
+  @media (prefers-reduced-motion: reduce) { .ring { animation: none; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="ring" aria-hidden="true"></div>
+    <p style="font-size:13px;margin:0">פותח את לוח הניהול…</p>
+    <noscript>
+      <p style="font-size:13px">
+        נדרש JavaScript. <a href="/#admin">להמשיך ללוח הניהול</a>
+      </p>
+    </noscript>
+  </div>
+</body>
+</html>

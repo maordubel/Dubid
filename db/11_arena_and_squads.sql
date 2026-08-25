@@ -464,7 +464,19 @@ GRANT EXECUTE ON FUNCTION game.admin_squads() TO authenticated;
 -- =====================================================================
 -- §7 בדיקת בריאות
 -- =====================================================================
-CREATE OR REPLACE VIEW game.v_arena_health AS
+-- ★ `DROP` ולא `CREATE OR REPLACE`.
+--
+--   PostgreSQL לא מרשה ל-`CREATE OR REPLACE VIEW` לשנות את
+--   רשימת העמודות — רק להוסיף בסוף. מיגרציה מאוחרת שהרחיבה
+--   תצוגה, ואז הרצה חוזרת של המיגרציה המוקדמת שמצמצמת אותה
+--   בחזרה, נופלת על:
+--
+--       ERROR: 42P16: cannot drop columns from view
+--
+--   וזה קורה בפועל: הקבצים אידמפוטנטיים, ולכן טבעי להריץ אותם
+--   שוב בסדר כלשהו. `DROP` הופך את הסדר ללא רלוונטי.
+DROP VIEW IF EXISTS game.v_arena_health;
+CREATE VIEW game.v_arena_health AS
 SELECT
   (SELECT count(*) FROM game.leagues)                          AS leagues,
   (SELECT count(*) FROM game.league_members)                   AS memberships,
@@ -716,7 +728,19 @@ $fix$;
 -- ---------------------------------------------------------------------
 -- בדיקת בריאות מורחבת
 -- ---------------------------------------------------------------------
-CREATE OR REPLACE VIEW game.v_accounts_health AS
+-- ★ `DROP` ולא `CREATE OR REPLACE`.
+--
+--   PostgreSQL לא מרשה ל-`CREATE OR REPLACE VIEW` לשנות את
+--   רשימת העמודות — רק להוסיף בסוף. מיגרציה מאוחרת שהרחיבה
+--   תצוגה, ואז הרצה חוזרת של המיגרציה המוקדמת שמצמצמת אותה
+--   בחזרה, נופלת על:
+--
+--       ERROR: 42P16: cannot drop columns from view
+--
+--   וזה קורה בפועל: הקבצים אידמפוטנטיים, ולכן טבעי להריץ אותם
+--   שוב בסדר כלשהו. `DROP` הופך את הסדר ללא רלוונטי.
+DROP VIEW IF EXISTS game.v_accounts_health;
+CREATE VIEW game.v_accounts_health AS
 SELECT
   count(*)                                             AS users_total,
   count(*) FILTER (WHERE is_guest)                     AS guests,

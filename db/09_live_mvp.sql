@@ -169,7 +169,19 @@ RETURNS UUID LANGUAGE sql STABLE AS $$
 $$;
 
 /* הכיוון ההפוך, כ-view — כדי שאפשר יהיה לצרף אותו בשאילתה. */
-CREATE OR REPLACE VIEW core.v_ext AS
+-- ★ `DROP` ולא `CREATE OR REPLACE`.
+--
+--   PostgreSQL לא מרשה ל-`CREATE OR REPLACE VIEW` לשנות את
+--   רשימת העמודות — רק להוסיף בסוף. מיגרציה מאוחרת שהרחיבה
+--   תצוגה, ואז הרצה חוזרת של המיגרציה המוקדמת שמצמצמת אותה
+--   בחזרה, נופלת על:
+--
+--       ERROR: 42P16: cannot drop columns from view
+--
+--   וזה קורה בפועל: הקבצים אידמפוטנטיים, ולכן טבעי להריץ אותם
+--   שוב בסדר כלשהו. `DROP` הופך את הסדר ללא רלוונטי.
+DROP VIEW IF EXISTS core.v_ext;
+CREATE VIEW core.v_ext AS
   SELECT entity_type, entity_id, external_id
     FROM core.external_refs WHERE provider = 'manual_json';
 
@@ -795,7 +807,19 @@ $seed$;
 -- =====================================================================
 -- בדיקת שפיות אחת שאומרת אם הכל עלה
 -- =====================================================================
-CREATE OR REPLACE VIEW game.v_health AS
+-- ★ `DROP` ולא `CREATE OR REPLACE`.
+--
+--   PostgreSQL לא מרשה ל-`CREATE OR REPLACE VIEW` לשנות את
+--   רשימת העמודות — רק להוסיף בסוף. מיגרציה מאוחרת שהרחיבה
+--   תצוגה, ואז הרצה חוזרת של המיגרציה המוקדמת שמצמצמת אותה
+--   בחזרה, נופלת על:
+--
+--       ERROR: 42P16: cannot drop columns from view
+--
+--   וזה קורה בפועל: הקבצים אידמפוטנטיים, ולכן טבעי להריץ אותם
+--   שוב בסדר כלשהו. `DROP` הופך את הסדר ללא רלוונטי.
+DROP VIEW IF EXISTS game.v_health;
+CREATE VIEW game.v_health AS
 SELECT
   (SELECT count(*) FROM core.teams)                                   AS teams,
   (SELECT count(*) FROM core.players)                                 AS players,
