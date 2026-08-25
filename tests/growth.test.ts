@@ -141,5 +141,5 @@ test('★ הקישור נושא שיוך מלא ובלי מזהה אישי', () 
 });
 
 test('הקישור מצביע על אופסיידס ולא על משהו אחר', () => {
-  assert.equal(new URL(offsidesUrl('idle', 'lobby', 1)).host, 'offsidebets.dubel.team');
+  assert.equal(new URL(offsidesUrl('idle', 'lobby', 1)).host, 'offsides.dubelteam.com');
 });

@@ -48,6 +48,7 @@ db/05_gameweek_lock.sql       נעילה סמכותית + server_now
 db/06_private_leagues.sql     זירות
 db/07_shared_supabase.sql     הרשאות + פרופיל
 db/09_live_mvp.sql            ★ המשחק החי
+db/10_accounts.sql            ★ חשבונות: הרשמה, אורחים, שמות משתמש
 ```
 
 > **08 לא רץ.** `db/08_offsides_coexistence.sql` נכתב לפרויקט
@@ -63,6 +64,14 @@ SELECT * FROM game.v_health;
 ```
 
 מצופה: `teams=14 · players=351 · coded_gameweeks=1 · matches=7 · id_mappings=366`.
+
+```sql
+SELECT * FROM game.v_accounts_health;
+```
+
+מצופה: `missing_username=0 · duplicate_usernames=0`.
+
+**הגדרות ה-Auth** (ספקים, גוגל, `emailRedirectTo`): `docs/AUTH.md`.
 
 ### להפוך את עצמך לאדמין
 
@@ -172,7 +181,12 @@ npm run deploy:edge          # dubid-score-gameweek
 psql -d dubid_test -f db/tests/00_supabase_shim.sql
 for f in db/0{1,2,3,4,5,6,7}_*.sql db/09_*.sql; do psql -d dubid_test -v ON_ERROR_STOP=1 -f $f; done
 psql -d dubid_test -v ON_ERROR_STOP=1 -f db/tests/01_live_flow.sql
+psql -d dubid_test -v ON_ERROR_STOP=1 -f db/tests/02_accounts.sql
 ```
+
+שני קובצי הבדיקה מנקים את הפיקסצ׳רים שלהם בתחילת הריצה, ולכן
+אפשר להריץ אותם שוב ושוב ובכל סדר. בדיקה שאפשר להריץ רק פעם אחת
+על מסד נקי היא בדיקה שלא מריצים.
 
 `00_supabase_shim.sql` מחקה `auth.uid()`, `auth.users` והתפקידים.
 `01_live_flow.sql` עובר את כל המסלול ונכשל בהודעה מפורשת:
@@ -190,6 +204,17 @@ psql -d dubid_test -v ON_ERROR_STOP=1 -f db/tests/01_live_flow.sql
 ✓ 10 מצב המחזור
 ```
 
+```
+✓ 1  אורח נכנס בלי שום שדה — ומקבל פרופיל תקין
+✓ 2  שלוש הרשמות עם אותו חלק־מייל — שלושתן עוברות
+✓ 3  שם בעברית + אווטאר + קוד הפניה — נשמרים מהטופס
+✓ 4  שם תפוס → סיומת מה-PK. הראשון שומר על שמו
+✓ 5  username_available — קצר, ריק, ותפוס נדחים
+✓ 6  game.me() מחזיר מצב חשבון — ולא מייל
+✓ 7  אורח שנרשם — אותה שורה, אותו id
+✓ 8  suggest_username — תמיד מחזיר שם פנוי
+```
+
 ⚠ **אל תריצו את ה-shim על ייצור.** הוא יוצר `auth.uid()` שאפשר
 לזייף — זו המטרה שלו, וזו הסיבה שאסור.
 
@@ -199,9 +224,11 @@ psql -d dubid_test -v ON_ERROR_STOP=1 -f db/tests/01_live_flow.sql
 
 ```
 src/lib/supabase.ts    שני לקוחות: דוביד (מלא) ואופסיידס (auth בלבד)
-src/lib/identity.ts    אורח · קוד חד־פעמי · קישור אופסיידס
+src/lib/identity.ts    אורח · קוד חד־פעמי · הרשמה · קישור אופסיידס
+src/lib/nudge.ts       מתי מציעים להירשם (טהור, נבדק)
 src/lib/store.ts       תמונת מצב בזיכרון + RPC + realtime
 src/lib/leaderboard.ts צינור הדירוג (טהור, נבדק)
+src/lib/growth.ts      הדומיינים + הפרסומת לאופסיידס
 ```
 
 ### למה הקריאות נשארו סינכרוניות
@@ -228,6 +255,8 @@ src/lib/leaderboard.ts צינור הדירוג (טהור, נבדק)
 | לכתוב לטבלאות ישירות מהקליינט | עוקף את הנעילה. יש `submit_entry` |
 | לשים `service_role` ב-`src/` | הוא נשלח לדפדפן |
 | להריץ את `db/08` על הפרויקט הזה | נכתב לארכיטקטורה שכבר לא קיימת |
+| לכבות Anonymous sign-ins | אין אורחים, ואין מוצר |
+| לגזור סיומת שם משתמש מארבעה תווים | מתנגש. `docs/AUTH.md` §5 |
 | לתת ל-`link-offsides` לסמוך על טוקן בלי לאמת | דפדפן יכול לשלוח כל דבר |
 
 ---

@@ -4,16 +4,38 @@
  *
  * ברגע שיש הגשה (`LineupEntry`), זו התצוגה — לא ה-SquadPicker. אין
  * כאן כפתורי הוספה/הסרה/קפטן: זה תיעוד של מה שהוגש, לא עריכה חיה.
- * היחיד שמותר עד לפרסום התוצאות הוא "ביטול הגשה" מפורש (`onUnlock`),
- * שמחזיר את המשתמש לטיוטה — לא עריכה בשקט מתחת לרדאר.
+ * היחיד שמותר עד לפרסום התוצאות הוא "ביטול הגשה" מפורש (`onUnlock`).
+ *
+ * ═══════════════════════════════════════════════════════════════
+ * ★ למה המסך הזה נבנה מחדש
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * הוא היה המסך היחיד במוצר שלא ציית לשפה שלו.
+ *
+ * מסך הבחירה מצייר **מגרש** — דשא, סימונים, שחקנים בעמדות
+ * הטקטיות שלהם, הכל נכנס בגובה אחד בלי גלילה. המסך הזה צייר
+ * ארבע שורות שטוחות ("שוער", "הגנה"…) על מלבן דשא, עם לוחיות
+ * שם לבנות מהפלטה הישנה, והוא נגלל.
+ *
+ * התוצאה: אותו הרכב בדיוק נראה כמו שני דברים שונים לפני ואחרי
+ * ההגשה. משתמש שבנה 4-3-3 וראה אותו על מגרש, לחץ "שמירה", וקיבל
+ * רשימה. זה קורא כאילו משהו **נלקח** ממנו ברגע ההגשה — בדיוק
+ * ההפך מהמסר.
+ *
+ * עכשיו: אותו `<Pitch>`, אותו `fit="height"`, אותה אנטומיית
+ * כרטיס (סמל · שם · שורה שלישית). ההבדל היחיד בין המסכים הוא
+ * שכאן אי אפשר לגעת — וזה נאמר בשקט, דרך היעדר הכפתורים.
+ *
+ * ★ מה השורה השלישית מציגה
+ *
+ * לפני הפרסום — קיצור הקבוצה, בדיוק כמו במסך הבחירה.
+ * אחרי הפרסום — הנקודות של השחקן. אותה משבצת, ולכן ההרכב לא
+ * "קופץ" ברגע שהתוצאות נכנסות; הוא רק מתמלא במשמעות.
  */
-import { Jersey, jerseyMonogram } from './Jersey.tsx';
+import { Pitch } from './Pitch.tsx';
+import { TeamCrest } from './TeamCrest.tsx';
 import type { PoolPlayer, TeamMeta } from './SquadPicker.tsx';
-import type { Lineup, LineupScore, Position } from '../lib/scoring/types.ts';
-
-const POSITION_LABEL: Record<Position, string> = {
-  GK: 'שוער', DEF: 'הגנה', MID: 'קישור', FWD: 'התקפה',
-};
+import type { Lineup, LineupScore, LineupSlot, Position } from '../lib/scoring/types.ts';
 
 export function LockedLineup({
   lineup, pool, teams, score, gameweekLabel, submittedAt, onUnlock, onViewCard,
@@ -32,104 +54,101 @@ export function LockedLineup({
   const poolById = new Map(pool.map((p) => [p.id, p]));
   const teamById = new Map(teams.map((t) => [t.id, t]));
   const pointsByPlayer = new Map((score?.players ?? []).map((p) => [p.playerId, p.subtotal]));
-  const rows: Position[] = ['GK', 'DEF', 'MID', 'FWD'];
 
+  // אזור הזמן ננעל על ישראל ולא נגזר מהמכשיר — אותו באג שתוקן
+  // ב-`data/fixtures.ts`, ומאותה סיבה.
   const submittedLabel = new Date(submittedAt).toLocaleString('he-IL', {
     day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+    timeZone: 'Asia/Jerusalem',
   });
 
+  const captain = lineup.slots.find((s) => s.isCaptain);
+  const captainName = captain ? poolById.get(captain.playerId)?.nameShort : undefined;
+
   return (
-    <div className="flex h-full flex-col">
-      <div className="mx-3 mt-3 flex items-center justify-between rounded-2xl border border-gold/30
-                       bg-gold/10 px-4 py-3">
-        <div>
-          <div className="flex items-center gap-1.5 text-sm font-black text-gold">
-            <span aria-hidden>🔒</span> ההרכב הוגש ונעול
-          </div>
-          <div className="mt-0.5 text-[11px] text-chalk-dim">
-            {gameweekLabel} · הוגש ב-<span className="num">{submittedLabel}</span>
-          </div>
-        </div>
+    <div className="flex h-full min-h-0 flex-col">
+      {/* ── שורת בקרה — אותה אנטומיה כמו במסך הבחירה ──
+          שם צ׳יפים נפתחים לגיליונות; כאן הם רק מציגים. אותו גובה,
+          אותו מרווח, אותה טיפוגרפיה. */}
+      <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto px-3 py-2
+                      [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <Chip tone="lock">
+          <LockIcon /> נעול
+        </Chip>
+        <Chip>{gameweekLabel}</Chip>
+        {captainName && (
+          <Chip tone="captain">
+            קפטן · <bdi>{captainName}</bdi>
+          </Chip>
+        )}
+        <Chip>
+          הוגש <span dir="ltr" className="num">{submittedLabel}</span>
+        </Chip>
+
         {score && (
-          <div className="text-end">
-            <div className="num text-2xl font-black text-gold">{score.totalPoints}</div>
-            <div className="text-[10px] text-chalk-dim">נקודות</div>
-          </div>
+          <span className="ms-auto flex shrink-0 items-baseline gap-1 rounded-full
+                           bg-gold/12 px-2.5 py-1 ring-1 ring-inset ring-gold/30">
+            <span dir="ltr" className="num text-[15px] leading-none text-gold-light">
+              {score.totalPoints}
+            </span>
+            <span className="text-[10px] font-bold text-chalk-dim">נק׳</span>
+          </span>
         )}
       </div>
 
-      <div className="flex-1 px-3 pb-4">
-        <div className="mx-auto mt-3 w-full max-w-3xl rounded-3xl p-3 tex-turf
-                        ring-1 ring-inset ring-chalk/15">
-          {rows.map((row) => {
-            const slots = lineup.slots.filter((s) => s.position === row && !s.isBench && s.playerId);
-            if (!slots.length) return null;
+      {/* ── המגרש — כל מה שנשאר, ובלי גלילה ── */}
+      <div className="grid min-h-0 flex-1 place-items-center px-2 py-1">
+        <Pitch
+          formation={lineup.formation}
+          fit="height"
+          className="ring-1 ring-inset ring-chalk/15"
+          renderSlot={(slotNo) => {
+            const slot = lineup.slots.find((x) => x.slotNo === slotNo);
+            if (!slot?.playerId) return null;
             return (
-              <section key={row} aria-label={POSITION_LABEL[row]} className="mb-4 last:mb-1">
-                <h2 className="mb-1.5 ps-1 text-[10px] font-bold tracking-[0.2em] text-chalk/70">
-                  {POSITION_LABEL[row]}
-                </h2>
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(84px,1fr))] gap-2.5">
-                  {slots.map((slot) => {
-                    const player = poolById.get(slot.playerId);
-                    const team = teamById.get(slot.teamId);
-                    const points = pointsByPlayer.get(slot.playerId);
-                    if (!player) return null;
-                    return (
-                      <div key={slot.slotNo} className="relative flex flex-col items-center gap-1">
-                        {slot.isCaptain && (
-                          <span className="absolute -top-1 start-1 z-10 grid size-6 place-items-center
-                                            rounded-full bg-armband text-[10px] font-black text-night shadow-md">
-                            C
-                          </span>
-                        )}
-                        <Jersey teamId={team?.id} position={slot.position} monogram={jerseyMonogram(team?.short)} size={56} />
-                        {slot.isCaptain && (
-                          <span className="rounded-md bg-armband px-1.5 py-0.5 font-poster text-[10px] text-night">
-                            קפטן ×3
-                          </span>
-                        )}
-                        <div className="w-full max-w-[92px] rounded-lg bg-chalk px-1.5 py-1 text-center shadow-sm">
-                          <bdi className="line-clamp-1 text-[11px] font-black leading-tight text-night">
-                            {player.nameShort}
-                          </bdi>
-                        </div>
-                        <div className={[
-                          'w-full max-w-[92px] rounded-lg px-1.5 py-0.5 text-center text-[10px] font-bold',
-                          points !== undefined ? 'bg-gold/15 text-gold' : 'bg-night-3 text-chalk-dim',
-                        ].join(' ')}>
-                          {points !== undefined ? <span className="num" dir="ltr">{points} נק'</span> : team?.short}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
+              <LockedSlotCard
+                slot={slot}
+                player={poolById.get(slot.playerId)}
+                team={teamById.get(slot.teamId)}
+                points={pointsByPlayer.get(slot.playerId)}
+              />
             );
-          })}
-        </div>
+          }}
+        />
       </div>
 
-      <div className="sticky bottom-0 border-t border-gold/15 bg-night/95 px-4
-                      pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+      {/* ── CTA — אותו סרגל תחתון של מסך הבחירה ── */}
+      <div className="shrink-0 border-t border-gold/15 bg-night/95 px-4
+                      pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2.5 backdrop-blur">
         {score && onViewCard ? (
           <button
             onClick={onViewCard}
-            className="tap h-14 w-full rounded-full bg-gold font-poster text-xl text-night
-                       transition-transform duration-200 ease-brand active:scale-[.98]"
+            className="tap h-14 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
+                       font-poster text-xl text-gold-ink transition-transform
+                       duration-200 ease-brand active:scale-[.98]"
           >
             לצפייה בכרטיס המלא
           </button>
         ) : onUnlock ? (
-          <button
-            onClick={onUnlock}
-            className="tap h-12 w-full rounded-full border border-flare/40 text-sm font-bold text-flare
-                       transition-colors duration-200 ease-brand active:bg-flare/10"
-          >
-            ביטול הגשה ועריכה מחדש
-          </button>
+          <>
+            {/* ★ ההסבר לפני הכפתור, לא אחריו.
+                "ביטול הגשה" נשמע הרסני. מי שלא יודע שאפשר להגיש
+                שוב — לא ילחץ, וייתקע עם הרכב שהוא כבר לא רוצה. */}
+            <p className="mb-2 text-center text-[11px] leading-snug text-chalk-dim">
+              ההרכב נעול עד הדדליין. אפשר לבטל, לערוך, ולהגיש שוב —
+              כמה פעמים שרוצים.
+            </p>
+            <button
+              onClick={onUnlock}
+              className="tap h-12 w-full rounded-full border border-flare/40 text-sm
+                         font-bold text-flare transition-colors duration-200 ease-brand
+                         active:bg-flare/10"
+            >
+              ביטול הגשה ועריכה מחדש
+            </button>
+          </>
         ) : (
-          <p className="text-center text-xs text-chalk-dim">
+          <p className="py-1 text-center text-xs text-chalk-dim">
             הניקוד יופיע כאן ברגע שהמחזור יסתיים ויפורסם.
           </p>
         )}
@@ -137,3 +156,97 @@ export function LockedLineup({
     </div>
   );
 }
+
+/* ================================================================== */
+
+function Chip({
+  children, tone = 'plain',
+}: { children: React.ReactNode; tone?: 'plain' | 'lock' | 'captain' }) {
+  const cls =
+    tone === 'lock'
+      ? 'bg-gold/12 text-gold-light ring-gold/30'
+      : tone === 'captain'
+        ? 'bg-armband/15 text-armband ring-armband/30'
+        : 'bg-night-2 text-chalk-dim ring-gold/15';
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1
+                  text-[11px] font-bold ring-1 ring-inset ${cls}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * כרטיס שחקן — קריאה בלבד.
+ *
+ * ★ הפרופורציות זהות ל-`SlotCard` של מסך הבחירה: סמל ברוחב 62%
+ *   מהכרטיס, לוחית שם, ושורה שלישית. אם אחד מהם ישתנה — צריך
+ *   לשנות גם את השני, אחרת שני המסכים יתחילו להיפרד שוב.
+ */
+function LockedSlotCard({
+  slot, player, team, points,
+}: {
+  slot: LineupSlot;
+  player?: PoolPlayer;
+  team?: TeamMeta;
+  points?: number;
+}) {
+  if (!player) return null;
+
+  const cap = !!slot.isCaptain;
+  const vice = !!slot.isVice;
+
+  return (
+    <div className="flex w-full flex-col items-center gap-1">
+      <span className="relative grid w-[62%] max-w-[42px] place-items-center">
+        <span className="w-full drop-shadow-[0_2px_5px_rgba(0,0,0,.6)]">
+          <TeamCrest teamId={slot.teamId} short={team?.short} size="fluid" />
+        </span>
+
+        {cap && (
+          <span className="absolute -top-1 -end-1.5 rounded bg-armband px-1 text-[8px]
+                           font-black leading-[1.5] text-night shadow">
+            C
+          </span>
+        )}
+        {vice && !cap && (
+          <span className="absolute -top-1 -end-1.5 rounded bg-tekhelet px-1 text-[8px]
+                           font-black leading-[1.5] text-white shadow">
+            V
+          </span>
+        )}
+      </span>
+
+      <bdi className="w-full truncate rounded-md bg-chalk px-1 py-px text-center text-[9.5px]
+                      font-black leading-[1.4] text-night shadow-sm">
+        {player.nameShort}
+      </bdi>
+
+      {/* לפני הפרסום: הקבוצה. אחרי: הנקודות. אותה משבצת — ההרכב
+          לא זז כשהתוצאות נכנסות. */}
+      <span className={[
+        'w-full truncate rounded px-1 text-center text-[8.5px] font-black leading-[1.5]',
+        points !== undefined ? 'bg-gold/20 text-gold-light' : 'bg-night/65 text-chalk-dim',
+      ].join(' ')}>
+        {points !== undefined
+          ? <span className="num" dir="ltr">{points}</span>
+          : team?.short}
+      </span>
+    </div>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg viewBox="0 0 14 14" width="11" height="11" fill="none" aria-hidden="true">
+      <rect x="2.5" y="6" width="9" height="6.5" rx="1.4" fill="currentColor" />
+      <path d="M4.6 6V4.4a2.4 2.4 0 0 1 4.8 0V6" stroke="currentColor"
+            strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** נשאר כדי שקוד קיים שמייבא את השם לא יישבר. */
+export type { Position };

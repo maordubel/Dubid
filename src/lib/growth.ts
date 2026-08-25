@@ -59,18 +59,39 @@
  *
  * מכאן: כל מקום שמזכיר את המוצר מייבא מהבלוק הזה. אין מחרוזת
  * חופשית, ואין שם באנגלית שנכתב ידנית פעמיים.
- *
- * ⚠ הדומיין נשאר `offsidebets.dubel.team` כי זה המארח החי. אם הוא
- *   יוחלף — שורה אחת כאן, ו-`tests/growth.test.ts` יתפוס אם מישהו
- *   שכח לעדכן את הבדיקה.
  */
+
+/**
+ * ★ שלושת הדומיינים של החברה. מקור אמת אחד.
+ *
+ *     dubelteam.com            האתר הראשי
+ *     dubid.dubelteam.com      דוביד
+ *     offsides.dubelteam.com   אופסיידס
+ *
+ * שלושתם סאבדומיינים של אותו דומיין־אב, וזו לא רק אסתטיקה: היא
+ * מה שיאפשר בעתיד סשן משותף דרך עוגייה על `.dubelteam.com` בלי
+ * להעביר אף טוקן בכתובת. (לא עכשיו — ראו docs/OFFSIDES-SYNC.md §7.)
+ *
+ * ⚠ הכתובת הישנה `offsidebets.dubel.team` בוטלה. אם היא עדיין
+ *   מפנה — עדיף redirect 301 ולא שני שמות חיים במקביל.
+ */
+export const DUBEL = {
+  /** האתר הראשי של החברה. */
+  site: 'https://www.dubelteam.com',
+  name: 'Dubel Team',
+  nameHe: 'דובל טים',
+} as const;
+
+/** הכתובת של דוביד עצמו. משמשת לקישורי שיתוף ולכרטיסים. */
+export const DUBID_URL = 'https://dubid.dubelteam.com';
+
 export const OFFSIDES = {
   /** השם באנגלית. לא "Offside", לא "Offside Bets". */
   name: 'Offsides',
   nameHe: 'אופסיידס',
-  url: 'https://offsidebets.dubel.team',
+  url: 'https://offsides.dubelteam.com',
   /** לתצוגה בתוך נכסים גרפיים — אותיות גדולות, בלי פרוטוקול. */
-  domainLabel: 'OFFSIDEBETS.DUBEL.TEAM',
+  domainLabel: 'OFFSIDES.DUBELTEAM.COM',
 } as const;
 
 /** לאן הקישור מוביל. שם היסטורי; המקור הוא `OFFSIDES.url`. */

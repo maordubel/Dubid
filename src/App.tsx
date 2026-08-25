@@ -8,6 +8,8 @@
  * אותה שפת עיצוב — לא שתי אפליקציות מודבקות זו לזו.
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ensureIdentity, storedDisplayName, setDisplayName, subscribeToIdentity,
+  type Identity } from './lib/identity.ts';
 
 import { AppShell, AppHeader } from './components/AppShell.tsx';
 import type { NavItem } from './components/BottomNav.tsx';
@@ -16,13 +18,16 @@ import { Arena } from './components/Arena.tsx';
 import { DubelCredit } from './components/DubelCredit.tsx';
 import { ShadesDivider } from './components/Shades.tsx';
 import { usePromo } from './state/usePromo.ts';
-import type { GrowthContext } from './lib/growth.ts';
+import { DUBID_URL, type GrowthContext } from './lib/growth.ts';
 import { GameweekStatus, type Gameweek } from './lib/gameweek.ts';
 import { serverNow } from './lib/serverTime.ts';
 import { SquadPicker, type PoolPlayer, type TeamMeta } from './components/SquadPicker.tsx';
 import { ShareCard } from './components/ShareCard.tsx';
 import { Leaderboard } from './components/Leaderboard.tsx';
 import { AdminPanel } from './components/AdminPanel.tsx';
+import { AccountSheet } from './components/AccountSheet.tsx';
+import { RegisterNudge, readDismissed } from './components/RegisterNudge.tsx';
+import { shouldNudge } from './lib/nudge.ts';
 import { LockedLineup } from './components/LockedLineup.tsx';
 import { GameStatusBadge } from './components/GameStatusBadge.tsx';
 import { IconHome, IconLineup, IconArena, IconRanking, IconRules } from './components/NavIcons.tsx';
@@ -39,7 +44,8 @@ import { checkLeagueCapacity, formatIssue } from './lib/scoring/validate.ts';
 import { useLineup } from './state/useLineup.ts';
 import { myLeagues } from './lib/leagueStore.ts';
 import {
-  getResults, saveEntry, listEntries, findMyEntry, deleteEntry, subscribeToStore, type LineupEntry,
+  getResults, saveEntry, listEntries, findMyEntry, deleteEntry, subscribeToStore,
+  hydrate, startRealtime, storeStatus, errorMessageHe, type LineupEntry,
 } from './lib/store.ts';
 import { computeGameStatus, type GameStatus } from './lib/gameStatus.ts';
 import type { PlayerPerformance, TeamOutcome } from './lib/scoring/types.ts';
@@ -49,7 +55,7 @@ import type { ShareCardData } from './lib/shareCard.ts';
 type Mode = 'full' | 'five';
 const MODE_LABEL: Record<Mode, string> = { full: 'הרכב מלא · 11', five: '5 על 5' };
 
-const SITE_URL = 'https://dubid.dubelteam.com';
+const SITE_URL = DUBID_URL;
 const USER_STORAGE_KEY = 'dubid.username.v1';
 
 /**
@@ -111,6 +117,24 @@ function MainApp() {
   const [, tick] = useState(0);
   useEffect(() => subscribeToStore(() => tick((n) => n + 1)), []);
 
+  /**
+   * ★ העלייה: זהות → נתונים → זמן אמת. בסדר הזה.
+   *
+   * הזהות ראשונה כי `entries` מחזירה לפני הנעילה רק את ההגשה של
+   * הקורא — בלי סשן, המשתמש לא רואה את ההרכב של עצמו.
+   * `startRealtime` אחרון כי אין טעם להאזין לשינויים לפני שיש
+   * תמונה להשוות אליה.
+   */
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    void (async () => {
+      await ensureIdentity();
+      await hydrate(GAMEWEEK.id);
+      stop = startRealtime(GAMEWEEK.id);
+    })();
+    return () => stop?.();
+  }, []);
+
   const resolved = useMemo(() => resolveRules(TEAMS.length), []);
   const fullRules = resolved.rules;
   const fiveRules = DUBID_5X5;
@@ -147,7 +171,17 @@ function MainApp() {
     return map;
   }, []);
 
-  const [userId] = useState(() => {
+  /**
+   * ★ מי אני.
+   *
+   * קודם זה היה מזהה אקראי ב-localStorage — כלומר זהות של דפדפן,
+   * לא של אדם. אותו משתמש בטלפון ובמחשב היה שני מתחרים.
+   *
+   * עכשיו זה מזהה ה-auth של Supabase (אנונימי, בלי הרשמה). עד
+   * שהוא מגיע, המזהה הישן משמש כברירת מחדל — כך אין רגע שבו
+   * המסך מרנדר בלי זהות בכלל.
+   */
+  const [userId, setUserId] = useState(() => {
     if (typeof localStorage === 'undefined') return 'guest';
     try {
       const existing = localStorage.getItem(USER_STORAGE_KEY);
@@ -159,6 +193,11 @@ function MainApp() {
       return 'guest';
     }
   });
+  useEffect(() => { void ensureIdentity().then((id) => setUserId(id.id)); }, []);
+
+  /** הזהות המלאה — לצורך ההצעה להירשם. `null` עד שהיא נטענת. */
+  const [identity, setIdentity] = useState<Identity | null>(null);
+  useEffect(() => subscribeToIdentity(setIdentity), []);
 
   // שני הרכבים חיים תמיד, במקביל — לא נוצרים/נהרסים עם מעבר טאב,
   // כדי שהעבודה על אחד לא תימחק כשעוברים לשני ואז חוזרים.
@@ -182,10 +221,7 @@ function MainApp() {
 
   /* ---------------- קלטי הלובי ---------------- */
 
-  const displayName = (() => {
-    try { return localStorage.getItem('dubid.displayname.v1') || undefined; }
-    catch { return undefined; }
-  })();
+  const displayName = storedDisplayName() || undefined;
 
   const results = getResults(GAMEWEEK.id);
 
@@ -336,6 +372,7 @@ function MainApp() {
   const status = statusByMode[mode];
 
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
 
   const goToMode = (m: Mode) => {
     setMode(m);
@@ -359,6 +396,23 @@ function MainApp() {
         onPlay={goToMode}
         onLeagues={() => setTab('arena')}
         onLeaderboard={() => setTab('leaderboard')}
+        onAccount={() => setShowAccount(true)}
+        nudge={
+          shouldNudge({
+            isGuest: identity?.isGuest !== false,
+            // ★ "יש מה לאבד" = הגשתי באחד משני המצבים.
+            hasSubmitted: !!entryFive || !!entryFull,
+            published: results.published,
+            gameweekNumber: GAMEWEEK.number,
+            dismissedForGameweek: readDismissed(),
+          }) ? (
+            <RegisterNudge
+              gameweekNumber={GAMEWEEK.number}
+              published={results.published}
+              onOpen={() => setShowAccount(true)}
+            />
+          ) : undefined
+        }
         promo={promo}
         gameweekNumber={lobbyGameweek.number}
         onDismissPromo={dismissPromo}
@@ -391,7 +445,9 @@ function MainApp() {
             submittedAt={entry.submittedAt}
             onUnlock={!results.published ? () => {
               if (window.confirm('לבטל את ההגשה ולחזור לעריכת ההרכב? ההגשה הנוכחית תימחק.')) {
-                deleteEntry(entry.id);
+                void deleteEntry(entry.id).catch((e: unknown) => {
+                  window.alert(errorMessageHe(e instanceof Error ? e.message : 'NETWORK'));
+                });
               }
             } : undefined}
             onViewCard={hasRealResults ? () => setTab('card') : undefined}
@@ -462,7 +518,10 @@ function MainApp() {
   return (
     <AppShell
       // רק מסך הבנייה מנהל גובה בעצמו. שאר המסכים נגללים כרגיל.
-      fill={tab === 'lineup' && !entry}
+      // ★ שני המצבים של מסך ההרכב הם עמודה בגובה קבוע.
+      // קודם `fill` היה דולק רק בבנייה, ולכן המסך הנעול נגלל —
+      // וזה מה שדחף את המגרש מתחת לקפל אחרי ההגשה.
+      fill={tab === 'lineup'}
       items={NAV}
       activeId={tab}
       onSelect={setTab}
@@ -501,8 +560,45 @@ function MainApp() {
         )
       }
     >
+      <ConnectionStrip />
       {screens[tab]}
+      {showAccount && <AccountSheet onClose={() => setShowAccount(false)} />}
     </AppShell>
+  );
+}
+
+/**
+ * ★ הפס שמופיע רק כשמשהו לא בסדר.
+ *
+ * המוצר עובד עכשיו מול שרת. כשהשרת לא זמין, המסך עדיין מציג
+ * נתונים — מהמטמון — והם עלולים להיות ישנים בשעות. משתמש שרואה
+ * דירוג ישן בלי לדעת שהוא ישן, חושב שהמערכת שיקרה לו.
+ *
+ * שורה אחת, ורק כשהיא נכונה. בזמן טעינה ראשונה אין פס: טעינה
+ * היא לא תקלה.
+ */
+function ConnectionStrip() {
+  const [, tick] = useState(0);
+  useEffect(() => subscribeToStore(() => tick((n) => n + 1)), []);
+  const { live, loading } = storeStatus();
+  if (live || loading) return null;
+
+  return (
+    <div
+      role="status"
+      className="mx-3 mt-2 flex items-center gap-2 rounded-xl border border-flare/35
+                 bg-flare/10 px-3 py-2 text-[11.5px] font-bold text-flare"
+    >
+      <span aria-hidden>●</span>
+      אין חיבור לשרת — מוצגים נתונים שמורים, וייתכן שהם לא מעודכנים.
+      <button
+        type="button"
+        onClick={() => { void hydrate(GAMEWEEK.id, true); }}
+        className="ms-auto shrink-0 underline underline-offset-2"
+      >
+        נסו שוב
+      </button>
+    </div>
   );
 }
 
@@ -566,20 +662,40 @@ function SaveEntryModal({
   onSaved: (entry: LineupEntry) => void;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState(() => {
-    try { return localStorage.getItem('dubid.displayname.v1') ?? ''; } catch { return ''; }
-  });
+  const [name, setName] = useState(() => storedDisplayName());
+  /**
+   * ★ שלושה מצבים, ולא שניים.
+   *
+   * "שולח" חייב להיות מצב נפרד מ"מוכן": ההגשה עוברת עכשיו בשרת,
+   * ומשתמש שלוחץ פעמיים בזמן שהבקשה באוויר שולח שתי הגשות. הכפתור
+   * ננעל בזמן השליחה, וזו הסיבה היחידה שהוא ננעל.
+   *
+   * "שגיאה" חייב להיות נראה: השרת דוחה הגשה אחרי הדדליין, והמשתמש
+   * צריך לדעת **למה** ההרכב לא נשמר — לא רק שהמסך לא זז.
+   */
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-night/80 px-6 backdrop-blur-sm">
       <form
-        className="w-full max-w-xs rounded-2xl border border-gold/15 bg-night-2 p-6"
+        className="w-full max-w-xs rounded-2xl border border-gold/15 bg-night-2 p-6 edge-gold"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!name.trim()) return;
-          try { localStorage.setItem('dubid.displayname.v1', name.trim()); } catch { /* ignore */ }
-          const saved = saveEntry(name, GAMEWEEK.id, mode, userId, lineup, priceById);
-          onSaved(saved);
+          if (!name.trim() || busy) return;
+          setBusy(true);
+          setError(null);
+          void (async () => {
+            try {
+              await setDisplayName(name);
+              const saved = await saveEntry(name, GAMEWEEK.id, mode, userId, lineup, priceById);
+              onSaved(saved);
+            } catch (err) {
+              setError(errorMessageHe(err instanceof Error ? err.message : 'NETWORK'));
+            } finally {
+              setBusy(false);
+            }
+          })();
         }}
       >
         <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-gold" />
@@ -593,20 +709,32 @@ function SaveEntryModal({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="השם שלכם בדירוג"
+          disabled={busy}
           className="mt-5 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5 text-center
-                     text-chalk outline-none focus:border-gold"
+                     text-chalk outline-none focus:border-gold disabled:opacity-50"
         />
+
+        {error && (
+          <p role="alert" className="mt-3 rounded-xl border border-flare/40 bg-flare/10
+                                     px-3 py-2 text-center text-[12px] font-bold text-flare">
+            {error}
+          </p>
+        )}
+
         <button
           type="submit"
-          disabled={!name.trim()}
-          className="tap mt-4 w-full rounded-full bg-gold py-2.5 font-poster text-night disabled:opacity-40"
+          disabled={!name.trim() || busy}
+          className="tap mt-4 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
+                     py-2.5 font-poster text-gold-ink disabled:opacity-40"
         >
-          שמירת ההרכב
+          {busy ? 'שולח לשרת…' : 'שמירת ההרכב'}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="mt-3 w-full text-center text-xs text-chalk-dim underline underline-offset-2"
+          disabled={busy}
+          className="mt-3 w-full text-center text-xs text-chalk-dim underline underline-offset-2
+                     disabled:opacity-40"
         >
           חזרה לעריכה
         </button>

@@ -8,17 +8,21 @@
  *
  * ★ הסימן
  *
- * הכתר הוא הצורה שמזהה את דובל טים. אם הקובץ `/brand/dubel-team.png`
- * קיים — הוא מוצג. אם לא, נשאר כתר מצויר בקו, באותה משפחת קווים
- * של המשקפיים.
+ * הלוגו האמיתי (הכלב עם הכתר) יושב ב-`/brand/dubel-team.png`.
+ * הוא **עגול במקור** — עיגול אדום-שחור עם רקע קרם בפנים — ולכן
+ * הוא מוצג בלי מסגרת ובלי `rounded-full` נוסף: עיגול על עיגול
+ * חותך את הקצה של הציור.
  *
- * לא ניסיתי לשחזר את הלוגו המקורי בווקטור. שחזור מהזיכרון תמיד
- * יוצא "כמעט", ו"כמעט" בלוגו נראה גרוע יותר מסימן פשוט שנבחר
- * במכוון. ברגע שהקובץ יונח בתיקייה, הוא יופיע מעצמו.
+ * הכתר המצויר בקו נשאר כנפילה חיננית, למקרה שהקובץ לא נטען.
+ * שחזור לוגו מהזיכרון תמיד יוצא "כמעט", ו"כמעט" נראה גרוע
+ * מסימן פשוט שנבחר במכוון — ולכן הנפילה היא צורה אחרת לגמרי
+ * ולא חיקוי.
  */
 import { useState } from 'react';
+import { DUBEL } from '../lib/growth.ts';
 
-export const DUBEL_URL = 'https://www.dubelteam.com/';
+/** שם היסטורי. המקור הוא `DUBEL.site` ב-`lib/growth.ts`. */
+export const DUBEL_URL = DUBEL.site;
 
 export interface DubelCreditProps {
   /** 'quiet' — שורה בתחתית מסך. 'card' — כרטיס עם נוכחות. */
@@ -81,12 +85,14 @@ function DubelMark({ size }: { size: number }) {
   if (!failed) {
     return (
       <img
-        src="/brand/dubel-team.png"
+        // מתחת ל-64px הגרסה הקטנה חוסכת 100kb ונראית זהה.
+        src={size <= 64 ? '/brand/dubel-team@64.png' : '/brand/dubel-team@128.png'}
         alt=""
         width={size}
         height={size}
+        decoding="async"
         onError={() => setFailed(true)}
-        className="shrink-0 rounded-full object-contain"
+        className="shrink-0 object-contain"
         style={{ width: size, height: size }}
       />
     );

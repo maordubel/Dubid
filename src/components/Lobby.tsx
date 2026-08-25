@@ -79,6 +79,14 @@ export interface LobbyProps {
   onPlay: (mode: ModeId) => void;
   onLeagues: () => void;
   onLeaderboard: () => void;
+  /** פתיחת גיליון החשבון. השורה העליונה היא הכניסה היחידה אליו. */
+  onAccount?: () => void;
+  /**
+   * ההצעה להירשם. `null` = אין מה להציע עכשיו.
+   * מי שמחליט הוא `RegisterNudge.shouldNudge`, לא המסך הזה —
+   * אותה הפרדה בדיוק כמו בפרסומת לאופסיידס.
+   */
+  nudge?: ReactNode;
   /**
    * הפרסומת לאופסיידס. `null` = אין מה להציג עכשיו (נדחתה, או
    * שהתקרה נגמרה). מי שמחליט הוא `lib/growth.ts`, לא המסך הזה.
@@ -92,7 +100,7 @@ export interface LobbyProps {
 export function Lobby({
   gameweek, nowMs, modes, displayName, entrants, leagueCount,
   myRank, myPoints, fixtures = [],
-  onPlay, onLeagues, onLeaderboard,
+  onPlay, onLeagues, onLeaderboard, onAccount, nudge,
   promo, gameweekNumber = gameweek.number, onDismissPromo, onOpenPromo,
 }: LobbyProps) {
   // הספירה מתקתקת מקומית בין סנכרונים. `nowMs` הוא נקודת האמת,
@@ -115,18 +123,28 @@ export function Lobby({
       {/* ═══════════ 1 · זהות — שורה דקה, לא כרזה ═══════════ */}
       <header className="mx-auto flex w-full max-w-lg items-center gap-2.5 px-4
                          pt-[calc(0.6rem+env(safe-area-inset-top))] lg:max-w-3xl">
-        <span className="grid size-9 shrink-0 place-items-center rounded-full
-                         bg-night-2 ring-1 ring-inset ring-gold/25">
-          <LogoMark size={26} />
-        </span>
-        <div className="min-w-0 flex-1 leading-tight">
-          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-chalk-dim">
-            מאמן
-          </div>
-          <div className="truncate text-[15px] font-black text-chalk">
-            {displayName || 'אורח'}
-          </div>
-        </div>
+        {/* ★ שורת הזהות היא כפתור. אין פריט ניווט ל"חשבון" — הוא
+            לא יעד, והוא לא שווה אחת מחמש משבצות בניווט. */}
+        <button
+          type="button"
+          onClick={onAccount}
+          disabled={!onAccount}
+          className="tap -mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-1
+                     text-start transition-colors active:bg-night-2/70"
+        >
+          <span className="grid size-9 shrink-0 place-items-center rounded-full
+                           bg-night-2 ring-1 ring-inset ring-gold/25">
+            <LogoMark size={26} />
+          </span>
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-chalk-dim">
+              מאמן
+            </span>
+            <span className="block truncate text-[15px] font-black text-chalk">
+              {displayName || 'אורח'}
+            </span>
+          </span>
+        </button>
         {entrants ? (
           <span className="shrink-0 rounded-full bg-night-2 px-2.5 py-1
                            ring-1 ring-inset ring-gold/20">
@@ -178,6 +196,13 @@ export function Lobby({
           ]}
         />
       </div>
+
+      {/* ═══════════ ההצעה להירשם ═══════════ */}
+      {/* ★ מתחת למדדים ומעל הפעולה, ובכוונה: היא מגיעה אחרי
+          שהמשתמש ראה מה יש לו, ולפני שהוא הולך לעשות עוד. */}
+      {nudge && (
+        <div className="mx-auto mt-2.5 w-full max-w-lg px-4 lg:max-w-3xl">{nudge}</div>
+      )}
 
       {/* ═══════════ 4 · הפעולה ═══════════ */}
       <section className="mx-auto mt-4 w-full max-w-lg px-4 lg:max-w-3xl" aria-label="בחירת מצב משחק">

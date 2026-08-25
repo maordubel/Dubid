@@ -18,9 +18,15 @@
 CREATE SCHEMA IF NOT EXISTS auth;
 
 CREATE TABLE IF NOT EXISTS auth.users (
-  id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email              TEXT,
+  -- ★ שתי העמודות האלה אמיתיות ב-Supabase, ומיגרציה 10 קוראת
+  --   אותן. בלעדיהן הבדיקה המקומית "עוברת" בזמן שהייצור נשבר.
+  is_anonymous       BOOLEAN NOT NULL DEFAULT TRUE,
+  raw_user_meta_data JSONB   NOT NULL DEFAULT '{}'::jsonb
 );
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS raw_user_meta_data JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 /* המשתמש ה"מחובר" בבדיקה. נקבע ב-`SET dubid.test_uid`. */
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS UUID
