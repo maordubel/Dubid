@@ -280,10 +280,29 @@ export function startRealtime(gameweekId: string): () => void {
   return () => { void supabase.removeChannel(channel); };
 }
 
+/**
+ * ★ למה זה לא מחזיר סתם "NETWORK".
+ *
+ * "אין חיבור לשרת" היא ההודעה הכי מתסכלת שאפשר לתת, כי היא
+ * נכונה בכל מקרה ולא עוזרת באף אחד. ברוב המקרים אין שום בעיית
+ * רשת: המיגרציה לא רצה, הסכימה לא חשופה, או כניסת אורחים כבויה.
+ * שלוש בעיות שונות, שלושה תיקונים שונים, ואותה הודעה.
+ *
+ * PostgREST מבדיל ביניהן — הוא רק לא עושה את זה בעברית:
+ *
+ *   PGRST202 / 404   הפונקציה לא קיימת    → המיגרציה לא רצה
+ *   PGRST106         הסכימה לא חשופה      → Exposed schemas
+ *   401 / 403        אין הרשאה            → GRANT או RLS
+ *   TypeError        באמת אין רשת
+ */
 function errorCode(err: unknown): string {
+  const e = (err ?? {}) as { message?: unknown; code?: unknown; status?: unknown; name?: unknown };
   const msg = err instanceof Error ? err.message
-    : typeof err === 'object' && err && 'message' in err ? String((err as { message: unknown }).message)
+    : e.message !== undefined ? String(e.message)
     : String(err);
+  const code = e.code !== undefined ? String(e.code) : '';
+  const status = Number(e.status ?? 0);
+
   const known = [
     'DEADLINE_PASSED', 'GAMEWEEK_LOCKED', 'GAMEWEEK_NOT_FOUND', 'CAPTAIN_REQUIRED',
     'LINEUP_SIZE', 'PLAYER_NOT_FOUND', 'PLAYER_NOT_IN_SQUAD', 'ADMIN_REQUIRED',
@@ -291,8 +310,26 @@ function errorCode(err: unknown): string {
     'NAME_REQUIRED', 'TEAM_NOT_FOUND', 'PRICE_RANGE', 'BAD_STATUS', 'NO_SEASON',
   ].find((c) => msg.includes(c));
   if (known) return known;
+
   if (msg.includes('one_player_per_team')) return 'DUPLICATE_TEAM';
   if (msg.includes('no_duplicate_player')) return 'DUPLICATE_PLAYER';
+
+  // --- אבחון תשתית ---
+  if (code === 'PGRST106' || msg.includes('not exposed') || msg.includes('schema must be one of')) {
+    return 'SCHEMA_NOT_EXPOSED';
+  }
+  if (code === 'PGRST202' || code === '42883'
+      || msg.includes('Could not find the function')
+      || msg.includes('does not exist')) {
+    return 'MIGRATION_MISSING';
+  }
+  if (msg.includes('Anonymous sign-ins are disabled') || msg.includes('anonymous_provider_disabled')) {
+    return 'ANON_DISABLED';
+  }
+  if (status === 401 || status === 403 || code === '42501') return 'NO_PERMISSION';
+  if (msg.includes('Invalid API key') || msg.includes('JWSError')) return 'BAD_KEY';
+  if (msg.includes('Failed to fetch') || e.name === 'TypeError') return 'OFFLINE';
+
   return 'NETWORK';
 }
 
@@ -316,7 +353,14 @@ export const ERROR_HE: Record<string, string> = {
   BAD_STATUS: 'מצב זמינות לא חוקי.',
   NO_SEASON: 'אין עונה פעילה במסד. הריצו את db/03.',
   OVER_BUDGET: 'ההרכב חורג מהתקציב.',
-  NETWORK: 'אין חיבור לשרת. נסו שוב בעוד רגע.',
+  NETWORK: 'השרת לא ענה. נסו שוב בעוד רגע.',
+  OFFLINE: 'אין חיבור לאינטרנט.',
+  // ★ שלוש ההודעות האלה אומרות **מה לעשות**, לא רק שמשהו נכשל.
+  MIGRATION_MISSING: 'המסד לא הוגדר עדיין — חסרות מיגרציות. ראו docs/INSTALL.md שלב 1.',
+  SCHEMA_NOT_EXPOSED: 'הסכימות לא חשופות ב-Supabase. Settings → API → Exposed schemas: public, core, game, shared.',
+  ANON_DISABLED: 'כניסת אורחים כבויה. Authentication → Providers → Anonymous sign-ins.',
+  NO_PERMISSION: 'אין הרשאה לקרוא מהמסד. בדקו GRANT ו-RLS (db/09 §9).',
+  BAD_KEY: 'מפתח ה-API לא תקין. בדקו VITE_SUPABASE_PUBLISHABLE_KEY.',
 };
 
 export function errorMessageHe(code: string): string {
@@ -712,4 +756,185 @@ export async function adminSetPlayerStatus(
     p_status: status,
   });
   if (error) throw new Error(errorCode(error));
+}
+
+/* ================================================================== */
+/* כניסת אדמין — סיסמה אחת                                             */
+/* ================================================================== */
+
+/**
+ * ★ למה זה עבר לשרת.
+ *
+ * `tryAdminLogin` משווה hash **בדפדפן**. זה פתח את המסך ולא
+ * נתן הרשאה לשמור — לזה נדרש `UPDATE game.users SET is_admin`
+ * ידני ב-SQL Editor. מי שעשה רק את הראשון קיבל מסך מלא שבו כל
+ * לחיצה נכשלת, וזה נראה כמו באג ולא כמו שלב שנשכח.
+ *
+ * `game.claim_admin` עושה את שניהם: משווה בשרת, ואם נכון —
+ * מסמן את הקורא כאדמין. אין שלב שני.
+ */
+export interface AdminClaimResult {
+  ok: boolean;
+  error?: 'BAD_SECRET' | 'LOCKED' | 'AUTH_REQUIRED' | 'NO_SECRET_CONFIGURED' | 'NETWORK';
+  triesLeft?: number;
+  retryInSeconds?: number;
+}
+
+export async function claimAdmin(secret: string): Promise<AdminClaimResult> {
+  try {
+    await ensureIdentity();
+    const { data, error } = await supabase.rpc('claim_admin', { p_secret: secret });
+    if (error) {
+      // הפונקציה לא קיימת = db/12 לא רץ. הודעה מדויקת עדיפה על
+      // "סיסמה שגויה", שהיא שקר שישלח אותך לחפש במקום הלא נכון.
+      return { ok: false, error: errorCode(error) === 'MIGRATION_MISSING'
+        ? 'NO_SECRET_CONFIGURED' : 'NETWORK' };
+    }
+    return (data ?? { ok: false, error: 'NETWORK' }) as AdminClaimResult;
+  } catch {
+    return { ok: false, error: 'NETWORK' };
+  }
+}
+
+export async function releaseAdmin(): Promise<void> {
+  try { await supabase.rpc('release_admin'); } catch { /* יציאה לא נכשלת */ }
+}
+
+export const ADMIN_ERROR_HE: Record<string, string> = {
+  BAD_SECRET: 'סיסמה שגויה.',
+  LOCKED: 'יותר מדי ניסיונות. נסו שוב בעוד כמה דקות.',
+  AUTH_REQUIRED: 'אין זהות פעילה. רעננו את הדף.',
+  NO_SECRET_CONFIGURED: 'הסיסמה לא הוגדרה במסד — צריך להריץ את db/12_admin_access.sql.',
+  NETWORK: 'השרת לא ענה. בדקו חיבור ונסו שוב.',
+};
+
+/* ================================================================== */
+/* בדיקת מערכת                                                         */
+/* ================================================================== */
+
+/**
+ * ★ למה זה קיים.
+ *
+ * "אין חיבור לשרת" יכול לנבוע מחמישה דברים שונים, וכל אחד מהם
+ * מתוקן במקום אחר בלוח הבקרה של Supabase. במקום לנחש — בודקים
+ * כל חוליה בנפרד ואומרים איזו נפלה.
+ *
+ * הבדיקות רצות **בסדר התלות**: אין טעם לבדוק סגלים אם הסכימה
+ * לא חשופה, כי התוצאה תהיה אותה שגיאה בדיוק ותסתיר את המקור.
+ */
+export interface HealthCheck {
+  id: string;
+  label: string;
+  ok: boolean | null;      // null = לא נבדק (חוליה קודמת נפלה)
+  detail: string;
+  fix?: string;
+}
+
+export async function runHealthChecks(): Promise<HealthCheck[]> {
+  const out: HealthCheck[] = [];
+  const skip = (id: string, label: string, why: string): HealthCheck =>
+    ({ id, label, ok: null, detail: why });
+
+  /* 1 — זהות */
+  let identityOk = false;
+  try {
+    const id = await ensureIdentity();
+    identityOk = id.online;
+    out.push({
+      id: 'auth',
+      label: 'זהות (כניסת אורח)',
+      ok: identityOk,
+      detail: identityOk ? `מחובר · ${id.id.slice(0, 8)}…` : 'לא הצלחנו ליצור זהות',
+      fix: identityOk ? undefined
+        : 'Authentication → Providers → Anonymous sign-ins → להדליק',
+    });
+  } catch {
+    out.push({
+      id: 'auth', label: 'זהות (כניסת אורח)', ok: false,
+      detail: 'שגיאה ביצירת זהות',
+      fix: 'Authentication → Providers → Anonymous sign-ins → להדליק',
+    });
+  }
+
+  /* 2 — הסכימה חשופה + המיגרציות רצו */
+  let schemaOk = false;
+  try {
+    const { data, error } = await supabase.rpc('gameweek_state', { p_gw_code: 'gw-2' });
+    if (error) throw error;
+    schemaOk = !!data;
+    out.push({
+      id: 'schema',
+      label: 'מסד · סכימה ומיגרציות',
+      ok: schemaOk,
+      detail: schemaOk
+        ? `מחזור ${(data as { number?: number }).number ?? '?'} נמצא`
+        : 'המחזור gw-2 לא נמצא',
+      fix: schemaOk ? undefined : 'להריץ db/09 ו-db/11, ואז לבדוק Exposed schemas',
+    });
+  } catch (err) {
+    const c = errorCode(err);
+    out.push({
+      id: 'schema', label: 'מסד · סכימה ומיגרציות', ok: false,
+      detail: errorMessageHe(c),
+      fix: c === 'SCHEMA_NOT_EXPOSED'
+        ? 'Settings → API → Exposed schemas → public, core, game, shared'
+        : 'להריץ את המיגרציות לפי docs/INSTALL.md שלב 1',
+    });
+  }
+
+  if (!schemaOk) {
+    out.push(skip('squads', 'סגלים ומחירים', 'לא נבדק — הסכימה לא זמינה'));
+    out.push(skip('clock', 'שעון השרת', 'לא נבדק — הסכימה לא זמינה'));
+    out.push(skip('admin', 'הרשאת ניהול', 'לא נבדק — הסכימה לא זמינה'));
+    return out;
+  }
+
+  /* 3 — סגלים ומחירים */
+  try {
+    const { data, error } = await supabase.rpc('results', { p_gw_code: 'gw-2' });
+    if (error) throw error;
+    out.push({
+      id: 'squads', label: 'תוצאות ונתוני מחזור', ok: true,
+      detail: (data as { published?: boolean })?.published
+        ? 'המחזור פורסם' : 'המחזור עוד לא פורסם (תקין)',
+    });
+  } catch (err) {
+    out.push({
+      id: 'squads', label: 'תוצאות ונתוני מחזור', ok: false,
+      detail: errorMessageHe(errorCode(err)),
+      fix: 'להריץ db/09_live_mvp.sql',
+    });
+  }
+
+  /* 4 — שעון */
+  try {
+    const { data, error } = await supabase.rpc('server_now');
+    if (error) throw error;
+    const drift = Math.abs(Number(data) - Date.now());
+    out.push({
+      id: 'clock', label: 'שעון השרת', ok: drift < 120_000,
+      detail: `הפרש ${Math.round(drift / 1000)} שניות מהמכשיר`,
+      fix: drift < 120_000 ? undefined : 'הפרש גדול — שעון המכשיר לא מדויק',
+    });
+  } catch {
+    out.push({
+      id: 'clock', label: 'שעון השרת', ok: false,
+      detail: 'game.server_now() לא נמצאה',
+      fix: 'להריץ db/09_live_mvp.sql (§3b)',
+    });
+  }
+
+  /* 5 — הרשאה */
+  try {
+    const isAdmin = await isDatabaseAdmin();
+    out.push({
+      id: 'admin', label: 'הרשאת ניהול', ok: isAdmin,
+      detail: isAdmin ? 'יש הרשאה' : 'אין הרשאה למשתמש הזה',
+      fix: isAdmin ? undefined : 'להקליד את הסיסמה במסך הכניסה — היא מעניקה את ההרשאה',
+    });
+  } catch {
+    out.push({ id: 'admin', label: 'הרשאת ניהול', ok: false, detail: 'לא ניתן לבדוק' });
+  }
+
+  return out;
 }

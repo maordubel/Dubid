@@ -431,7 +431,12 @@ BEGIN
       SELECT jsonb_build_object(
         'teamId', 'T' || xt.external_id,
         'nameHe', tm.name_he,
-        'short',  COALESCE(tm.short_name, tm.name_he),
+        -- ★ העמודה היא `short_code`, לא `short_name`.
+        --   הבדיקה הראשונה של הפונקציה הזו (`db/tests/04`) היא
+        --   שתפסה את זה: `db/tests/03` בדק רק שהיא **נדחית**
+        --   למי שאינו אדמין, ולכן היא מעולם לא רצה בהצלחה.
+        --   בדיקה שמוודאת רק שמשהו נכשל אינה בדיקה שהוא עובד.
+        'short',  COALESCE(tm.short_code, tm.name_he),
         'players', COALESCE((
           SELECT jsonb_agg(jsonb_build_object(
             'id',       'P' || xp.external_id,

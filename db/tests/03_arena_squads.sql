@@ -186,6 +186,25 @@ END $$;
 UPDATE game.users SET is_admin = TRUE WHERE id = 'e0000000-0000-0000-0000-000000000001';
 SET dubid.test_uid = 'e0000000-0000-0000-0000-000000000001';
 
+-- ★ ולוודא שהיא באמת **עובדת**, לא רק נדחית.
+--   הגרסה הראשונה של הבדיקה בדקה רק את הדחייה, ולכן באג אמיתי
+--   בגוף הפונקציה (עמודה בשם שגוי) שרד עד שנכתבה בדיקה אחרת.
+DO $$
+DECLARE r JSONB; n INT;
+BEGIN
+  r := game.admin_squads();
+  n := jsonb_array_length(r);
+  IF n <> 14 THEN RAISE EXCEPTION 'FAIL 7b: % קבוצות במקום 14', n; END IF;
+  IF (r->0->>'short') IS NULL THEN RAISE EXCEPTION 'FAIL 7c: אין קיצור קבוצה'; END IF;
+  IF jsonb_array_length(r->0->'players') = 0 THEN
+    RAISE EXCEPTION 'FAIL 7d: קבוצה בלי שחקנים';
+  END IF;
+  IF (r->0->'players'->0->>'id') NOT LIKE 'P%' THEN
+    RAISE EXCEPTION 'FAIL 7e: מזהה שחקן לא בשפת הקליינט';
+  END IF;
+END $$;
+\echo '  ✓ 7b סגלים חוזרים — 14 קבוצות, קיצורים, ומזהים בשפת הקליינט'
+
 -- ---------------------------------------------------------------------
 -- 8. שחקן חדש
 -- ---------------------------------------------------------------------

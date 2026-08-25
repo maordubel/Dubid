@@ -94,20 +94,58 @@ const NAV: NavItem[] = [
   { id: 'rules',       label: 'חוקים',  icon: <IconRules /> },
 ];
 
-function useHashRoute() {
-  const [hash, setHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''));
+/**
+ * ★ הניתוב לניהול — שתי כתובות, ובכוונה.
+ *
+ *     dubid.dubelteam.com/admin      ← זו שכותבים
+ *     dubid.dubelteam.com/#admin     ← זו שהייתה, וממשיכה לעבוד
+ *
+ * הראשונה קלה לזכור ולהקליד בטלפון. השנייה נשארת כי היא כבר
+ * שמורה במקומות, ושבירת כתובת קיימת היא עבודה מיותרת.
+ *
+ * `vercel.json` כבר מפנה כל נתיב ל-`index.html`, ולכן `/admin`
+ * מגיע לאפליקציה ולא ל-404. **בלי rewrite כזה, הנתיב ישבר
+ * בייצור אבל יעבוד בפיתוח** — הסוג הגרוע ביותר של תקלה.
+ */
+function useAdminRoute(): boolean {
+  const [isAdmin, setIsAdmin] = useState(() => matchAdmin());
   useEffect(() => {
-    const onChange = () => setHash(window.location.hash);
+    const onChange = () => setIsAdmin(matchAdmin());
     window.addEventListener('hashchange', onChange);
-    return () => window.removeEventListener('hashchange', onChange);
+    window.addEventListener('popstate', onChange);
+    return () => {
+      window.removeEventListener('hashchange', onChange);
+      window.removeEventListener('popstate', onChange);
+    };
   }, []);
-  return hash;
+  return isAdmin;
+}
+
+function matchAdmin(): boolean {
+  try {
+    const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
+    return window.location.hash === '#admin' || path === '/admin';
+  } catch {
+    return false;
+  }
 }
 
 export function App() {
-  const hash = useHashRoute();
-  if (hash === '#admin') {
-    return <AdminPanel onExit={() => { window.location.hash = ''; }} />;
+  const admin = useAdminRoute();
+  if (admin) {
+    return (
+      <AdminPanel
+        onExit={() => {
+          // יוצאים משתי הכתובות גם יחד, אחרת חזרה לאפליקציה
+          // מהנתיב `/admin` הייתה משאירה את המסך פתוח.
+          window.location.hash = '';
+          if (window.location.pathname.toLowerCase().startsWith('/admin')) {
+            window.history.replaceState(null, '', '/');
+          }
+          window.dispatchEvent(new Event('popstate'));
+        }}
+      />
+    );
   }
   return <MainApp />;
 }
@@ -570,36 +608,60 @@ function MainApp() {
 }
 
 /**
- * ★ הפס שמופיע רק כשמשהו לא בסדר.
+ * ★ הפס שמופיע רק כשמשהו לא בסדר — ואומר **מה** לא בסדר.
  *
- * המוצר עובד עכשיו מול שרת. כשהשרת לא זמין, המסך עדיין מציג
- * נתונים — מהמטמון — והם עלולים להיות ישנים בשעות. משתמש שרואה
- * דירוג ישן בלי לדעת שהוא ישן, חושב שהמערכת שיקרה לו.
+ * הגרסה הראשונה כתבה "אין חיבור לשרת" בכל מקרה. זו ההודעה הכי
+ * מתסכלת שאפשר לתת: היא נכונה תמיד ולא עוזרת אף פעם. ברוב
+ * המקרים אין שום בעיית רשת — המיגרציה לא רצה, הסכימות לא
+ * חשופות, או כניסת אורחים כבויה. שלוש בעיות, שלושה תיקונים,
+ * ואותה הודעה חסרת תועלת.
  *
- * שורה אחת, ורק כשהיא נכונה. בזמן טעינה ראשונה אין פס: טעינה
- * היא לא תקלה.
+ * עכשיו `errorCode` מבדיל ביניהן (ראו `store.ts`), והפס מציג את
+ * ההוראה עצמה. למי שזה לא רלוונטי — הפס פשוט לא מופיע.
  */
 function ConnectionStrip() {
   const [, tick] = useState(0);
   useEffect(() => subscribeToStore(() => tick((n) => n + 1)), []);
-  const { live, loading } = storeStatus();
+  const { live, loading, error } = storeStatus();
   if (live || loading) return null;
+
+  // ★ תקלת תשתית מוצגת כהוראה, לא כאזהרה אדומה.
+  //   אדום אומר "משהו נשבר"; כאן משהו פשוט עוד לא הוגדר.
+  const setup = error === 'MIGRATION_MISSING'
+    || error === 'SCHEMA_NOT_EXPOSED'
+    || error === 'ANON_DISABLED'
+    || error === 'NO_PERMISSION'
+    || error === 'BAD_KEY';
 
   return (
     <div
       role="status"
-      className="mx-3 mt-2 flex items-center gap-2 rounded-xl border border-flare/35
-                 bg-flare/10 px-3 py-2 text-[11.5px] font-bold text-flare"
+      className={`mx-3 mt-2 rounded-xl border px-3 py-2 text-[11.5px] font-bold ${
+        setup
+          ? 'border-armband/40 bg-armband/10 text-armband'
+          : 'border-flare/35 bg-flare/10 text-flare'
+      }`}
     >
-      <span aria-hidden>●</span>
-      אין חיבור לשרת — מוצגים נתונים שמורים, וייתכן שהם לא מעודכנים.
-      <button
-        type="button"
-        onClick={() => { void hydrate(GAMEWEEK.id, true); }}
-        className="ms-auto shrink-0 underline underline-offset-2"
-      >
-        נסו שוב
-      </button>
+      <div className="flex items-center gap-2">
+        <span aria-hidden>{setup ? '⚙' : '●'}</span>
+        <span className="min-w-0 flex-1 leading-snug">
+          {errorMessageHe(error ?? 'NETWORK')}
+        </span>
+        <button
+          type="button"
+          onClick={() => { void hydrate(GAMEWEEK.id, true); }}
+          className="shrink-0 underline underline-offset-2"
+        >
+          נסו שוב
+        </button>
+      </div>
+      {setup && (
+        <div className="mt-1 ps-5 text-[10.5px] font-normal opacity-80">
+          עד שזה מסודר, המשחק עובד מקומית — אבל בלי סנכרון בין מכשירים.
+          {' '}
+          <a href="#admin" className="underline underline-offset-2">בדיקת מערכת</a>
+        </div>
+      )}
     </div>
   );
 }
