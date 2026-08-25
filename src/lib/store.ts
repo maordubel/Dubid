@@ -524,106 +524,33 @@ export async function saveResults(results: GameweekResults): Promise<void> {
 }
 
 /* ================================================================== */
-/* מפגש ניהול                                                          */
+/* ניהול — הרשאה                                                       */
 /* ================================================================== */
 
 /**
- * ★★ אזהרת אבטחה — לקרוא לפני שנוגעים ★★
+ * ★★ מה נמחק מכאן, ולמה זה היה חייב להימחק ★★
  *
- * ה-PIN כאן הוא **נוחות UI בלבד**. הוא מונע ממי שנתקל ב-`#admin`
- * בטעות לפתוח את המסך. הוא לא מגן על כלום: מי שמריץ את הקוד
- * בדפדפן יכול לדלג עליו.
+ * היו כאן `ADMIN_PIN_HASH`, `tryAdminLogin`, `isAdminSession`,
+ * `adminLogout`, ומונה ניסיונות ב-`sessionStorage` — שער סיסמה
+ * שרץ **בדפדפן**.
  *
- * ההגנה האמיתית עברה למסד. כל פונקציית אדמין
- * (`admin_upsert_match`, `admin_upsert_player_stat`,
- * `admin_set_published`) בודקת `game.is_admin()` בשורה הראשונה,
- * וזורקת `ADMIN_REQUIRED` אחרת. מסך פתוח בלי הרשאה במסד לא יכול
- * לשנות דבר.
+ * הוא יצר מקור אמת שני ל"אני אדמין", והשניים נפרדו: סיסמה נכונה
+ * הדליקה את הדגל המקומי, הקריאה לשרת נכשלה, והמשתמש נכנס למסך
+ * שבו שום פעולה לא עובדת — ומאז דילג על מסך הכניסה בכל רענון.
  *
- * הפיכת משתמש לאדמין, פעם אחת, מה-SQL Editor:
- *     UPDATE game.users SET is_admin = TRUE WHERE id = '<auth uid>';
+ * הפיתוי היה "לחסוך הלוך-ושוב לשרת על שגיאת הקלדה". זה לא שווה
+ * מצב שבו המסך פתוח וההרשאה לא קיימת.
+ *
+ * **עכשיו יש בדיקה אחת, והיא בשרת.** ראו `lib/adminGate.ts`.
  */
-const ADMIN_PIN_HASH =
-  '15a4edaa167df3c9656a9d3dacb527f795dfd2007bc2e0247a27eaeefc8343bf';
 
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_MS = 5 * 60 * 1000;
-const ATTEMPTS_KEY = 'dubid.admin.attempts.v1';
-
-async function sha256Hex(text: string): Promise<string> {
-  const bytes = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function readAttempts(): { count: number; until: number } {
-  try {
-    return JSON.parse(sessionStorage.getItem(ATTEMPTS_KEY) ?? '') as { count: number; until: number };
-  } catch {
-    return { count: 0, until: 0 };
-  }
-}
-
-function writeAttempts(v: { count: number; until: number }) {
-  try {
-    sessionStorage.setItem(ATTEMPTS_KEY, JSON.stringify(v));
-  } catch {
-    /* ignore */
-  }
-}
-
-/** כמה שניות נותרו לנעילה. 0 = לא נעול. */
-export function adminLockoutSeconds(): number {
-  const { until } = readAttempts();
-  return Math.max(0, Math.ceil((until - Date.now()) / 1000));
-}
-
-export async function tryAdminLogin(pin: string): Promise<boolean> {
-  if (adminLockoutSeconds() > 0) return false;
-
-  const ok = (await sha256Hex(pin.trim())) === ADMIN_PIN_HASH;
-
-  if (ok) {
-    writeAttempts({ count: 0, until: 0 });
-    try {
-      sessionStorage.setItem(KEYS.adminSession, '1');
-    } catch {
-      /* ignore */
-    }
-    return true;
-  }
-
-  const prev = readAttempts();
-  const count = prev.count + 1;
-  writeAttempts({
-    count: count >= MAX_ATTEMPTS ? 0 : count,
-    until: count >= MAX_ATTEMPTS ? Date.now() + LOCKOUT_MS : 0,
-  });
-  return false;
-}
-
-export function isAdminSession(): boolean {
-  try {
-    return sessionStorage.getItem(KEYS.adminSession) === '1';
-  } catch {
-    return false;
-  }
-}
-
-export function adminLogout() {
-  try {
-    sessionStorage.removeItem(KEYS.adminSession);
-  } catch {
-    /* ignore */
-  }
-}
-
-/** האם המשתמש הנוכחי אדמין **במסד**. זו הבדיקה שקובעת. */
+/** האם המשתמש הנוכחי אדמין **במסד**. זו הבדיקה היחידה שקובעת. */
 export async function isDatabaseAdmin(): Promise<boolean> {
   try {
     const { data, error } = await supabase.rpc('is_admin');
     return !error && data === true;
   } catch {
+    // ★ ספק = לא. "לא הצלחתי לבדוק" אינו "כן".
     return false;
   }
 }
@@ -765,10 +692,10 @@ export async function adminSetPlayerStatus(
 /**
  * ★ למה זה עבר לשרת.
  *
- * `tryAdminLogin` משווה hash **בדפדפן**. זה פתח את המסך ולא
- * נתן הרשאה לשמור — לזה נדרש `UPDATE game.users SET is_admin`
- * ידני ב-SQL Editor. מי שעשה רק את הראשון קיבל מסך מלא שבו כל
- * לחיצה נכשלת, וזה נראה כמו באג ולא כמו שלב שנשכח.
+ * קודם נדרשו שני דברים שלא קשורים זה לזה: קוד שפתח את המסך,
+ * ו-`UPDATE game.users SET is_admin` ידני ב-SQL Editor שנתן
+ * הרשאה לשמור. מי שעשה רק את הראשון קיבל מסך מלא שבו כל לחיצה
+ * נכשלת, וזה נראה כמו באג ולא כמו שלב שנשכח.
  *
  * `game.claim_admin` עושה את שניהם: משווה בשרת, ואם נכון —
  * מסמן את הקורא כאדמין. אין שלב שני.

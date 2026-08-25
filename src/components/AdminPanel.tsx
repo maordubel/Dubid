@@ -13,14 +13,15 @@ import { TEAMS, TEAM_BY_ID, PLAYERS_BY_TEAM } from '../data/squads.ts';
 import { FIXTURES, GAMEWEEK, fixtureLabel, kickoffTimeLabel } from '../data/fixtures.ts';
 import {
   getResults, upsertFixtureScore, upsertPerformance, setPublished,
-  tryAdminLogin, isAdminSession, adminLogout, subscribeToStore,
-  isDatabaseAdmin, errorMessageHe, hydrate,
+  subscribeToStore, isDatabaseAdmin, errorMessageHe, hydrate,
   claimAdmin, releaseAdmin, runHealthChecks,
   adminMessageHe, type HealthCheck,
 } from '../lib/store.ts';
 import type { PlayerPerformance, Position, TeamOutcome } from '../lib/scoring/types.ts';
 import { AdminSquads } from './AdminSquads.tsx';
 import { LogoMark } from './Logo.tsx';
+import { resolveGate, type AdminGate } from '../lib/adminGate.ts';
+import { ensureIdentity } from '../lib/identity.ts';
 
 const POSITION_LABEL: Record<Position, string> = {
   GK: 'שוער', DEF: 'הגנה', MID: 'קישור', FWD: 'התקפה',
@@ -49,28 +50,33 @@ function emptyPerf(playerId: string, teamId: string, position: Position): Player
 
 export function AdminPanel({ onExit }: { onExit: () => void }) {
   const [, forceTick] = useState(0);
-  const [authed, setAuthed] = useState(isAdminSession());
   const [openFixture, setOpenFixture] = useState<string | null>(null);
+
   /**
-   * ★ שתי הרשאות שונות, ורק אחת מהן אמיתית.
+   * ★★ מקור אמת אחד: המסד. ★★
    *
-   * ה-PIN פותח את המסך. ההרשאה **במסד** היא מה שמאפשר לשמור. הן
-   * יכולות להיפרד: מי שיודע את הקוד אבל אינו אדמין ב-`game.users`
-   * יראה מסך מלא, ילחץ שמירה, ויקבל `ADMIN_REQUIRED` על כל שדה.
+   * קודם היו שניים — דגל ב-`sessionStorage` ו-`is_admin` במסד —
+   * והם נפרדו. סיסמה נכונה הדליקה את הדגל המקומי, הקריאה לשרת
+   * נכשלה, והמשתמש נכנס למסך שבו **שום פעולה לא עובדת**, ומאז
+   * גם דילג על מסך הכניסה בכל רענון.
    *
-   * לכן זה נבדק פעם אחת בכניסה ונאמר במפורש, במקום להתגלות
-   * בשגיאה השלישית.
+   * עכשיו אין דגל מקומי בכלל. ראו `lib/adminGate.ts`.
    */
   const [dbAdmin, setDbAdmin] = useState<boolean | null>(null);
-  /**
-   * ★ שתי משימות שונות לגמרי, ולכן שתי לשוניות.
-   *
-   *   תוצאות — נעשה פעם בשבוע, אחרי המחזור, בלחץ זמן.
-   *   סגלים  — נעשה לפני העונה ואחרי חלון העברות, בנחת.
-   *
-   * ערבוב שלהן במסך אחד היה מכריח את מי שממהר להזין תוצאות
-   * לגלול מעבר ל-351 שחקנים.
-   */
+  const [checked, setChecked] = useState(false);
+  const gate: AdminGate = resolveGate({ isDatabaseAdmin: dbAdmin, checked });
+
+  const recheck = () => {
+    setChecked(false);
+    void isDatabaseAdmin()
+      .then(setDbAdmin)
+      // ★ כישלון = לא אדמין. "לא הצלחתי לבדוק" אינו "כן".
+      .catch(() => setDbAdmin(false))
+      .finally(() => setChecked(true));
+  };
+
+  useEffect(recheck, []);
+
   const [section, setSection] = useState<'results' | 'squads' | 'health'>('results');
 
   useMemo(() => {
@@ -79,18 +85,25 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
   }, []);
 
   useEffect(() => {
-    if (!authed) return;
+    if (gate !== 'ready') return;
     void hydrate(GAMEWEEK.id, true);
-    void isDatabaseAdmin().then(setDbAdmin);
-  }, [authed]);
+  }, [gate]);
 
-  if (!authed) {
+  /* ★ בזמן הבדיקה לא מציגים כלום.
+     מסך שמהבהב "אין הרשאה" ואז נפתח נראה שבור. */
+  if (gate === 'checking') {
     return (
-      <AdminLogin
-        onIn={() => { setAuthed(true); setDbAdmin(true); }}
-        onExit={onExit}
-      />
+      <div dir="rtl" className="tex-wood grid h-[100dvh] place-items-center text-chalk">
+        <div className="flex flex-col items-center gap-3">
+          <LogoMark size={44} />
+          <p className="text-[12px] text-chalk-dim">בודק הרשאה…</p>
+        </div>
+      </div>
     );
+  }
+
+  if (gate === 'locked') {
+    return <AdminLogin onIn={recheck} onExit={onExit} />;
   }
 
   const results = getResults(GAMEWEEK.id);
@@ -126,7 +139,8 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
               // ★ יציאה מכבה גם את הדגל במסד, לא רק את המסך.
               //   אחרת כל מכשיר שהוקלדה בו הסיסמה פעם אחת נשאר
               //   אדמין לנצח — כולל טלפון שהושאל לרגע.
-              void releaseAdmin().finally(() => { adminLogout(); onExit(); });
+              // ★ מכבה את הדגל **במסד** — זה המקום היחיד שבו הוא חי.
+              void releaseAdmin().finally(onExit);
             }}
             className="tap rounded-full border border-gold/25 px-3 py-2 text-xs text-chalk-dim"
           >
@@ -151,20 +165,6 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
               </button>
             ))}
         </div>
-
-        {dbAdmin === false && (
-          <div role="alert" className="mb-4 rounded-xl border border-flare/40 bg-flare/10 px-4 py-3">
-            <div className="text-sm font-black text-flare">אין לך הרשאת ניהול במסד</div>
-            <p className="mt-1 text-[12.5px] leading-snug text-chalk-2">
-              המסך נפתח, אבל כל שמירה תידחה. ההרשאה נבדקת בשרת ולא כאן —
-              וזה מכוון. להפעלה, פעם אחת, מה-SQL Editor של Supabase:
-            </p>
-            <code dir="ltr" className="mt-2 block overflow-x-auto rounded-lg bg-night px-3 py-2
-                                       text-[11px] text-gold-light">
-              UPDATE game.users SET is_admin = TRUE WHERE id = auth.uid();
-            </code>
-          </div>
-        )}
 
         {section === 'squads' && <AdminSquads />}
         {section === 'health' && <AdminHealth />}
@@ -470,6 +470,16 @@ function AdminLogin({ onIn, onExit }: { onIn: () => void; onExit: () => void }) 
    * עכשיו הבדיקות זמינות מהמסך הזה, בלי להיכנס.
    */
   const [showHealth, setShowHealth] = useState(false);
+  /**
+   * ★ דלת החירום.
+   *
+   * אם המסד לא מכיר את הפונקציה שמעניקה הרשאה, אין שום סיסמה
+   * שתעזור — ובלי מוצא, המסך הופך לקיר. אז מציגים את המזהה של
+   * המשתמש הנוכחי ואת השורה המדויקת שמעניקה לו הרשאה ידנית.
+   *
+   * המזהה נשלף רק כשצריך: אין סיבה לחשוף אותו במסך רגיל.
+   */
+  const [myId, setMyId] = useState<string | null>(null);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -478,17 +488,25 @@ function AdminLogin({ onIn, onExit }: { onIn: () => void; onExit: () => void }) 
     setError(null);
 
     void (async () => {
-      // שער מקומי — חוסך הלוך-ושוב על שגיאת הקלדה. הוא **לא**
-      // האבטחה; הוא רק מהיר יותר.
-      const localOk = await tryAdminLogin(pin);
+      /**
+       * ★ קריאה אחת בלבד, ולשרת.
+       *
+       * היה כאן גם שער מקומי שהשווה hash בדפדפן — "כדי לחסוך
+       * הלוך-ושוב". הוא זה ששבר הכל: הוא הדליק דגל כניסה מקומי
+       * גם כשהשרת נכשל, והמשתמש נכנס למסך שאי אפשר לפעול בו.
+       *
+       * חיסכון של 200 מילישניות לא שווה מצב שבו המסך פתוח
+       * וההרשאה לא קיימת.
+       */
       const res = await claimAdmin(pin);
 
       if (res.ok) { onIn(); return; }
 
-      // סיסמה שגויה מקומית **וגם** השרת לא ענה → זו כנראה באמת
-      // סיסמה שגויה, ואין טעם להאשים את השרת.
-      const code = !localOk && res.error === 'NETWORK' ? 'BAD_SECRET' : (res.error ?? 'NETWORK');
+      const code = res.error ?? 'NETWORK';
       setError(adminMessageHe(code));
+      if (code === 'NO_SECRET_CONFIGURED') {
+        void ensureIdentity().then((id) => setMyId(id.id)).catch(() => {});
+      }
       setTriesLeft(res.triesLeft ?? null);
       // תקלת תשתית → פותחים את הבדיקות מיד. הוא ממילא הולך לשם.
       if (code !== 'BAD_SECRET' && code !== 'LOCKED') setShowHealth(true);
@@ -565,6 +583,34 @@ function AdminLogin({ onIn, onExit }: { onIn: () => void; onExit: () => void }) 
         >
           {busy ? 'בודק…' : 'כניסה'}
         </button>
+
+        {/* ★ דלת החירום — מוצגת רק כשאין דרך אחרת. */}
+        {myId && (
+          <div className="mt-3 rounded-xl border border-armband/40 bg-armband/10 p-3">
+            <p className="text-[11.5px] font-bold leading-snug text-armband">
+              מוצא חלופי: להדביק את השורה הזו ב-SQL Editor של Supabase,
+              והרשאת הניהול תינתן למשתמש הזה.
+            </p>
+            <code
+              dir="ltr"
+              className="mt-2 block select-all overflow-x-auto rounded-lg bg-night px-2.5 py-2
+                         text-[10.5px] leading-relaxed text-gold-light"
+            >
+              UPDATE game.users SET is_admin = TRUE WHERE id = '{myId}';
+            </code>
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard?.writeText(
+                  `UPDATE game.users SET is_admin = TRUE WHERE id = '${myId}';`,
+                );
+              }}
+              className="mt-2 text-[11px] text-chalk-2 underline underline-offset-2"
+            >
+              להעתיק
+            </button>
+          </div>
+        )}
 
         {/* ★ תמיד זמין, לא רק אחרי כישלון. */}
         <button
