@@ -46,8 +46,12 @@ import { useLineup } from './state/useLineup.ts';
 import { myLeagues } from './lib/leagueStore.ts';
 import {
   getResults, saveEntry, listEntries, findMyEntry, deleteEntry, subscribeToStore,
-  hydrate, startRealtime, storeStatus, errorMessageHe, type LineupEntry,
+  hydrate, startRealtime, storeStatus, errorMessageHe, getGameweekState,
+  type LineupEntry,
 } from './lib/store.ts';
+import {
+  hydrateLiveData, startLiveDataRealtime, subscribeToLiveData, liveDataVersion,
+} from './lib/liveData.ts';
 import { computeGameStatus, type GameStatus } from './lib/gameStatus.ts';
 import type { PlayerPerformance, TeamOutcome } from './lib/scoring/types.ts';
 import type { RuleSet } from './lib/scoring/rules.ts';
@@ -57,7 +61,6 @@ type Mode = 'full' | 'five';
 const MODE_LABEL: Record<Mode, string> = { full: 'הרכב מלא · 11', five: '5 על 5' };
 
 const SITE_URL = DUBID_URL;
-const USER_STORAGE_KEY = 'dubid.username.v1';
 
 /**
  * ★ חמישה פריטים, לא שישה.
@@ -165,16 +168,29 @@ function MainApp() {
    * תמונה להשוות אליה.
    */
   useEffect(() => {
-    let stop: (() => void) | undefined;
+    const stops: Array<() => void> = [];
     void (async () => {
       await ensureIdentity();
+      /* ★ הסגלים והלוח **לפני** ההגשות.
+         `entries` מחזירה מזהי שחקנים; אם הסגל עדיין הזרע הסטטי,
+         שחקן שהאדמין הוסיף היום מופיע כמזהה בלי שם. */
+      await hydrateLiveData(GAMEWEEK.id);
       await hydrate(GAMEWEEK.id);
-      stop = startRealtime(GAMEWEEK.id);
+      stops.push(startRealtime(GAMEWEEK.id));
+      stops.push(startLiveDataRealtime(GAMEWEEK.id));
     })();
-    return () => stop?.();
+    return () => { for (const s of stops) s(); };
   }, []);
 
-  const resolved = useMemo(() => resolveRules(TEAMS.length), []);
+  /* דאטת הכדורגל השתנתה (האדמין ערך משהו) → רינדור מחדש. */
+  const [liveVersion, setLiveVersion] = useState(0);
+  useEffect(() => subscribeToLiveData(() => setLiveVersion(liveDataVersion())), []);
+
+  /* ★ `liveVersion` בכל תלות שנגזרת מהסגל או מהלוח.
+     בלעדיו: האדמין מוסיף שחקן, המערך מתעדכן, ו-`useMemo` עם
+     `[]` ממשיך להחזיר את הרשימה מהרינדור הראשון — כלומר בדיוק
+     הבאג שתוקן, רק שכבה אחת מעל. */
+  const resolved = useMemo(() => resolveRules(TEAMS.length), [liveVersion]);
   const fullRules = resolved.rules;
   const fiveRules = DUBID_5X5;
   const rulesByMode: Record<Mode, RuleSet> = { full: fullRules, five: fiveRules };
@@ -185,7 +201,7 @@ function MainApp() {
 
   const teams: TeamMeta[] = useMemo(
     () => TEAMS.map((t) => ({ id: t.id, short: t.short, name: t.nameHe })),
-    [],
+    [liveVersion],
   );
   const pool: PoolPlayer[] = useMemo(
     () => PLAYERS.map((p) => ({
@@ -196,9 +212,10 @@ function MainApp() {
       nameShort: shortName(p.nameHe),
       price: p.price,
     })),
-    [],
+    [liveVersion],
   );
-  const priceById = useMemo(() => new Map(PLAYERS.map((p) => [p.id, p.price])), []);
+  const priceById = useMemo(
+    () => new Map(PLAYERS.map((p) => [p.id, p.price])), [liveVersion]);
 
   /** "נגד מי משחקים" — לתצוגה בגיליון בחירת השחקן, לפי מחזור נוכחי. */
   const opponentShortByTeam: Record<string, string> = useMemo(() => {
@@ -208,30 +225,23 @@ function MainApp() {
       if (opp) map[t.id] = TEAM_BY_ID.get(opp.opponentId)?.short ?? '';
     }
     return map;
-  }, []);
+  }, [liveVersion]);
 
   /**
    * ★ מי אני.
    *
-   * קודם זה היה מזהה אקראי ב-localStorage — כלומר זהות של דפדפן,
-   * לא של אדם. אותו משתמש בטלפון ובמחשב היה שני מתחרים.
+   * קודם זה היה מזהה אקראי ב-`localStorage` — כלומר זהות של
+   * דפדפן, לא של אדם. אותו משתמש בטלפון ובמחשב היה שני מתחרים,
+   * וניקוי דפדפן היה מוחק אדם.
    *
-   * עכשיו זה מזהה ה-auth של Supabase (אנונימי, בלי הרשמה). עד
-   * שהוא מגיע, המזהה הישן משמש כברירת מחדל — כך אין רגע שבו
-   * המסך מרנדר בלי זהות בכלל.
+   * עכשיו זה מזהה ה-auth של Supabase (אנונימי, בלי הרשמה),
+   * ואין ברירת מחדל מקומית: עד שהוא מגיע המחרוזת ריקה, וכל מה
+   * שנגזר ממנה (`isMe` בדירוג, ההגשה שלי) פשוט עוד לא ידוע.
+   *
+   * ★ מזהה מומצא היה גרוע יותר מאשר כלום: הוא היה גורם למסך
+   *   לומר "זו ההגשה שלך" על שורה של מישהו אחר.
    */
-  const [userId, setUserId] = useState(() => {
-    if (typeof localStorage === 'undefined') return 'guest';
-    try {
-      const existing = localStorage.getItem(USER_STORAGE_KEY);
-      if (existing) return existing;
-      const fresh = `guest-${Math.floor(Math.random() * 1e6)}`;
-      localStorage.setItem(USER_STORAGE_KEY, fresh);
-      return fresh;
-    } catch {
-      return 'guest';
-    }
-  });
+  const [userId, setUserId] = useState('');
   useEffect(() => { void ensureIdentity().then((id) => setUserId(id.id)); }, []);
 
   /** הזהות המלאה — לצורך ההצעה להירשם. `null` עד שהיא נטענת. */
@@ -241,10 +251,10 @@ function MainApp() {
   // שני הרכבים חיים תמיד, במקביל — לא נוצרים/נהרסים עם מעבר טאב,
   // כדי שהעבודה על אחד לא תימחק כשעוברים לשני ואז חוזרים.
   const luFull = useLineup(fullRules.constraints.formationAllowed[0], fullRules, {
-    lineupId: 'draft-full', userId, gameweekId: GAMEWEEK.id,
+    lineupId: 'draft-full', userId, gameweekId: GAMEWEEK.id, mode: 'full',
   });
   const luFive = useLineup(fiveRules.constraints.formationAllowed[0], fiveRules, {
-    lineupId: 'draft-5x5', userId, gameweekId: GAMEWEEK.id,
+    lineupId: 'draft-5x5', userId, gameweekId: GAMEWEEK.id, mode: 'five',
   });
   const luByMode = { full: luFull, five: luFive };
   const lu = luByMode[mode];
@@ -270,20 +280,46 @@ function MainApp() {
    *   ברגע שהמחזורים מגיעים מ-Supabase, השורה הזו מתחלפת בשאילתה
    *   והלובי לא משתנה בכלל — הוא כבר מקבל `Gameweek` מלא.
    */
-  const lobbyGameweek: Gameweek = useMemo(() => ({
-    id: GAMEWEEK.id,
-    number: GAMEWEEK.number ?? 1,
-    label: GAMEWEEK.label,
-    status: results.published
-      ? GameweekStatus.Published
-      : Date.parse(GAMEWEEK_DEADLINE) > serverNow()
-        ? GameweekStatus.Open
-        : GameweekStatus.Locked,
-    deadlineAt: GAMEWEEK_DEADLINE,
-    firstKickoffAt: FIRST_KICKOFF,
-  }), [results.published]);
+  /**
+   * ★ הדדליין מגיע מהשרת, לא מהמכשיר.
+   *
+   * `getGameweekState()` היא `game.gameweek_state('gw-2')` —
+   * אותה שורה שאוכפת את הנעילה ב-`submit_entry`. כל עוד הלובי
+   * חישב דדליין בעצמו, היה אפשר שהמסך יראה "פתוח" בזמן שהשרת
+   * כבר דוחה — והמשתמש לוחץ "הגש" ומקבל שגיאה בלי להבין למה.
+   *
+   * `GAMEWEEK_DEADLINE` נשאר כגיבוי לפריים הראשון, ומאז המעבר
+   * הוא גם עצמו מתעדכן מ-`game.fixtures()`.
+   *
+   * ★ הסטטוס נלקח מהשרת כשהוא נחרץ (`locked`/`live`/`settled`),
+   *   כי אדמין יכול לנעול מוקדם — ושעון שאומר "עוד 3 שעות" מול
+   *   מחזור נעול הוא בדיוק המסך שגורם לאנשים לחשוב שהמוצר שבור.
+   */
+  const gwState = getGameweekState();
 
-  const entrantCount = listEntries(GAMEWEEK.id).length;
+  const lobbyGameweek: Gameweek = useMemo(() => {
+    const deadlineAt = gwState?.lockAt ?? GAMEWEEK_DEADLINE;
+    const serverLocked = gwState
+      ? ['locked', 'live', 'settled'].includes(gwState.status)
+      : false;
+    return {
+      id: GAMEWEEK.id,
+      number: gwState?.number ?? GAMEWEEK.number ?? 1,
+      label: GAMEWEEK.label,
+      status: results.published
+        ? GameweekStatus.Published
+        : !serverLocked && Date.parse(deadlineAt) > serverNow()
+          ? GameweekStatus.Open
+          : GameweekStatus.Locked,
+      deadlineAt,
+      firstKickoffAt: gwState?.firstKickoffAt ?? FIRST_KICKOFF,
+    };
+  }, [results.published, gwState, liveVersion]);
+
+  // ★ מספר המשתתפים מגיע מהשרת (`gameweek_state.entrants`) ולא
+  //   מאורך הרשימה: לפני הנעילה `entries` מחזירה רק את ההגשה של
+  //   הקורא, ולכן הלובי היה מציג "1 משתתף" גם כשיש חמישים.
+  const entrantCount = gwState?.entrants ?? listEntries(GAMEWEEK.id).length;
 
   /* ★ סדר ההצהרות כאן אינו סגנוני.
      `growthCtx` קורא את שתי ההגשות, ולכן הן חייבות להיות מוצהרות
@@ -316,9 +352,11 @@ function MainApp() {
     // הרגע שקובע הוא השריקה הראשונה, לא הדדליין. הם לא זהים:
     // הדדליין הוא פתיחת המשחק המוקדם ביותר, וזה בדיוק הרגע שבו
     // אופסיידס הופך לרלוונטי.
-    msToKickoff: Date.parse(FIRST_KICKOFF) - serverNow(),
+    msToKickoff: Date.parse(lobbyGameweek.firstKickoffAt ?? lobbyGameweek.deadlineAt)
+                 - serverNow(),
     entrants: entrantCount,
-  }), [lobbyGameweek.status, entryFull, entryFive, results.published, entrantCount]);
+  }), [lobbyGameweek.status, lobbyGameweek.firstKickoffAt,
+       entryFull, entryFive, results.published, entrantCount]);
 
   const { promo, dismiss: dismissPromo, open: openPromo } =
     usePromo(growthCtx, lobbyGameweek.number);
@@ -391,7 +429,7 @@ function MainApp() {
       dayLabel: f.dayLabel,
       timeLabel: kickoffTimeLabel(f.kickoff, f.timeConfirmed),
     })),
-    [],
+    [liveVersion],
   );
 
   const leagueCount = myLeagues(userId).length;

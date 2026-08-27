@@ -1,20 +1,36 @@
 /**
- * useLineup.ts — מצב ההרכב.
+ * useLineup.ts — מצב ההרכב שבבנייה.
  *
- * שמור ב-localStorage: משתמש שנוסע ברכבת ומאבד רשת באמצע בניית ההרכב
- * לא מאבד את העבודה. ההגשה עצמה לעולם לא נשמרת מקומית — רק הטיוטה.
+ * ═══════════════════════════════════════════════════════════════
+ * ★ מה השתנה: הטיוטה עברה לשרת
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * הקובץ הזה שמר את הטיוטה ב-`localStorage`. ההצדקה שנכתבה כאן
+ * הייתה "משתמש שנוסע ברכבת ומאבד רשת לא מאבד את העבודה" — נכונה,
+ * ומחיר: הטיוטה נשארה **על המכשיר**. מי שהתחיל בטלפון והמשיך
+ * במחשב התחיל מאפס, ומי שניקה דפדפן איבד הכל.
+ *
+ * עכשיו הטיוטה יושבת ב-`game.lineup_drafts`, ומגיעה לכל מכשיר
+ * שבו אותו אדם מחובר.
+ *
+ * ★ מה נשמר מהעיצוב הקודם
+ *
+ * המצב עדיין חי בזיכרון של הדף, וכל עריכה מיידית. השמירה היא
+ * **write-behind**: היא רודפת אחרי המצב, לא חוסמת אותו. מסך
+ * שמחכה לשרת בין לחיצה ללחיצה אינו מסך של משחק.
+ *
+ * ★ ומה **לא** נשמר: אין יותר עותק מקומי, גם לא כגיבוי.
+ *   עותק מקומי שמנצח את השרת הוא בדיוק הבאג שהמעבר בא לפתור:
+ *   טיוטה ישנה ממכשיר אחד שדורסת חדשה ממכשיר שני.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { validateLineup, teamsUsed } from '../lib/scoring/validate.ts';
 import { changeFormation, createEmptyLineup } from '../lib/lineup.ts';
+import { fetchDrafts, draftInto, draftFormation, pushDraft, dropDraft,
+  type Mode } from '../lib/drafts.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import type { Lineup, Position } from '../lib/scoring/types.ts';
-
-/** מפתח נפרד לכל הרכב (lineupId) — כדי ששתי טיוטות (מלא / 5 על 5) לא ידרסו זו את זו. */
-function storageKey(lineupId: string): string {
-  return `dubid.lineup.draft.${lineupId}.v1`;
-}
 
 export { createEmptyLineup };
 
@@ -24,27 +40,103 @@ export interface AssignablePlayer {
   position: Position;
 }
 
+/**
+ * ★ למה 800 מילישניות
+ *
+ * זה הפרש שגדול מספיק כדי שסדרת לחיצות רצופה (בחירת חמישה
+ * שחקנים) תיסגר לשמירה אחת, וקטן מספיק שמי שסוגר את הטאב מיד
+ * אחרי בחירה אחת עדיין יגלה אותה במכשיר השני.
+ */
+const SAVE_DELAY_MS = 800;
+
 export function useLineup(formation: string, rules: RuleSet, meta: {
-  lineupId: string; userId: string; gameweekId: string;
+  lineupId: string; userId: string; gameweekId: string; mode: Mode;
 }) {
-  const [lineup, setLineup] = useState<Lineup>(() => {
-    if (typeof localStorage !== 'undefined') {
-      try {
-        const raw = localStorage.getItem(storageKey(meta.lineupId));
-        if (raw) {
-          const saved = JSON.parse(raw) as Lineup;
-          // טיוטה של מערך אחר (או של מחזור אחר) לא רלוונטית
-          if (saved.formation === formation && saved.gameweekId === meta.gameweekId) return saved;
-        }
-      } catch { /* טיוטה פגומה — מתחילים נקי */ }
-    }
-    return createEmptyLineup(formation, meta);
-  });
+  const [lineup, setLineup] = useState<Lineup>(() =>
+    createEmptyLineup(formation, {
+      lineupId: meta.lineupId, userId: meta.userId, gameweekId: meta.gameweekId,
+    }));
+
+  /** `true` אחרי שהתשובה מהשרת הגיעה — לפני זה אסור לשמור. */
+  const loaded = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  /* ---------------------------------------------------------------- *
+   * טעינה
+   *
+   * ★ הטעינה חייבת לקרות לפני השמירה הראשונה, אחרת מרוץ:
+   *   ההרכב הריק שנוצר ברינדור הראשון היה נשמר לשרת ומוחק את
+   *   הטיוטה האמיתית לפני שהיא הספיקה לחזור.
+   * ---------------------------------------------------------------- */
+  useEffect(() => {
+    let alive = true;
+    loaded.current = false;
+    setHydrated(false);
+
+    void (async () => {
+      await fetchDrafts(meta.gameweekId);
+      if (!alive) return;
+
+      // ★ המערך של הטיוטה מנצח, והוא נקרא **לפני** בניית ההרכב
+      //   הריק: משבצות שנבנו לפי 4-3-3 לא יכולות לקלוט טיוטה
+      //   של 3-5-2 בלי לאבד שחקן.
+      const saved = draftFormation(meta.gameweekId, meta.mode);
+      const base = createEmptyLineup(saved || formation, {
+        lineupId: meta.lineupId, userId: meta.userId, gameweekId: meta.gameweekId,
+      });
+      const restored = draftInto(base, meta.gameweekId, meta.mode);
+      if (restored) setLineup(restored);
+
+      loaded.current = true;
+      setHydrated(true);
+    })();
+
+    return () => { alive = false; };
+    // `userId` בתלויות: החלפת זהות (אורח → מחובר) חייבת לטעון
+    // מחדש, אחרת המסך מציג את הטיוטה של הזהות הקודמת.
+  }, [meta.gameweekId, meta.lineupId, meta.mode, meta.userId, formation]);
+
+  /* ---------------------------------------------------------------- *
+   * שמירה — רודפת אחרי המצב, לא חוסמת אותו
+   * ---------------------------------------------------------------- */
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   useEffect(() => {
-    try { localStorage.setItem(storageKey(meta.lineupId), JSON.stringify(lineup)); } catch { /* מצב פרטי */ }
-  }, [lineup, meta.lineupId]);
+    if (!loaded.current) return;
 
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      setSaving(true);
+      void pushDraft(meta.gameweekId, meta.mode, lineup).then((ok) => {
+        setSaving(false);
+        if (ok) setSavedAt(Date.now());
+      });
+    }, SAVE_DELAY_MS);
+
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [lineup, meta.gameweekId, meta.mode]);
+
+  /**
+   * ★ שמירה מיידית ביציאה מהדף.
+   *
+   * בלי זה, מי שבחר שחקן וסגר את הטאב תוך פחות מ-800 מילישניות
+   * איבד את הבחירה — וזה נראה בדיוק כמו "האפליקציה לא שומרת".
+   */
+  useEffect(() => {
+    const flush = () => {
+      if (!loaded.current || document.visibilityState !== 'hidden') return;
+      if (timer.current) clearTimeout(timer.current);
+      void pushDraft(meta.gameweekId, meta.mode, lineup);
+    };
+    document.addEventListener('visibilitychange', flush);
+    return () => document.removeEventListener('visibilitychange', flush);
+  }, [lineup, meta.gameweekId, meta.mode]);
+
+  /* ---------------------------------------------------------------- *
+   * עריכה
+   * ---------------------------------------------------------------- */
   const assign = useCallback((slotNo: number, player: AssignablePlayer) => {
     setLineup((prev) => ({
       ...prev,
@@ -95,8 +187,13 @@ export function useLineup(formation: string, rules: RuleSet, meta: {
   }, []);
 
   const reset = useCallback(() => {
-    setLineup(createEmptyLineup(formation, meta));
-  }, [formation, meta]);
+    setLineup(createEmptyLineup(formation, {
+      lineupId: meta.lineupId, userId: meta.userId, gameweekId: meta.gameweekId,
+    }));
+    // ★ "התחל מחדש" מוחק גם בשרת. בלי זה הטיוטה הישנה הייתה
+    //   חוזרת ברענון הבא, והמשתמש היה רואה את מה שמחק.
+    void dropDraft(meta.gameweekId, meta.mode);
+  }, [formation, meta.lineupId, meta.userId, meta.gameweekId, meta.mode]);
 
   /**
    * מעבר מערך. מחזיר את השחקנים שנפלו, כדי שה-UI יוכל לומר
@@ -120,5 +217,7 @@ export function useLineup(formation: string, rules: RuleSet, meta: {
     lineup, assign, clear, setCaptain, setVice, reset, setFormation, lastDropped,
     issues, usedTeams, filled,
     isComplete: issues.length === 0,
+    /** מצב הסנכרון — למסך שרוצה להראות "נשמר". */
+    saving, savedAt, hydrated,
   };
 }

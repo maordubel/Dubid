@@ -56,5 +56,95 @@
   <div id="root"></div>
   <noscript>האפליקציה דורשת JavaScript.</noscript>
   <script type="module" src="/src/main.tsx"></script>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ★★ שומר הסגנונות ★★
+
+       האתר עלה פעם אחת **בלי גיליון סגנונות בכלל**: כותרות בגודל
+       ברירת מחדל, כפתורים אפורים, ורקע כהה שמגיע מ-`color-scheme`
+       ולא מהמוצר. הסיבה הייתה Service Worker עם גרסת מטמון קבועה,
+       שהגיש HTML חדש עם נכסים ישנים.
+
+       ★ מה שהפך את זה לגרוע פי כמה: **שום דבר לא צעק.**
+         הדף "עבד" — הוא פשוט נראה כמו טיוטה. אין שגיאה בקונסול,
+         אין 404, ו-Ctrl+Shift+R לא עוזר כי ה-SW חוטף את הבקשה.
+
+       הבלוק הזה בודק תוצאה במקום להניח אותה: הוא יוצר אלמנט עם
+       מחלקה שאמורה להיות מעוצבת, ומודד. אם הכלל לא חל — ה-CSS
+       לא נטען, נקודה.
+
+       ואז הוא **מרפא את עצמו**: מוחק את ה-SW ואת המטמונים,
+       ומרענן. פעם אחת בלבד — אם גם אחריה אין CSS, הבעיה במקום
+       אחר, ואז הוא אומר את זה בעברית במקום להיכנס ללולאה.
+
+       ⚠ המחלקה `.tap` מוגדרת ב-tailwind.config.ts כ-`min-height: 44px`.
+         אם היא תשונה שם — לעדכן גם כאן.
+       ═══════════════════════════════════════════════════════════ -->
+  <script>
+    (function () {
+      var KEY = 'dubid.css.recover.v1';
+
+      function stylesLoaded() {
+        var probe = document.createElement('div');
+        probe.className = 'tap';
+        probe.style.position = 'absolute';
+        probe.style.visibility = 'hidden';
+        probe.style.pointerEvents = 'none';
+        document.body.appendChild(probe);
+        var h = window.getComputedStyle(probe).minHeight;
+        probe.parentNode.removeChild(probe);
+        return h === '44px';
+      }
+
+      function tellUser() {
+        var bar = document.createElement('div');
+        bar.setAttribute('dir', 'rtl');
+        bar.style.cssText =
+          'position:fixed;inset-inline:0;top:0;z-index:2147483647;' +
+          'background:#7a1f1a;color:#fff;padding:10px 14px;' +
+          'font:600 13px/1.5 Assistant,Arial,sans-serif;text-align:center';
+        bar.innerHTML =
+          'העיצוב לא נטען. נסו לרענן, ואם זה חוזר — ' +
+          '<a href="/reset.html" style="color:#ffd98a">לחצו כאן לאיפוס</a>.';
+        document.body.appendChild(bar);
+      }
+
+      function heal() {
+        var done = function () {
+          try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
+          location.reload();
+        };
+        var jobs = [];
+        if (window.caches && caches.keys) {
+          jobs.push(caches.keys().then(function (ks) {
+            return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+          }));
+        }
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+          jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+            return Promise.all(rs.map(function (r) { return r.unregister(); }));
+          }));
+        }
+        // גם אם אחד מהם נכשל — מרעננים בכל מקרה.
+        Promise.all(jobs).then(done, done);
+      }
+
+      window.addEventListener('load', function () {
+        // רגע אחד אחרי load: גיליונות סגנונות עשויים עוד להיקלט.
+        setTimeout(function () {
+          try {
+            if (stylesLoaded()) return;
+            var tried = false;
+            try { tried = sessionStorage.getItem(KEY) === '1'; } catch (e) {}
+            // ★ ריפוי אחד בלבד. שני ריענונים אוטומטיים ברצף הם לולאה.
+            if (tried) { tellUser(); return; }
+            heal();
+          } catch (e) {
+            /* בדיקה שנכשלת לא תפיל את האפליקציה. */
+          }
+        }, 400);
+      });
+    })();
+  </script>
 </body>
 </html>

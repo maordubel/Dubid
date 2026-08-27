@@ -10,9 +10,16 @@
  * לשוניות אצל אותו אדם היו שתי תחרויות נפרדות, והאדמין הזין
  * תוצאות שאף אחד חוץ ממנו לא ראה.
  *
- * עכשיו: **Supabase הוא מקור האמת.** localStorage נשאר, אבל
- * בתפקיד אחר לגמרי — מטמון לקריאה בלבד, כדי שהמסך לא יהיה ריק
- * בשנייה הראשונה ושהאפליקציה לא תמות ברשת גרועה.
+ * עכשיו: **Supabase הוא מקור האמת, ורק הוא.** `localStorage` לא
+ * מחזיק שום נתון של המשחק — לא הגשות, לא תוצאות, ולא טיוטות.
+ * מה שיושב במכשיר הוא סשן ההזדהות בלבד, כמו עוגיית התחברות.
+ *
+ * ★ למה גם המטמון הוסר, לא רק הכתיבה
+ *
+ * מטמון קריאה נשמע תמים. הוא לא: הגשה ותוצאה קיימות כדי שכולם
+ * יראו את **אותו** מספר, ומטמון במכשיר מחזיר בדיוק את המצב שבו
+ * שני אנשים מסתכלים על אותה טבלה ורואים שני דירוגים. עדיף מסך
+ * שאומר "לא מחובר" ממסך שמציג מספר ישן כאילו הוא נכון.
  *
  * ═══════════════════════════════════════════════════════════════
  * ★ למה הקריאות נשארו סינכרוניות
@@ -35,12 +42,22 @@
 import type { Lineup, PlayerPerformance, TeamOutcome } from './scoring/types.ts';
 import { supabase } from './supabase.ts';
 import { ensureIdentity, currentIdentity } from './identity.ts';
+import { refreshLiveData } from './liveData.ts';
 
-const KEYS = {
-  entries: 'dubid.entries.v1',
-  results: 'dubid.results.v1',
-  adminSession: 'dubid.admin.session.v1',
-} as const;
+/* ★★ אין כאן יותר מפתחות `localStorage`. ★★
+ *
+ * היו שלושה: הגשות, תוצאות, וסשן אדמין. כולם הוסרו.
+ *
+ * ★ למה מטמון של דירוג הוא לא "אופטימיזציה"
+ *
+ * הגשה ותוצאה הן דאטה **משותפת**: הן קיימות כדי שכולם יראו את
+ * אותו מספר. מטמון במכשיר הופך אותן לפרטיות — ואז שני אנשים
+ * שמסתכלים על אותה טבלה רואים שני דירוגים, וכל אחד בטוח שהוא
+ * צודק. זה בדיוק המצב שהמעבר ל-Supabase בא לסיים.
+ *
+ * מה שנשאר במקומו: `live: false`, ומסך שאומר "לא מחובר" במקום
+ * להציג מספר ישן כאילו הוא נכון.
+ */
 
 export interface LineupEntry {
   id: string;
@@ -116,65 +133,48 @@ export function storeStatus(): { live: boolean; loading: boolean; error: string 
 }
 
 /* ------------------------------------------------------------------ */
-/* מטמון מקומי — קריאה מהירה, לא מקור אמת                              */
-/* ------------------------------------------------------------------ */
-
-function readCache<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeCache<T>(key: string, value: T) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* מצב פרטי / חריגה ממכסה — לא שוברים את האפליקציה */
-  }
-}
-
-/* ------------------------------------------------------------------ */
 /* מעבר ממצב הדגמה למשחק אמיתי                                          */
 /* ------------------------------------------------------------------ */
 
 /**
- * ★ ניקוי חד-פעמי לקראת המשחק האמיתי.
+ * ★ ניקוי חד-פעמי של כל מה שנשאר במכשירים.
  *
- * במהלך הפיתוח נצברו במכשירים הגשות ותוצאות של מחזור 1 — נתוני
- * הדגמה. קבוצת הניסוי חייבת להתחיל מדף חלק.
+ * במהלך הפיתוח נצברו במכשירים הגשות, תוצאות וטיוטות — כולן
+ * במפתחות `dubid.*`. הן כבר לא נקראות על ידי שום קוד, אבל הן
+ * עדיין שם, והן מבלבלות: מי שיפתח DevTools יראה "הגשה" שאינה
+ * קיימת בשום מקום בעולם.
  *
- * העלאת `DATA_EPOCH` = ניקוי נוסף בכניסה הבאה. הועלה עכשיו, כי
- * המטמון מהגרסה הקודמת מכיל הגשות שמעולם לא הגיעו לשרת.
+ * העלאת `DATA_EPOCH` = ניקוי נוסף בכניסה הבאה.
  *
- * ★ מה נשמר בכוונה: השם ומזהה המשתמש.
+ * ⚠ **לא נמחק:** `sb-*` — סשן ההזדהות של Supabase. מחיקה שלו
+ *   הייתה מנתקת את המשתמש מכל מה שהגיש. זו הזהות, לא הדאטה.
  */
-const DATA_EPOCH = 'gw2-supabase-1';
+const DATA_EPOCH = 'gw2-server-only-1';
 const EPOCH_KEY = 'dubid.epoch.v1';
 
-export function purgeDemoDataOnce(): boolean {
+export function purgeLocalGameData(): number {
   try {
-    if (localStorage.getItem(EPOCH_KEY) === DATA_EPOCH) return false;
+    if (localStorage.getItem(EPOCH_KEY) === DATA_EPOCH) return 0;
 
     const doomed: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k) continue;
-      if (k === KEYS.entries || k === KEYS.results || k.startsWith('dubid.lineup.draft.')) {
-        doomed.push(k);
-      }
+      // כל מפתח של המוצר, חוץ מסמן ה-epoch עצמו.
+      if (k.startsWith('dubid.') && k !== EPOCH_KEY) doomed.push(k);
     }
     for (const k of doomed) localStorage.removeItem(k);
 
     localStorage.setItem(EPOCH_KEY, DATA_EPOCH);
-    notify();
-    return doomed.length > 0;
+    if (doomed.length) notify();
+    return doomed.length;
   } catch {
-    return false;   // מצב פרטי — לא שוברים את האפליקציה בשביל ניקיון
+    return 0;   // מצב פרטי — לא שוברים את האפליקציה בשביל ניקיון
   }
 }
+
+/** נשאר בשם הישן לתאימות עם קוד שקורא לו. */
+export const purgeDemoDataOnce = purgeLocalGameData;
 
 /* ================================================================== */
 /* טעינה מהשרת                                                         */
@@ -227,19 +227,12 @@ export function hydrate(gameweekId: string, force = false): Promise<void> {
       snapshot.gameweek = (stateRes.data ?? null) as GameweekState | null;
       snapshot.live = true;
       snapshot.lastError = null;
-
-      writeCache(KEYS.entries, snapshot.entries);
-      writeCache(KEYS.results, snapshot.results);
     } catch (err) {
+      /* ★ התמונה **לא** מוחלפת בכלום.
+         מה שכבר נטען נשאר על המסך, `live` נופל, ומסך הסטטוס
+         אומר שהחיבור אבד. מה שאין — אין, ואין מאיפה להמציא. */
       snapshot.live = false;
       snapshot.lastError = errorCode(err);
-      // מטמון — עדיף מסך עם נתון ישן מאשר מסך ריק.
-      if (snapshot.entries.length === 0) {
-        snapshot.entries = readCache<LineupEntry[]>(KEYS.entries, []);
-      }
-      if (Object.keys(snapshot.results).length === 0) {
-        snapshot.results = readCache<Record<string, GameweekResults>>(KEYS.results, {});
-      }
     } finally {
       snapshot.loading = false;
       hydrating = null;
@@ -507,7 +500,7 @@ export async function upsertFixtureScore(
     p_final: score.final,
   });
   if (error) throw new Error(errorCode(error));
-  await refresh();
+  await Promise.all([refresh(), refreshLiveData()]);
 }
 
 export async function setPublished(gameweekId: string, published: boolean): Promise<void> {
@@ -602,13 +595,18 @@ export function findEntry(displayName: string, magicCode: string): LineupEntry |
  * פציעה — דרשו עד עכשיו לערוך קובץ, לבנות מחדש, ולפרוס. כלומר
  * הן לא קרו.
  *
- * עכשיו הן RPC. הקובץ נשאר כמקור לבחירה בממשק; המסד הוא מקור
- * האמת לתמחור ולחוקיות ההגשה (`db/11` §5–§8).
+ * עכשיו הן RPC, **והבורר קורא מהמסד.**
  *
- * ⚠ **פער ידוע:** `src/data/squads.ts` לא מתעדכן אוטומטית משינוי
- *   באדמין. שחקן חדש ייכנס להגשות (השרת מכיר אותו) אבל לא יופיע
- *   בבורר עד שהקובץ ייבנה מחדש. הסנכרון המלא הוא הצעד הבא, ולא
- *   נבנה כאן כדי לא לשנות את מסלול הבחירה לפני המבחן החי.
+ * ★ הפער שנסגר
+ *
+ * עד מיגרציה 13 היה כתוב כאן: "`src/data/squads.ts` לא מתעדכן
+ * אוטומטית משינוי באדמין; שחקן חדש ייכנס להגשות אבל לא יופיע
+ * בבורר עד שהקובץ ייבנה מחדש."
+ *
+ * זה היה הפער, וזה בדיוק מה שנראה כמו "האדמין לא שומר": הכתיבה
+ * הצליחה, ושום מסך לא קרא. `game.squads()` ו-`lib/liveData.ts`
+ * סוגרים אותו — כל פעולה כאן מרעננת את הרישום החי, ומונה
+ * `game.data_revision` משדר את השינוי לכל מכשיר שפתוח.
  */
 
 export interface AdminPlayerRow {
@@ -619,12 +617,21 @@ export interface AdminPlayerRow {
   price: number | null;
   shirt: number | null;
   status: 'active' | 'injured' | 'suspended' | 'loaned_out' | 'left';
+  /* ★ אותם שדות שהמסך הראשי מקבל.
+     מסך ניהול שרואה פחות ממה שהמשתמש רואה הוא מסך שעורך משהו
+     אחר: אדמין שמוסיף שחקן בלי דרג מקבל שחקן שנראה שונה מכל
+     שאר הליגה, ולא מבין למה. */
+  tier: number | null;
+  overallRank: number | null;
+  nationality: string | null;
 }
 
 export interface AdminTeamSquad {
   teamId: string;
   nameHe: string;
   short: string;
+  city: string | null;
+  stadium: string | null;
   players: AdminPlayerRow[];
 }
 
@@ -644,6 +651,10 @@ export async function adminUpsertPlayer(input: {
   price?: number | null;
   shirt?: number | null;
   status?: AdminPlayerRow['status'];
+  tier?: number | null;
+  overallRank?: number | null;
+  nationality?: string | null;
+  isClubCaptain?: boolean | null;
 }): Promise<string> {
   const { data, error } = await supabase.rpc('admin_upsert_player', {
     p_ext_team: input.teamId.replace(/^T/, ''),
@@ -654,8 +665,16 @@ export async function adminUpsertPlayer(input: {
     p_price: input.price ?? null,
     p_shirt: input.shirt ?? null,
     p_status: input.status ?? 'active',
+    p_tier: input.tier ?? null,
+    p_overall_rank: input.overallRank ?? null,
+    p_nationality: input.nationality?.trim() || null,
+    p_is_captain: input.isClubCaptain ?? null,
   });
   if (error) throw new Error(errorCode(error));
+  /* ★ הרענון הוא חלק מהפעולה, לא תופעת לוואי שלה.
+     בלעדיו האדמין רואה טופס שהתרוקן ולא שחקן שנוסף — וזה
+     נראה בדיוק כמו כישלון. */
+  await refreshLiveData();
   return `P${String(data)}`;
 }
 
@@ -665,6 +684,7 @@ export async function adminMovePlayer(playerId: string, toTeamId: string): Promi
     p_ext_team: toTeamId.replace(/^T/, ''),
   });
   if (error) throw new Error(errorCode(error));
+  await refreshLiveData();
 }
 
 export async function adminSetPrice(playerId: string, price: number): Promise<void> {
@@ -673,6 +693,7 @@ export async function adminSetPrice(playerId: string, price: number): Promise<vo
     p_price: price,
   });
   if (error) throw new Error(errorCode(error));
+  await refreshLiveData();
 }
 
 export async function adminSetPlayerStatus(
@@ -683,6 +704,88 @@ export async function adminSetPlayerStatus(
     p_status: status,
   });
   if (error) throw new Error(errorCode(error));
+  await refreshLiveData();
+}
+
+/* ------------------------------------------------------------------ */
+/* ניהול — קבוצות, לוח משחקים, דדליין                                   */
+/* ------------------------------------------------------------------ */
+
+/** קבוצה: שם, קיצור, עיר, אצטדיון. `teamId` ריק = קבוצה חדשה. */
+export async function adminUpsertTeam(input: {
+  teamId?: string;
+  nameHe: string;
+  nameEn?: string;
+  short?: string;
+  city?: string;
+  stadium?: string;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('admin_upsert_team', {
+    p_ext_team: input.teamId ? input.teamId.replace(/^T/, '') : null,
+    p_name_he: input.nameHe.trim(),
+    p_name_en: input.nameEn?.trim() || null,
+    p_short: input.short?.trim() || null,
+    p_city: input.city?.trim() || null,
+    p_stadium: input.stadium?.trim() || null,
+  });
+  if (error) throw new Error(errorCode(error));
+  await refreshLiveData();
+  return `T${String(data)}`;
+}
+
+/**
+ * משחק חדש או הזזת שעה.
+ *
+ * ★ השרת מזיז את הדדליין בעצמו (`admin_resync_deadline`), ולכן
+ *   אין כאן חישוב שני. שני מקומות שגוזרים דדליין הם שני מקומות
+ *   שיום אחד לא יסכימו — והמסך יראה "פתוח" בזמן שהשרת דוחה.
+ */
+export async function adminUpsertFixture(
+  gameweekId: string, homeTeamId: string, awayTeamId: string, kickoffIso: string,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('admin_upsert_fixture', {
+    p_gw_code: gameweekId,
+    p_ext_home: homeTeamId.replace(/^T/, ''),
+    p_ext_away: awayTeamId.replace(/^T/, ''),
+    p_kickoff: kickoffIso,
+  });
+  if (error) throw new Error(errorCode(error));
+  await Promise.all([refresh(), refreshLiveData()]);
+  return String(data);
+}
+
+export async function adminDeleteFixture(matchId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_delete_fixture', { p_match_id: matchId });
+  if (error) throw new Error(errorCode(error));
+  await Promise.all([refresh(), refreshLiveData()]);
+}
+
+/** דדליין ידני — לסגור מוקדם, או לפתוח שוב אחרי דחיית משחק. */
+export async function adminSetDeadline(gameweekId: string, lockAtIso: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_deadline', {
+    p_gw_code: gameweekId, p_lock_at: lockAtIso,
+  });
+  if (error) throw new Error(errorCode(error));
+  await Promise.all([refresh(), refreshLiveData()]);
+}
+
+export type GameweekStatusCode = 'upcoming' | 'open' | 'locked' | 'live' | 'settled';
+
+/**
+ * סטטוס המחזור.
+ *
+ * ★ זו הנעילה האמיתית. `submit_entry` בודקת אותו לפני `lock_at`,
+ *   ולכן "נעילה מוקדמת" כאן חוסמת הגשות מיד — גם אם השעון עוד
+ *   לא הגיע לדדליין.
+ */
+export async function adminSetStatus(
+  gameweekId: string, status: GameweekStatusCode,
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_status', {
+    p_gw_code: gameweekId, p_status: status,
+  });
+  if (error) throw new Error(errorCode(error));
+  await Promise.all([refresh(), refreshLiveData()]);
 }
 
 /* ================================================================== */
@@ -831,10 +934,58 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
   }
 
   if (!schemaOk) {
+    out.push(skip('live', 'דאטת כדורגל מהשרת', 'לא נבדק — הסכימה לא זמינה'));
+    out.push(skip('drafts', 'טיוטות בשרת', 'לא נבדק — הסכימה לא זמינה'));
     out.push(skip('squads', 'סגלים ומחירים', 'לא נבדק — הסכימה לא זמינה'));
     out.push(skip('clock', 'שעון השרת', 'לא נבדק — הסכימה לא זמינה'));
     out.push(skip('admin', 'הרשאת ניהול', 'לא נבדק — הסכימה לא זמינה'));
     return out;
+  }
+
+  /* ★ 2b — הבדיקה שהייתה חסרה, וששלוש תקלות נבעו מהיעדרה.
+     "האדמין לא שומר" היה בעצם "אף מסך לא קורא". הבדיקה הזו
+     שואלת בדיוק את מה שהמסך שואל, וסופרת. */
+  try {
+    const { data, error } = await supabase.rpc('squads');
+    if (error) throw error;
+    const payload = (data ?? {}) as {
+      teams?: unknown[]; players?: unknown[]; revision?: number;
+    };
+    const teams = payload.teams?.length ?? 0;
+    const players = payload.players?.length ?? 0;
+    const ok = teams >= 2 && players > 0;
+    out.push({
+      id: 'live',
+      label: 'דאטת כדורגל מהשרת',
+      ok,
+      detail: ok
+        ? `${teams} קבוצות · ${players} שחקנים · גרסה ${payload.revision ?? '?'}`
+        : 'המסד ריק — המסך יציג את הקובץ המקומי',
+      fix: ok ? undefined : 'להריץ db/03_seed_squads.sql ואז db/13_live_data.sql',
+    });
+  } catch (err) {
+    out.push({
+      id: 'live', label: 'דאטת כדורגל מהשרת', ok: false,
+      detail: errorMessageHe(errorCode(err)),
+      fix: 'להריץ db/13_live_data.sql — game.squads() לא נמצאה',
+    });
+  }
+
+  /* ★ 2c — טיוטות. בלי זה, בניית הרכב לא נשמרת בין מכשירים
+     והמשתמש מגלה את זה רק כשהוא פותח את הטלפון. */
+  try {
+    const { error } = await supabase.rpc('my_drafts', { p_gw_code: 'gw-2' });
+    if (error) throw error;
+    out.push({
+      id: 'drafts', label: 'טיוטות בשרת', ok: true,
+      detail: 'ההרכב שבבנייה נשמר ועובר בין מכשירים',
+    });
+  } catch (err) {
+    out.push({
+      id: 'drafts', label: 'טיוטות בשרת', ok: false,
+      detail: errorMessageHe(errorCode(err)),
+      fix: 'להריץ db/13_live_data.sql (§5)',
+    });
   }
 
   /* 3 — סגלים ומחירים */

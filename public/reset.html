@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>איפוס · דוביד</title>
+
+<!--
+  ═══════════════════════════════════════════════════════════════
+  ★ דלת המילוט
+
+  Service Worker תקוע יכול להחזיק דפדפן על גרסה ישנה **לנצח**.
+  `Ctrl+Shift+R` לא עוזר — ה-SW חוטף את הבקשה לפני הרשת. הדרך
+  היחידה היא DevTools → Application → Unregister, וזה לא משהו
+  שאפשר לבקש מחבר שרק רצה לבנות הרכב.
+
+  הדף הזה עושה את זה בלחיצה: מוחק את כל המטמונים, מבטל את כל
+  ה-Service Workers, ומחזיר לאפליקציה.
+
+  ★ הוא **לא** נוגע בנתונים שלך: ההרכבים, השם והדירוג יושבים
+    בשרת, ולא במטמון. אין מה לאבד כאן.
+  ═══════════════════════════════════════════════════════════════
+-->
+
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; min-height: 100%;
+    background: #0C0A08; color: #F4ECDC;
+    font-family: Assistant, Heebo, system-ui, -apple-system, Arial, sans-serif;
+  }
+  .wrap { max-width: 26rem; margin: 0 auto; padding: 3rem 1.25rem; text-align: center; }
+  h1 { font-size: 1.35rem; margin: 0 0 .5rem; }
+  p  { font-size: .875rem; line-height: 1.6; color: #C6B99F; margin: 0 0 1rem; }
+  button {
+    width: 100%; padding: .85rem 1rem; border: 0; border-radius: 999px;
+    background: linear-gradient(180deg, #F0D693, #D8B25C); color: #241A06;
+    font: 800 1rem/1 Assistant, Arial, sans-serif; cursor: pointer;
+  }
+  button[disabled] { opacity: .5; cursor: default; }
+  a { display: inline-block; margin-top: 1rem; color: #F0D693; font-size: .8rem; }
+  #log {
+    margin-top: 1.25rem; text-align: start; font-size: .75rem; color: #8B7F6A;
+    background: #16120D; border-radius: .75rem; padding: .75rem 1rem; min-height: 3rem;
+  }
+  #log div::before { content: '✓ '; color: #D8B25C; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>איפוס האפליקציה</h1>
+    <p>
+      מנקה את הזיכרון המקומי של הדפדפן ומוריד גרסה טרייה.
+      <br />
+      <strong style="color:#F4ECDC">ההרכבים והדירוג שלך שמורים בשרת</strong>
+      — שום דבר לא הולך לאיבוד.
+    </p>
+
+    <button id="go">לאפס ולהיכנס מחדש</button>
+    <div id="log" aria-live="polite"></div>
+    <a href="/">חזרה בלי לאפס</a>
+  </div>
+
+<script>
+  var log = document.getElementById('log');
+  var btn = document.getElementById('go');
+
+  function say(t) {
+    var d = document.createElement('div');
+    d.textContent = t;
+    log.appendChild(d);
+  }
+
+  btn.addEventListener('click', function () {
+    btn.disabled = true;
+    btn.textContent = 'מאפס…';
+
+    var steps = [];
+
+    if (window.caches && caches.keys) {
+      steps.push(
+        caches.keys()
+          .then(function (ks) {
+            return Promise.all(ks.map(function (k) { return caches.delete(k); }))
+              .then(function () { say('נמחקו ' + ks.length + ' מטמונים'); });
+          })
+          .catch(function () { say('מטמונים — לא נדרש'); }),
+      );
+    }
+
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      steps.push(
+        navigator.serviceWorker.getRegistrations()
+          .then(function (rs) {
+            return Promise.all(rs.map(function (r) { return r.unregister(); }))
+              .then(function () { say('בוטלו ' + rs.length + ' Service Workers'); });
+          })
+          .catch(function () { say('Service Worker — לא נדרש'); }),
+      );
+    }
+
+    /* ★ `localStorage` **לא** נמחק כאן.
+       שם יושב מזהה האורח — מחיקה שלו הייתה מנתקת את המשתמש
+       מההגשות שלו. מנקים מטמון, לא זהות. */
+
+    Promise.all(steps).then(function () {
+      say('טוען מחדש…');
+      setTimeout(function () {
+        // `?fresh` שובר גם מטמון HTTP רגיל של הדפדפן.
+        location.replace('/?fresh=' + Date.now());
+      }, 600);
+    });
+  });
+</script>
+</body>
+</html>

@@ -50,8 +50,9 @@
  * ═══════════════════════════════════════════════════════════════
  *
  * אם הרשת נופלת או Supabase לא זמין, `ensureIdentity` מחזיר זהות
- * מקומית מ-localStorage — בדיוק זו שהייתה למוצר עד היום. שום מסך
- * לא נשבר; פשוט אין סנכרון בין מכשירים עד שהחיבור חוזר.
+ * זמנית עם `online: false`. שום מסך לא נשבר — אבל שום דבר גם לא
+ * נספר, וזה בדיוק מה שהמסך צריך לומר. זהות "מקומית" שנראית
+ * אמיתית היא הבטחה שהמוצר לא יכול לקיים.
  */
 import { supabase, offsidesAuthClient } from './supabase.ts';
 
@@ -75,8 +76,21 @@ export interface Identity {
   online: boolean;
 }
 
-const NAME_KEY = 'dubid.displayname.v1';
-const LOCAL_ID_KEY = 'dubid.username.v1';
+/**
+ * ★★ אין כאן יותר `localStorage`. ★★
+ *
+ * עד הסבב הזה שם התצוגה ישב גם במכשיר, ו-`fromSession` העדיף
+ * אותו על פני מה שהשרת החזיר. התוצאה: מי ששינה שם בטלפון ראה
+ * במחשב את השם הישן — לנצח, כי המכשיר תמיד ניצח.
+ *
+ * עכשיו השם חי ב-`game.users.display_name` בלבד. עד שהשרת עונה
+ * הוא ריק, וזה נכון: שם ריק לרגע עדיף על שם שגוי לתמיד.
+ *
+ * ⚠ מה שכן יושב במכשיר, ואין ברירה: **סשן ההזדהות של Supabase.**
+ *   הוא לא נתון של המשחק — הוא המפתח שמוכיח מי אתה מול השרת,
+ *   בדיוק כמו עוגיית התחברות בכל אתר. בלעדיו כל רענון היה
+ *   יוצר משתמש חדש.
+ */
 
 let current: Identity | null = null;
 const listeners = new Set<(id: Identity) => void>();
@@ -96,18 +110,39 @@ export function currentIdentity(): Identity | null {
   return current;
 }
 
+/**
+ * שם התצוגה הידוע כרגע. סינכרוני, כי הוא נקרא בתוך רינדור.
+ *
+ * מגיע מהזהות שנטענה מהשרת. ריק עד שהיא מגיעה — ואז
+ * `subscribeToIdentity` מרנדר מחדש.
+ */
 export function storedDisplayName(): string {
-  try { return localStorage.getItem(NAME_KEY) ?? ''; } catch { return ''; }
+  return current?.displayName ?? '';
 }
 
+/**
+ * שינוי שם.
+ *
+ * ★ המסך מתעדכן מיד, אבל הכתיבה היא לשרת בלבד.
+ *
+ * אם הכתיבה נכשלת, השם **חוזר**. קודם הוא היה נשמר מקומית
+ * וממשיך להיראות "שמור" — ואז מופיע בטבלת הדירוג של כולם בשם
+ * הישן, כי שם יושב מה שבמסד. עדיף להחזיר ולתת לנסות שוב.
+ */
 export async function setDisplayName(name: string): Promise<void> {
   const clean = name.trim();
   if (!clean) return;
-  try { localStorage.setItem(NAME_KEY, clean); } catch { /* מצב פרטי */ }
+
+  const before = current?.displayName ?? '';
   if (current) { current = { ...current, displayName: clean }; emit(); }
+
   try {
-    await supabase.rpc('ensure_profile', { p_display_name: clean });
-  } catch { /* השם נשמר מקומית; הסנכרון ינסה שוב בכניסה הבאה */ }
+    const { error } = await supabase.rpc('ensure_profile', { p_display_name: clean });
+    if (error) throw error;
+  } catch (err) {
+    if (current) { current = { ...current, displayName: before }; emit(); }
+    throw err;
+  }
 }
 
 /**
@@ -117,16 +152,14 @@ export async function setDisplayName(name: string): Promise<void> {
  * שיחק לא יאבד את הטיוטות שלו במעבר.
  */
 function localFallback(): Identity {
-  let id = 'guest';
-  try {
-    id = localStorage.getItem(LOCAL_ID_KEY) ?? '';
-    if (!id) {
-      id = `guest-${Math.floor(Math.random() * 1e6)}`;
-      localStorage.setItem(LOCAL_ID_KEY, id);
-    }
-  } catch { /* מצב פרטי */ }
+  /* ★ מזהה קבוע, ולא אקראי-ונשמר.
+     מזהה אקראי שנשמר במכשיר נראה כמו זהות אמיתית ואינו כזה:
+     הוא לא קיים בשרת, שום הגשה שלו לא תיספר, והוא לא יופיע
+     בשום דירוג. `online: false` הוא מה שהמסך צריך לדעת, ומזהה
+     שנראה אמיתי רק מסתיר את זה. */
+  const id = 'offline';
   return {
-    id, displayName: storedDisplayName(), isGuest: true,
+    id, displayName: current?.displayName ?? '', isGuest: true,
     username: null, avatar: null, referralCode: null,
     offsidesUserId: null, online: false,
   };
@@ -144,7 +177,6 @@ interface MeRow {
 }
 
 async function fromSession(userId: string): Promise<Identity> {
-  const knownName = storedDisplayName();
   let profile: MeRow | null = null;
 
   try {
@@ -153,14 +185,12 @@ async function fromSession(userId: string): Promise<Identity> {
     // ורק את השדות שהוא צריך.
     const { data } = await supabase.rpc('me');
     profile = (data ?? null) as MeRow | null;
-    if (profile?.displayName && !knownName) {
-      try { localStorage.setItem(NAME_KEY, String(profile.displayName)); } catch { /* ignore */ }
-    }
   } catch { /* פרופיל ייווצר בהגשה הראשונה */ }
 
   return {
     id: userId,
-    displayName: storedDisplayName() || profile?.displayName || '',
+    // ★ השרת מנצח. ההיפך היה מקפיא שם ישן על מכשיר אחד לנצח.
+    displayName: profile?.displayName || '',
     // ★ ברירת המחדל היא "אורח" ולא "רשום".
     //   אם השרת לא ענה, עדיף להציע למשתמש רשום להירשם (מטרד קטן)
     //   מאשר לא להציע לאורח (איבוד הזהות שלו — נזק אמיתי).
@@ -252,9 +282,8 @@ export async function redeemAccessCode(code: string): Promise<Identity> {
   });
   if (sErr || !sess.user) throw new Error('ACCESS_CODE_SESSION_FAILED');
 
-  if (data.display_name) {
-    try { localStorage.setItem(NAME_KEY, data.display_name); } catch { /* ignore */ }
-  }
+  /* השם מגיע מהשרת דרך `fromSession` — הוא כבר נכתב ל-
+     `game.users` בצד ה-Edge Function. אין מה לשכפל למכשיר. */
   current = await fromSession(sess.user.id);
   emit();
   return current;
@@ -303,9 +332,8 @@ export async function linkOffsidesAccount(email: string, otp: string): Promise<I
   });
   if (sErr || !sess.user) throw new Error('OFFSIDES_LINK_SESSION_FAILED');
 
-  if (data.display_name) {
-    try { localStorage.setItem(NAME_KEY, data.display_name); } catch { /* ignore */ }
-  }
+  /* השם מגיע מהשרת דרך `fromSession` — הוא כבר נכתב ל-
+     `game.users` בצד ה-Edge Function. אין מה לשכפל למכשיר. */
   current = await fromSession(sess.user.id);
   emit();
   return current;
@@ -457,7 +485,6 @@ export async function signUpWithEmail(
   // יש סשן ⇒ אישור מייל כבוי בפרויקט, והמשתמש כבר בפנים.
   if (data.session?.user) {
     await supabase.rpc('ensure_profile', { p_display_name: handle });
-    try { localStorage.setItem(NAME_KEY, handle); } catch { /* ignore */ }
     current = await fromSession(data.session.user.id);
     emit();
     return { needsEmailConfirmation: false };
@@ -508,7 +535,6 @@ export async function signInWithGoogle(): Promise<void> {
  */
 export async function signOut(): Promise<Identity> {
   try { await supabase.auth.signOut(); } catch { /* ignore */ }
-  try { localStorage.removeItem(NAME_KEY); } catch { /* ignore */ }
   current = null;
   ensuring = null;
   return ensureIdentity();

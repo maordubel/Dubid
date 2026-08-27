@@ -331,6 +331,9 @@ function NewPlayerForm({ teamId, onDone }: { teamId: string; onDone: () => void 
   const [nameHe, setNameHe] = useState('');
   const [position, setPosition] = useState<AdminPlayerRow['position']>('MID');
   const [price, setPrice] = useState(3);
+  /* ★ דרג הוא שדה תצוגה שמופיע על כל כרטיס שחקן. שחקן שנוסף
+     בלי דרג נראה שונה מ-351 האחרים, ואף אחד לא מבין למה. 3 = אמצע. */
+  const [tier, setTier] = useState(3);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -341,7 +344,7 @@ function NewPlayerForm({ teamId, onDone }: { teamId: string; onDone: () => void 
         if (busy || !nameHe.trim()) return;
         setBusy(true);
         setErr(null);
-        void adminUpsertPlayer({ teamId, nameHe, position, price })
+        void adminUpsertPlayer({ teamId, nameHe, position, price, tier })
           .then(() => { setNameHe(''); onDone(); })
           .catch((x: unknown) =>
             setErr(errorMessageHe(x instanceof Error ? x.message : 'NETWORK')))
@@ -369,10 +372,20 @@ function NewPlayerForm({ teamId, onDone }: { teamId: string; onDone: () => void 
         <input
           type="number" min={0} max={99} step={0.5}
           value={price}
+          title="מחיר"
           onChange={(e) => setPrice(Number(e.target.value))}
           className="num w-16 rounded-lg border border-gold/25 bg-night-2 px-1 py-1.5
                      text-center text-[12px] text-gold-light outline-none focus:border-gold"
         />
+        <select
+          value={tier}
+          title="דרג"
+          onChange={(e) => setTier(Number(e.target.value))}
+          className="num w-14 rounded-lg border border-gold/25 bg-night-2 px-1 py-1.5
+                     text-center text-[12px] text-chalk outline-none focus:border-gold"
+        >
+          {[1, 2, 3, 4, 5].map((t) => <option key={t} value={t}>{`דרג ${t}`}</option>)}
+        </select>
         <button
           type="submit"
           disabled={busy || !nameHe.trim()}
@@ -383,11 +396,14 @@ function NewPlayerForm({ teamId, onDone }: { teamId: string; onDone: () => void 
         </button>
       </div>
       {err && <p className="mt-2 text-[11px] text-flare">{err}</p>}
-      {/* ★ האזהרה חייבת להיות כאן ולא בתיעוד.
-          מי שמוסיף שחקן ולא רואה אותו בבורר יחשוב שההוספה נכשלה. */}
+      {/* ★ הטקסט הזה היה אזהרה, והוא כבר לא.
+          עד מיגרציה 13 הוא אמר "יופיע בבורר רק אחרי בנייה מחדש",
+          וזו הייתה האמת — הבורר קרא מקובץ. עכשיו הוא קורא
+          מ-`game.squads()`, והשינוי מגיע לכל מכשיר פתוח דרך
+          `game.data_revision`. */}
       <p className="mt-2 text-[10.5px] leading-snug text-chalk-dim">
-        השחקן ייכנס למסד מיד וההגשות יכירו אותו. הוא יופיע בבורר
-        השחקנים רק אחרי בנייה מחדש של <code className="num">src/data/squads.ts</code>.
+        השחקן נכנס למסד מיד ומופיע בבורר — אצלך ואצל כל מי
+        שהאפליקציה פתוחה אצלו, בלי לרענן.
       </p>
     </form>
   );

@@ -43,8 +43,6 @@ import { ensureIdentity } from './identity.ts';
 /* תמונת המצב                                                          */
 /* ================================================================== */
 
-const CACHE_KEY = 'dubid.leagues.cache.v2';
-
 interface Snapshot {
   leagues: PrivateLeague[];
   members: LeagueMember[];
@@ -60,21 +58,14 @@ function notify() {
   } catch { /* לא בדפדפן */ }
 }
 
-function readCache(): { leagues: PrivateLeague[]; members: LeagueMember[] } {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    return raw ? JSON.parse(raw) : { leagues: [], members: [] };
-  } catch {
-    return { leagues: [], members: [] };
-  }
-}
-
-function writeCache() {
-  try {
-    localStorage.setItem(CACHE_KEY,
-      JSON.stringify({ leagues: snap.leagues, members: snap.members }));
-  } catch { /* גלישה פרטית */ }
-}
+/* ★★ המטמון המקומי הוסר. ★★
+ *
+ * זירה פרטית היא רשימת אנשים שמשתנה: מישהו הצטרף, מישהו יצא.
+ * מטמון במכשיר פירושו שכל אחד רואה רשימה אחרת של אותה זירה —
+ * ומי שהצטרף עכשיו לא מופיע אצל מי שכבר היה בפנים.
+ *
+ * במקום זה: כשאין רשת אין רשימה, ו-`live: false` הוא מה שהמסך
+ * מציג. רשימה ישנה שנראית עדכנית גרועה מרשימה שאומרת שהיא לא. */
 
 /* ================================================================== */
 /* טעינה                                                               */
@@ -103,14 +94,8 @@ export function hydrateLeagues(force = false): Promise<void> {
       snap.leagues = payload.leagues ?? [];
       snap.members = payload.members ?? [];
       snap.live = true;
-      writeCache();
     } catch {
       snap.live = false;
-      if (snap.leagues.length === 0) {
-        const cached = readCache();
-        snap.leagues = cached.leagues;
-        snap.members = cached.members;
-      }
     } finally {
       snap.loading = false;
       loading = null;

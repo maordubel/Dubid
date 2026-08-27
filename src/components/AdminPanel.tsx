@@ -14,9 +14,13 @@ import { FIXTURES, GAMEWEEK, fixtureLabel, kickoffTimeLabel } from '../data/fixt
 import {
   getResults, upsertFixtureScore, upsertPerformance, setPublished,
   subscribeToStore, isDatabaseAdmin, errorMessageHe, hydrate,
-  claimAdmin, releaseAdmin, runHealthChecks,
-  adminMessageHe, type HealthCheck,
+  claimAdmin, releaseAdmin, runHealthChecks, getGameweekState,
+  adminSetDeadline, adminSetStatus, adminUpsertFixture, storeStatus,
+  adminMessageHe, type HealthCheck, type GameweekStatusCode,
 } from '../lib/store.ts';
+import {
+  hydrateLiveData, subscribeToLiveData, liveDataVersion, liveDataStatus,
+} from '../lib/liveData.ts';
 import type { PlayerPerformance, Position, TeamOutcome } from '../lib/scoring/types.ts';
 import { AdminSquads } from './AdminSquads.tsx';
 import { LogoMark } from './Logo.tsx';
@@ -77,16 +81,20 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
 
   useEffect(recheck, []);
 
-  const [section, setSection] = useState<'results' | 'squads' | 'health'>('results');
+  const [section, setSection] =
+    useState<'results' | 'squads' | 'gameweek' | 'health'>('results');
 
-  useMemo(() => {
-    const unsub = subscribeToStore(() => forceTick((n) => n + 1));
-    return unsub;
-  }, []);
+  useEffect(() => subscribeToStore(() => forceTick((n) => n + 1)), []);
+
+  /* ★ גם לרישום החי, ולא רק להגשות.
+     בלי זה, עריכת סגל באדמין הייתה משנה את המסד ולא את המסך
+     שממנו ערכו אותה — בדיוק התסמין שהמיגרציה באה לתקן. */
+  useEffect(() => subscribeToLiveData(() => forceTick(liveDataVersion)), []);
 
   useEffect(() => {
     if (gate !== 'ready') return;
     void hydrate(GAMEWEEK.id, true);
+    void hydrateLiveData(GAMEWEEK.id, true);
   }, [gate]);
 
   /* ★ בזמן הבדיקה לא מציגים כלום.
@@ -151,7 +159,8 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
 
       <div className="mx-auto max-w-3xl px-4 py-5">
         <div className="mb-4 flex gap-1 rounded-full bg-night-2 p-1 edge-gold">
-          {([['results', 'תוצאות'], ['squads', 'סגלים'], ['health', 'בדיקת מערכת']] as const)
+          {([['results', 'תוצאות'], ['squads', 'סגלים'],
+             ['gameweek', 'מחזור'], ['health', 'מערכת']] as const)
             .map(([id, label]) => (
               <button
                 key={id}
@@ -167,6 +176,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
         </div>
 
         {section === 'squads' && <AdminSquads />}
+        {section === 'gameweek' && <AdminGameweek />}
         {section === 'health' && <AdminHealth />}
 
         {section === 'results' && (<>
@@ -208,8 +218,16 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
           })}
         </div>
 
+        {/* ★ "מהשרת" ולא רק המספרים.
+            אדמין שרואה 14/351 ולא יודע מאיפה הם הגיעו לא יכול
+            לדעת אם מה שהוא עורך הוא מה שהמשתמשים רואים. */}
         <div className="mt-8 text-[11px] text-chalk-dim">
-          קבוצות בליגה: {TEAMS.length} · שחקנים בסגלים: {Object.values(PLAYERS_BY_TEAM).reduce((s, t) => s + t.players.length, 0)}
+          קבוצות בליגה: {TEAMS.length} · שחקנים בסגלים:{' '}
+          {Object.values(PLAYERS_BY_TEAM).reduce((s, t) => s + t.players.length, 0)}
+          {' · '}
+          <span className={liveDataStatus().fromServer ? 'text-gold' : 'text-flare'}>
+            {liveDataStatus().fromServer ? 'מהשרת' : 'מהקובץ המקומי — אין חיבור'}
+          </span>
         </div>
         </>)}
       </div>
@@ -706,6 +724,207 @@ function AdminHealth() {
         &quot;—&quot; ולא נבדק — כדי שלא תרדוף אחרי חמש שגיאות שכולן
         נובעות מאותו מקור.
       </p>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/* מחזור — דדליין, סטטוס, ולוח משחקים                                   */
+/* ================================================================== */
+
+/**
+ * ★ למה הלשונית הזו נוספה
+ *
+ * הדדליין והסטטוס היו קיימים במסד מהיום הראשון, ולא הייתה שום
+ * דרך לגעת בהם חוץ מ-SQL Editor. כלומר: משחק שנדחה, מחזור
+ * שצריך להיסגר מוקדם, או תקלה שדורשת פתיחה מחדש — כולם היו
+ * "תפתח את Supabase ותכתוב UPDATE".
+ *
+ * ★ ומה **לא** נמצא כאן: שדה "מספר משתתפים" או "דירוג ידני".
+ *   אלה נגזרים, ואדמין שיכול לערוך נגזרת יכול לשבור תחרות.
+ */
+
+const STATUS_OPTIONS: Array<[GameweekStatusCode, string, string]> = [
+  ['open',     'פתוח',   'מקבל הגשות'],
+  ['locked',   'נעול',   'לא מקבל הגשות'],
+  ['live',     'משחקים', 'הכדור מתגלגל'],
+  ['settled',  'הסתיים', 'הניקוד סופי'],
+];
+
+/** `datetime-local` דורש `YYYY-MM-DDTHH:mm` בשעון מקומי, בלי אזור. */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+         `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function AdminGameweek() {
+  const [, tick] = useState(0);
+  useEffect(() => subscribeToStore(() => tick((n) => n + 1)), []);
+  useEffect(() => subscribeToLiveData(() => tick(liveDataVersion)), []);
+
+  const gw = getGameweekState();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [deadline, setDeadline] = useState(() => toLocalInput(gw?.lockAt ?? ''));
+
+  // הדדליין מהשרת מנצח כל עוד לא נגעו בשדה.
+  const [touched, setTouched] = useState(false);
+  useEffect(() => {
+    if (!touched && gw?.lockAt) setDeadline(toLocalInput(gw.lockAt));
+  }, [gw?.lockAt, touched]);
+
+  const run = (label: string, fn: () => Promise<unknown>) => {
+    setBusy(true);
+    setMsg(null);
+    void fn()
+      .then(() => setMsg(`${label} — נשמר`))
+      .catch((e: unknown) =>
+        setMsg(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')))
+      .finally(() => setBusy(false));
+  };
+
+  if (!gw) {
+    return (
+      <p className="rounded-xl border border-flare/30 bg-flare/5 px-4 py-3 text-[13px] text-chalk-2">
+        המחזור <span className="num">{GAMEWEEK.id}</span> לא נמצא במסד.
+        {storeStatus().error && <> קוד: <span className="num">{storeStatus().error}</span></>}
+      </p>
+    );
+  }
+
+  const locked = ['locked', 'live', 'settled'].includes(gw.status);
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-gold/15 bg-night-2 p-4">
+        <h3 className="mb-1 text-sm font-black">מצב המחזור</h3>
+        <p className="mb-3 text-[11.5px] leading-snug text-chalk-dim">
+          זו הנעילה האמיתית. השרת בודק אותה לפני השעה — ולכן
+          &rdquo;נעול&ldquo; חוסם הגשות מיד, גם אם הדדליין עוד לא הגיע.
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {STATUS_OPTIONS.map(([code, label, hint]) => (
+            <button
+              key={code}
+              disabled={busy || gw.status === code}
+              title={hint}
+              onClick={() => run(label, () => adminSetStatus(GAMEWEEK.id, code))}
+              className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition-colors
+                          disabled:opacity-45 ${
+                            gw.status === code
+                              ? 'bg-gold text-gold-ink'
+                              : 'bg-night-3 text-chalk-2'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] text-chalk-dim">
+          כרגע: <span className="font-bold text-chalk">{gw.status}</span>
+          {' · '}משתתפים: <span className="num">{gw.entrants}</span>
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-gold/15 bg-night-2 p-4">
+        <h3 className="mb-1 text-sm font-black">דדליין</h3>
+        {/* ★ ההסבר הזה חשוב יותר מהשדה.
+            דדליין שנקבע ידנית מפסיק להיגזר מהמשחקים, ומי שלא יודע
+            את זה יזיז משחק ויתפלא שהנעילה לא זזה איתו. */}
+        <p className="mb-3 text-[11.5px] leading-snug text-chalk-dim">
+          נגזר אוטומטית מהמשחק המוקדם ביותר במחזור. שינוי כאן דורס
+          את החישוב עד להזזת המשחק הבא.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="datetime-local"
+            value={deadline}
+            disabled={busy}
+            onChange={(e) => { setTouched(true); setDeadline(e.target.value); }}
+            className="num flex-1 rounded-lg border border-gold/25 bg-night px-2 py-2
+                       text-[13px] text-chalk outline-none focus:border-gold"
+          />
+          <button
+            disabled={busy || !deadline}
+            onClick={() => {
+              const iso = new Date(deadline).toISOString();
+              run('דדליין', () => adminSetDeadline(GAMEWEEK.id, iso).then(() => setTouched(false)));
+            }}
+            className="tap shrink-0 rounded-lg bg-gradient-to-b from-gold-light to-gold px-4
+                       text-[12px] font-black text-gold-ink disabled:opacity-40"
+          >
+            שמירה
+          </button>
+        </div>
+        <p className="mt-2 text-[11px] text-chalk-dim">
+          במסד: <span className="num">{new Date(gw.lockAt).toLocaleString('he-IL')}</span>
+          {locked && <span className="text-flare"> · המחזור כבר נעול</span>}
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-gold/15 bg-night-2 p-4">
+        <h3 className="mb-1 text-sm font-black">שעות המשחקים</h3>
+        <p className="mb-3 text-[11.5px] leading-snug text-chalk-dim">
+          הזזת משחק מזיזה את הדדליין אוטומטית, אם הוא נעשה המוקדם ביותר.
+        </p>
+        <div className="space-y-2">
+          {FIXTURES.map((f) => (
+            <FixtureTimeRow key={f.id} fixture={f} busy={busy} onRun={run} />
+          ))}
+        </div>
+      </div>
+
+      {msg && (
+        <p className="rounded-xl border border-gold/25 bg-night px-4 py-2.5 text-[12.5px] text-chalk-2">
+          {msg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function FixtureTimeRow({
+  fixture, busy, onRun,
+}: {
+  fixture: (typeof FIXTURES)[number];
+  busy: boolean;
+  onRun: (label: string, fn: () => Promise<unknown>) => void;
+}) {
+  const [when, setWhen] = useState(() => toLocalInput(fixture.kickoff));
+  const [touched, setTouched] = useState(false);
+
+  useEffect(() => {
+    if (!touched) setWhen(toLocalInput(fixture.kickoff));
+  }, [fixture.kickoff, touched]);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gold/12
+                    bg-night px-2.5 py-2">
+      <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold text-chalk">
+        <bdi>{fixtureLabel(fixture)}</bdi>
+      </span>
+      <input
+        type="datetime-local"
+        value={when}
+        disabled={busy}
+        onChange={(e) => { setTouched(true); setWhen(e.target.value); }}
+        className="num rounded-lg border border-gold/25 bg-night-2 px-2 py-1.5
+                   text-[12px] text-chalk outline-none focus:border-gold"
+      />
+      <button
+        disabled={busy || !when || !touched}
+        onClick={() => onRun('שעת משחק', () =>
+          adminUpsertFixture(
+            GAMEWEEK.id, fixture.homeTeamId, fixture.awayTeamId,
+            new Date(when).toISOString(),
+          ).then(() => setTouched(false)))}
+        className="tap shrink-0 rounded-lg border border-gold/25 px-3 py-1.5 text-[11.5px]
+                   font-bold text-chalk-2 disabled:opacity-35"
+      >
+        עדכון
+      </button>
     </div>
   );
 }
