@@ -722,6 +722,7 @@ function MainApp() {
               opponentShortByTeam={opponentShortByTeam}
               pricing={mode === 'five'}
               budget={mode === 'five' ? DUBID_5X5_BUDGET : undefined}
+              mode={mode}
             />
             </div>
           </div>

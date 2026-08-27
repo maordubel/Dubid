@@ -29,6 +29,7 @@ import {
   layoutFormation, ratioForFormation, verticalCap, type SlotPosition,
 } from '../lib/formation.ts';
 import type { Position } from '../lib/scoring/types.ts';
+import { PRESS } from '../lib/pressPalette.ts';
 
 export interface PitchProps {
   formation: string;
@@ -51,11 +52,40 @@ export interface PitchProps {
    * `max-width: 100%` מגן על מסך צר במיוחד.
    */
   fit?: 'width' | 'height';
+  /** צבע המצב. פס דק בקצה העליון — זהות בלי רעש. */
+  accent?: string;
+  /**
+   * שוליים של נייר סביב הדשא.
+   *
+   * ★ למה `box-shadow` ולא `border` או `padding`
+   *
+   * המגרש ממוקם ב-`fit="height"`: הגובה נתון והרוחב נגזר מיחס
+   * הצדדים. `border` או `padding` היו נכנסים לחישוב הזה ומקטינים
+   * את הדשא בכל צד — כלומר משנים את הפריסה של השחקנים. צל חיצוני
+   * לא תופס מקום בכלל.
+   */
+  frameColor?: string;
+  /**
+   * תוכן שמרחף **בתוך** קופסת המגרש.
+   *
+   * ★ למה לא פשוט `absolute` באב.
+   *
+   * המגרש ב-`fit="height"` הוא `width:auto` וממורכז — כלומר
+   * רוחבו קטן מרוחב האב. אלמנט שמוצב `absolute` באב היה נצמד
+   * לקצה **המסך**, ובמסך רחב הוא היה מרחף באוויר במרחק מהמגרש.
+   *
+   * וגם: לקופסה הזו יש `container-type: inline-size`, ולכן ילד
+   * שלה יכול למדוד את עצמו ב-`cqw` — כלומר ביחס לרוחב המגרש.
+   * זה מה שמאפשר לחלון התקציב להתכווץ עם המגרש במקום לגלוש
+   * על השחקנים במסך צר.
+   */
+  overlay?: ReactNode;
   className?: string;
 }
 
 export function Pitch({
-  formation, renderSlot, ratio, fit = 'width', className = '',
+  formation, renderSlot, ratio, fit = 'width', accent, frameColor,
+  overlay, className = '',
 }: PitchProps) {
   const layout = layoutFormation(formation);
   // יחס נגזר מהמערך אלא אם הקורא כפה אחד.
@@ -81,12 +111,18 @@ export function Pitch({
           aspectRatio: `1 / ${r}`,
           '--max-row': String(layout.maxRow),
           '--vcap': verticalCap(r).toFixed(4),
+          ...(frameColor
+            ? { boxShadow: `0 0 0 5px ${frameColor}, 0 12px 34px -16px rgba(0,0,0,.85)` }
+            : null),
         }
       : {
           width: '100%',
           aspectRatio: `1 / ${r}`,
           '--max-row': String(layout.maxRow),
           '--vcap': verticalCap(r).toFixed(4),
+          ...(frameColor
+            ? { boxShadow: `0 0 0 5px ${frameColor}, 0 12px 34px -16px rgba(0,0,0,.85)` }
+            : null),
         }
   ) as CSSProperties;
 
@@ -103,15 +139,17 @@ export function Pitch({
   return (
     <div
       style={style}
-      className={`relative overflow-hidden rounded-3xl [container-type:inline-size] ${className}`}
+      className={`relative overflow-hidden rounded-lg [container-type:inline-size] ${className}`}
     >
-      <PitchSurface />
+      <PitchSurface accent={accent} />
 
       {layout.slots.map((slot, i) => (
         <PlayerSlot key={`${slot.position}-${slot.rowSize}-${slot.indexInRow}`} slot={slot} card={card}>
           {renderSlot(i + 1, slot.position, card)}
         </PlayerSlot>
       ))}
+
+      {overlay}
     </div>
   );
 }
@@ -158,32 +196,37 @@ function PlayerSlot({
  * בלי לחשב כלום. `preserveAspectRatio="none"` בכוונה: המגרש
  * שלנו לא בפרופורציות FIFA, והסימונים אמורים להימתח איתו.
  */
-function PitchSurface() {
+function PitchSurface({ accent }: { accent?: string }) {
   return (
     <>
-      {/* דשא — מעבר עומק מהמרכז לקצה */}
+      {/* דשא מודפס — צבע שטוח, לא גרדיאנט. דפוס לא יודע לדהות. */}
+      <div className="absolute inset-0" aria-hidden="true" style={{ background: PRESS.grass }} />
+
+      {/* ★ פסי כיסוח רחבים ושטוחים, בדיוק כמו בכרטיס.
+          קודם היו כאן פסים של 1px ב-9% — מרקם, לא כיסוח. בגודל
+          מסך טלפון הם יצרו moiré ונראו כמו רעש. */}
       <div
         className="absolute inset-0"
         aria-hidden="true"
-        style={{ background: 'linear-gradient(180deg,#175E43 0%,#0E3527 100%)' }}
-      />
-      {/* פסי כיסוח. 9% לכל פס — מספיק דק כדי להיקרא כמרקם
-          ומספיק עבה כדי לא ליצור moiré בהקטנה. */}
-      <div
-        className="absolute inset-0 opacity-[0.13]"
-        aria-hidden="true"
         style={{
           background:
-            'repeating-linear-gradient(180deg, rgba(255,255,255,.9) 0 1px, transparent 1px 9%)',
+            `repeating-linear-gradient(180deg, ${PRESS.grassDark} 0 14.2857%, transparent 14.2857% 28.5714%)`,
         }}
       />
-      {/* ויניה — נותנת עומק ומרכזת את המבט על ההרכב */}
+
+      {/* ★ נקודות הדפוס — זה מה שהופך ירוק ל"ירוק מודפס".
+          שתי שכבות בהיסט חצי־צעד = רשת משורגת, כמו הלפטון אמיתי,
+          בלי קנבס ובלי תמונה. */}
       <div
         className="absolute inset-0"
         aria-hidden="true"
         style={{
-          background:
-            'radial-gradient(120% 80% at 50% 40%, transparent 40%, rgba(0,0,0,.45) 100%)',
+          backgroundImage:
+            `radial-gradient(${PRESS.dot} 0.9px, transparent 1px),` +
+            `radial-gradient(${PRESS.dot} 0.9px, transparent 1px)`,
+          backgroundSize: '7px 7px, 7px 7px',
+          backgroundPosition: '0 0, 3.5px 3.5px',
+          opacity: 0.34,
         }}
       />
 
@@ -193,22 +236,60 @@ function PitchSurface() {
         preserveAspectRatio="none"
         aria-hidden="true"
         fill="none"
-        stroke="rgba(255,255,255,0.28)"
-        strokeWidth="0.45"
       >
-        <rect x="3" y="3" width="94" height="116" rx="1" />
-        <line x1="3" y1="61" x2="97" y2="61" />
-        <circle cx="50" cy="61" r="13" />
-        <circle cx="50" cy="61" r="0.9" fill="rgba(255,255,255,0.28)" stroke="none" />
-        {/* רחבה תחתונה — צד השוער שלנו */}
-        <rect x="24" y="99" width="52" height="20" />
-        <rect x="38" y="112" width="24" height="7" />
-        <path d="M36 99 A 15 15 0 0 0 64 99" />
-        {/* רחבה עליונה */}
-        <rect x="24" y="3" width="52" height="20" />
-        <rect x="38" y="3" width="24" height="7" />
-        <path d="M36 23 A 15 15 0 0 1 64 23" />
+        {/* ---- השער בפרספקטיבה, בקצה העליון ----
+            ★ הוא מה שאומר "לאיזה כיוון מותקפים" בלי מילה אחת.
+               הרשת שקופה למחצה כדי שלא תיקרא כמלבן לבן. */}
+        <g>
+          <path d="M31 3 L35 -2 L65 -2 L69 3 Z" fill={PRESS.net} />
+          <g stroke={PRESS.netLine} strokeWidth="0.22">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <line key={i}
+                x1={31 + (38 * i) / 9} y1="3"
+                x2={35 + (30 * i) / 9} y2="-2" />
+            ))}
+            <line x1="32.3" y1="1.3" x2="67.7" y2="1.3" />
+            <line x1="33.7" y1="-0.4" x2="66.3" y2="-0.4" />
+          </g>
+          <path d="M31 3 L35 -2 L65 -2 L69 3"
+                stroke={PRESS.ink} strokeWidth="0.8" strokeLinejoin="miter" />
+        </g>
+
+        {/* ---- סימוני המגרש ---- */}
+        <g stroke={PRESS.line} strokeWidth="0.62" strokeLinejoin="miter">
+          <rect x="2.6" y="2.6" width="94.8" height="116.8" />
+          <line x1="2.6" y1="61" x2="97.4" y2="61" />
+          <circle cx="50" cy="61" r="13" />
+          {/* רחבה עליונה — שער היריב */}
+          <rect x="24" y="2.6" width="52" height="20" />
+          <rect x="38" y="2.6" width="24" height="7" />
+          <path d="M36 22.6 A 15 15 0 0 1 64 22.6" />
+          {/* רחבה תחתונה — הצד שלנו */}
+          <rect x="24" y="99.4" width="52" height="20" />
+          <rect x="38" y="112.4" width="24" height="7" />
+          <path d="M36 99.4 A 15 15 0 0 0 64 99.4" />
+        </g>
+        <circle cx="50" cy="61" r="0.9" fill={PRESS.line} />
       </svg>
+
+      {/* ★ קיילין הדיו — הדשא נגמר בקו, לא בשפה מטושטשת.
+          זה הפרט הקטן שהופך "אזור ירוק" ל"מגרש מודפס". */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-[inherit]"
+        aria-hidden="true"
+        style={{ boxShadow: `inset 0 0 0 3px ${PRESS.ink}` }}
+      />
+
+      {/* ★ זהות המצב, בפינה. פס דק בצבע המצב — מספיק כדי
+          ששני צילומי מסך ייקראו כשני משחקים, ולא מספיק כדי
+          להתחרות בהרכב עצמו. */}
+      {accent && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-[3px]"
+          aria-hidden="true"
+          style={{ background: accent }}
+        />
+      )}
     </>
   );
 }

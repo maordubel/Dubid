@@ -10,8 +10,14 @@ import assert from 'node:assert/strict';
 import {
   FORMATIONS_11, FORMATIONS_5, MIN_CARD, PITCH_RATIO, cardHeight, cardWidth,
   formationsFor, layoutFormation, minPitchWidth, parseFormation, positionCounts,
-  ratioForFormation,
+  ratioForFormation, hudCollides, hudWidth, HUD_W_PX,
 } from '../src/lib/formation.ts';
+
+/**
+ * הרוחב המינימלי של מגרש שהמוצר מתחייב עליו לחלון התקציב.
+ * ראו את הבדיקה בתחתית הקובץ — הוא צר יותר מכל טלפון בשוק.
+ */
+const MIN_PITCH_FOR_HUD = 260;
 
 const ALL = [...FORMATIONS_11, ...FORMATIONS_5].map((f) => f.id);
 /** רוחבי מסך אמיתיים, פחות ריפוד של 24 פיקסלים. */
@@ -272,4 +278,57 @@ test('★ אין מירכוז לוגי עם transform בשום קומפוננט�
       assert.ok(!broken, `${f}: מירכוז לוגי עם transform — ${line.trim()}`);
     }
   }
+});
+
+/* ================================================================== */
+/* חלון התקציב המרחף                                                   */
+/* ================================================================== */
+
+/**
+ * ★ למה זו בדיקה ולא "בדקתי במסך שלי".
+ *
+ * חלון התקציב מרחף מעל המגרש בפינה התחתונה. אם הוא נוגע בכרטיס
+ * שחקן הוא מסתיר בדיוק את הבחירה שהמשתמש עשה — והמקום המסוכן
+ * הוא השוער ושורת ההגנה, שיושבים נמוך.
+ *
+ * רוחב המגרש נגזר מהגובה הפנוי, שמשתנה עם גובה המכשיר, עם סרגל
+ * הכתובות של הדפדפן ועם המערך. צילום מסך אחד לא מוכיח כלום.
+ *
+ * הגרסה הראשונה של החלון (126×74) נגעה בכרטיס בכל מגרש צר
+ * מ-400 פיקסלים — כלומר כמעט בכל טלפון. הבדיקה הזו היא שמצאה
+ * את זה, לא העין.
+ */
+test('חלון התקציב לא נוגע באף כרטיס, בשום מערך ובשום רוחב', () => {
+  const failures: string[] = [];
+
+  for (const size of [5, 11]) {
+    for (const option of formationsFor(size)) {
+      const layout = layoutFormation(option.id);
+      assert.ok(layout, option.id);
+      const floor = Math.max(MIN_PITCH_FOR_HUD, minPitchWidth(layout.maxRow));
+
+      for (let w = floor; w <= 900; w += 1) {
+        if (hudCollides(option.id, w)) { failures.push(`${option.id}@${w}`); break; }
+      }
+    }
+  }
+
+  assert.deepEqual(failures, []);
+});
+
+test('חלון התקציב תופס פחות משליש מרוחב המגרש', () => {
+  /* אם מישהו יגדיל אותו "רק קצת", זה נשבר לפני שזה מגיע למסך. */
+  for (const w of [260, 320, 400, 600, 900]) {
+    assert.ok(hudWidth(w) / w <= 0.34, `רוחב יחסי ב-${w}`);
+  }
+  assert.equal(hudWidth(900), HUD_W_PX, 'במסך רחב החלון נעצר בגודל הקבוע');
+});
+
+test('הרצפה הנתמכת אינה מכשיר אמיתי', () => {
+  /* ★ התיעוד של הרצפה, כדי שלא ייראה כמו מספר שנבחר בשרירות:
+     מגרש של 260 פיקסלים מתקבל במכשיר צר מ-280 — צר יותר מכל
+     טלפון שנמכר. מתחת לזה גם כרטיסי השחקנים עצמם כבר לא
+     נכנסים (`minPitchWidth`). */
+  assert.ok(MIN_PITCH_FOR_HUD >= 252);
+  assert.ok(MIN_PITCH_FOR_HUD <= 280);
 });

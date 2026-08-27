@@ -271,6 +271,88 @@ export function cardWidth(
   return Math.max(MIN_CARD, Math.min(MAX_CARD, Math.floor(Math.min(byWidth, byHeight))));
 }
 
+/* ------------------------------------------------------------------ */
+/* חלון התקציב המרחף                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * ★ למה הגאומטריה של חלון התקציב יושבת **כאן**.
+ *
+ * החלון מרחף מעל המגרש בפינה התחתונה (בעברית — שמאלית). אם הוא
+ * ייגע בכרטיס שחקן, הוא מסתיר את הבחירה שהמשתמש בדיוק עשה —
+ * וזה בדיוק מה שקורה בשוער, שיושב במרכז התחתון.
+ *
+ * "בדקתי במסך שלי וזה נראה בסדר" אינו תשובה: רוחב המגרש נגזר
+ * מהגובה הפנוי, שמשתנה עם גובה המכשיר, עם סרגל הכתובות של
+ * הדפדפן, ועם כל מערך. הגבול הזה חייב להיות **אריתמטיקה**, כמו
+ * חסם רוחב הכרטיס — ולכן הוא כאן, ליד שאר החישוב, עם בדיקה
+ * שרצה על כל מערך בכל רוחב.
+ *
+ * המידות תואמות ל-`BudgetHud` ב-`components/SquadPicker.tsx`.
+ * אם שורה כאן משתנה, גם שם — ויש בדיקה שמוודאת שהשתיים לא
+ * נפרדות.
+ */
+/**
+ * ★ המידות נגזרו מהאריתמטיקה, לא נבחרו לפי איך שזה נראה במסך אחד.
+ *
+ * חישוב על כל המערכים ובכל רוחב מגרש סביר הראה שהאזור הפנוי
+ * בפינה התחתונה הוא **38% מרוחב המגרש** — ורק אם החלון נמוך
+ * מספיק כדי לא להגיע לשורת השוער. חלון בגובה 74 פיקסלים נגע
+ * בכרטיס השוער בכל מגרש צר מ-400 פיקסלים, כלומר כמעט בכל טלפון.
+ *
+ * לכן: גובה 48, שוליים 8, ורוחב `min(122px, 32cqw)` — 32% ולא
+ * 38%, כדי להשאיר שוליים לעיגול פיקסלים ולגדילת טקסט.
+ */
+export const HUD_W_PX = 122;
+/** הרוחב כשבר מרוחב המגרש. המחמיר מבין השניים מנצח. */
+export const HUD_W_CQW = 0.32;
+export const HUD_H = 48;
+export const HUD_INSET = 8;
+
+export function hudWidth(pitchWidth: number): number {
+  return Math.min(HUD_W_PX, pitchWidth * HUD_W_CQW);
+}
+
+export interface Box { left: number; top: number; right: number; bottom: number }
+
+/** תיבת החלון, בפיקסלים, ביחס לפינה השמאלית־עליונה של המגרש. */
+export function hudBox(pitchWidth: number, pitchHeight: number): Box {
+  return {
+    left: HUD_INSET,
+    right: HUD_INSET + hudWidth(pitchWidth),
+    bottom: pitchHeight - HUD_INSET,
+    top: pitchHeight - HUD_INSET - HUD_H,
+  };
+}
+
+/** תיבות כל כרטיסי השחקנים, באותן יחידות. */
+export function slotBoxes(
+  formation: string, pitchWidth: number, ratio?: number,
+): Box[] {
+  const layout = layoutFormation(formation);
+  if (!layout) return [];
+  const r = ratio ?? ratioForFormation(formation);
+  const pitchHeight = pitchWidth * r;
+  const w = cardWidth(pitchWidth, layout.maxRow, r);
+  const h = cardHeight(w);
+
+  return layout.slots.map((s) => {
+    const cx = (s.x / 100) * pitchWidth;
+    const cy = (s.y / 100) * pitchHeight;
+    return { left: cx - w / 2, right: cx + w / 2, top: cy - h / 2, bottom: cy + h / 2 };
+  });
+}
+
+export function boxesOverlap(a: Box, b: Box): boolean {
+  return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+}
+
+export function hudCollides(formation: string, pitchWidth: number, ratio?: number): boolean {
+  const r = ratio ?? ratioForFormation(formation);
+  const hud = hudBox(pitchWidth, pitchWidth * r);
+  return slotBoxes(formation, pitchWidth, r).some((b) => boxesOverlap(hud, b));
+}
+
 /**
  * הרוחב המינימלי שהמגרש חייב כדי שהמערך ייכנס בלי חפיפה.
  * אם המסך צר מזה — צריך להקטין את הכרטיס מתחת ל-44, וזה כבר

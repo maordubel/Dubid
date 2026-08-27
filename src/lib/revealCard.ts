@@ -57,6 +57,7 @@ import {
 } from './shareCard.ts';
 import { modeTheme, type ModeId } from './modeTheme.ts';
 import { teamColor, type TeamColor } from '../data/teamColors.ts';
+import { PRESS } from './pressPalette.ts';
 import type { Position } from './scoring/types.ts';
 
 export interface RevealPlayer {
@@ -113,23 +114,29 @@ export interface RevealCardData {
 /* =================================================================== */
 
 /**
- * ★ פלטה מקומית, ולא `PALETTE` של `shareCard`.
+ * ★ פלטה משותפת, ולא `PALETTE` של `shareCard`.
  *
  * `PALETTE` הוא עולם כהה — לילה, זהב, גיר. הכרטיס הזה הוא עולם
- * הפוך: נייר מצהיב ודיו. לכפות עליו את הפלטה הכהה היה מחייב
- * להוסיף לה עוד עשרה צבעים שאיש מלבד הקובץ הזה לא צורך.
+ * הפוך: נייר מצהיב ודיו.
+ *
+ * והצבעים לא יושבים כאן אלא ב-`lib/pressPalette.ts`, כי **המגרש
+ * בבחירת ההרכב מצייר את אותו דבר בדיוק** — ב-CSS ו-SVG במקום
+ * בקנבס. שני עותקים של אותו ירוק היו נפרדים ביום שמישהו יכהה
+ * אחד מהם, ואז מי שבנה הרכב וקיבל גזיר עיתון היה רואה שני
+ * מוצרים. אף בדיקה לא קוראת תמונות; קובץ אחד היא ההגנה.
  */
-const PAPER = '#EFE7D5';
-const INK = '#12100E';
-const RED = '#D93B3B';
-const RED_D = '#B22A2A';
-const GRASS = '#8FBE63';
-const GRASS_D = '#7DAE52';
-const LINE = '#F7F4EC';
+const PAPER = PRESS.paper;
+const INK = PRESS.ink;
+const RED = PRESS.red;
+const RED_D = PRESS.redDeep;
+const GRASS = PRESS.grass;
+const GRASS_D = PRESS.grassDark;
+const LINE = PRESS.line;
+/** גוון עור ושיער — רלוונטיים רק לדמות המצוירת, ולכן כאן. */
 const SKIN = '#D9A06B';
 const HAIR = '#2B211A';
 /** הילת הקריאות מאחורי שמות על הדשא. */
-const HALO = '#EFF3E6';
+const HALO = PRESS.halo;
 
 const NEUTRAL_KIT: TeamColor = {
   primary: '#9AA0A6', secondary: '#9AA0A6', trim: '#FFFFFF',
@@ -293,7 +300,7 @@ function drawPitch(
   for (let i = 0; i < 7; i += 2) ctx.fillRect(px, py + i * (ph / 7), pw, ph / 7);
 
   /* נקודות הדפוס — זה מה שהופך ירוק ל"ירוק מודפס". */
-  dots(ctx, px, py, pw, ph, '#3f6b2c', 7, 1.5, 0.34);
+  dots(ctx, px, py, pw, ph, PRESS.dot, 7, 1.5, 0.34);
   grain(ctx, px, py, pw, ph, '#22401a', 0.1);
 
   /* קווי המגרש */
@@ -342,7 +349,7 @@ function drawPitch(
       const nx = cx + 34, ny = y - 42;
       ctx.beginPath();
       ctx.arc(nx, ny, 17, 0, Math.PI * 2);
-      ctx.fillStyle = cap ? RED : '#F5C518';
+      ctx.fillStyle = cap ? RED : PRESS.mark;
       ctx.fill();
       ctx.lineWidth = 3;
       ctx.strokeStyle = INK;
@@ -370,7 +377,7 @@ function drawPitch(
       ctx.lineWidth = 4;
       ctx.strokeStyle = HALO;
       ctx.strokeText(p.teamShort, cx, y + 88);
-      ctx.fillStyle = '#2c3a25';
+      ctx.fillStyle = PRESS.onGrass;
       ctx.fillText(p.teamShort, cx, y + 88);
     });
   });
@@ -385,7 +392,7 @@ function drawLegend(
   ctx: CanvasRenderingContext2D, lx: number, ly: number, multiplier: number,
 ) {
   const lw = 214, lh = 64;
-  ctx.fillStyle = '#F6F3EA';
+  ctx.fillStyle = PRESS.card;
   ctx.fillRect(lx, ly, lw, lh);
   ctx.strokeStyle = INK;
   ctx.lineWidth = 2.5;
@@ -397,7 +404,7 @@ function drawLegend(
   ctx.fillText('הרכב פותח', lx + lw - 40, ly + 26);
   ctx.fillText(`קפטן ×${trim(multiplier)}`, lx + lw - 40, ly + 50);
 
-  ctx.fillStyle = '#F5C518';
+  ctx.fillStyle = PRESS.mark;
   ctx.beginPath(); ctx.arc(lx + lw - 20, ly + 20, 8, 0, Math.PI * 2); ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = INK; ctx.stroke();
   ctx.fillStyle = RED;
@@ -576,13 +583,13 @@ function drawGoal(ctx: CanvasRenderingContext2D, cx: number, y: number, w: numbe
   const h = w * 0.3, d = w * 0.16;
   ctx.save();
 
-  ctx.fillStyle = '#e8ead9dd';
+  ctx.fillStyle = PRESS.net;
   ctx.beginPath();
   ctx.moveTo(cx - w / 2, y + h); ctx.lineTo(cx - w / 2 + d, y);
   ctx.lineTo(cx + w / 2 - d, y); ctx.lineTo(cx + w / 2, y + h);
   ctx.closePath(); ctx.fill();
 
-  ctx.strokeStyle = '#9aa39a';
+  ctx.strokeStyle = PRESS.netLine;
   ctx.lineWidth = 1.2;
   for (let i = 1; i < 9; i++) {
     const t = i / 9;

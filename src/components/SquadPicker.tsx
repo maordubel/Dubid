@@ -17,7 +17,11 @@ import { TeamCrest } from './TeamCrest.tsx';
 import { TeamTag } from './TeamTag.tsx';
 import { Pitch } from './Pitch.tsx';
 import { FormationPicker } from './FormationPicker.tsx';
-import { formationsFor } from '../lib/formation.ts';
+import {
+  formationsFor, HUD_W_PX, HUD_W_CQW, HUD_H, HUD_INSET,
+} from '../lib/formation.ts';
+import { PRESS } from '../lib/pressPalette.ts';
+import { modeTheme } from '../lib/modeTheme.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import type { Lineup, LineupSlot, Position } from '../lib/scoring/types.ts';
 
@@ -66,12 +70,15 @@ export interface SquadPickerProps {
   onFormation?: (formation: string) => void;
   /** שחקנים שנפלו בהחלפת המערך האחרונה — מוצגים כהודעה. */
   droppedNames?: string[];
+  /** מצב המשחק. קובע את פס הזהות בקצה המגרש ואת נוסח הטקטיקה. */
+  mode?: 'five' | 'full';
 }
 
 export function SquadPicker(props: SquadPickerProps) {
   const {
     lineup, pool, teams, rules, onAssign, onClear, onCaptain, onSubmit,
     opponentShortByTeam, pricing, budget, onVice, onFormation, droppedNames,
+    mode = 'full',
   } = props;
   const [picking, setPicking] = useState<LineupSlot | null>(null);
   const [sheet, setSheet] = useState<'teams' | 'formation' | 'budget' | null>(null);
@@ -93,6 +100,7 @@ export function SquadPicker(props: SquadPickerProps) {
 
   const filled = lineup.slots.filter((s) => s.playerId).length;
   const issues = useMemo(() => validateLineup(lineup, rules), [lineup, rules]);
+  const theme = modeTheme(mode);
   const ready = issues.length === 0;
 
   const coverage = useMemo(
@@ -119,20 +127,33 @@ export function SquadPicker(props: SquadPickerProps) {
     <div className="flex h-full min-h-0 flex-col">
       <ControlBar
         coverage={coverage}
-        budget={budget}
-        spent={spent}
         filled={filled}
         size={rules.constraints.lineupSize}
         formation={lineup.formation}
+        canChangeFormation={!!onFormation && formationsFor(rules.constraints.lineupSize).length > 1}
         onOpen={setSheet}
       />
 
       {/* ---- המגרש — כל מה שנשאר, ובלי גלילה ---- */}
       <div className="grid min-h-0 flex-1 place-items-center px-2 py-2">
+        {/* ★ שוליים של נייר סביב הדשא.
+            בכרטיס העיתון המגרש מודפס על הדף, ומה שהופך אותו
+            ל"מודפס" הוא בדיוק השוליים הבהירים סביבו. בלעדיהם
+            הוא סתם מלבן ירוק שמרחף על רקע כהה. */}
         <Pitch
           formation={lineup.formation}
           fit="height"
-          className="ring-1 ring-inset ring-chalk/15"
+          accent={theme.accent}
+          frameColor={PRESS.paper}
+          overlay={budget !== undefined ? (
+            <BudgetHud
+              budget={budget}
+              spent={spent}
+              filled={filled}
+              size={rules.constraints.lineupSize}
+              onOpen={() => setSheet('budget')}
+            />
+          ) : undefined}
           renderSlot={(slotNo) => {
             const slot = lineup.slots.find((x) => x.slotNo === slotNo);
             if (!slot) return null;
@@ -192,7 +213,7 @@ export function SquadPicker(props: SquadPickerProps) {
         </ControlSheet>
       )}
       {sheet === 'formation' && onFormation && (
-        <ControlSheet title="מערך טקטי" onClose={() => setSheet(null)}>
+        <ControlSheet title="טקטיקה — בחירת מערך" onClose={() => setSheet(null)}>
           <FormationPicker
             options={formationsFor(rules.constraints.lineupSize)}
             value={lineup.formation}
@@ -234,25 +255,28 @@ export function SquadPicker(props: SquadPickerProps) {
  * ★ שורה אחת, שלושה מספרים, אפס בזבוז.
  *
  * כל צ׳יפ עונה על שאלה אחת שהמשתמש שואל תוך כדי בנייה:
- *   "כמה קבוצות תפסתי?" · "כמה כסף נשאר?" · "באיזה מערך אני?"
+ *   "כמה קבוצות תפסתי?" · "באיזה מערך אני?"
  *
  * התשובה גלויה תמיד; הפירוט נפתח בלחיצה. זה מה שמשחרר את
  * המסך למגרש במקום שלוש רצועות שאף אחת מהן לא נקראת עד הסוף.
+ *
+ * ★ התקציב **יצא מכאן**, בכוונה.
+ *
+ * הוא עבר לחלון מרחף מעל המגרש. צ׳יפ שלישי שנקרא "תקציב" נראה
+ * בדיוק כמו שני האחרים, והעין מדלגת עליו — בזמן שהתקציב הוא
+ * האילוץ היחיד שנוכח בכל לחיצה בדוביד 5.
  */
 function ControlBar({
-  coverage, budget, spent, filled, size, formation, onOpen,
+  coverage, filled, size, formation, canChangeFormation, onOpen,
 }: {
   coverage: ReturnType<typeof teamCoverage>;
-  budget?: number;
-  spent: number;
   filled: number;
   size: number;
   formation: string;
+  canChangeFormation: boolean;
   onOpen: (sheet: 'teams' | 'formation' | 'budget') => void;
 }) {
   const used = coverage.filter((c) => c.filled).length;
-  const remaining = budget !== undefined ? budget - spent : undefined;
-  const over = remaining !== undefined && remaining < 0;
 
   return (
     <div className="shrink-0 border-b border-gold/15 bg-night px-2.5 py-2">
@@ -261,15 +285,43 @@ function ControlBar({
           <span className="num" dir="ltr">{used}/{coverage.length}</span>
         </Chip>
 
-        {remaining !== undefined && (
-          <Chip label={over ? 'חריגה' : 'תקציב'} onClick={() => onOpen('budget')} alert={over}>
-            <span className="num" dir="ltr">{remaining.toFixed(1)}M</span>
-          </Chip>
-        )}
+        {/*
+          ★★ "לא ידעתי שאפשר לשנות טקטיקה." ★★
 
-        <Chip label="מערך" onClick={() => onOpen('formation')}>
-          <span className="num" dir="ltr">{formation}</span>
-        </Chip>
+          הצ׳יפ הקודם הציג `4-3-3` מתחת לתווית "מערך" — כלומר
+          **מצב**, לא פעולה. הוא נראה בדיוק כמו הצ׳יפ שלידו
+          שמציג מספר, ולכן איש לא ניסה ללחוץ עליו.
+
+          שלושה שינויים, וכל אחד מהם עומד בפני עצמו:
+            · "טקטיקה" ולא "מערך" — זו המילה שמשתמש חושב בה.
+            · מסגרת זהב + חץ — הצ׳יפ נראה כמו כפתור, לא כמו נתון.
+            · "החלף" כתוב במפורש. אפשרות שצריך לגלות היא
+              אפשרות שרוב האנשים לא ימצאו.
+        */}
+        <button
+          onClick={() => onOpen('formation')}
+          disabled={!canChangeFormation}
+          aria-label={`טקטיקה ${formation} — החלפת מערך`}
+          className="tap flex flex-[1.35] items-center justify-center gap-2 rounded-xl border
+                     border-gold/45 bg-gold/10 px-2 py-1.5 text-gold
+                     transition-colors duration-200 ease-brand
+                     active:bg-gold/20 disabled:border-gold/15 disabled:bg-night-2
+                     disabled:text-chalk-dim"
+        >
+          <span className="flex flex-col items-start leading-none">
+            <span className="text-[9px] font-bold tracking-wide opacity-80">טקטיקה</span>
+            <span className="num text-sm font-black leading-tight" dir="ltr">{formation}</span>
+          </span>
+          {canChangeFormation && (
+            <span className="flex items-center gap-0.5">
+              <span className="text-[9.5px] font-black">החלף</span>
+              <svg viewBox="0 0 24 24" className="size-3" fill="none" stroke="currentColor"
+                   strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </span>
+          )}
+        </button>
 
         <div className="grid shrink-0 place-items-center rounded-xl bg-night-2 px-3">
           <span className="num text-sm font-black text-gold" dir="ltr">{filled}/{size}</span>
@@ -293,6 +345,114 @@ function Chip({
     >
       <span className="text-[9px] font-bold tracking-wide text-chalk-dim">{label}</span>
       <span className="text-sm font-black leading-tight">{children}</span>
+    </button>
+  );
+}
+
+/* ================================================================== */
+/* חלון התקציב המרחף                                                   */
+/* ================================================================== */
+
+/**
+ * ★★ למה חלון מרחף ולא עוד שורה במסך ★★
+ *
+ * בדוביד 5 התקציב אינו "מידע נוסף" — הוא **החוק**. כל בחירה
+ * היא שאלה אחת: "אני יכול להרשות לעצמי את זה?" מספר שנמצא
+ * ברצועה עליונה עונה על השאלה רק למי שזוכר להרים את העיניים
+ * לפני כל לחיצה, וזה לא מה שאנשים עושים.
+ *
+ * החלון מרחף בפינה התחתונה של המגרש — אותו מקום בדיוק שבו
+ * יושבת תיבת המקרא בכרטיס העיתון, ובאותה שפה גרפית: נייר,
+ * דיו, מסגרת. הוא חלק מהמגרש, לא ממשק שהודבק עליו.
+ *
+ * ★ למה דווקא הפינה התחתונה־שמאלית
+ *
+ * שם אין שחקנים. השוער יושב במרכז התחתון, וקו ההגנה מתחיל
+ * גבוה ממנו. בדקנו את כל המערכים המותרים: אף כרטיס לא מגיע
+ * לפינה הזו.
+ *
+ * ★ שלוש שכבות מידע, לפי הסדר שבו הן נחוצות
+ *
+ *   1. הסכום שנותר — גדול. זו התשובה.
+ *   2. פס — כמה מהתקציב כבר הלך. זה ההקשר.
+ *   3. "עד X לכל אחד מ-N" — זו ה**החלטה** הבאה, והיא הדבר
+ *      היחיד כאן שהמשתמש לא יכול לחשב בראש תוך כדי.
+ */
+function BudgetHud({
+  budget, spent, filled, size, onOpen,
+}: {
+  budget: number;
+  spent: number;
+  filled: number;
+  size: number;
+  onOpen: () => void;
+}) {
+  const remaining = budget - spent;
+  const over = remaining < 0;
+  const left = size - filled;
+  const perPlayer = left > 0 ? remaining / left : null;
+  const pct = Math.max(0, Math.min(100, (spent / budget) * 100));
+
+  return (
+    <button
+      onClick={onOpen}
+      aria-label={`תקציב — נותרו ${remaining.toFixed(1)} מיליון מתוך ${budget}. פתיחת הפירוט`}
+      className="absolute z-10 flex flex-col justify-center rounded-[3px] px-1.5 text-start
+                 transition-transform duration-200 ease-brand active:scale-[.97]"
+      style={{
+        /* ★ המידות מגיעות מ-`lib/formation.ts` ולא נכתבות כאן.
+           שם הן נבדקות מול כל מערך ובכל רוחב מגרש — כאן הן רק
+           מוצגות. שני מספרים נפרדים היו נפרדים ביום שמישהו
+           יגדיל את החלון "רק קצת". */
+        insetInlineEnd: HUD_INSET,
+        bottom: HUD_INSET,
+        height: HUD_H,
+        width: `min(${HUD_W_PX}px, ${HUD_W_CQW * 100}cqw)`,
+        background: PRESS.card,
+        boxShadow: `inset 0 0 0 2px ${over ? PRESS.red : PRESS.ink}, 0 3px 10px -3px rgba(0,0,0,.65)`,
+      }}
+    >
+      <span className="flex items-baseline gap-1 leading-none">
+        <span
+          className="num text-[17px] font-black"
+          dir="ltr"
+          style={{ color: over ? PRESS.red : PRESS.ink }}
+        >
+          {remaining.toFixed(1)}M
+        </span>
+        <span
+          className="text-[8px] font-black"
+          style={{ color: over ? PRESS.red : 'rgba(18,16,14,.6)' }}
+        >
+          {over ? 'חריגה' : 'נותר'}
+        </span>
+      </span>
+
+      {/* הפס — שני צבעי דיו, בלי גרדיאנט. אותה שפה כמו המגרש. */}
+      <span
+        className="mt-1 block h-[4px] w-full overflow-hidden"
+        style={{ background: 'rgba(18,16,14,.14)', boxShadow: `inset 0 0 0 1px ${PRESS.ink}` }}
+        aria-hidden="true"
+      >
+        <span
+          className="block h-full transition-[width] duration-300 ease-brand"
+          style={{ width: `${pct}%`, background: over ? PRESS.red : PRESS.ink }}
+        />
+      </span>
+
+      {/* ★ השורה השלישית היא ה**החלטה** הבאה, ולא עוד מספר:
+          כמה מותר להוציא על כל אחד מהשחקנים שנשארו. זה הדבר
+          היחיד כאן שהמשתמש לא יכול לחשב בראש תוך כדי בחירה. */}
+      <span
+        className="mt-0.5 block truncate text-[8px] font-bold leading-none"
+        style={{ color: over ? PRESS.red : 'rgba(18,16,14,.66)' }}
+      >
+        {over
+          ? 'צריך לפנות מקום'
+          : perPlayer !== null
+            ? <>עד <span className="num" dir="ltr">{perPlayer.toFixed(1)}M</span> לשחקן</>
+            : <>מתוך <span className="num" dir="ltr">{budget}M</span></>}
+      </span>
     </button>
   );
 }
@@ -439,19 +599,31 @@ function SlotCard({
   onVice?: () => void;
 }) {
   if (!player) {
+    /* ★ משבצת ריקה על נייר, לא על לילה.
+       הרקע כאן בהיר עכשיו, ולכן `text-chalk/60` על `bg-night/40`
+       היה כתם כהה מרחף. הילה בהירה + דיו היא אותה שפה כמו
+       השמות בכרטיס — וגם קריאה יותר. */
     return (
       <button
         onClick={onPick}
         aria-label={`הוסף ${POSITION_LABEL[slot.position]}`}
-        className="tap flex w-full flex-col items-center gap-1 text-chalk/60
-                   transition-colors duration-200 ease-brand active:text-gold"
+        className="tap flex w-full flex-col items-center gap-1
+                   transition-transform duration-200 ease-brand active:scale-95"
       >
-        <span className="relative grid w-[62%] max-w-[40px] place-items-center">
+        <span
+          className="relative grid w-[62%] max-w-[40px] place-items-center"
+          style={{ color: PRESS.ink }}
+        >
           <Jersey ghost position={slot.position} size="fluid" />
-          <span className="absolute text-lg font-black leading-none">+</span>
+          <span className="absolute text-lg font-black leading-none" style={{ color: PRESS.ink }}>
+            +
+          </span>
         </span>
-        <span className="w-full truncate rounded-md border border-dashed border-chalk/30
-                         bg-night/40 px-1 py-0.5 text-center text-[9px] font-bold">
+        <span
+          className="w-full truncate rounded-[2px] border border-dashed px-1 py-0.5
+                     text-center text-[9px] font-black"
+          style={{ borderColor: 'rgba(18,16,14,.45)', background: 'rgba(239,243,230,.72)', color: PRESS.ink }}
+        >
           {POSITION_LABEL[slot.position]}
         </span>
       </button>
@@ -470,35 +642,53 @@ function SlotCard({
         aria-label={`החלף את ${player.nameShort}`}
         className="relative grid w-[62%] max-w-[42px] place-items-center"
       >
-        <span className="w-full drop-shadow-[0_2px_5px_rgba(0,0,0,.6)]">
+        {/* ★ הסמל יושב על דיסקית נייר עם טבעת דיו.
+            קובצי הסמלים מגיעים עם רקע לבן. על מגרש כהה זה לא
+            הפריע; על דשא מודפס בהיר הם נראו כמו מדבקות לבנות
+            שהודבקו על הציור. דיסקית הופכת את הרקע הלבן מתקלה
+            לאלמנט — וזו אותה צורה כמו עיגולי המספרים בכרטיס. */}
+        <span
+          className="grid aspect-square w-full place-items-center rounded-full p-[9%]"
+          style={{ background: PRESS.card, boxShadow: `0 0 0 1.8px ${PRESS.ink}` }}
+        >
           <TeamCrest teamId={slot.teamId} short={team?.short} size="fluid" />
         </span>
 
-        {cap && (
-          <span className="absolute -top-1 -end-1.5 rounded bg-armband px-1 text-[8px]
-                           font-black leading-[1.5] text-night shadow">
-            C
-          </span>
-        )}
-        {vice && !cap && (
-          <span className="absolute -top-1 -end-1.5 rounded bg-tekhelet px-1 text-[8px]
-                           font-black leading-[1.5] text-white shadow">
-            V
+        {/* ★ עיגול הסימון — בדיוק כמו בכרטיס העיתון: עיגול צהוב
+            עם קו מתאר שחור, ואדום לקפטן. קודם היה כאן תג מלבני
+            קטן; עכשיו זו אותה צורה שהמשתמש יראה בסטורי, וזה מה
+            שהופך את שני המסכים לאותו משחק. */}
+        {(cap || vice) && (
+          <span
+            className="absolute -top-1 -end-1.5 grid size-[15px] place-items-center
+                       rounded-full text-[8.5px] font-black leading-none"
+            style={{
+              background: cap ? PRESS.red : PRESS.mark,
+              color: cap ? '#fff' : PRESS.ink,
+              boxShadow: `0 0 0 1.6px ${PRESS.ink}`,
+            }}
+          >
+            {cap ? 'C' : 'V'}
           </span>
         )}
       </button>
 
-      {/* לוחית שם */}
-      <bdi className="w-full truncate rounded-md bg-chalk px-1 py-px text-center text-[9.5px]
-                      font-black leading-[1.4] text-night shadow-sm">
+      {/* לוחית שם — נייר עם קו מתאר, כמו כותרת קטנה בעיתון */}
+      <bdi
+        className="w-full truncate rounded-[2px] px-1 py-px text-center text-[9.5px]
+                   font-black leading-[1.4]"
+        style={{ background: PRESS.paper, color: PRESS.ink, boxShadow: `0 0 0 1.4px ${PRESS.ink}` }}
+      >
         {player.nameShort}
       </bdi>
 
       {/* מחיר ב-5 על 5, אחרת קיצור הקבוצה */}
-      <span className={[
-        'w-full truncate rounded px-1 text-center text-[8.5px] font-black leading-[1.5]',
-        price !== undefined ? 'bg-night/75 text-gold' : 'bg-night/65 text-chalk-dim',
-      ].join(' ')}>
+      <span
+        className="w-full truncate rounded-[2px] px-1 text-center text-[8.5px] font-black leading-[1.5]"
+        style={price !== undefined
+          ? { background: PRESS.ink, color: PRESS.mark }
+          : { background: 'rgba(239,243,230,.86)', color: PRESS.onGrass }}
+      >
         {price !== undefined ? <span className="num" dir="ltr">{price}</span> : team?.short}
       </span>
 

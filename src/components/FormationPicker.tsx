@@ -10,6 +10,7 @@
  * לו הייתה כאן פריסה משלה, יום אחד הן היו נפרדות.
  */
 import { layoutFormation, type FormationOption } from '../lib/formation.ts';
+import { PRESS } from '../lib/pressPalette.ts';
 
 export function FormationPicker({
   options, value, onChange, disabled = false,
@@ -22,8 +23,12 @@ export function FormationPicker({
   return (
     <div className="px-3 pt-3">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-2 flex items-baseline justify-between">
-          <h2 className="text-[11px] font-black tracking-widest text-chalk-dim">מערך</h2>
+        {/* ★ משפט אחד שמסביר מה קורה כשמחליפים.
+            בלעדיו, החלפת מערך שמפילה שחקנים נראית כמו באג. */}
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <h2 className="text-[11px] font-black tracking-widest text-chalk-dim">
+            בחר מערך — הבחירות נשמרות במידת האפשר
+          </h2>
           <span className="num text-xs font-black text-gold" dir="ltr">{value}</span>
         </div>
 
@@ -83,12 +88,17 @@ function MiniPitch({ formation, active }: { formation: string; active: boolean }
       className="h-[58px] w-auto rounded-md"
       aria-hidden="true"
     >
-      <rect width="100" height="138" rx="4" fill={active ? '#175E43' : '#14352A'} />
-      <g stroke="rgba(255,255,255,.22)" strokeWidth="1" fill="none">
-        <rect x="4" y="4" width="92" height="130" rx="2" />
+      {/* ★ אותו דשא מודפס כמו המגרש הגדול ובכרטיס.
+          תצוגה מקדימה בצבע אחר היא תצוגה מקדימה של משהו אחר. */}
+      <rect width="100" height="138" rx="2"
+            fill={active ? PRESS.grass : PRESS.grassDark} />
+      <g stroke={PRESS.line} strokeWidth="1" fill="none">
+        <rect x="4" y="4" width="92" height="130" />
         <line x1="4" y1="69" x2="96" y2="69" />
         <circle cx="50" cy="69" r="14" />
       </g>
+      <rect x="0.9" y="0.9" width="98.2" height="136.2" rx="2"
+            fill="none" stroke={PRESS.ink} strokeWidth="1.8" />
       {layout.slots.map((s, i) => (
         <circle
           key={i}
@@ -96,8 +106,10 @@ function MiniPitch({ formation, active }: { formation: string; active: boolean }
           // גובה 138 מול 100 באחוזים — ממירים ליחידות ה-viewBox
           cy={(s.y / 100) * 138}
           r={s.position === 'GK' ? 4.6 : 5.2}
-          fill={active ? '#FF5B14' : '#F6F3EB'}
-          opacity={s.position === 'GK' ? 0.75 : 1}
+          fill={active ? PRESS.mark : PRESS.paper}
+          stroke={PRESS.ink}
+          strokeWidth="1.4"
+          opacity={s.position === 'GK' ? 0.85 : 1}
         />
       ))}
     </svg>
