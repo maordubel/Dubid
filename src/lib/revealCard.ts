@@ -72,6 +72,14 @@ export interface RevealCardData {
   entrants?: number;
   url: string;
   urlLabel?: string;
+  /**
+   * שורת הקריאה לפעולה. ריק = ברירת המחדל.
+   *
+   * ★ מוזרקת פנימה ולא נקראת כאן: המחולל טהור — הוא מצייר,
+   *   הוא לא יודע מה זה לוח ניהול. אותה הפרדה כמו בכל שאר
+   *   הכרטיס.
+   */
+  ctaLine?: string;
 }
 
 const ROW_ORDER: Position[] = ['GK', 'DEF', 'MID', 'FWD'];
@@ -337,7 +345,7 @@ function drawFooter(ctx: CanvasRenderingContext2D, d: RevealCardData, accent: st
   ctx.textAlign = 'right';
   ctx.font = `900 44px ${F_DISPLAY}`;
   ctx.fillStyle = PALETTE.chalk;
-  ctx.fillText('חושב שאתה מבין יותר?', qrX - 40, y + 54);
+  ctx.fillText(clip(ctx, d.ctaLine || 'חושב שאתה מבין יותר?', qrX - 60), qrX - 40, y + 54);
 
   ctx.font = `700 28px ${F_UI}`;
   ctx.fillStyle = PALETTE.chalkDim;

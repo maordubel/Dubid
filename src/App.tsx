@@ -7,7 +7,7 @@
  * שיתחבר API כדורגל. שני החלקים חיים עכשיו באותו קוד, אותו מנוע ניקוד,
  * אותה שפת עיצוב — לא שתי אפליקציות מודבקות זו לזו.
  */
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ensureIdentity, storedDisplayName, setDisplayName, subscribeToIdentity,
   type Identity } from './lib/identity.ts';
 
@@ -34,6 +34,7 @@ import { Splash } from './components/Splash.tsx';
 import { RevealShare } from './components/RevealShare.tsx';
 import type { RevealCardData } from './lib/revealCard.ts';
 import { modeTheme } from './lib/modeTheme.ts';
+import { text as contentText, subscribeToContent } from './lib/content.ts';
 import { GameStatusBadge } from './components/GameStatusBadge.tsx';
 import { IconHome, IconLineup, IconArena, IconRanking, IconRules } from './components/NavIcons.tsx';
 
@@ -55,7 +56,9 @@ import {
 } from './lib/store.ts';
 import {
   hydrateLiveData, startLiveDataRealtime, subscribeToLiveData, liveDataVersion,
+  currentGameweekCode, ruleOverrides,
 } from './lib/liveData.ts';
+import { applyOverrides } from './lib/ruleOverrides.ts';
 import { computeGameStatus, type GameStatus } from './lib/gameStatus.ts';
 import type { PlayerPerformance, TeamOutcome } from './lib/scoring/types.ts';
 import type { RuleSet } from './lib/scoring/rules.ts';
@@ -157,6 +160,18 @@ export function App() {
   return <MainApp />;
 }
 
+/**
+ * המחזור שהמסך עובד עליו.
+ *
+ * ★ השרת קודם, הזרע אחריו. `GAMEWEEK.id` הוא ערך ההתחלה שנטען
+ *   עם ה-JavaScript; ברגע ש-`hydrateLiveData` ענתה, הוא כבר
+ *   מעודכן ממילא. הפונקציה הזו קיימת כדי שאף מסך לא יקרא
+ *   קבוע ישירות — וכך אין מקום שנשאר מאחור.
+ */
+function gwCode(): string {
+  return currentGameweekCode() || GAMEWEEK.id;
+}
+
 function MainApp() {
   const [tab, setTab] = useState('home');
   const [mode, setMode] = useState<Mode>('full');
@@ -185,14 +200,15 @@ function MainApp() {
     const stops: Array<() => void> = [];
     void (async () => {
       await ensureIdentity();
-      /* ★ הסגלים והלוח **לפני** ההגשות.
-         `entries` מחזירה מזהי שחקנים; אם הסגל עדיין הזרע הסטטי,
-         שחקן שהאדמין הוסיף היום מופיע כמזהה בלי שם. */
-      await hydrateLiveData(GAMEWEEK.id);
-      await hydrate(GAMEWEEK.id);
+      /* ★ המחזור, הסגלים והלוח — **לפני** ההגשות, ובלי פרמטר.
+         `hydrateLiveData` שואלת את השרת איזה מחזור פעיל ומעדכנת
+         את `GAMEWEEK` במקום. עד הסבב הזה הקוד הכריז 'gw-2' בעצמו,
+         ולכן מחזור 3 היה דורש פריסה. */
+      await hydrateLiveData();
+      await hydrate(gwCode());
       setBooted(true);
-      stops.push(startRealtime(GAMEWEEK.id));
-      stops.push(startLiveDataRealtime(GAMEWEEK.id));
+      stops.push(startRealtime(gwCode()));
+      stops.push(startLiveDataRealtime());
     })();
     return () => { for (const s of stops) s(); };
   }, []);
@@ -200,14 +216,52 @@ function MainApp() {
   /* דאטת הכדורגל השתנתה (האדמין ערך משהו) → רינדור מחדש. */
   const [liveVersion, setLiveVersion] = useState(0);
   useEffect(() => subscribeToLiveData(() => setLiveVersion(liveDataVersion())), []);
+  /* טקסט שיווקי שהאדמין ערך — רינדור מחדש, בלי רענון. */
+  useEffect(() => subscribeToContent(() => setLiveVersion((n) => n + 1)), []);
+
+  /**
+   * ★ האדמין החליף את המחזור הפעיל — והמסך צריך לעבור איתו.
+   *
+   * `hydrateLiveData` כבר עדכנה את `GAMEWEEK`, אבל ההגשות
+   * והתוצאות נמשכות ממודול אחר (`store`) שעדיין מחזיק את הקוד
+   * הישן. בלי הבלוק הזה, המשתמש היה רואה את הלוח של מחזור 3
+   * ואת ההגשות של מחזור 2 — באותו מסך.
+   */
+  const activeCode = currentGameweekCode() || GAMEWEEK.id;
+  const seenCode = useRef(activeCode);
+  useEffect(() => {
+    if (seenCode.current === activeCode) return;
+    seenCode.current = activeCode;
+    let stop: (() => void) | undefined;
+    void hydrate(activeCode, true).then(() => { stop = startRealtime(activeCode); });
+    return () => stop?.();
+  }, [activeCode]);
 
   /* ★ `liveVersion` בכל תלות שנגזרת מהסגל או מהלוח.
      בלעדיו: האדמין מוסיף שחקן, המערך מתעדכן, ו-`useMemo` עם
      `[]` ממשיך להחזיר את הרשימה מהרינדור הראשון — כלומר בדיוק
      הבאג שתוקן, רק שכבה אחת מעל. */
   const resolved = useMemo(() => resolveRules(TEAMS.length), [liveVersion]);
-  const fullRules = resolved.rules;
-  const fiveRules = DUBID_5X5;
+
+  /**
+   * ★★ האיזון מגיע מהשרת ★★
+   *
+   * `applyOverrides` מחיל את מה שהאדמין שינה (`game.scoring_rules()`)
+   * על ברירות המחדל שבקוד. מפה ריקה = בדיוק המשחק של אתמול.
+   *
+   * ★ למה זה נכון לחשב את זה בדפדפן
+   *
+   * הדירוג מחושב היום בדפדפן, מנתוני השרת (`buildLeaderboard` →
+   * `scoreLineup`). כל המכשירים מקבלים את **אותם** override-ים
+   * מאותו מקור, ולכן כולם מגיעים לאותו מספר. אילו האיזון היה
+   * מוחל רק אצל חלק, היינו מקבלים שני דירוגים — וזה בדיוק מה
+   * שהמעבר לשרת בא לסיים.
+   */
+  const overrides = ruleOverrides();
+  const fullRules = useMemo(
+    () => applyOverrides(resolved.rules, overrides), [resolved.rules, overrides, liveVersion]);
+  const fiveRules = useMemo(
+    () => applyOverrides(DUBID_5X5, overrides), [overrides, liveVersion]);
   const rulesByMode: Record<Mode, RuleSet> = { full: fullRules, five: fiveRules };
   const capacityIssue = useMemo(
     () => checkLeagueCapacity(TEAMS.length, { ...fullRules, constraints: { ...fullRules.constraints, lineupSize: 11 } }),
@@ -266,10 +320,10 @@ function MainApp() {
   // שני הרכבים חיים תמיד, במקביל — לא נוצרים/נהרסים עם מעבר טאב,
   // כדי שהעבודה על אחד לא תימחק כשעוברים לשני ואז חוזרים.
   const luFull = useLineup(fullRules.constraints.formationAllowed[0], fullRules, {
-    lineupId: 'draft-full', userId, gameweekId: GAMEWEEK.id, mode: 'full',
+    lineupId: 'draft-full', userId, gameweekId: gwCode(), mode: 'full',
   });
   const luFive = useLineup(fiveRules.constraints.formationAllowed[0], fiveRules, {
-    lineupId: 'draft-5x5', userId, gameweekId: GAMEWEEK.id, mode: 'five',
+    lineupId: 'draft-5x5', userId, gameweekId: gwCode(), mode: 'five',
   });
   const luByMode = { full: luFull, five: luFive };
   const lu = luByMode[mode];
@@ -287,7 +341,7 @@ function MainApp() {
 
   const displayName = storedDisplayName() || undefined;
 
-  const results = getResults(GAMEWEEK.id);
+  const results = getResults(gwCode());
 
   /**
    * ★ מחזור הדגמה עד שהמסד מחובר.
@@ -318,7 +372,7 @@ function MainApp() {
       ? ['locked', 'live', 'settled'].includes(gwState.status)
       : false;
     return {
-      id: GAMEWEEK.id,
+      id: gwCode(),
       number: gwState?.number ?? GAMEWEEK.number ?? 1,
       label: GAMEWEEK.label,
       status: results.published
@@ -334,7 +388,7 @@ function MainApp() {
   // ★ מספר המשתתפים מגיע מהשרת (`gameweek_state.entrants`) ולא
   //   מאורך הרשימה: לפני הנעילה `entries` מחזירה רק את ההגשה של
   //   הקורא, ולכן הלובי היה מציג "1 משתתף" גם כשיש חמישים.
-  const entrantCount = gwState?.entrants ?? listEntries(GAMEWEEK.id).length;
+  const entrantCount = gwState?.entrants ?? listEntries(gwCode()).length;
 
   /* ★ סדר ההצהרות כאן אינו סגנוני.
      `growthCtx` קורא את שתי ההגשות, ולכן הן חייבות להיות מוצהרות
@@ -345,8 +399,8 @@ function MainApp() {
 
   // ★ שכבת ה"נעילה": יש הגשה רשמית או שאין. כל עוד אין, המסך עורך את
   // הטיוטה. ברגע שיש — SquadPicker לא מוצג יותר, LockedLineup כן.
-  const entryFull = findMyEntry(GAMEWEEK.id, 'full', userId);
-  const entryFive = findMyEntry(GAMEWEEK.id, 'five', userId);
+  const entryFull = findMyEntry(gwCode(), 'full', userId);
+  const entryFive = findMyEntry(gwCode(), 'five', userId);
   const entryByMode: Record<Mode, LineupEntry | undefined> = { full: entryFull, five: entryFive };
 
 
@@ -417,7 +471,7 @@ function MainApp() {
       const mine = entryByMode[m];
       if (!mine) continue;
       const rows = buildLeaderboard({
-        entries: listEntries(GAMEWEEK.id, m),
+        entries: listEntries(gwCode(), m),
         performances: results.performances,
         outcomes: results.outcomes,
         rules: rulesByMode[m],
@@ -499,6 +553,7 @@ function MainApp() {
       entrants: entrantCount || undefined,
       url: SITE_URL,
       urlLabel: 'DUBID.DUBELTEAM.COM',
+      ctaLine: contentText('share.cta'),
     };
   };
 
@@ -777,7 +832,7 @@ function ConnectionStrip() {
         </span>
         <button
           type="button"
-          onClick={() => { void hydrate(GAMEWEEK.id, true); }}
+          onClick={() => { void hydrate(gwCode(), true); }}
           className="shrink-0 underline underline-offset-2"
         >
           נסו שוב
@@ -880,7 +935,7 @@ function SaveEntryModal({
           void (async () => {
             try {
               await setDisplayName(name);
-              const saved = await saveEntry(name, GAMEWEEK.id, mode, userId, lineup, priceById);
+              const saved = await saveEntry(name, gwCode(), mode, userId, lineup, priceById);
               onSaved(saved);
             } catch (err) {
               setError(errorMessageHe(err instanceof Error ? err.message : 'NETWORK'));
@@ -948,7 +1003,7 @@ function CardScreen({
   entry: LineupEntry | undefined;
 }) {
   const [showDemo, setShowDemo] = useState(false);
-  const results = getResults(GAMEWEEK.id);
+  const results = getResults(gwCode());
   const hasRealResults = results.published && Object.keys(results.performances).length > 0;
 
   const data: ShareCardData | null = useMemo(() => {
@@ -966,7 +1021,7 @@ function CardScreen({
     let rank = 0;
     let totalPlayers = 0;
     if (hasRealResults && entry) {
-      const others = listEntries(GAMEWEEK.id, entry.mode);
+      const others = listEntries(gwCode(), entry.mode);
       const pairs = others.flatMap((e) => {
         try {
           return [{ id: e.id, score: scoreLineup(e.lineup, results.performances, results.outcomes, rules, { validate: false }) }];

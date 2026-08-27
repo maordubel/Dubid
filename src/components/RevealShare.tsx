@@ -37,6 +37,7 @@ import { CARD_W, CARD_H } from '../lib/shareCard.ts';
 import { canvasToBlob, shareCardImage, shareToWhatsApp, downloadBlob } from '../lib/share.ts';
 import { modeTheme, modeVars } from '../lib/modeTheme.ts';
 import { ModeMark } from './ModeMark.tsx';
+import { text as content } from '../lib/content.ts';
 
 export interface RevealShareProps {
   data: RevealCardData;
@@ -53,6 +54,11 @@ export function buildRevealText(d: RevealCardData): string {
   const t = modeTheme(d.mode);
   const cap = d.lineup.find((p) => p.isCaptain);
   const capPart = cap ? ` הקפטן שלי: ${cap.name}.` : '';
+  /* ★ ניתן לעקיפה מלוח הניהול — קמפיין הוא החלטה שיווקית,
+     לא קוד. ריק = הטקסט האוטומטי, שכולל את שם הקפטן. */
+  const custom = content('share.text').trim();
+  if (custom) return custom;
+
   return `סגרתי הרכב ל${d.gameweekLabel} · ${t.name}.${capPart} ` +
          `אתם הייתם בוחרים אחרת? 👇`;
 }
@@ -159,7 +165,7 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
         <p className="mb-3 text-center text-[13px] leading-snug text-chalk-2">
           {sent
             ? 'נשלח. עכשיו נחכה ונראה מי צדק.'
-            : 'תראו להם את הבחירות — לפני שיודעים מי צדק.'}
+            : content('submit.success')}
         </p>
 
         <button

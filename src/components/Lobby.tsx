@@ -40,6 +40,7 @@ import {
 } from '../lib/gameweek.ts';
 import type { ModeId } from '../lib/events/bus.ts';
 import { modeTheme, modeVars, modeTexture } from '../lib/modeTheme.ts';
+import { text as content, hasText } from '../lib/content.ts';
 import { ModeMark } from './ModeMark.tsx';
 
 export interface LobbyMode {
@@ -157,6 +158,24 @@ export function Lobby({
           </span>
         ) : null}
       </header>
+
+      {/* ★ הודעת מערכת — נערכת מלוח הניהול, בלי פריסה.
+          ריקה = לא מוצגת בכלל. אין כאן "אין הודעות" שתופס מקום. */}
+      {hasText('announce.text') && (
+        <div
+          role="status"
+          className={`mx-auto mt-2 w-full max-w-lg px-4 lg:max-w-3xl`}
+        >
+          <p className={`rounded-xl border px-3 py-2 text-[12.5px] leading-snug ${
+            content('announce.tone') === 'alert'
+              ? 'border-flare/40 bg-flare/10 text-flare'
+              : content('announce.tone') === 'warn'
+                ? 'border-armband/35 bg-armband/10 text-armband'
+                : 'border-gold/25 bg-gold/5 text-chalk-2'}`}>
+            {content('announce.text')}
+          </p>
+        </div>
+      )}
 
       {/* ═══════════ 2 · הגיבור — הלוגו ═══════════ */}
       {/*
@@ -495,7 +514,11 @@ function ModeRow({
               {t.codeName}
             </span>
             <span aria-hidden="true" className="text-[9px] text-chalk-dim">·</span>
-            <span className="truncate text-[12px] text-chalk-2">{mode.tagline}</span>
+            {/* ★ הכיתוב נלקח מלוח הניהול אם הוגדר שם, ואחרת
+                ממה שהמסך קיבל. שינוי משפט שיווקי לא דורש פריסה. */}
+            <span className="truncate text-[12px] text-chalk-2">
+              {content(`mode.${mode.id}.tagline`) || mode.tagline}
+            </span>
           </span>
         </span>
 

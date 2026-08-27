@@ -1037,3 +1037,201 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
 
   return out;
 }
+
+/* ================================================================== */
+/* לוח הניהול המלא — מחזורים, חוקים, תוכן, ניתוח                        */
+/* ================================================================== */
+/**
+ * ★ למה כל אלה כאן ולא בקומפוננטה
+ *
+ * מסך שקורא `supabase.rpc` ישירות הוא מסך שיודע איך המסד בנוי.
+ * ביום שפונקציה תשנה שם, החיפוש יעבור על קומפוננטות ולא על
+ * שכבת נתונים — וזה בדיוק המקום שבו שוכחים אחת.
+ *
+ * כאן: כל קריאה עטופה, כל שגיאה מתורגמת לקוד אחד, וכל כתיבה
+ * מרעננת את מה שצריך להתרענן.
+ */
+
+export interface GameweekRow {
+  code: string;
+  number: number;
+  label: string;
+  status: string;
+  isCurrent: boolean;
+  lockAt: string;
+  fixtures: number;
+  entries: number;
+  published: boolean;
+}
+
+export async function gameweeksList(): Promise<GameweekRow[]> {
+  const { data, error } = await supabase.rpc('gameweeks_list');
+  if (error) throw new Error(errorCode(error));
+  return (data ?? []) as GameweekRow[];
+}
+
+export async function adminCreateGameweek(input: {
+  number: number;
+  lockAt?: string | null;
+  label?: string;
+  makeCurrent?: boolean;
+}): Promise<{ code: string; number: number; lockAt: string }> {
+  const { data, error } = await supabase.rpc('admin_create_gameweek', {
+    p_number: input.number,
+    p_lock_at: input.lockAt ?? null,
+    p_label: input.label?.trim() || null,
+    p_make_current: !!input.makeCurrent,
+  });
+  if (error) throw new Error(errorCode(error));
+  await Promise.all([refresh(), refreshLiveData()]);
+  return data as { code: string; number: number; lockAt: string };
+}
+
+/**
+ * ★ הפעולה המשמעותית ביותר בלוח: היא מה שכל המשתמשים רואים.
+ *   ולכן היא מרעננת גם את ההגשות — הן שייכות למחזור אחר עכשיו.
+ */
+export async function adminSetCurrentGameweek(gameweekId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_current_gameweek', {
+    p_gw_code: gameweekId,
+  });
+  if (error) throw new Error(errorCode(error));
+  await refreshLiveData();
+  await refresh();
+}
+
+export async function adminDeleteGameweek(gameweekId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_delete_gameweek', { p_gw_code: gameweekId });
+  if (error) throw new Error(errorCode(error));
+  await refreshLiveData();
+}
+
+export interface ImportReport {
+  received: number;
+  added: number;
+  updated: number;
+  removed: number;
+  problems: Array<{ row: number; issue: string; value?: string }>;
+  lockAt: string | null;
+}
+
+/**
+ * קליטת לוח משחקים.
+ *
+ * ★ המבנה מנורמל בכוונה — הוא **לא** מה ש-API-Football מחזיר.
+ *   מי שמתרגם הוא הצד שמדבר עם הספק (Edge Function מחר, הדבקה
+ *   ידנית היום). כך היום שבו הספק מתחלף נוגע בקובץ אחד.
+ */
+export async function adminImportFixtures(
+  gameweekId: string,
+  fixtures: Array<{ home: string; away: string; kickoff: string }>,
+  replace = false,
+): Promise<ImportReport> {
+  const { data, error } = await supabase.rpc('admin_import_fixtures', {
+    p_gw_code: gameweekId,
+    p_payload: fixtures,
+    p_replace: replace,
+  });
+  if (error) throw new Error(errorCode(error));
+  await Promise.all([refresh(), refreshLiveData()]);
+  return data as ImportReport;
+}
+
+/* ---------------------------------------------------------------- */
+
+export async function adminSetRule(key: string, points: number): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_rule', { p_key: key, p_points: points });
+  if (error) throw new Error(errorCode(error));
+  await refreshLiveData();
+}
+
+export async function adminClearRule(key: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_clear_rule', { p_key: key });
+  if (error) throw new Error(errorCode(error));
+  await refreshLiveData();
+}
+
+/* ---------------------------------------------------------------- */
+
+export interface ContentRow {
+  key: string;
+  value: unknown;
+  note: string | null;
+  active: boolean;
+  updatedAt: string;
+}
+
+export async function adminContentList(): Promise<ContentRow[]> {
+  const { data, error } = await supabase.rpc('admin_content_list');
+  if (error) throw new Error(errorCode(error));
+  return (data ?? []) as ContentRow[];
+}
+
+export async function adminSetContent(
+  key: string, value: string, note?: string, active = true,
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_content', {
+    /* ★ הערך נשלח כ-JSON. המסד מחזיק JSONB, ומחרוזת גולמית
+       הייתה נדחית כ-"invalid input syntax for type json". */
+    p_key: key, p_value: value, p_note: note?.trim() || null, p_active: active,
+  });
+  if (error) throw new Error(errorCode(error));
+  await refreshLiveData();
+}
+
+export async function adminDeleteContent(key: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_delete_content', { p_key: key });
+  if (error) throw new Error(errorCode(error));
+  await refreshLiveData();
+}
+
+/* ---------------------------------------------------------------- */
+
+export interface Analytics {
+  gameweek: string;
+  audience: Record<string, number>;
+  entries: Record<string, number>;
+  drafts: Record<string, number>;
+  conversion: number | null;
+  topPicks: Array<{ player: string; team: string; picks: number; pct: number }>;
+  topCaptains: Array<{ player: string; picks: number }>;
+  retention: Record<string, number>;
+  generatedAt: string;
+}
+
+export async function adminAnalytics(gameweekId?: string): Promise<Analytics> {
+  const { data, error } = await supabase.rpc('admin_analytics', {
+    p_gw_code: gameweekId ?? null,
+  });
+  if (error) throw new Error(errorCode(error));
+  return data as Analytics;
+}
+
+export interface DataIssue {
+  level: 'error' | 'warn';
+  code: string;
+  title: string;
+  detail: string;
+  fix?: string;
+}
+
+export async function adminDataQuality(): Promise<DataIssue[]> {
+  const { data, error } = await supabase.rpc('admin_data_quality');
+  if (error) throw new Error(errorCode(error));
+  return (data ?? []) as DataIssue[];
+}
+
+export interface AuditRow {
+  action: string;
+  entity: string;
+  id: string;
+  value: unknown;
+  at: string;
+  who: string;
+}
+
+export async function adminAudit(limit = 40): Promise<AuditRow[]> {
+  const { data, error } = await supabase.rpc('admin_audit', { p_limit: limit });
+  if (error) throw new Error(errorCode(error));
+  return (data ?? []) as AuditRow[];
+}

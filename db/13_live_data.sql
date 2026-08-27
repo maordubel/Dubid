@@ -711,7 +711,14 @@ SET search_path = game, public
 AS $$
 BEGIN
   IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
-  IF p_status NOT IN ('upcoming','open','locked','live','settled') THEN
+  /* ★ הרשימה הזו חייבת להיות זהה ל-CHECK על `game.gameweeks`.
+     היא לא הייתה: db/01 הגדיר 'upcoming'/'settled', ו-db/09
+     הרחיב את ה-CHECK ל-'draft'/'scoring'/'published'/'archived'
+     בלי שהפונקציה הזו ידעה. התוצאה: `admin_set_status('published')`
+     היה נדחה, ו-`admin_set_status('settled')` היה עובר את
+     הבדיקה כאן ואז נופל על ה-CHECK — שתי שגיאות הפוכות באותה
+     שורה. */
+  IF p_status NOT IN ('draft','open','locked','live','scoring','published','archived') THEN
     RAISE EXCEPTION 'BAD_STATUS: %', p_status;
   END IF;
 

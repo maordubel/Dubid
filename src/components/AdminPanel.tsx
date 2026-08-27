@@ -23,6 +23,9 @@ import {
 } from '../lib/liveData.ts';
 import type { PlayerPerformance, Position, TeamOutcome } from '../lib/scoring/types.ts';
 import { AdminSquads } from './AdminSquads.tsx';
+import {
+  AdminGameweeks, AdminRules, AdminContent, AdminAnalytics,
+} from './AdminConsole.tsx';
 import { LogoMark } from './Logo.tsx';
 import { resolveGate, type AdminGate } from '../lib/adminGate.ts';
 import { ensureIdentity } from '../lib/identity.ts';
@@ -81,8 +84,17 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
 
   useEffect(recheck, []);
 
-  const [section, setSection] =
-    useState<'results' | 'squads' | 'gameweek' | 'health'>('results');
+  /**
+   * ★ שבע לשוניות, ולא אחת ארוכה.
+   *
+   * הלוח עושה עכשיו שבעה דברים שונים לגמרי. עמוד אחד עם כולם
+   * הוא עמוד שגוללים בו ולא מוצאים. הסדר הוא לפי תדירות
+   * השימוש האמיתית: תוצאות כל שבוע, מחזורים כל שבוע, סגלים
+   * לפעמים, והשאר נדיר.
+   */
+  const [section, setSection] = useState<
+    'results' | 'gameweeks' | 'gameweek' | 'squads' | 'rules' | 'content' | 'stats'
+  >('results');
 
   useEffect(() => subscribeToStore(() => forceTick((n) => n + 1)), []);
 
@@ -94,7 +106,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
   useEffect(() => {
     if (gate !== 'ready') return;
     void hydrate(GAMEWEEK.id, true);
-    void hydrateLiveData(GAMEWEEK.id, true);
+    void hydrateLiveData(true);
   }, [gate]);
 
   /* ★ בזמן הבדיקה לא מציגים כלום.
@@ -158,17 +170,22 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
       </header>
 
       <div className="mx-auto max-w-3xl px-4 py-5">
-        <div className="mb-4 flex gap-1 rounded-full bg-night-2 p-1 edge-gold">
-          {([['results', 'תוצאות'], ['squads', 'סגלים'],
-             ['gameweek', 'מחזור'], ['health', 'מערכת']] as const)
+        {/* ★ גלילה אופקית: שבע לשוניות לא נכנסות לרוחב טלפון,
+            והצטמצמות הייתה הופכת כל תווית לשתי אותיות. */}
+        <div className="mb-4 flex gap-1 overflow-x-auto rounded-full bg-night-2 p-1 edge-gold
+                        [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {([['results', 'תוצאות'], ['gameweeks', 'מחזורים'], ['gameweek', 'המחזור'],
+             ['squads', 'סגלים'], ['rules', 'חוקים'], ['content', 'תוכן'],
+             ['stats', 'ניתוח']] as const)
             .map(([id, label]) => (
               <button
                 key={id}
                 onClick={() => setSection(id)}
-                className={`tap flex-1 rounded-full py-2 text-[13px] font-black transition-colors
-                            ${section === id
-                              ? 'bg-gradient-to-b from-gold-light to-gold text-gold-ink'
-                              : 'text-chalk-dim'}`}
+                className={`tap shrink-0 rounded-full px-3 py-2 text-[12.5px] font-black
+                            transition-colors ${
+                              section === id
+                                ? 'bg-gradient-to-b from-gold-light to-gold text-gold-ink'
+                                : 'text-chalk-dim'}`}
               >
                 {label}
               </button>
@@ -176,8 +193,16 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
         </div>
 
         {section === 'squads' && <AdminSquads />}
+        {section === 'gameweeks' && <AdminGameweeks />}
         {section === 'gameweek' && <AdminGameweek />}
-        {section === 'health' && <AdminHealth />}
+        {section === 'rules' && <AdminRules />}
+        {section === 'content' && <AdminContent />}
+        {section === 'stats' && (
+          <div className="space-y-4">
+            <AdminAnalytics />
+            <AdminHealth />
+          </div>
+        )}
 
         {section === 'results' && (<>
         <p className="mb-4 rounded-xl border border-tekhelet/30 bg-tekhelet/10 px-4 py-3 text-[13px] text-chalk-2">

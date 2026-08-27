@@ -48,6 +48,7 @@ import {
   type TeamRow, type PlayerRow,
 } from '../data/squads.ts';
 import { applyLiveFixtures, type LiveFixturePayload } from '../data/fixtures.ts';
+import { hydrateContent } from './content.ts';
 import type { Position } from './scoring/types.ts';
 
 /* ================================================================== */
@@ -102,6 +103,19 @@ export const STATUS_HE: Record<PlayerStatus, string> = {
 /* ================================================================== */
 
 interface LiveState {
+  /**
+   * ★ קוד המחזור הפעיל, **כפי שהשרת אמר**.
+   *
+   * זה השדה שמשחרר את המוצר מ-'gw-2' שהיה כתוב בקוד. כל עוד
+   * הקליינט ידע את המחזור בעל פה, שום לוח ניהול לא היה יכול
+   * לפתוח מחזור חדש בלי פריסה.
+   */
+  gameweek: string;
+  /**
+   * override-ים של חוקי הניקוד, כפי שהאדמין קבע אותם.
+   * מפה ריקה = ברירות המחדל שבקוד. ראו `lib/ruleOverrides.ts`.
+   */
+  rules: Record<string, number>;
   /** מונה הגרסה של המסד. עולה בכל שינוי דאטה, בכל מקור. */
   revision: number;
   /** מונה מקומי — עולה בכל החלפה בפועל. יעד ל-`useMemo`. */
@@ -113,6 +127,8 @@ interface LiveState {
 }
 
 const state: LiveState = {
+  gameweek: '',
+  rules: {},
   revision: 0,
   version: 0,
   fromServer: false,
@@ -122,6 +138,21 @@ const state: LiveState = {
 
 export function liveDataVersion(): number {
   return state.version;
+}
+
+/**
+ * המחזור שהשרת מכריז עליו כפעיל.
+ *
+ * ריק עד הטעינה הראשונה. הקורא צריך ליפול חזרה ל-`GAMEWEEK.id`
+ * (הזרע), בדיוק כמו בכל שאר הדאטה.
+ */
+export function currentGameweekCode(): string {
+  return state.gameweek;
+}
+
+/** ה-override-ים של חוקי הניקוד. מפה ריקה = ברירות המחדל. */
+export function ruleOverrides(): Record<string, number> {
+  return state.rules;
 }
 
 export function liveDataStatus(): { fromServer: boolean; loading: boolean; error: string | null } {
@@ -234,6 +265,8 @@ export function applyLiveSquads(payload: SquadsPayload): boolean {
 /* ================================================================== */
 
 let inFlight: Promise<void> | null = null;
+
+/** נשאר כרשת ביטחון אם השרת לא החזיר מחזור פעיל. */
 let activeGameweek = '';
 
 /**
@@ -243,33 +276,63 @@ let activeGameweek = '';
  *   מה שכן קורה הוא ש-`fromServer` נשאר `false`, וזה מה שמסך
  *   הבריאות באדמין מציג.
  */
-export function hydrateLiveData(gameweekId: string, force = false): Promise<void> {
+/**
+ * מביא את המחזור הפעיל, את הסגלים, ואת לוח המשחקים.
+ *
+ * ★ בלי פרמטר. **השרת** אומר איזה מחזור פעיל.
+ *
+ * זו לא נוחות — זו הנקודה. קודם הקליינט קרא ל-`hydrateLiveData('gw-2')`
+ * עם קבוע מהקוד, ולכן פתיחת מחזור 3 דרשה עריכת קובץ ופריסה.
+ * עכשיו `game.current_gameweek()` מחליט, והאדמין מחליף אותו בכפתור.
+ *
+ * ★ כישלון אינו קטלני: הזרע הסטטי נשאר על המסך והמוצר עובד.
+ *   `fromServer` נשאר `false`, וזה מה שמסך הבריאות מציג.
+ */
+export function hydrateLiveData(force = false): Promise<void> {
   if (inFlight && !force) return inFlight;
-  activeGameweek = gameweekId;
 
   inFlight = (async () => {
     state.loading = true;
     notify();
     try {
-      const [squadsRes, fixturesRes] = await Promise.all([
+      /* המחזור, הסגלים, חוקי הניקוד והתוכן — כולם במקביל.
+         אף אחד מהם לא תלוי באחר, וארבע קריאות טוריות היו
+         מוסיפות שלושה הלוך-ושוב למסך הראשון. */
+      const [gwRes, squadsRes, rulesRes] = await Promise.all([
+        supabase.rpc('current_gameweek'),
         supabase.rpc('squads'),
-        supabase.rpc('fixtures', { p_gw_code: gameweekId }),
+        supabase.rpc('scoring_rules'),
+        hydrateContent(),
       ]);
 
+      /* ★ חוקי הניקוד לא מפילים כלום אם הם נכשלו: מפה ריקה
+         פירושה "ברירות המחדל שבקוד", כלומר המשחק של אתמול. */
+      if (!rulesRes.error && rulesRes.data && typeof rulesRes.data === 'object') {
+        state.rules = rulesRes.data as Record<string, number>;
+      }
+
       if (squadsRes.error) throw squadsRes.error;
+
+      const code = typeof gwRes.data === 'string' && gwRes.data ? gwRes.data : '';
+      const changedGw = !!code && code !== state.gameweek;
+      if (code) state.gameweek = code;
 
       let changed = applyLiveSquads((squadsRes.data ?? {}) as SquadsPayload);
 
       /* ★ הלוח נטען אחרי הסגלים, בכוונה.
-         `applyLiveFixtures` בונה תוויות ("שבת", יריבה) שמסתמכות
+         `applyLiveFixtures` בונה תוויות (יריבה, יום) שמסתמכות
          על `TEAM_BY_ID`. סדר הפוך היה מייצר לוח שמצביע על
          קבוצות מהקובץ הישן. */
-      if (!fixturesRes.error && fixturesRes.data) {
-        changed = applyLiveFixtures(fixturesRes.data as LiveFixturePayload) || changed;
+      const target = state.gameweek || activeGameweek;
+      if (target) {
+        const fx = await supabase.rpc('fixtures', { p_gw_code: target });
+        if (!fx.error && fx.data) {
+          changed = applyLiveFixtures(fx.data as LiveFixturePayload) || changed;
+        }
       }
 
       state.error = null;
-      if (changed) notify();
+      if (changed || changedGw) notify();
     } catch (err) {
       state.fromServer = false;
       state.error = err instanceof Error ? err.message : String(err);
@@ -284,7 +347,7 @@ export function hydrateLiveData(gameweekId: string, force = false): Promise<void
 }
 
 export function refreshLiveData(): Promise<void> {
-  return activeGameweek ? hydrateLiveData(activeGameweek, true) : Promise.resolve();
+  return hydrateLiveData(true);
 }
 
 /**
@@ -295,13 +358,15 @@ export function refreshLiveData(): Promise<void> {
  * הוא שורה אחת שעולה פעם אחת לכל פעולה (טריגר STATEMENT), ולכן
  * מכשיר שפתוח מגלה שינוי — פעם אחת.
  */
-export function startLiveDataRealtime(gameweekId: string): () => void {
+export function startLiveDataRealtime(): () => void {
   const channel = supabase
     .channel('dubid-data')
     .on(
       'postgres_changes',
       { event: '*', schema: 'game', table: 'data_revision' },
-      () => { void hydrateLiveData(gameweekId, true); },
+      /* ★ בלי פרמטר מחזור: אם האדמין **החליף** את המחזור הפעיל,
+         הרענון חייב לגלות את החדש — לא למשוך שוב את הישן. */
+      () => { void hydrateLiveData(true); },
     )
     .subscribe();
 
