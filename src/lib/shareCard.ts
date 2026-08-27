@@ -1,5 +1,13 @@
 /**
- * shareCard.ts — מחולל כרטיס השיתוף הוויראלי.
+ * shareCard.ts — מחולל כרטיס השיתוף שאחרי המחזור.
+ *
+ * ★ הקובץ הזה הוא גם ארגז הכלים.
+ *
+ * `revealCard.ts` (הכרטיס שלפני המחזור) מצייר על אותו קנבס
+ * ובאותה שפה גרפית, ולכן הוא מייבא מכאן את הפלטה, הפונטים,
+ * והפרימיטיבים (`roundRect`, `halftone`, `turf`). שני מחוללים
+ * עם שני עותקים של אותה פלטה הם שני כרטיסים שיום אחד ייראו
+ * אחרת — ואף בדיקה לא קוראת תמונות.
  *
  * 1080×1920 (9:16) — המידה של Instagram Stories, TikTok וסטטוס וואטסאפ.
  *
@@ -18,7 +26,7 @@ import type { Position } from './scoring/types.ts';
 export const CARD_W = 1080;
 export const CARD_H = 1920;
 
-export /**
+/**
  * ★ הפלטה כאן היא עותק, וזה מכוון.
  *
  * הכרטיס מצויר על `<canvas>`, ולקנבס אין גישה למחלקות Tailwind.
@@ -28,7 +36,7 @@ export /**
  * `toto` נשמר כשם היסטורי, בדיוק כמו בטוקנים, כדי שלא יהיה רגע
  * שבו הקנפיג והקנבס לא מסכימים על שם צבע.
  */
-const PALETTE = {
+export const PALETTE = {
   night: '#0C0A08',
   night2: '#16120D',
   night3: '#211A13',
@@ -44,9 +52,9 @@ const PALETTE = {
   flare: '#E4453B',
 } as const;
 
-const F_DISPLAY = '"Narkiss Block", "Heebo", system-ui, sans-serif';
-const F_POSTER = '"Anton", "Heebo", system-ui, sans-serif';
-const F_UI = '"Almoni Neue", "Assistant", "Heebo", system-ui, sans-serif';
+export const F_DISPLAY = '"Narkiss Block", "Heebo", system-ui, sans-serif';
+export const F_POSTER = '"Anton", "Heebo", system-ui, sans-serif';
+export const F_UI = '"Almoni Neue", "Assistant", "Heebo", system-ui, sans-serif';
 
 export interface ShareLineupEntry {
   name: string;          // שם קצר: 'אצילי'
@@ -75,7 +83,7 @@ export interface ShareCardData {
 /* עזרי ציור                                                            */
 /* =================================================================== */
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number,
+export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number,
                    w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -87,9 +95,9 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number,
 }
 
 /** נקודות הלפטון — הטקסטורה שהופכת את הכרטיס לחפץ מודפס */
-type HalftoneMode = 'solid' | 'denserDown' | 'denserUp';
+export type HalftoneMode = 'solid' | 'denserDown' | 'denserUp';
 
-function halftone(ctx: CanvasRenderingContext2D, x: number, y: number,
+export function halftone(ctx: CanvasRenderingContext2D, x: number, y: number,
                   w: number, h: number, color: string,
                   step = 16, mode: HalftoneMode = 'denserDown', maxAlpha = 0.7) {
   ctx.save();
@@ -111,7 +119,7 @@ function halftone(ctx: CanvasRenderingContext2D, x: number, y: number,
 }
 
 /** פסי כיסוח הדשא */
-function turf(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+export function turf(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
   ctx.save();
   roundRect(ctx, x, y, w, h, 36); ctx.clip();
   ctx.fillStyle = PALETTE.pitch; ctx.fillRect(x, y, w, h);
@@ -401,11 +409,11 @@ function drawFooter(ctx: CanvasRenderingContext2D, d: ShareCardData) {
 }
 
 /* ---------------- עזרים ---------------- */
-function formatPoints(n: number): string {
+export function formatPoints(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
-function clip(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+export function clip(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
   let out = text;
   while (out.length > 1 && ctx.measureText(out + '…').width > maxWidth) out = out.slice(0, -1);

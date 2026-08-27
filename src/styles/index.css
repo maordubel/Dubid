@@ -175,3 +175,182 @@
     box-shadow: 0 0 0 1px rgba(216, 178, 92, 0.25), 0 18px 60px -18px rgba(216, 178, 92, 0.5);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ★★ הלוגו שמצייר את עצמו ★★
+   ═══════════════════════════════════════════════════════════════════
+
+   הבקשה: שהלוגו ייראה כאילו יד מציירת אותו — לא שהתמונה תדהה.
+
+   ★ למה לא SVG עם stroke-dashoffset
+
+   זו התשובה הקנונית, והיא דורשת נתיבים. ללוגו אין נתיבים: הוא
+   סריקה של ציור בקו אחד. תרגום ל-SVG היה מייצר אלפי נתיבים,
+   מאות קילובייטים, וקו מרוצף — יקר יותר, ודומה פחות למקור.
+
+   ★ מה כן: לחשוף את הפיקסלים לפי סדר הציור
+
+   שלוש שכבות (`build-logo-layers.mjs`), שלוש תנועות:
+
+     1. הטבעת והדיוקן — חשיפה מעגלית, עם "ציפורן" נוסעת על הקו
+     2. החתימה Dubid  — מגב אופקי, כמו כתיבה
+     3. הכדור והקווים — חותמת אחת בסוף
+
+   ★ העלות
+
+   `mask-image` ו-`transform` בלבד. אין JavaScript בלולאה, אין
+   ציור מחדש, ואין layout. הכל על ה-GPU, גם על טלפון ישן.
+
+   ⚠ `@property` נדרש כדי שזווית ב-conic-gradient תוכל להיות
+     מונפשת. הוא נתמך בכל דפדפן רלוונטי היום, אבל לא בכולם אי
+     פעם — ולכן `main.tsx` מסמן `no-cssprop` על `<html>` כשאין
+     לו, ואז השכבה פשוט נכנסת בדהייה. לעולם לא מסך ריק.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@property --dubid-sweep {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@layer utilities {
+  .draw-stage {
+    position: relative;
+    display: block;
+    aspect-ratio: 1;
+  }
+
+  .draw-stage > img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    user-select: none;
+  }
+
+  /* ---- 1. הטבעת והדיוקן ---- */
+  .draw-l1 {
+    --dubid-sweep: 0deg;
+    /* ★ `from -90deg` — הציפורן יוצאת מ-12 בשעון, כמו יד שמתחילה
+       מלמעלה. הקצה הרך (12°) הוא מה שמונע קו חיתוך חד שמסגיר
+       שזו מסכה ולא ציור. */
+    -webkit-mask-image: conic-gradient(
+      from -90deg,
+      #000 0deg,
+      #000 var(--dubid-sweep),
+      transparent calc(var(--dubid-sweep) + 12deg),
+      transparent 360deg
+    );
+    mask-image: conic-gradient(
+      from -90deg,
+      #000 0deg,
+      #000 var(--dubid-sweep),
+      transparent calc(var(--dubid-sweep) + 12deg),
+      transparent 360deg
+    );
+    animation: dubid-sweep var(--draw-1, 900ms) cubic-bezier(0.4, 0.05, 0.2, 1) both;
+    animation-delay: var(--draw-start, 0ms);
+  }
+
+  @keyframes dubid-sweep {
+    from { --dubid-sweep: 0deg; }
+    to   { --dubid-sweep: 360deg; }
+  }
+
+  /* ---- הציפורן ----
+     נקודת אור שנוסעת על הטבעת. היא זו שמוכרת את "מצויר":
+     בלעדיה החשיפה המעגלית נקראת כמו מכ"ם. */
+  .draw-nib {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    animation: dubid-nib-spin var(--draw-1, 900ms) cubic-bezier(0.4, 0.05, 0.2, 1) both,
+               dubid-nib-out 220ms ease-out forwards;
+    animation-delay: var(--draw-start, 0ms),
+                     calc(var(--draw-start, 0ms) + var(--draw-1, 900ms) - 120ms);
+  }
+
+  .draw-nib::after {
+    content: '';
+    position: absolute;
+    top: 3.5%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    margin-inline-start: -2.5px;
+    border-radius: 999px;
+    background: #fdf3d8;
+    box-shadow:
+      0 0 6px 2px rgba(240, 214, 147, 0.9),
+      0 0 18px 6px rgba(216, 178, 92, 0.45);
+  }
+
+  @keyframes dubid-nib-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  @keyframes dubid-nib-out {
+    to { opacity: 0; }
+  }
+
+  /* ---- 2. החתימה ----
+     מגב משמאל לימין. `mask-position` מונפש נייטיב — בלי `@property`
+     ובלי תלות בשום דבר. */
+  .draw-l2 {
+    -webkit-mask-image: linear-gradient(90deg, #000 42%, rgba(0, 0, 0, 0.35) 50%, transparent 58%);
+    mask-image: linear-gradient(90deg, #000 42%, rgba(0, 0, 0, 0.35) 50%, transparent 58%);
+    -webkit-mask-size: 260% 100%;
+    mask-size: 260% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    animation: dubid-write var(--draw-2, 520ms) cubic-bezier(0.35, 0, 0.25, 1) both;
+    animation-delay: calc(var(--draw-start, 0ms) + var(--draw-1, 900ms) - 160ms);
+  }
+
+  @keyframes dubid-write {
+    from { -webkit-mask-position: -160% 0; mask-position: -160% 0; }
+    to   { -webkit-mask-position: 0% 0;    mask-position: 0% 0; }
+  }
+
+  /* ---- 3. הכדור והקווים ----
+     חותמת. הציור נגמר בהנחה של היד, לא בעוד תנועה. */
+  .draw-l3 {
+    animation: dubid-stamp var(--draw-3, 320ms) cubic-bezier(0.2, 1.5, 0.4, 1) both;
+    animation-delay: calc(var(--draw-start, 0ms) + var(--draw-1, 900ms)
+                          + var(--draw-2, 520ms) - 220ms);
+  }
+
+  @keyframes dubid-stamp {
+    from { opacity: 0; transform: scale(0.86); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* ★ נפילה חיננית: בלי `@property` הזווית לא ניתנת להנפשה,
+     והמסכה הייתה קופאת על 0 — כלומר לוגו בלתי נראה. */
+  .no-cssprop .draw-l1 {
+    -webkit-mask-image: none;
+    mask-image: none;
+    animation: dubid-fade var(--draw-1, 900ms) ease-out both;
+  }
+  .no-cssprop .draw-nib { display: none; }
+
+  @keyframes dubid-fade {
+    from { opacity: 0; transform: scale(1.04); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* ★ מי שביקש פחות תנועה מקבל את הלוגו, מיד ובשלמותו.
+     "בלי אנימציה" אף פעם לא אומר "בלי תוכן". */
+  @media (prefers-reduced-motion: reduce) {
+    .draw-l1, .draw-l2, .draw-l3 {
+      animation: none;
+      -webkit-mask-image: none;
+      mask-image: none;
+      opacity: 1;
+      transform: none;
+    }
+    .draw-nib { display: none; }
+  }
+}

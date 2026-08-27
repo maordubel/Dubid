@@ -16,6 +16,25 @@ import './styles/index.css';
    ⚠ סשן ההזדהות (`sb-*`) לא נמחק — הוא הזהות, לא הדאטה. */
 purgeLocalGameData();
 
+/* ★ בדיקת יכולת אחת, פעם אחת, לפני הרינדור הראשון.
+ *
+ * `@property` הוא מה שמאפשר להנפיש זווית בתוך `conic-gradient` —
+ * כלומר את החשיפה המעגלית של הלוגו המצויר. בדפדפן שאין לו,
+ * המסכה הייתה קופאת על 0 מעלות: לוגו **בלתי נראה**, בלי שגיאה
+ * ובלי רמז.
+ *
+ * הסימון על `<html>` מפעיל נפילה חיננית ב-CSS (`.no-cssprop`),
+ * שם השכבה פשוט נכנסת בדהייה.
+ *
+ * ★ למה כאן ולא ב-CSS: אין `@supports` שבודק `@property`.
+ *   שורה אחת ב-JS, בלי לולאה ובלי מאזין. */
+try {
+  const ok = typeof CSS !== 'undefined' && typeof CSS.registerProperty === 'function';
+  if (!ok) document.documentElement.classList.add('no-cssprop');
+} catch {
+  document.documentElement.classList.add('no-cssprop');
+}
+
 /* ★ שעון השרת — נמצא כתוב, ומעולם לא הופעל.
    `serverTime.ts` היה מוכן במלואו, אבל אף אחד לא קרא ל-
    `startClockSync`. התוצאה: `serverNow()` החזיר בדיוק

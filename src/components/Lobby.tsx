@@ -26,7 +26,9 @@
  * אנשים במחזור.
  */
 import { useEffect, useState, type ReactNode } from 'react';
-import { Logo, LogoMark } from './Logo.tsx';
+import { Logo } from './Logo.tsx';
+import { AuthChip } from './AuthChip.tsx';
+import type { Identity } from '../lib/identity.ts';
 import { ShadesDivider } from './Shades.tsx';
 import { OffsidesBanner } from './OffsidesBanner.tsx';
 import { DubelCredit } from './DubelCredit.tsx';
@@ -37,6 +39,8 @@ import {
   isSubmissionOpen, msUntilDeadline, type Gameweek,
 } from '../lib/gameweek.ts';
 import type { ModeId } from '../lib/events/bus.ts';
+import { modeTheme, modeVars, modeTexture } from '../lib/modeTheme.ts';
+import { ModeMark } from './ModeMark.tsx';
 
 export interface LobbyMode {
   id: ModeId;
@@ -79,8 +83,19 @@ export interface LobbyProps {
   onPlay: (mode: ModeId) => void;
   onLeagues: () => void;
   onLeaderboard: () => void;
-  /** פתיחת גיליון החשבון. השורה העליונה היא הכניסה היחידה אליו. */
+  /**
+   * פתיחת גיליון החשבון — גם לכניסה/הרשמה וגם לפרופיל.
+   * השורה העליונה היא הכניסה היחידה אליו.
+   */
   onAccount?: () => void;
+  /**
+   * הזהות המלאה. `null` = עוד לא נטענה.
+   *
+   * ★ נדרשת כדי לדעת אם להציג "כניסה · הרשמה" או את השם.
+   *   `displayName` לבדו לא מספיק: לאורח יכול להיות שם, ולמשתמש
+   *   רשום יכול לא להיות אחד.
+   */
+  identity?: Identity | null;
   /**
    * ההצעה להירשם. `null` = אין מה להציע עכשיו.
    * מי שמחליט הוא `RegisterNudge.shouldNudge`, לא המסך הזה —
@@ -100,7 +115,7 @@ export interface LobbyProps {
 export function Lobby({
   gameweek, nowMs, modes, displayName, entrants, leagueCount,
   myRank, myPoints, fixtures = [],
-  onPlay, onLeagues, onLeaderboard, onAccount, nudge,
+  onPlay, onLeagues, onLeaderboard, onAccount, identity = null, nudge,
   promo, gameweekNumber = gameweek.number, onDismissPromo, onOpenPromo,
 }: LobbyProps) {
   // הספירה מתקתקת מקומית בין סנכרונים. `nowMs` הוא נקודת האמת,
@@ -123,28 +138,17 @@ export function Lobby({
       {/* ═══════════ 1 · זהות — שורה דקה, לא כרזה ═══════════ */}
       <header className="mx-auto flex w-full max-w-lg items-center gap-2.5 px-4
                          pt-[calc(0.6rem+env(safe-area-inset-top))] lg:max-w-3xl">
-        {/* ★ שורת הזהות היא כפתור. אין פריט ניווט ל"חשבון" — הוא
-            לא יעד, והוא לא שווה אחת מחמש משבצות בניווט. */}
-        <button
-          type="button"
-          onClick={onAccount}
-          disabled={!onAccount}
-          className="tap -mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-1
-                     text-start transition-colors active:bg-night-2/70"
-        >
-          <span className="grid size-9 shrink-0 place-items-center rounded-full
-                           bg-night-2 ring-1 ring-inset ring-gold/25">
-            <LogoMark size={26} />
-          </span>
-          <span className="min-w-0 flex-1 leading-tight">
-            <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-chalk-dim">
-              מאמן
-            </span>
-            <span className="block truncate text-[15px] font-black text-chalk">
-              {displayName || 'אורח'}
-            </span>
-          </span>
-        </button>
+        {/* ★ שורת הזהות היא כפתור — ועכשיו היא **נראית** כזה.
+            קודם היא הייתה טקסט שאפשר ללחוץ עליו, ולכן אורח לא
+            ידע שאפשר להירשם ומשתמש רשום לא ידע איך לצאת.
+            ראו `AuthChip`. */}
+        <AuthChip
+          identity={identity ?? (displayName
+            ? ({ id: '', displayName, isGuest: true, username: null, avatar: null,
+                 referralCode: null, offsidesUserId: null, online: false } as Identity)
+            : null)}
+          onOpen={() => onAccount?.()}
+        />
         {entrants ? (
           <span className="shrink-0 rounded-full bg-night-2 px-2.5 py-1
                            ring-1 ring-inset ring-gold/20">
@@ -399,10 +403,35 @@ function DeadlineStrip({
  * לכן: האיור מתוח לרוחב השורה ומועם, והשכבה שמעליו היא הממשק.
  * המידע — כותרת, משפט, מצב, התקדמות — הוא טקסט אמיתי.
  */
+/**
+ * ★★ כרטיס המצב — כאן נולדת הזהות הנפרדת ★★
+ *
+ * עד הסבב הזה שני הכרטיסים היו זהים: אותו זהב, אותו רקע, אותה
+ * איקונה כללית. שני מצבי משחק שנראים אותו דבר **נחווים** אותו
+ * דבר — ואז אין סיבה לשחק בשניהם.
+ *
+ * מה שמפריד ביניהם עכשיו, לפי סדר החשיבות מבחינת העין:
+ *
+ *   1. **המשטח.** נחושת של תאורת רחוב מול ירוק של דשא. זה מה
+ *      שנקלט לפני שקוראים מילה. (`modeTexture`)
+ *   2. **הסמל.** כדור בקו אחד מול לוח הטקטיקה של המאמן —
+ *      אותו לוח שהוא מחזיק בלוגו. (`ModeMark`)
+ *   3. **שם הקוד.** "הרחוב" מול "הליגה". שתי מילים שמסבירות
+ *      את כל ההבדל בלי משפט הסבר.
+ *   4. **הפס התחתון.** בצבע המצב, לא בזהב.
+ *
+ * ★ מה **לא** משתנה: הטיפוגרפיה, המרווחים, וגובה הכרטיס. שני
+ *   מצבים של אותו מוצר, לא שני מוצרים. הזהב נשאר הקו של המותג
+ *   בכל מקום שבו הוא מזוהה — התג, הכותרת, והמסגרת.
+ *
+ * ★ ולמה זה לא עולה כלום: אין כאן תמונות. שני האיורים
+ *   (`mode-five.jpg` / `mode-full.jpg`, ~80kb כל אחד) ירדו
+ *   והוחלפו בגרדיאנטים. המסך נטען מהר יותר ממה שהיה.
+ */
 function ModeRow({
   mode, open, onPlay,
 }: { mode: LobbyMode; open: boolean; onPlay: () => void }) {
-  const five = mode.id === 'five';
+  const t = modeTheme(mode.id);
   const done = mode.state === 'submitted' || mode.state === 'scored';
   const progress = mode.size > 0 ? Math.min(1, mode.filled / mode.size) : 0;
 
@@ -410,28 +439,31 @@ function ModeRow({
     <button
       onClick={onPlay}
       aria-label={`${mode.title} — ${mode.tagline}`}
-      className="tap group relative block w-full overflow-hidden rounded-2xl bg-night-2
+      style={{ ...modeVars(mode.id), ...modeTexture(mode.id) }}
+      className="tap group relative block w-full overflow-hidden rounded-2xl
                  text-start edge-gold transition-transform duration-200 ease-brand
                  active:scale-[0.99]"
     >
-      {/* הרקע: האיור, מועם ומכוסה בגרדיאנט שמחזיק את הטקסט קריא */}
-      <img
-        src={five ? '/brand/mode-five.jpg' : '/brand/mode-full.jpg'}
-        alt=""
-        aria-hidden="true"
-        loading="eager"
-        decoding="async"
-        className="absolute inset-0 size-full object-cover opacity-[0.30]"
-      />
+      {/* שטיפת הצבע של המצב — מהפינה, כמו אור שנופל */}
       <span
         aria-hidden="true"
-        className="absolute inset-0 bg-gradient-to-l from-night/95 via-night/80 to-night/45"
+        className="absolute inset-0"
+        style={{ background: 'var(--mode-wash)' }}
       />
 
       <span className="relative flex items-center gap-3 px-3.5 py-3.5">
-        <span className="grid size-11 shrink-0 place-items-center rounded-xl
-                         bg-gold/10 text-gold ring-1 ring-inset ring-gold/30">
-          {five ? <IconFive /> : <IconEleven />}
+        <span
+          className="grid size-11 shrink-0 place-items-center rounded-xl
+                     ring-1 ring-inset"
+          style={{
+            color: 'var(--mode-accent-light)',
+            background: 'rgba(0,0,0,.28)',
+            boxShadow: 'var(--mode-glow)',
+            // eslint-disable-next-line
+            ['--tw-ring-color' as string]: 'var(--mode-accent)',
+          }}
+        >
+          <ModeMark mode={mode.id} size={26} weight={2.6} />
         </span>
 
         <span className="min-w-0 flex-1">
@@ -452,7 +484,19 @@ function ModeRow({
               {statusChip(mode, open)}
             </span>
           </span>
-          <span className="mt-1 block truncate text-[12px] text-chalk-2">{mode.tagline}</span>
+
+          <span className="mt-1 flex items-center gap-1.5">
+            {/* ★ שם הקוד. אותיות מרווחות וקטנות — הוא חותמת,
+                לא כותרת, ואסור לו להתחרות בשם המצב. */}
+            <span
+              className="shrink-0 font-poster text-[9px] tracking-[0.22em]"
+              style={{ color: 'var(--mode-accent-light)' }}
+            >
+              {t.codeName}
+            </span>
+            <span aria-hidden="true" className="text-[9px] text-chalk-dim">·</span>
+            <span className="truncate text-[12px] text-chalk-2">{mode.tagline}</span>
+          </span>
         </span>
 
         {mode.points !== undefined ? (
@@ -467,12 +511,15 @@ function ModeRow({
         )}
       </span>
 
-      {/* פס תחתון — התקדמות בבנייה, מלא כשהוגש */}
+      {/* פס תחתון — התקדמות בבנייה, מלא כשהוגש. בצבע המצב. */}
       <span className="absolute inset-x-0 bottom-0 h-[3px] bg-black/50" aria-hidden="true">
         <span
-          className="block h-full bg-gradient-to-l from-gold-deep to-gold-light
-                     transition-[width] duration-300 ease-brand"
-          style={{ width: `${(done ? 1 : progress) * 100}%` }}
+          className="block h-full transition-[width] duration-300 ease-brand"
+          style={{
+            width: `${(done ? 1 : progress) * 100}%`,
+            background:
+              'linear-gradient(90deg, var(--mode-accent-deep), var(--mode-accent-light))',
+          }}
         />
       </span>
     </button>
@@ -513,35 +560,8 @@ function TileButton({
 /* ------------------------------------------------------------------ */
 
 /** לוח טקטיקה עם חמישה סימנים — ההד של הלוח שדוביד מחזיק בלוגו. */
-function IconFive() {
-  return (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
-      <rect x="2.5" y="4.5" width="19" height="15" rx="2"
-            stroke="currentColor" strokeWidth="1.3" />
-      <path d="M12 4.5v15" stroke="currentColor" strokeWidth="1" opacity=".5" />
-      <circle cx="7" cy="9" r="1.3" fill="currentColor" />
-      <circle cx="7" cy="15" r="1.3" fill="currentColor" />
-      <circle cx="17" cy="9" r="1.3" fill="currentColor" />
-      <circle cx="17" cy="15" r="1.3" fill="currentColor" />
-      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-    </svg>
-  );
-}
 
 /** מגרש מלא עם שלוש שורות — 11 נקודות בדיוק. */
-function IconEleven() {
-  return (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
-      <rect x="2.5" y="3.5" width="19" height="17" rx="2"
-            stroke="currentColor" strokeWidth="1.3" />
-      <path d="M2.5 12h19" stroke="currentColor" strokeWidth="1" opacity=".45" />
-      <circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1" opacity=".45" />
-      {[6, 12, 18].map((x) => <circle key={`a${x}`} cx={x} cy="6.5" r="1.05" fill="currentColor" />)}
-      {[5, 9.5, 14.5, 19].map((x) => <circle key={`b${x}`} cx={x} cy="12" r="1.05" fill="currentColor" />)}
-      {[6, 12, 18].map((x) => <circle key={`c${x}`} cx={x} cy="17.5" r="1.05" fill="currentColor" />)}
-    </svg>
-  );
-}
 
 function Chevron() {
   return (

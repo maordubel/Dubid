@@ -30,6 +30,10 @@ import { AccountSheet } from './components/AccountSheet.tsx';
 import { RegisterNudge, readDismissed } from './components/RegisterNudge.tsx';
 import { shouldNudge } from './lib/nudge.ts';
 import { LockedLineup } from './components/LockedLineup.tsx';
+import { Splash } from './components/Splash.tsx';
+import { RevealShare } from './components/RevealShare.tsx';
+import type { RevealCardData } from './lib/revealCard.ts';
+import { modeTheme } from './lib/modeTheme.ts';
 import { GameStatusBadge } from './components/GameStatusBadge.tsx';
 import { IconHome, IconLineup, IconArena, IconRanking, IconRules } from './components/NavIcons.tsx';
 
@@ -167,6 +171,16 @@ function MainApp() {
    * `startRealtime` אחרון כי אין טעם להאזין לשינויים לפני שיש
    * תמונה להשוות אליה.
    */
+  /**
+   * ★ מסך הפתיחה יורד כשהנתונים מוכנים — לא לפי טיימר.
+   *
+   * `booted` נדלק אחרי שהזהות והליגה הגיעו. `Splash` מחזיק את
+   * עצמו עד שגם הציור נגמר, ויש לו תקרה קשיחה משלו. כאן אנחנו
+   * רק אומרים לו "אפשר".
+   */
+  const [booted, setBooted] = useState(false);
+  const [splashGone, setSplashGone] = useState(false);
+
   useEffect(() => {
     const stops: Array<() => void> = [];
     void (async () => {
@@ -176,6 +190,7 @@ function MainApp() {
          שחקן שהאדמין הוסיף היום מופיע כמזהה בלי שם. */
       await hydrateLiveData(GAMEWEEK.id);
       await hydrate(GAMEWEEK.id);
+      setBooted(true);
       stops.push(startRealtime(GAMEWEEK.id));
       stops.push(startLiveDataRealtime(GAMEWEEK.id));
     })();
@@ -448,7 +463,54 @@ function MainApp() {
   };
   const status = statusByMode[mode];
 
+  /**
+   * ★ מהגשה לכרטיס.
+   *
+   * הכרטיס מדבר בשמות ובקיצורים, לא במזהים. התרגום קורה כאן
+   * ולא בתוך `revealCard.ts`, כי המחולל צריך להישאר טהור —
+   * הוא מצייר, הוא לא יודע מה זה `P305`.
+   */
+  const buildReveal = (saved: LineupEntry): RevealCardData => {
+    const t = modeTheme(saved.mode);
+    const filled = saved.lineup.slots.filter((sl) => sl.playerId);
+
+    return {
+      mode: saved.mode,
+      gameweekLabel: GAMEWEEK.label,
+      leagueLabel: LEAGUE.nameHe,
+      userName: saved.displayName || 'מאמן',
+      lineup: filled.map((sl) => {
+        const p = pool.find((x) => x.id === sl.playerId);
+        return {
+          name: p?.nameShort ?? sl.playerId,
+          teamShort: TEAM_BY_ID.get(sl.teamId)?.short ?? '',
+          position: sl.position,
+          shirt: PLAYERS.find((x) => x.id === sl.playerId)?.shirt ?? null,
+          isCaptain: !!sl.isCaptain,
+        };
+      }),
+      formation: saved.mode === 'full' ? saved.lineup.formation : undefined,
+      /* תקציב רק במצב שבו יש תקציב. "0M" בדוביד 11 הוא מספר
+         שמסביר משהו שלא קיים. */
+      spent: t.budget === null
+        ? undefined
+        : filled.reduce((sum, sl) => sum + (priceById.get(sl.playerId) ?? 0), 0),
+      deadlineLabel: deadlineLabel(lobbyGameweek.deadlineAt),
+      entrants: entrantCount || undefined,
+      url: SITE_URL,
+      urlLabel: 'DUBID.DUBELTEAM.COM',
+    };
+  };
+
   const [showSaveModal, setShowSaveModal] = useState(false);
+
+  /**
+   * ★ כרטיס ה"הנה ההרכב שלי" — מופיע פעם אחת, מיד אחרי ההגשה.
+   *
+   * `null` = לא מוצג. הוא לא נשמר בשום מקום ולא חוזר: מסך
+   * שיתוף שרודף הורג את המוצר, לא את השיתוף.
+   */
+  const [reveal, setReveal] = useState<RevealCardData | null>(null);
   const [showAccount, setShowAccount] = useState(false);
 
   const goToMode = (m: Mode) => {
@@ -474,6 +536,7 @@ function MainApp() {
         onLeagues={() => setTab('arena')}
         onLeaderboard={() => setTab('leaderboard')}
         onAccount={() => setShowAccount(true)}
+        identity={identity}
         nudge={
           shouldNudge({
             isGuest: identity?.isGuest !== false,
@@ -559,7 +622,14 @@ function MainApp() {
         {showSaveModal && (
           <SaveEntryModal
             onCancel={() => setShowSaveModal(false)}
-            onSaved={() => { setShowSaveModal(false); setTab('card'); }}
+            onSaved={(saved) => {
+              setShowSaveModal(false);
+              /* ★ הכרטיס נבנה מההגשה שחזרה מהשרת, ולא מהטיוטה
+                 שעל המסך. השרת הוא זה שקובע מה נשמר בפועל —
+                 ואם הוא חתך משהו, הכרטיס צריך להראות את מה
+                 שנשמר, לא את מה שביקשנו. */
+              setReveal(buildReveal(saved));
+            }}
             mode={mode}
             userId={userId}
             lineup={lu.lineup}
@@ -594,6 +664,19 @@ function MainApp() {
   };
 
   return (
+    <>
+    {/* ★ מסך הפתיחה מרונדר **מעל** האפליקציה, לא במקומה.
+        כך העלייה של הלובי, טעינת הפונטים והתמונות קורות מתחתיו
+        בזמן שהלוגו מצייר את עצמו — ומה שנחשף אחרי הדהייה כבר
+        מוכן. מסך פתיחה שמעכב את הרינדור הוא מסך שמבזבז את הזמן
+        שהוא אמור לכסות. */}
+    {!splashGone && (
+      <Splash
+        ready={booted}
+        onDone={() => setSplashGone(true)}
+        seasonLabel={`${LEAGUE.nameHe} · ${LEAGUE.season}`}
+      />
+    )}
     <AppShell
       // רק מסך הבנייה מנהל גובה בעצמו. שאר המסכים נגללים כרגיל.
       // ★ שני המצבים של מסך ההרכב הם עמודה בגובה קבוע.
@@ -641,7 +724,14 @@ function MainApp() {
       <ConnectionStrip />
       {screens[tab]}
       {showAccount && <AccountSheet onClose={() => setShowAccount(false)} />}
+      {reveal && (
+        <RevealShare
+          data={reveal}
+          onClose={() => { setReveal(null); setTab('card'); }}
+        />
+      )}
     </AppShell>
+    </>
   );
 }
 
@@ -1131,4 +1221,26 @@ function RulesScreen() {
       <DubelCredit variant="card" />
     </div>
   );
+}
+
+/**
+ * "שבת 20:00" — לכרטיס השיתוף.
+ *
+ * ★ אזור הזמן ננעל על ישראל, כמו בכל מקום אחר במוצר.
+ *   כרטיס שנוצר בטלפון שמוגדר לאזור זמן אחר היה מודיע לחברים
+ *   של המשתמש על שעת נעילה שגויה — והם היו מפספסים את המחזור.
+ */
+function deadlineLabel(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const day = d.toLocaleDateString('he-IL', {
+      weekday: 'long', timeZone: 'Asia/Jerusalem',
+    }).replace(/^יום\s+/, '');
+    const time = d.toLocaleTimeString('he-IL', {
+      hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem',
+    });
+    return `${day} ${time}`;
+  } catch {
+    return '';
+  }
 }
