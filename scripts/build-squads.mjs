@@ -329,13 +329,34 @@ BEGIN
              ('player', v_player, 'en', p->>'name_en', 'manual_json')
       ON CONFLICT DO NOTHING;
 
-      INSERT INTO core.squads (season_id, team_id, player_id, shirt_number, position, valid_from)
-      VALUES (v_season, v_team, v_player, (p->>'number')::smallint, v_pos, DATE '2026-08-01')
+      -- ★ \`fantasy_price\` — היה חסר, וזה ביטל את התקציב בשרת.
+      --
+      --   ה-payload תמיד הכיל \`price\`, אבל ה-INSERT לא מיפה אותו.
+      --   התוצאה: \`fantasy_price\` היה NULL ל-351 השחקנים, ו-
+      --   \`submit_entry\` שקורא \`COALESCE(sq.fantasy_price, 0)\`
+      --   תמחר כל הרכב ב-0. כלומר תקציב דוביד 5 נאכף **רק
+      --   בדפדפן** — ומי ששלח בקשה ישירות יכול היה לקחת חמישה
+      --   שחקנים במחיר מלא.
+      --
+      --   הבאג לא נראה בשום מסך: הממשק מחשב מחיר מ-\`data/squads.ts\`
+      --   ומציג את הפס הנכון. רק השרת לא ידע.
+      --
+      --   ★★ והתיקון הזה נדרס פעם אחת: הוא נעשה ידנית ב-
+      --      db/03_seed_squads.sql, בזמן שהקובץ הזה **מייצר** אותו.
+      --      ההרצה הבאה של הסקריפט החזירה את הבאג. לכן הוא חי
+      --      כאן עכשיו, במחולל, ולא בתוצר.
+      INSERT INTO core.squads (season_id, team_id, player_id, shirt_number, position,
+                               fantasy_price, valid_from)
+      VALUES (v_season, v_team, v_player, (p->>'number')::smallint, v_pos,
+              NULLIF(p->>'price', '')::NUMERIC, DATE '2026-08-01')
       ON CONFLICT (season_id, team_id, player_id, valid_from)
-      DO UPDATE SET shirt_number = EXCLUDED.shirt_number,
-                    position     = EXCLUDED.position,
-                    status       = 'active',
-                    valid_to     = NULL;
+      DO UPDATE SET shirt_number  = EXCLUDED.shirt_number,
+                    position      = EXCLUDED.position,
+                    -- מחיר שנקבע ידנית באדמין מנצח את הסיד.
+                    fantasy_price = COALESCE(core.squads.fantasy_price,
+                                             EXCLUDED.fantasy_price),
+                    status        = 'active',
+                    valid_to      = NULL;
     END LOOP;
   END LOOP;
 

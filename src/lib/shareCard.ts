@@ -77,6 +77,15 @@ export interface ShareCardData {
   virtualGoals?: number;
   url: string;                           // הקישור שנכנס ל-QR
   urlLabel?: string;                     // 'DUBID.DUBELTEAM.COM'
+  /**
+   * מכפיל הקפטן, מתוך חוקי המצב **החיים** (כולל שינויי אדמין).
+   *
+   * ★ עד עכשיו היה כאן `×3` כתוב ביד בשני מקומות. ברגע שהאדמין
+   *   משנה את המכפיל, הכרטיס היה ממשיך להצהיר מספר שהמערכת כבר
+   *   לא מחשבת — באג שאף בדיקה לא תופסת, כי אף בדיקה לא קוראת
+   *   תמונות. ברירת המחדל 3 שומרת על כרטיסים קיימים.
+   */
+  captainMultiplier?: number;
 }
 
 /* =================================================================== */
@@ -274,11 +283,16 @@ function drawScore(ctx: CanvasRenderingContext2D, d: ShareCardData) {
 }
 
 /* ---------------- פירוק הניקוד ---------------- */
+function fmtMultiplier(n: number | undefined): string {
+  const m = typeof n === 'number' && n > 0 ? n : 3;
+  return Number.isInteger(m) ? String(m) : m.toFixed(1);
+}
+
 function drawBreakdown(ctx: CanvasRenderingContext2D, d: ShareCardData) {
   const items: Array<[string, number, string]> = [
     ['אישי', d.breakdown.personal, PALETTE.chalk],
     ['תוצאה', d.breakdown.result, PALETTE.tekhelet],
-    ['קפטן ×3', d.breakdown.captain, PALETTE.armband],
+    [`קפטן ×${fmtMultiplier(d.captainMultiplier)}`, d.breakdown.captain, PALETTE.armband],
     ['וירטואלי', d.breakdown.virtual, PALETTE.toto],
   ];
   const gap = 18;
@@ -310,6 +324,7 @@ function drawBreakdown(ctx: CanvasRenderingContext2D, d: ShareCardData) {
 const ROW_ORDER: Position[] = ['GK', 'DEF', 'MID', 'FWD'];
 
 function drawLineup(ctx: CanvasRenderingContext2D, d: ShareCardData) {
+  const mult = fmtMultiplier(d.captainMultiplier);
   const x = 60, y = 1068, w = CARD_W - 120, h = 512;
   turf(ctx, x, y, w, h);
 
@@ -328,14 +343,14 @@ function drawLineup(ctx: CanvasRenderingContext2D, d: ShareCardData) {
 
     for (const p of row) {
       cursor -= chipW;
-      drawPlayerChip(ctx, cursor, cy - chipH / 2, chipW, chipH, p);
+      drawPlayerChip(ctx, cursor, cy - chipH / 2, chipW, chipH, p, mult);
       cursor -= 12;
     }
   });
 }
 
 function drawPlayerChip(ctx: CanvasRenderingContext2D, x: number, y: number,
-                        w: number, h: number, p: ShareLineupEntry) {
+                        w: number, h: number, p: ShareLineupEntry, mult: string) {
   const cap = !!p.isCaptain;
   ctx.fillStyle = cap ? PALETTE.armband : PALETTE.chalk;
   roundRect(ctx, x, y, w, h, 18); ctx.fill();
@@ -366,7 +381,7 @@ function drawPlayerChip(ctx: CanvasRenderingContext2D, x: number, y: number,
     ctx.fillStyle = PALETTE.armband;
     ctx.font = `400 22px ${F_POSTER}`;
     ctx.direction = 'ltr';
-    ctx.fillText('x3', x + w - 20, y + 7);
+    ctx.fillText(`x${mult}`, x + w - 20, y + 7);
     ctx.direction = 'rtl';
   }
 }

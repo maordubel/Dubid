@@ -10,6 +10,26 @@ import { teamLogo } from '../data/teamLogos.ts';
 import { teamColor } from '../data/teamColors.ts';
 import { Jersey } from './Jersey.tsx';
 
+/**
+ * שני תווים לריבוע הזעיר.
+ *
+ * ★ למה זה לא `slice(0, 2)`
+ *
+ * הקיצורים בפורמט `<מועדון>.<עיר>` — `ה.תא`, `מ.נתניה`. חיתוך
+ * נאיבי של שני תווים מחזיר `ה.` ו-`מ.` — כלומר **כל הקבוצות של
+ * הפועל נראות זהות**, וכך גם כל אלה של מכבי. זה בדיוק ההפך
+ * ממה שסמל אמור לעשות.
+ *
+ * הנכון: אות המועדון + האות הראשונה של העיר. `ה.תא` → `הת`,
+ * `מ.נתניה` → `מנ`.
+ */
+function microShort(short?: string): string {
+  const clean = (short ?? '').replace(/[״׳"']/g, '');
+  const dot = clean.indexOf('.');
+  if (dot > 0 && dot + 1 < clean.length) return clean[0] + clean[dot + 1];
+  return clean.slice(0, 2);
+}
+
 export function TeamCrest({
   teamId, short, size = 32, className = '',
 }: {
@@ -64,7 +84,7 @@ export function TeamCrest({
         fontSize: Math.max(8, px * 0.38),
       }}
     >
-      {(short ?? '').replace(/[״׳"']/g, '').slice(0, 2)}
+      {microShort(short)}
     </span>
   );
 }

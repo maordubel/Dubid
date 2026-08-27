@@ -47,7 +47,7 @@ import {
   TEAMS, PLAYERS, TEAM_BY_ID, PLAYERS_BY_TEAM,
   type TeamRow, type PlayerRow,
 } from '../data/squads.ts';
-import { applyLiveFixtures, type LiveFixturePayload } from '../data/fixtures.ts';
+import { applyLiveFixtures, GAMEWEEK, type LiveFixturePayload } from '../data/fixtures.ts';
 import { hydrateContent } from './content.ts';
 import type { Position } from './scoring/types.ts';
 
@@ -266,8 +266,18 @@ export function applyLiveSquads(payload: SquadsPayload): boolean {
 
 let inFlight: Promise<void> | null = null;
 
-/** נשאר כרשת ביטחון אם השרת לא החזיר מחזור פעיל. */
-let activeGameweek = '';
+/**
+ * ★ מונה דורות — מי שהתחיל מאוחר יותר מנצח.
+ *
+ * `hydrateLiveData(true)` נקראת מכל אירוע `data_revision` ומכל
+ * כתיבה של האדמין. קליטת לוח משחקים או שלוש עריכות מחיר רצופות
+ * מייצרות ריצות חופפות — ובלי מונה, ריצה שהתחילה ראשונה ונענתה
+ * אחרונה הייתה מדביקה סגל **ישן** מעל החדש.
+ *
+ * המונה עולה בתחילת כל ריצה; ריצה שמגלה שהמונה כבר התקדם
+ * פשוט זורקת את התוצאה שלה.
+ */
+let generation = 0;
 
 /**
  * מביא סגלים + לוח משחקים. קריאות מקבילות מתאחדות.
@@ -291,6 +301,8 @@ let activeGameweek = '';
 export function hydrateLiveData(force = false): Promise<void> {
   if (inFlight && !force) return inFlight;
 
+  const mine = ++generation;
+
   inFlight = (async () => {
     state.loading = true;
     notify();
@@ -312,6 +324,8 @@ export function hydrateLiveData(force = false): Promise<void> {
       }
 
       if (squadsRes.error) throw squadsRes.error;
+      /* ריצה חדשה יותר כבר באוויר — התוצאה הזו מיושנת. */
+      if (mine !== generation) return;
 
       const code = typeof gwRes.data === 'string' && gwRes.data ? gwRes.data : '';
       const changedGw = !!code && code !== state.gameweek;
@@ -323,9 +337,15 @@ export function hydrateLiveData(force = false): Promise<void> {
          `applyLiveFixtures` בונה תוויות (יריבה, יום) שמסתמכות
          על `TEAM_BY_ID`. סדר הפוך היה מייצר לוח שמצביע על
          קבוצות מהקובץ הישן. */
-      const target = state.gameweek || activeGameweek;
+      /* ★ נפילה חזרה ל-`GAMEWEEK.id` ולא למשתנה ריק.
+         קודם היה כאן `activeGameweek` שמעולם לא נכתב — כלומר אם
+         `current_gameweek` נכשל, `target` היה מחרוזת ריקה והלוח
+         **לא נמשך בכלל**. האפליקציה הייתה רצה על סגלים מהשרת
+         ולוח משחקים מהקובץ, בלי שום סימן שמשהו לא בסדר. */
+      const target = state.gameweek || GAMEWEEK.id;
       if (target) {
         const fx = await supabase.rpc('fixtures', { p_gw_code: target });
+        if (mine !== generation) return;
         if (!fx.error && fx.data) {
           changed = applyLiveFixtures(fx.data as LiveFixturePayload) || changed;
         }
@@ -337,8 +357,13 @@ export function hydrateLiveData(force = false): Promise<void> {
       state.fromServer = false;
       state.error = err instanceof Error ? err.message : String(err);
     } finally {
-      state.loading = false;
-      inFlight = null;
+      /* ★ רק הריצה האחרונה מכבה את הדגלים. אחרת ריצה ישנה
+         שמסתיימת אחרי חדשה הייתה מכריזה "סיימנו לטעון" בזמן
+         שהחדשה עדיין באוויר. */
+      if (mine === generation) {
+        state.loading = false;
+        inFlight = null;
+      }
       notify();
     }
   })();

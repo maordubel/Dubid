@@ -202,7 +202,12 @@ let activeGameweek = '';
  *   להציג דירוג ישן כאילו הוא נכון.
  */
 export function hydrate(gameweekId: string, force = false): Promise<void> {
-  if (hydrating && !force) return hydrating;
+  /* ★ האיחוד תקף רק לאותו מחזור.
+     קודם `hydrate('gw-3')` שנקראה בזמן ש-`hydrate('gw-2')`
+     באוויר קיבלה את ההבטחה של gw-2, לא טענה את gw-3 מעולם,
+     והשאירה `activeGameweek` על gw-2 — כך שכל `refresh()`
+     אחר כך (כולל אחרי הגשה) משך את המחזור הלא נכון. */
+  if (hydrating && !force && activeGameweek === gameweekId) return hydrating;
   activeGameweek = gameweekId;
 
   hydrating = (async () => {

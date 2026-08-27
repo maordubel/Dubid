@@ -52,7 +52,8 @@ import { scoreLineup, buildInputs, toBreakdown } from './_lib/scoring/engine.ts'
 //   זהה בשני הצדדים — ולכן היא מיובאת, לא ממומשת כאן מחדש.
 import { rankEntries, applyDifferential, selectionRates }
   from './_lib/scoring/ranking.ts';
-import { ruleSetFromJson, IL_PREMIER } from './_lib/scoring/rules.ts';
+import { ruleSetFromJson, IL_PREMIER, DUBID_5X5 } from './_lib/scoring/rules.ts';
+import { applyOverrides } from './_lib/ruleOverrides.ts';
 import { LineupInvalidError } from './_lib/scoring/validate.ts';
 import type { Lineup } from './_lib/scoring/types.ts';
 
@@ -98,9 +99,42 @@ Deno.serve(async (req) => {
     .limit(1)
     .maybeSingle();
 
-  const rules = rulesetRow
+  const base = rulesetRow
     ? ruleSetFromJson({ ...rulesetRow.rules, version: rulesetRow.version })
     : IL_PREMIER;
+
+  /* ★ מקור חוקים אחד, ולא שניים.
+     הקליינט קורא ל-`game.scoring_rules()` ומחיל את מה שהאדמין
+     שינה. הפונקציה הזו קראה רק את `scoring_rulesets` — טבלה
+     אחרת לגמרי. כלומר האדמין היה משנה את הבישול ל-4, המסך היה
+     מראה 4 והמשתמש היה סופר לפי 4 — והניקוד **הרשמי** היה
+     נשאר 3. שני מספרים על אותו מחזור, ואף שגיאה בשום מקום.
+
+     ה-override-ים מוחלים אחרונים, מעל הגרסה ההיסטורית: הם
+     ה"עכשיו" של האיזון, וה-ruleset הוא הבסיס. */
+  const { data: overrideRows } = await supabase.rpc('scoring_rules');
+  const overrides: Record<string, number> = {};
+  if (overrideRows && typeof overrideRows === 'object') {
+    for (const [k, v] of Object.entries(overrideRows as Record<string, unknown>)) {
+      const n = Number(v);
+      if (Number.isFinite(n)) overrides[k] = n;
+    }
+  }
+
+  /* ★ חוקים **לכל מצב**, ולא אחד לכולם.
+     דוביד 5 חולק את טבלת הניקוד עם דוביד 11 אבל לא את
+     האילוצים: חמישה שחקנים, מערכים אחרים. עד עכשיו הפונקציה
+     ניקדה את הכול לפי `IL_PREMIER` — כלומר כל הרכב של דוביד 5
+     נפל בוולידציה על `lineupSize` ונחת ב-`failures`. המחזור
+     היה נסגר, המשתמשים היו רואים "אין תוצאות", ושום דבר
+     בלוגים לא היה אומר "מצב". */
+  const rulesFor = {
+    full: applyOverrides(base, overrides),
+    five: applyOverrides(
+      { ...DUBID_5X5, ...base, constraints: DUBID_5X5.constraints },
+      overrides,
+    ),
+  } as const;
 
   /* -------- 2. קלטי המנוע: סטטיסטיקות ותוצאות המחזור -------- */
   const [{ data: statRows }, { data: matchRows }] = await Promise.all([
@@ -113,14 +147,22 @@ Deno.serve(async (req) => {
   /* -------- 3. כל ההרכבים הנעולים -------- */
   const { data: lineupRows } = await supabase
     .from('user_lineups')
-    .select('id, user_id, formation, status, submitted_at, user_lineup_slots(slot_no, player_id, team_id, position, is_captain, is_vice, is_bench)')
+    .select('id, user_id, mode, formation, status, submitted_at, user_lineup_slots(slot_no, player_id, team_id, position, is_captain, is_vice, is_bench)')
     .eq('gameweek_id', gameweekId)
     .in('status', ['locked', 'scored']);
 
-  const scores: Array<{ lineup: Lineup; submittedAt: string; score: ReturnType<typeof scoreLineup> }> = [];
-  const failures: Array<{ lineupId: string; issues: unknown }> = [];
+  type Scored = {
+    mode: 'five' | 'full';
+    lineup: Lineup;
+    submittedAt: string;
+    score: ReturnType<typeof scoreLineup>;
+  };
+  const scores: Scored[] = [];
+  const failures: Array<{ lineupId: string; mode: string; issues: unknown }> = [];
 
   for (const row of lineupRows ?? []) {
+    const mode: 'five' | 'full' = (row as any).mode === 'five' ? 'five' : 'full';
+    const rules = rulesFor[mode];
     const lineup: Lineup = {
       lineupId: row.id,
       userId: row.user_id,
@@ -141,6 +183,7 @@ Deno.serve(async (req) => {
       // ולידציה נשארת דלוקה גם כאן. הרכב שעבר את ה-DB ואת ה-API
       // ובכל זאת נופל כאן = באג שאסור לו לעבור בשקט לטבלת התוצאות.
       scores.push({
+        mode,
         lineup,
         // חותמת ההגשה היא שובר השוויון האחרון. הגשה בלי חותמת
         // נדחקת לסוף התור ולא מזכה ביתרון מקרי.
@@ -149,7 +192,7 @@ Deno.serve(async (req) => {
       });
     } catch (error) {
       if (error instanceof LineupInvalidError) {
-        failures.push({ lineupId: lineup.lineupId, issues: error.issues });
+        failures.push({ lineupId: lineup.lineupId, mode, issues: error.issues });
         continue;
       }
       throw error;
@@ -158,19 +201,33 @@ Deno.serve(async (req) => {
 
   /* -------- 4. דיפרנציאל, דירוג, כתיבה -------- */
 
-  // בונוס הבחירה הנדירה תלוי בכל ההגשות יחד, ולכן מחושב רק כאן —
-  // אחרי שכל ההרכבים נוקדו ולפני שנקבע הדירוג.
-  const rates = selectionRates(
-    scores.map((s) => ({ playerIds: s.lineup.slots.map((x) => x.playerId) })),
-  );
-  const withDifferential = scores.map((s) => ({
-    ...s,
-    score: applyDifferential(s.score, rates, scores.length),
-  }));
+  /* ★ כל מצב מדורג בנפרד, ואין דרך אחרת.
+     דוביד 5 ודוביד 11 הם שתי תחרויות, לא אחת: הרכב של חמישה
+     לעולם לא יגיע לניקוד של אחת־עשרה, ודירוג משותף היה הופך
+     את דוביד 5 לתחתית קבועה של הטבלה.
 
-  const ranked = rankEntries(
-    withDifferential.map((s) => ({ entry: s, score: s.score, submittedAt: s.submittedAt })),
-  );
+     וגם בונוס הנדירות: "אחוז מהמשתתפים שבחרו את השחקן" הוא
+     מספר חסר משמעות אם המונה סופר משתתפים ממשחק אחר. שני
+     המצבים בוחרים מאותו מאגר שחקנים, ולכן בלי ההפרדה כל שחקן
+     בדוביד 5 היה נראה "נדיר" רק כי רוב המשתתפים משחקים 11. */
+  const byMode = new Map<'five' | 'full', Scored[]>();
+  for (const s of scores) {
+    const list = byMode.get(s.mode);
+    if (list) list.push(s); else byMode.set(s.mode, [s]);
+  }
+
+  const ranked = [...byMode.values()].flatMap((group) => {
+    const rates = selectionRates(
+      group.map((s) => ({ playerIds: s.lineup.slots.map((x) => x.playerId) })),
+    );
+    const withDifferential = group.map((s) => ({
+      ...s,
+      score: applyDifferential(s.score, rates, group.length),
+    }));
+    return rankEntries(
+      withDifferential.map((s) => ({ entry: s, score: s.score, submittedAt: s.submittedAt })),
+    );
+  });
 
   const rows = ranked.map(({ rank, tied, brokenBy, entry }) => ({
     lineup_id: entry.score.lineupId,
@@ -201,13 +258,25 @@ Deno.serve(async (req) => {
       .eq('status', 'locked');
   }
 
-  await supabase.from('gameweeks').update({ status: 'settled' }).eq('id', gameweekId);
+  /* ★ 'published' ולא 'settled'.
+     ה-CHECK על `game.gameweeks.status` צומצם ב-db/05 לערכים
+     draft/open/locked/live/scoring/published/archived — ו-'settled'
+     מופה ל-'published' באותה מיגרציה. הכתיבה הזו נפסלה על ידי
+     המסד, והשגיאה **לא נבדקה** — כלומר הניקוד נכתב בהצלחה,
+     הפונקציה החזירה 200, והמחזור נשאר לנצח במצב 'locked'.
+     תקלה שנראית בדיוק כמו "הניקוד לא עבד". */
+  const { error: statusErr } = await supabase
+    .from('gameweeks')
+    .update({ status: 'published', published_at: new Date().toISOString() })
+    .eq('id', gameweekId);
+  if (statusErr) return json({ error: 'publish_failed', detail: statusErr.message }, 500);
 
   return json({
     gameweekId,
     scored: rows.length,
+    byMode: [...byMode.entries()].map(([mode, list]) => ({ mode, count: list.length })),
     failures,
-    rulesetVersion: rules.version,
+    rulesetVersion: base.version,
     top: ranked.slice(0, 3).map(({ rank, entry }) => ({
       rank, lineupId: entry.score.lineupId, total: entry.score.totalPoints,
     })),

@@ -34,15 +34,14 @@ import type { Lineup } from './scoring/types.ts';
 
 export type { Mode };
 
-export interface DraftSnapshot {
-  formation: string;
-  slots: Lineup['slots'];
-  updatedAt: string;
-}
-
 /* ================================================================== */
 /* קריאה וכתיבה                                                        */
 /* ================================================================== */
+
+export type DraftLoad = 'ok' | 'error';
+
+/** הגלם האחרון שחזר, לפי (משתמש, מחזור). פרט פנימי של המודול. */
+const rawCache = new Map<string, Record<string, WireDraft>>();
 
 /**
  * שתי הטיוטות של המחזור, בקריאה אחת.
@@ -51,29 +50,42 @@ export interface DraftSnapshot {
  *   צריכים להראות "טיוטה · 7/11" מיד. שתי קריאות היו נותנות שני
  *   מצבי טעינה על אותו מסך.
  *
- * כישלון מחזיר `{}` ולא זורק: היעדר טיוטה והיעדר רשת נראים
- * למסך אותו דבר — הרכב ריק — ואף אחד מהם אינו שגיאה שצריך
- * להציג באמצע בנייה.
+ * ★★ מחזירה `'error'` ולא `{}` — וזה כל ההבדל. ★★
+ *
+ * קודם כל כישלון נבלע והוחזר `{}`, כלומר "אין טיוטה". הקורא
+ * (`useLineup`) סימן `loaded = true` והתחיל לשמור — ולכן תקלת
+ * רשת חולפת במחשב **מחקה את הטיוטה שנבנתה בטלפון**: המסך הראה
+ * הרכב ריק, המשתמש נגע במשבצת אחת, והשמירה דרסה אחת־עשרה
+ * בחירות באחת.
+ *
+ * "אין טיוטה" ו"לא הצלחתי לקרוא" נראים אותו דבר על המסך, והם
+ * הפוכים לחלוטין במה שמותר לעשות אחריהם.
  */
-export async function fetchDrafts(gameweekId: string): Promise<Partial<Record<Mode, DraftSnapshot>>> {
+export async function fetchDrafts(userId: string, gameweekId: string): Promise<DraftLoad> {
+  const key = cacheKey(userId, gameweekId);
   try {
     const { data, error } = await supabase.rpc('my_drafts', { p_gw_code: gameweekId });
-    if (error || !data) return {};
-    const out: Partial<Record<Mode, DraftSnapshot>> = {};
-    for (const mode of ['full', 'five'] as const) {
-      const d = (data as Record<string, WireDraft | undefined>)[mode];
-      if (d) out[mode] = { formation: d.formation, slots: [], updatedAt: d.updatedAt };
-    }
-    // מוחזר גם הגלם, כי `fromWire` צריך אותו ולא נכון לחשוף אותו.
-    rawCache.set(gameweekId, data as Record<string, WireDraft>);
-    return out;
+    if (error) return 'error';
+
+    /* ★ הצלחה מנקה קודם. תשובה ריקה **היא** תשובה: המשתמש מחק
+       את הטיוטה, ואסור שהערך הישן ישרוד במטמון. */
+    rawCache.set(key, (data ?? {}) as Record<string, WireDraft>);
+    return 'ok';
   } catch {
-    return {};
+    return 'error';
   }
 }
 
-/** הגלם האחרון שחזר, לפי מחזור. פרט פנימי של המודול. */
-const rawCache = new Map<string, Record<string, WireDraft>>();
+/**
+ * ★ המפתח כולל את המשתמש, ולא רק את המחזור.
+ *
+ * בלי זה: אורח בנה טיוטה, המטמון החזיק אותה תחת `'gw-3'`, ואז
+ * הוא נכנס לחשבון. הקריאה החדשה נכשלה — והשחזור הגיש לו את
+ * הטיוטה של **הזהות הקודמת**, שנשמרה אחר כך לחשבון החדש.
+ */
+function cacheKey(userId: string, gameweekId: string): string {
+  return `${userId || 'anon'}|${gameweekId}`;
+}
 
 /**
  * המערך שנשמר בטיוטה, או `null`.
@@ -85,16 +97,18 @@ const rawCache = new Map<string, Record<string, WireDraft>>();
  * במבנה משבצת מגן שאין לה שחקן ומשבצת קשר שנופלת בחוץ — כלומר
  * טיוטה שחוזרת מעוותת. לכן קודם שואלים מה המערך, ואז בונים.
  */
-export function draftFormation(gameweekId: string, mode: Mode): string | null {
-  return rawCache.get(gameweekId)?.[mode]?.formation ?? null;
+export function draftFormation(userId: string, gameweekId: string, mode: Mode): string | null {
+  return rawCache.get(cacheKey(userId, gameweekId))?.[mode]?.formation ?? null;
 }
 
 /**
  * ההרכב המשוחזר, או `null` אם אין טיוטה שמורה.
  * חייב להיקרא אחרי `fetchDrafts` לאותו מחזור.
  */
-export function draftInto(base: Lineup, gameweekId: string, mode: Mode): Lineup | null {
-  const raw = rawCache.get(gameweekId)?.[mode];
+export function draftInto(
+  base: Lineup, userId: string, gameweekId: string, mode: Mode,
+): Lineup | null {
+  const raw = rawCache.get(cacheKey(userId, gameweekId))?.[mode];
   if (!raw) return null;
   return fromWire(base, raw);
 }
@@ -123,10 +137,12 @@ export async function pushDraft(gameweekId: string, mode: Mode, lineup: Lineup):
   }
 }
 
-export async function dropDraft(gameweekId: string, mode: Mode): Promise<void> {
+export async function dropDraft(
+  userId: string, gameweekId: string, mode: Mode,
+): Promise<void> {
   try {
     await supabase.rpc('discard_draft', { p_gw_code: gameweekId, p_mode: mode });
-    const raw = rawCache.get(gameweekId);
+    const raw = rawCache.get(cacheKey(userId, gameweekId));
     if (raw) delete raw[mode];
   } catch {
     /* מחיקה שנכשלה תידרס בשמירה הבאה */

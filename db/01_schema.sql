@@ -303,22 +303,31 @@ CREATE TABLE IF NOT EXISTS game.scoring_rulesets (
   UNIQUE (league_id, version)
 );
 COMMENT ON TABLE game.scoring_rulesets IS
-$$דוגמה ל-rules:
+$$מבנה rules — הערכים כאן הם **ערכי המוצר בפועל**, כפי שהם
+ב-src/lib/scoring/rules.ts (IL_PREMIER):
 {
   "personal": {
-    "goal":        {"GK":10,"DEF":8,"MID":6,"FWD":5},
+    "goal":        {"GK":6,"DEF":6,"MID":5,"FWD":4},
     "assist":      3,
-    "clean_sheet": {"GK":5,"DEF":4,"MID":1,"FWD":0},
-    "minutes_60":  2,
+    "clean_sheet": {"GK":4,"DEF":4,"MID":4,"FWD":4},
+    "clean_sheet_min_minutes": 60,
+    "minutes_played": 0, "minutes_60": 0,
     "yellow":     -1, "red": -3, "own_goal": -2,
-    "save_per_3":  1, "penalty_saved": 5, "penalty_missed": -2,
-    "goals_conceded_per_2": {"GK":-1,"DEF":-1}
+    "save_per_3":  0, "penalty_saved": 0, "penalty_missed": 0,
+    "goals_conceded_per_2": {"GK":0,"DEF":0}
   },
-  "result_bonus": {"W": 4, "D": 1, "L": 0},
+  "result_bonus": {"W": 4, "D": 1, "L": 0, "require_minutes": 0},
   "virtual_goal": {"team_goals_per_virtual": 2, "points": 5},
-  "captain_multiplier": 2,
+  "captain_multiplier": 3,
   "constraints": {"lineup_size": 11, "max_players_per_team": 1}
 }
+
+★ ההערה הזו הייתה שגויה, וזה לא היה תמים.
+  היא תיארה שער של שוער כ-10 (בפועל 6), קלין-שיט מדורג
+  (בפועל אחיד 4), וקפטן ×2 (בפועל ×3). מי שמילא את הטבלה
+  לפיה היה יוצר ליגה שמנקדת אחרת מהמוצר — בלי שום שגיאה,
+  כי המבנה תקין. הערה שקרית על טבלת חוקים גרועה מהיעדר הערה.
+
 שינוי חוקים = גרסה חדשה. ניקוד היסטורי לא משתנה למפרע.$$;
 
 -- =====================================================================

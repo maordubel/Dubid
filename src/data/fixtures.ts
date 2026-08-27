@@ -122,6 +122,56 @@ export function kickoffTimeLabel(iso: string, confirmed = true): string {
   });
 }
 
+/**
+ * "2026-09-05T20:00" (מה ש-`datetime-local` נותן) → ISO עם ההסטה
+ * של ישראל **באותו תאריך**.
+ *
+ * ★ למה לא להדביק `+03:00`
+ *
+ * ישראל עוברת לשעון חורף. מחזור שנקלט בנובמבר עם `+03:00` קבוע
+ * היה נשמר שעה מוקדם מדי — כלומר הדדליין היה נסגר שעה לפני מה
+ * שהאדמין ראה על המסך, והמשתמשים היו מפספסים את המחזור.
+ *
+ * ★ ולמה לא לתת ל-`new Date()` לפרש
+ *
+ * `new Date('2026-09-05T20:00')` מתפרש לפי אזור הזמן של
+ * **המכשיר**. אדמין שנוסע לחו״ל היה קולט לוח בשעות אחרות, בלי
+ * שום סימן.
+ *
+ * המעבר השני על ההסטה קיים בשביל לילות המעבר לשעון קיץ, שבהם
+ * ההסטה עצמה משתנה בתוך הטווח שאנחנו מתקנים.
+ */
+function tzOffsetMinutes(utcMs: number, tz: string): number {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  const p: Record<string, string> = {};
+  for (const part of dtf.formatToParts(new Date(utcMs))) p[part.type] = part.value;
+  const asUtc = Date.UTC(
+    +p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second,
+  );
+  return (asUtc - utcMs) / 60000;
+}
+
+export function leagueLocalToIso(local: string): string {
+  /* ★ בדיקת צורה ולא רק `Number.isNaN`.
+     `Date.parse(':00Z')` **אינו** NaN בכל המנועים — הוא מחזיר
+     רגע כלשהו. כלומר שדה ריק היה נקלט כתאריך תקין, והמחזור
+     היה מקבל דדליין שרירותי בלי שום שגיאה. */
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local)) return '';
+  const naive = Date.parse(`${local}:00Z`);
+  if (Number.isNaN(naive)) return '';
+  let off = tzOffsetMinutes(naive, LEAGUE_TZ);
+  off = tzOffsetMinutes(naive - off * 60000, LEAGUE_TZ);
+  const sign = off >= 0 ? '+' : '-';
+  const abs = Math.abs(off);
+  const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+  const mm = String(abs % 60).padStart(2, '0');
+  return `${local}:00${sign}${hh}:${mm}`;
+}
+
 export function kickoffDateLabel(iso: string): string {
   return new Date(iso).toLocaleDateString('he-IL', {
     day: '2-digit', month: '2-digit', timeZone: LEAGUE_TZ,
@@ -200,7 +250,31 @@ export function fixtureStatus(id: string): FixtureStatus {
  */
 export function applyLiveFixtures(payload: LiveFixturePayload): boolean {
   const raw = payload.fixtures ?? [];
-  if (raw.length === 0) return false;
+
+  /* ★★ המחזור מתעדכן **לפני** הבדיקה על הלוח, ובנפרד ממנה. ★★
+   *
+   * קודם הפונקציה יצאה מיד כשהלוח היה ריק — ולכן מחזור חדש
+   * שהאדמין פתח והפך לפעיל **לפני** שקלט לו משחקים השאיר את
+   * `GAMEWEEK` על המחזור הקודם. הכותרת אמרה "מחזור 2", רצועת
+   * המשחקים הציגה את השבוע שעבר, וכל לוח הניהול עבד על המחזור
+   * הישן — בזמן שההגשות כבר נשמרו לחדש.
+   *
+   * מחזור בלי משחקים הוא מצב חוקי לגמרי. לוח ריק הוא לא סיבה
+   * לשקר לגבי איזה מחזור זה. */
+  const gw = payload.gameweek;
+  let touched = false;
+  if (gw && gw.id) {
+    touched = GAMEWEEK.id !== gw.id;
+    GAMEWEEK.id = gw.id;
+    GAMEWEEK.number = gw.number;
+    GAMEWEEK.label = gw.label || `מחזור ${gw.number}`;
+    if (gw.lockAt) GAMEWEEK_DEADLINE = gw.lockAt;
+    FIRST_KICKOFF = gw.firstKickoffAt || GAMEWEEK_DEADLINE;
+  }
+
+  /* ⚠ הלוח עצמו — כאן כן יוצאים. תשובה בלי משחקים לא מוחקת
+     לוח קיים: מסך בלי לוח נראה כמו מוצר שבור. */
+  if (raw.length === 0) return touched;
 
   const next: Fixture[] = raw.map((f) => ({
     id: f.id,
@@ -221,17 +295,11 @@ export function applyLiveFixtures(payload: LiveFixturePayload): boolean {
 
   HAS_UNCONFIRMED_TIMES = FIXTURES.some((f) => !f.timeConfirmed);
 
-  const gw = payload.gameweek;
-  if (gw) {
-    GAMEWEEK.id = gw.id;
-    GAMEWEEK.number = gw.number;
-    GAMEWEEK.label = gw.label || `מחזור ${gw.number}`;
-    // ★ הדדליין מהשרת מנצח את החישוב המקומי. השרת הוא זה שאוכף
-    //   אותו, ושני מספרים שונים במסך ובאכיפה הם משתמש שלוחץ
-    //   "הגש" ומקבל דחייה בלי להבין למה.
-    if (gw.lockAt) GAMEWEEK_DEADLINE = gw.lockAt;
-    FIRST_KICKOFF = gw.firstKickoffAt || GAMEWEEK_DEADLINE;
-  } else {
+  /* ★ אין מחזור בתשובה — נגזור את הדדליין מהלוח עצמו.
+     כשיש מחזור, הערך שלו כבר נקבע למעלה והוא מנצח: השרת הוא זה
+     שאוכף את הנעילה, ושני מספרים שונים במסך ובאכיפה הם משתמש
+     שלוחץ "הגש" ומקבל דחייה בלי להבין למה. */
+  if (!gw) {
     GAMEWEEK_DEADLINE = FIXTURES.map((f) => f.kickoff).sort()[0] ?? GAMEWEEK_DEADLINE;
     FIRST_KICKOFF = GAMEWEEK_DEADLINE;
   }

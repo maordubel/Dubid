@@ -25,9 +25,10 @@
  * הפס העליון מציג את מה שאנחנו באמת יודעים: מי המשתמש, וכמה
  * אנשים במחזור.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Logo } from './Logo.tsx';
 import { AuthChip } from './AuthChip.tsx';
+import { TeamTag } from './TeamTag.tsx';
 import type { Identity } from '../lib/identity.ts';
 import { ShadesDivider } from './Shades.tsx';
 import { OffsidesBanner } from './OffsidesBanner.tsx';
@@ -119,15 +120,25 @@ export function Lobby({
   onPlay, onLeagues, onLeaderboard, onAccount, identity = null, nudge,
   promo, gameweekNumber = gameweek.number, onDismissPromo, onOpenPromo,
 }: LobbyProps) {
-  // הספירה מתקתקת מקומית בין סנכרונים. `nowMs` הוא נקודת האמת,
-  // וה-tick רק מזיז אותה קדימה כדי שהמסך לא ירגיש קפוא.
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const now = nowMs + tick * 1000;
+  /**
+   * ★★ הזמן מגיע מבחוץ, נקודה. ★★
+   *
+   * כאן ישב מונה פנימי: `now = nowMs + tick * 1000`. הוא היה
+   * נכון בדיוק כל עוד `nowMs` לא זז — אבל `nowMs` היה
+   * `serverNow()` שנקרא בכל רינדור של האפליקציה. אחרי עשרים
+   * דקות בלובי, `tick` הגיע ל-1200; ואז מישהו אחר הגיש, הגיע
+   * אירוע זמן אמת, האפליקציה רינדרה מחדש, ו-`nowMs` קפץ קדימה
+   * ב-1200 שניות — **על גבי** `tick` שכבר ספר אותן.
+   *
+   * התוצאה: השעון קפץ עשרים דקות קדימה, הגיע ל-00:00, וכרטיסי
+   * המשחק הכריזו "נעול" בזמן שהשרת עדיין קיבל הגשות. שקר, ולא
+   * חסימה — וזה גרוע יותר.
+   *
+   * עכשיו `MainApp` מחזיק את הפעימה היחידה (שנייה אחת בדיוק),
+   * והמסך הזה רק קורא. שני מונים שמתקדמים לאותו כיוון הם באג
+   * שמחכה לרינדור.
+   */
+  const now = nowMs;
   const remaining = msUntilDeadline(gameweek, now);
   const open = isSubmissionOpen(gameweek, now);
   // פחות משעה = דחוף. הצבע משתנה, לא רק המספר.
@@ -256,8 +267,13 @@ export function Lobby({
                   <span dir="ltr" className="num text-[11px] text-chalk-2">{f.timeLabel}</span>
                 </span>
                 <TeamCrest teamId={f.homeTeamId} short={f.homeShort} size={22} />
-                <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-chalk">
-                  {f.homeShort} <span className="text-chalk-dim">מול</span> {f.awayShort}
+                {/* ★ תגים בצבעי המועדונים במקום טקסט אחיד.
+                    "מ.תא מול מ.חיפה" בצבע אחד דורש קריאה; שני
+                    תגים צבועים נקראים במבט. */}
+                <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
+                  <TeamTag teamId={f.homeTeamId} short={f.homeShort} size="xs" />
+                  <span className="shrink-0 text-[10px] text-chalk-dim">מול</span>
+                  <TeamTag teamId={f.awayTeamId} short={f.awayShort} size="xs" />
                 </span>
                 <TeamCrest teamId={f.awayTeamId} short={f.awayShort} size={22} />
               </li>

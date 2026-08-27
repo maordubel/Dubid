@@ -7,7 +7,7 @@
  * שיתחבר API כדורגל. שני החלקים חיים עכשיו באותו קוד, אותו מנוע ניקוד,
  * אותה שפת עיצוב — לא שתי אפליקציות מודבקות זו לזו.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ensureIdentity, storedDisplayName, setDisplayName, subscribeToIdentity,
   type Identity } from './lib/identity.ts';
 
@@ -44,8 +44,11 @@ import {
   FIXTURES, kickoffTimeLabel,
 } from './data/fixtures.ts';
 import { resolveRules, DUBID_5X5, DUBID_5X5_BUDGET } from './lib/scoring/rules.ts';
-import { scoreLineup, rankGameweek } from './lib/scoring/engine.ts';
+import { scoreLineup } from './lib/scoring/engine.ts';
 import { buildLeaderboard } from './lib/leaderboard.ts';
+import {
+  scoringRows, captainRows, differentialRows, tiebreakSteps,
+} from './lib/rulesExplain.ts';
 import { checkLeagueCapacity, formatIssue } from './lib/scoring/validate.ts';
 import { useLineup } from './state/useLineup.ts';
 import { myLeagues } from './lib/leagueStore.ts';
@@ -196,21 +199,20 @@ function MainApp() {
   const [booted, setBooted] = useState(false);
   const [splashGone, setSplashGone] = useState(false);
 
+  /**
+   * ★ העלייה: זהות → דאטת כדורגל. **בלי** ההגשות.
+   *
+   * ההגשות והערוץ שלהן שייכים למחזור מסוים, ולכן הם חיים בבלוק
+   * שלמטה שמפתחו הוא המחזור עצמו. פיצול כזה נראה מיותר עד הפעם
+   * הראשונה שהאדמין מחליף מחזור — ואז הוא מה שמונע שני ערוצים
+   * חיים במקביל.
+   */
   useEffect(() => {
-    const stops: Array<() => void> = [];
     void (async () => {
       await ensureIdentity();
-      /* ★ המחזור, הסגלים והלוח — **לפני** ההגשות, ובלי פרמטר.
-         `hydrateLiveData` שואלת את השרת איזה מחזור פעיל ומעדכנת
-         את `GAMEWEEK` במקום. עד הסבב הזה הקוד הכריז 'gw-2' בעצמו,
-         ולכן מחזור 3 היה דורש פריסה. */
       await hydrateLiveData();
-      await hydrate(gwCode());
       setBooted(true);
-      stops.push(startRealtime(gwCode()));
-      stops.push(startLiveDataRealtime());
     })();
-    return () => { for (const s of stops) s(); };
   }, []);
 
   /* דאטת הכדורגל השתנתה (האדמין ערך משהו) → רינדור מחדש. */
@@ -220,22 +222,61 @@ function MainApp() {
   useEffect(() => subscribeToContent(() => setLiveVersion((n) => n + 1)), []);
 
   /**
-   * ★ האדמין החליף את המחזור הפעיל — והמסך צריך לעבור איתו.
+   * ★ ערוץ הדאטה — עצמאי מהמחזור, ולכן נרשם פעם אחת.
+   *   הוא זה שמגלה **שהמחזור התחלף**, ולכן הוא לא יכול להיות
+   *   מפתוח לפי המחזור הנוכחי.
+   */
+  useEffect(() => startLiveDataRealtime(), []);
+
+  /**
+   * ★★ המחזור הפעיל — טעינה **וערוץ**, במקום אחד ★★
    *
-   * `hydrateLiveData` כבר עדכנה את `GAMEWEEK`, אבל ההגשות
-   * והתוצאות נמשכות ממודול אחר (`store`) שעדיין מחזיק את הקוד
-   * הישן. בלי הבלוק הזה, המשתמש היה רואה את הלוח של מחזור 3
-   * ואת ההגשות של מחזור 2 — באותו מסך.
+   * זה היה באג חמור: העלייה פתחה `startRealtime('gw-2')` ושמרה
+   * את הסגירה שלו במערך שנוקה רק בפירוק הקומפוננטה. כשהאדמין
+   * החליף למחזור 3, בלוק שני פתח ערוץ **נוסף** — והישן נשאר חי.
+   * מאותו רגע, כל הגשה של משתמש אחר הפעילה את שני המאזינים:
+   * `hydrate('gw-2')` ו-`hydrate('gw-3')`. מי שסיים אחרון קבע
+   * את התמונה, והמסך היה קופץ בין שני מחזורים באקראי.
+   *
+   * עכשיו: **מפתח אחד** (`activeCode`), ולכן React מפרק את הערוץ
+   * הישן לפני שהוא בונה את החדש. אי אפשר לקבל שניים.
+   *
+   * ★ `cancelled` נבדק **לפני** ההרשמה ולא רק בניקוי: אם המחזור
+   *   התחלף שוב בזמן שהטעינה באוויר, `stop` היה נכתב אחרי
+   *   שהניקוי כבר רץ — ואז הערוץ הזה לא היה נסגר לעולם.
    */
   const activeCode = currentGameweekCode() || GAMEWEEK.id;
-  const seenCode = useRef(activeCode);
   useEffect(() => {
-    if (seenCode.current === activeCode) return;
-    seenCode.current = activeCode;
+    if (!booted || !activeCode) return;
+    let cancelled = false;
     let stop: (() => void) | undefined;
-    void hydrate(activeCode, true).then(() => { stop = startRealtime(activeCode); });
-    return () => stop?.();
-  }, [activeCode]);
+
+    void hydrate(activeCode, true).then(() => {
+      if (cancelled) return;
+      stop = startRealtime(activeCode);
+    });
+
+    return () => { cancelled = true; stop?.(); };
+  }, [booted, activeCode]);
+
+  /**
+   * ★ השעון — נקודה אחת, פעימה אחת בשנייה.
+   *
+   * קודם `serverNow()` נקרא ישירות ב-JSX, כלומר **בכל רינדור**.
+   * הלובי הוסיף לזה מונה פנימי משלו שגם הוא התקדם — ולכן אחרי
+   * רינדור מחדש (למשל כשמישהו אחר הגיש והגיע אירוע זמן אמת)
+   * הזמן נספר פעמיים: השעון קפץ קדימה, הגיע ל-00:00, והמסך
+   * הכריז "נעול" בזמן שהשרת עדיין קיבל הגשות.
+   *
+   * עכשיו הערך משתנה פעם בשנייה בדיוק, והוא מוזרק פנימה כמות
+   * שהוא. אין מונה שני שאפשר לו להתקדם בנפרד.
+   */
+  const [clockTick, setClockTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setClockTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const nowMs = useMemo(() => serverNow(), [clockTick]);
 
   /* ★ `liveVersion` בכל תלות שנגזרת מהסגל או מהלוח.
      בלעדיו: האדמין מוסיף שחקן, המערך מתעדכן, ו-`useMemo` עם
@@ -344,12 +385,6 @@ function MainApp() {
   const results = getResults(gwCode());
 
   /**
-   * ★ מחזור הדגמה עד שהמסד מחובר.
-   *   הדדליין נגזר מ-`GAMEWEEK` הקיים; אין כאן מקור אמת שני.
-   *   ברגע שהמחזורים מגיעים מ-Supabase, השורה הזו מתחלפת בשאילתה
-   *   והלובי לא משתנה בכלל — הוא כבר מקבל `Gameweek` מלא.
-   */
-  /**
    * ★ הדדליין מגיע מהשרת, לא מהמכשיר.
    *
    * `getGameweekState()` היא `game.gameweek_state('gw-2')` —
@@ -377,13 +412,18 @@ function MainApp() {
       label: GAMEWEEK.label,
       status: results.published
         ? GameweekStatus.Published
-        : !serverLocked && Date.parse(deadlineAt) > serverNow()
+        /* ★ `nowMs` ולא `serverNow()`.
+           קודם הזמן נקרא בתוך `useMemo` שלא היה תלוי בו — ולכן
+           ברגע שהסטטוס חושב פעם אחת כ"פתוח", הוא נשאר פתוח
+           לנצח: המשתמש היה יושב מעבר לדדליין ורואה מחזור שמקבל
+           הגשות. עכשיו הפעימה השנייתית היא תלות אמיתית. */
+        : !serverLocked && Date.parse(deadlineAt) > nowMs
           ? GameweekStatus.Open
           : GameweekStatus.Locked,
       deadlineAt,
       firstKickoffAt: gwState?.firstKickoffAt ?? FIRST_KICKOFF,
     };
-  }, [results.published, gwState, liveVersion]);
+  }, [results.published, gwState, liveVersion, nowMs]);
 
   // ★ מספר המשתתפים מגיע מהשרת (`gameweek_state.entrants`) ולא
   //   מאורך הרשימה: לפני הנעילה `entries` מחזירה רק את ההגשה של
@@ -421,8 +461,7 @@ function MainApp() {
     // הרגע שקובע הוא השריקה הראשונה, לא הדדליין. הם לא זהים:
     // הדדליין הוא פתיחת המשחק המוקדם ביותר, וזה בדיוק הרגע שבו
     // אופסיידס הופך לרלוונטי.
-    msToKickoff: Date.parse(lobbyGameweek.firstKickoffAt ?? lobbyGameweek.deadlineAt)
-                 - serverNow(),
+    msToKickoff: Date.parse(lobbyGameweek.firstKickoffAt ?? lobbyGameweek.deadlineAt) - nowMs,
     entrants: entrantCount,
   }), [lobbyGameweek.status, lobbyGameweek.firstKickoffAt,
        entryFull, entryFive, results.published, entrantCount]);
@@ -538,6 +577,7 @@ function MainApp() {
         return {
           name: p?.nameShort ?? sl.playerId,
           teamShort: TEAM_BY_ID.get(sl.teamId)?.short ?? '',
+          teamId: sl.teamId,
           position: sl.position,
           shirt: PLAYERS.find((x) => x.id === sl.playerId)?.shirt ?? null,
           isCaptain: !!sl.isCaptain,
@@ -551,6 +591,9 @@ function MainApp() {
         : filled.reduce((sum, sl) => sum + (priceById.get(sl.playerId) ?? 0), 0),
       deadlineLabel: deadlineLabel(lobbyGameweek.deadlineAt),
       entrants: entrantCount || undefined,
+      /* ★ המכפיל מגיע מהחוקים החיים של המצב, כולל מה שהאדמין
+         שינה — ולא מהמספר 3 שהיה כתוב ביד בתוך המחולל. */
+      captainMultiplier: rulesByMode[saved.mode].captain.multiplier,
       url: SITE_URL,
       urlLabel: 'DUBID.DUBELTEAM.COM',
       ctaLine: contentText('share.cta'),
@@ -579,7 +622,7 @@ function MainApp() {
     home: (
       <Lobby
         gameweek={lobbyGameweek}
-        nowMs={serverNow()}
+        nowMs={nowMs}
         modes={lobbyModes}
         displayName={displayName}
         entrants={entrantCount}
@@ -653,6 +696,14 @@ function MainApp() {
             {mode === 'full' && resolved.isDemo && capacityIssue && (
               <DemoBanner message={formatIssue(capacityIssue, 'he')} size={fullRules.constraints.lineupSize} />
             )}
+
+            {/* ★★ אסור לערוך לפני שהטיוטה חזרה. ★★
+                המסך היה מרנדר הרכב ריק ומאפשר לבחור בו — וכשהטיוטה
+                מהשרת הגיעה שנייה אחר כך, היא דרסה את הבחירה בשקט.
+                המשתמש ראה את השחקן שבחר נעלם, בלי הסבר. */}
+            {!lu.hydrated && <LineupLoading failed={lu.loadFailed} />}
+
+            <div className={lu.hydrated ? 'contents' : 'pointer-events-none opacity-40'}>
             <SquadPicker
               key={mode}
               lineup={lu.lineup}
@@ -672,6 +723,7 @@ function MainApp() {
               pricing={mode === 'five'}
               budget={mode === 'five' ? DUBID_5X5_BUDGET : undefined}
             />
+            </div>
           </div>
         )}
         {showSaveModal && (
@@ -715,7 +767,7 @@ function MainApp() {
       />
     ),
     leaderboard: <Leaderboard rulesByMode={rulesByMode} userId={userId} />,
-    rules: <RulesScreen />,
+    rules: <RulesScreen rulesByMode={rulesByMode} />,
   };
 
   return (
@@ -1013,27 +1065,43 @@ function CardScreen({
     const { performances, outcomes } = hasRealResults
       ? { performances: results.performances, outcomes: results.outcomes }
       : demoGameweek(lineup);
-    const score = scoreLineup(lineup, performances, outcomes, rules, { validate: false });
 
     const teamById = new Map(teams.map((t) => [t.id, t]));
     const poolById = new Map(pool.map((p) => [p.id, p]));
 
-    let rank = 0;
-    let totalPlayers = 0;
-    if (hasRealResults && entry) {
-      const others = listEntries(gwCode(), entry.mode);
-      const pairs = others.flatMap((e) => {
-        try {
-          return [{ id: e.id, score: scoreLineup(e.lineup, results.performances, results.outcomes, rules, { validate: false }) }];
-        } catch {
-          return [];
-        }
-      });
-      const idByScore = new Map(pairs.map((p) => [p.score, p.id]));
-      const ranked = rankGameweek(pairs.map((p) => p.score));
-      totalPlayers = ranked.length;
-      const mine = ranked.find((r) => idByScore.get(r.score) === entry.id);
-      rank = mine?.rank ?? 0;
+    /* ★ הכרטיס עובר באותו צינור כמו הטבלה — `buildLeaderboard`.
+       קודם הוא קרא ל-`scoreLineup` ישירות, כלומר **בלי בונוס
+       הנדירות ובלי שוברי השוויון**. התוצאה: מספר על התמונה
+       ששותפה ומספר אחר בטבלה, על אותו מחזור. מתוך שני מספרים
+       שסותרים זה את זה, זה שהמשתמש מאמין לו הוא זה שהוא שלח
+       לחברים — ואז כל הטבלה נראית שבורה.
+
+       שים לב שזה **לא** ייקור: כשיש תוצאות אמת הצינור ממילא רץ
+       בלובי, וכשמדובר בהדגמה יש הגשה אחת ובונוס הנדירות כבוי
+       ממילא (`minEntriesForStats`). */
+    const pool2 = hasRealResults && entry
+      ? listEntries(gwCode(), entry.mode)
+      : entry
+        ? [entry]
+        : [];
+
+    const rows = pool2.length
+      ? buildLeaderboard({
+        entries: pool2, performances, outcomes, rules, userId: entry?.userId,
+      })
+      : [];
+
+    const mine = entry ? rows.find((r) => r.entry.id === entry.id) : undefined;
+
+    /* בלי הגשה שמורה (תצוגת הדגמה של אורח) אין שורה בטבלה —
+       ואז מנקדים את ההרכב שעל המסך, בלי דירוג. */
+    let score = mine?.score;
+    if (!score) {
+      try {
+        score = scoreLineup(lineup, performances, outcomes, rules, { validate: false });
+      } catch {
+        return null;
+      }
     }
 
     return {
@@ -1041,14 +1109,15 @@ function CardScreen({
       leagueLabel: LEAGUE.nameHe,
       userName: entry?.displayName ?? 'האורח',
       totalPoints: score.totalPoints,
-      rank,
-      totalPlayers,
+      rank: hasRealResults ? (mine?.rank ?? 0) : 0,
+      totalPlayers: hasRealResults ? rows.length : 0,
       breakdown: {
         personal: score.personalPoints,
         result: score.resultPoints,
         captain: score.captainPoints,
         virtual: score.virtualPoints,
       },
+      captainMultiplier: rules.captain.multiplier,
       url: `${SITE_URL}/`,
       urlLabel: 'DUBID.DUBELTEAM.COM',
       lineup: score.players.map((p) => ({
@@ -1170,36 +1239,97 @@ function demoGameweek(lineup: ReturnType<typeof useLineup>['lineup']) {
 
 /* ================================================================== */
 
-function RulesScreen() {
-  const rows: Array<[string, string]> = [
-    ['שער — שוער / מגן', '6'],
-    ['שער — קשר', '5'],
-    ['שער — חלוץ', '4'],
-    ['בישול', '3'],
-    ['שער נקי (60 דקות ומעלה)', '4'],
-    ['כרטיס צהוב', '-1'],
-    ['כרטיס אדום', '-3'],
-    ['ניצחון של הקבוצה האמיתית', '+4'],
-    ['תיקו של הקבוצה האמיתית', '+1'],
-    ['כל 2 שערים של קבוצות ההרכב', '+5'],
-  ];
+/**
+ * ★ המסך הזה היה **שקר**, ובאופן שאף בדיקה לא יכלה לתפוס.
+ *
+ * עד עכשיו טבלת הניקוד כאן הייתה מערך קבוע שנכתב ביד. המנוע
+ * מנקד לפי `RuleSet` — כולל מה שהאדמין שינה דרך
+ * `game.scoring_overrides`. ברגע שהאדמין שינה ערך אחד, המערכת
+ * חישבה מספר אחד והמסך הבטיח מספר אחר, לנצח, בשקט.
+ *
+ * זו הפרה ישירה של הדרישה ש"הניקוד יהיה ניתן להסבר למשתמשים":
+ * הסבר שאינו נכון גרוע מהיעדר הסבר, כי משתמש שסופר לפיו ומקבל
+ * מספר אחר מסיק שהמערכת שבורה — ולא שהמסך לא עודכן.
+ *
+ * עכשיו כל שורה כאן נגזרת מאותו אובייקט שהמנוע מנקד לפיו
+ * (`lib/rulesExplain.ts`). אי אפשר לשנות חוק בלי שהמסך ישתנה
+ * איתו, כי אין כאן מה לעדכן.
+ *
+ * ★ ומה שנחשף כשגזרנו: חוקים מכובים שהוצגו כפעילים, שער עצמי
+ *   שהמנוע קורא ואיש לא הסביר, בונוס תוצאה שניתן גם למי שלא
+ *   שיחק, והסבר שגוי של הבחירה הנדירה. כולם מתוקנים כאן.
+ */
+function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
+  const [tab, setTab] = useState<Mode>('full');
+  const rules = rulesByMode[tab];
+  const t = modeTheme(tab === 'five' ? 'five' : 'full');
+
+  const scoring = useMemo(() => scoringRows(rules), [rules]);
+  const captain = useMemo(() => captainRows(rules), [rules]);
+  const differential = useMemo(() => differentialRows(), []);
+  const tiebreak = useMemo(() => tiebreakSteps(rules), [rules]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5">
-      <section className="rounded-2xl border border-gold/30 bg-gold/10 p-4">
-        <h2 className="font-display text-xl font-black text-gold">הכלל היחיד שחשוב</h2>
+      {/* ★ בורר המצב קודם לכל השאר.
+          דוביד 5 ודוביד 11 חולקים את אותה טבלת ניקוד אבל **לא**
+          את אותם אילוצים. מסך אחד שמתאר את שניהם היה מחייב
+          לכתוב "בדוביד 11..." בכל פסקה שנייה. */}
+      <div role="tablist" className="flex gap-2">
+        {(['full', 'five'] as Mode[]).map((m) => {
+          const on = tab === m;
+          const mt = modeTheme(m === 'five' ? 'five' : 'full');
+          return (
+            <button
+              key={m}
+              role="tab"
+              aria-selected={on}
+              onClick={() => setTab(m)}
+              style={on ? { borderColor: mt.accent, color: mt.accentLight } : undefined}
+              className={`tap flex-1 rounded-full border px-4 py-2 font-poster text-[13px]
+                          ${on ? 'bg-white/[.06]' : 'border-gold/20 text-chalk-dim'}`}
+            >
+              {mt.name}
+            </button>
+          );
+        })}
+      </div>
+
+      <section
+        className="mt-4 rounded-2xl border p-4"
+        style={{ borderColor: `${t.accent}4d`, background: `${t.accent}14` }}
+      >
+        <h2 className="font-display text-xl font-black" style={{ color: t.accentLight }}>
+          הכלל היחיד שחשוב
+        </h2>
         <p className="mt-1 text-sm text-chalk-2">
-          שחקן אחד מכל קבוצה. אי אפשר לקחת שניים מאותה קבוצה, גם לא ליום אחד.
+          {rules.constraints.maxPlayersPerTeam === 1
+            ? 'שחקן אחד מכל קבוצה. אי אפשר לקחת שניים מאותה קבוצה, גם לא ליום אחד.'
+            : `עד ${rules.constraints.maxPlayersPerTeam} שחקנים מאותה קבוצה.`}
+        </p>
+        <p className="mt-1.5 text-[13px] text-chalk-dim">
+          <span className="num">{rules.constraints.lineupSize}</span> שחקנים בהרכב
+          {rules.constraints.formationAllowed.length > 0 && (
+            <> · מערכים: <span className="num">{rules.constraints.formationAllowed.join(' · ')}</span></>
+          )}
+          {rules.constraints.requireCaptain && <> · חובה לבחור קפטן</>}
         </p>
       </section>
 
       <h2 className="mt-6 font-display text-lg font-black">טבלת הניקוד</h2>
       <table className="mt-2 w-full text-sm">
         <tbody>
-          {rows.map(([label, value]) => (
-            <tr key={label} className="border-b border-gold/15">
-              <td className="py-2.5 text-start">{label}</td>
-              <td className="num py-2.5 text-end text-gold">{value}</td>
+          {scoring.map((r) => (
+            <tr key={r.label} className="border-b border-gold/15 align-top">
+              <td className="py-2.5 text-start">
+                {r.label}
+                {r.note && (
+                  <span className="mt-0.5 block text-[12px] leading-snug text-chalk-dim">
+                    {r.note}
+                  </span>
+                )}
+              </td>
+              <td className="num py-2.5 text-end text-gold">{r.value}</td>
             </tr>
           ))}
         </tbody>
@@ -1207,45 +1337,27 @@ function RulesScreen() {
 
       <h2 className="mt-6 font-display text-lg font-black">הקפטן הדובידי</h2>
       <ul className="mt-2 space-y-2 text-sm text-chalk-2">
-        <li>
-          <b className="text-armband">×3</b> — הציון של הקפטן מוכפל פי שלוש,
-          כולל בונוס התוצאה של הקבוצה שלו.
-        </li>
-        <li>
-          <b className="text-armband">חסינות</b> — כרטיס צהוב של הקפטן מבוטל,
-          אם שיחק 60 דקות ומעלה והקבוצה שלו לא הפסידה. אדום לא נסלח.
-        </li>
-        <li>
-          <b className="text-armband">סגן</b> — אם הקפטן לא ירד למגרש,
-          הכפולה עוברת אוטומטית לסגן.
-        </li>
-        <li>ציון שלילי לא מוכפל. ההימור מגדיל רווח, לא הפסד.</li>
+        {captain.map((r, i) => (
+          <li key={`${r.label}-${i}`}>
+            {r.label && <b className="text-armband">{r.label}</b>}
+            {r.label && r.note && ' — '}
+            {r.note}
+          </li>
+        ))}
       </ul>
 
       {/*
-        ★ שוברי השוויון היו חסרים מהמסך הזה.
-
-        המנוע מכריע לפי היררכיה בת שמונה רמות, והדירוג אפילו
-        *אומר* מה שבר את השוויון — אבל שום מקום במוצר לא הסביר
-        מה ההיררכיה. הברִיף דורש שהניקוד יהיה "ניתן להסבר
-        למשתמשים", ומשתמש שרואה "הוכרע לפי הקפטן" בלי לדעת מה
-        זה אומר, חושב שהמערכת המציאה משהו.
+        ★ שוברי השוויון היו חסרים מהמסך הזה, ואחר כך היו **שגויים**:
+        המסך הבטיח שמונה שלבים, אבל אחד מהם ("שאר התרומה המאומתת")
+        מורכב מחוקים שמכוונים ל-0 ולכן לעולם לא יכול להכריע.
+        עכשיו הרשימה נגזרת מהחוקים, ומדלגת על שלב מת.
       */}
       <h2 className="mt-6 font-display text-lg font-black">מה קורה בשוויון</h2>
       <p className="mt-1 text-sm text-chalk-2">
         לעולם לא הגרלה. יורדים ברשימה עד שנמצא הבדל:
       </p>
       <ol className="mt-2 space-y-1.5 text-sm text-chalk-2">
-        {[
-          'ניקוד כולל',
-          'ניקוד הקפטן',
-          'תרומת הבחירות הנדירות',
-          'שערים של השחקנים שנבחרו',
-          'בישולים של השחקנים שנבחרו',
-          'שערים נקיים',
-          'שאר התרומה המאומתת',
-          'זמן ההגשה הרשמי — מי שהגיש קודם',
-        ].map((label, i) => (
+        {tiebreak.map((label, i) => (
           <li key={label} className="flex gap-2.5">
             <span className="num shrink-0 text-chalk-dim">{i + 1}.</span>
             <span>{label}</span>
@@ -1255,11 +1367,25 @@ function RulesScreen() {
 
       <h2 className="mt-6 font-display text-lg font-black">בחירה נדירה</h2>
       <p className="mt-1 text-sm text-chalk-2">
-        שחקן שמעטים בחרו ושהביא נקודות שווה יותר. הבונוס עובד רק אם
-        השחקן באמת הופיע בגיליון — בחירה נדירה שלא שיחקה לא מזכה בכלום,
-        אחרת היה משתלם לבחור שחקנים שלא במשחק. הבונוס כבוי כשיש פחות
-        מ-<span className="num">20</span> משתתפים, כי אז "נדיר" לא אומר כלום.
+        שחקן שמעטים בחרו ושהביא נקודות שווה יותר.
       </p>
+      <table className="mt-2 w-full text-sm">
+        <tbody>
+          {differential.map((r, i) => (
+            <tr key={`${r.label}-${i}`} className="border-b border-gold/15 align-top">
+              <td className="py-2.5 text-start">
+                {r.label}
+                {r.note && (
+                  <span className="mt-0.5 block text-[12px] leading-snug text-chalk-dim">
+                    {r.note}
+                  </span>
+                )}
+              </td>
+              <td className="num py-2.5 text-end text-gold">{r.value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       <ShadesDivider className="my-7 px-8" />
 
@@ -1298,4 +1424,47 @@ function deadlineLabel(iso: string): string {
   } catch {
     return '';
   }
+}
+
+/**
+ * ★ המסך שמונע דריסה של טיוטה.
+ *
+ * שני מצבים, ושונים לגמרי במה שהם אומרים למשתמש:
+ *
+ *   טוען   — "רגע, מביא את מה שבנית". קצר, ולרוב לא נראה בכלל.
+ *   נכשל   — "לא הצלחתי לקרוא". כאן חשוב **לא** לתת לערוך:
+ *            עריכה על הרכב ריק שנראה כמו התחלה נקייה הייתה
+ *            נשמרת ודורסת אחת־עשרה בחירות שנבנו במכשיר אחר.
+ */
+function LineupLoading({ failed }: { failed: boolean }) {
+  return (
+    <div
+      role="status"
+      className="absolute inset-0 z-10 grid place-items-center bg-night/75 backdrop-blur-[2px]"
+    >
+      <div className="mx-6 max-w-xs rounded-2xl border border-gold/20 bg-night-2 px-5 py-4
+                      text-center edge-gold">
+        {failed ? (
+          <>
+            <p className="text-[13.5px] font-black text-flare">לא הצלחנו לטעון את ההרכב</p>
+            <p className="mt-1.5 text-[12px] leading-snug text-chalk-2">
+              כדי לא לדרוס את מה שכבר בנית, העריכה חסומה עד שהחיבור חוזר.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="tap mt-3 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
+                         py-2 font-poster text-[13px] text-gold-ink"
+            >
+              ניסיון נוסף
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="mx-auto h-1 w-12 animate-pulse rounded-full bg-gold/60" />
+            <p className="mt-2.5 text-[12.5px] text-chalk-2">טוען את ההרכב שלך…</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }

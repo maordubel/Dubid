@@ -20,6 +20,7 @@ import {
 } from '../lib/store.ts';
 import {
   hydrateLiveData, subscribeToLiveData, liveDataVersion, liveDataStatus,
+  currentGameweekCode,
 } from '../lib/liveData.ts';
 import type { PlayerPerformance, Position, TeamOutcome } from '../lib/scoring/types.ts';
 import { AdminSquads } from './AdminSquads.tsx';
@@ -103,10 +104,22 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
      שממנו ערכו אותה — בדיוק התסמין שהמיגרציה באה לתקן. */
   useEffect(() => subscribeToLiveData(() => forceTick(liveDataVersion)), []);
 
+  /**
+   * ★★ הדאטה החיה **קודם**, ורק אחריה ההגשות. ★★
+   *
+   * קודם שתי הקריאות יצאו יחד, ולכן `GAMEWEEK.id` עדיין החזיק
+   * את הזרע `'gw-2'` בזמן ש-`hydrate` נקראה. בטעינה ישירה של
+   * `/admin` כשהמחזור הפעיל הוא gw-3, התוצאה הייתה לוח שמציג
+   * את המצב של gw-2 — ושהכפתורים שלו פועלים על gw-3. האדמין
+   * קרא מחזור אחד ופעל על אחר.
+   */
   useEffect(() => {
     if (gate !== 'ready') return;
-    void hydrate(GAMEWEEK.id, true);
-    void hydrateLiveData(true);
+    let alive = true;
+    void hydrateLiveData(true).then(() => {
+      if (alive) void hydrate(currentGameweekCode() || GAMEWEEK.id, true);
+    });
+    return () => { alive = false; };
   }, [gate]);
 
   /* ★ בזמן הבדיקה לא מציגים כלום.

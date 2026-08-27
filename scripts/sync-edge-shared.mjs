@@ -32,8 +32,19 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /** כל פונקציה שצריכה את הקוד המשותף. */
 const FUNCTIONS = ['dubid-score-gameweek'];
 
-/** מה מועתק. נתיבים יחסיים ל-src/lib. */
+/** תיקיות שמועתקות במלואן. נתיבים יחסיים ל-src/lib. */
 const SHARED = ['scoring', 'events'];
+
+/**
+ * קבצים בודדים שמועתקים.
+ *
+ * ★ `ruleOverrides.ts` הוא כאן כי בלעדיו היו **שני מקורות חוקים**:
+ *   הקליינט קרא ל-`game.scoring_rules()` והחיל override-ים,
+ *   והפונקציה קראה טבלה אחרת לגמרי (`scoring_rulesets`). כלומר
+ *   האדמין היה משנה את הבישול ל-4, המסך היה מראה 4, והניקוד
+ *   הרשמי היה נשאר 3 — לנצח, בשקט.
+ */
+const SHARED_FILES = ['ruleOverrides.ts'];
 
 const BANNER = `/**
  * ⚠ נוצר אוטומטית — אל תערכו כאן.
@@ -66,6 +77,9 @@ for (const fn of FUNCTIONS) {
 
   for (const dir of SHARED) {
     cpSync(join(ROOT, 'src/lib', dir), join(dest, dir), { recursive: true });
+  }
+  for (const file of SHARED_FILES) {
+    cpSync(join(ROOT, 'src/lib', file), join(dest, file));
   }
   console.log(`✓ ${relative(ROOT, dest)}  (${stamp(dest)} קבצים)`);
 }

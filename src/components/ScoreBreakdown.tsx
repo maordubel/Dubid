@@ -17,6 +17,7 @@ import { GROUP_ORDER, GROUP_LABELS, labelFor, lineText, type ReasonGroup }
   from '../lib/scoring/labels.ts';
 import type { LineupScore, ScoreLine } from '../lib/scoring/types.ts';
 import { TEAM_BY_ID } from '../data/squads.ts';
+import { TeamTag } from './TeamTag.tsx';
 
 /** מספר מנוקד עם סימן — ‎+12‎ / ‎-2‎. אף פעם לא "12-" ב-RTL. */
 export function Signed({ value, muted = false }: { value: number; muted?: boolean }) {
@@ -105,16 +106,24 @@ export function ScoreBreakdown({
             .sort((a, b) => b.subtotal - a.subtotal)
             .map((p) => (
               <li key={p.playerId} className="px-4 py-3">
-                <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                  <span className="min-w-0 truncate text-sm font-bold text-chalk">
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 flex-1 items-center gap-1.5">
                     {p.isCaptain && (
-                      <span className="me-1.5 inline-block rounded bg-armband px-1
-                                       text-[10px] font-black text-night">C</span>
+                      <span className="shrink-0 rounded bg-armband px-1
+                                       text-[10px] font-black leading-[16px] text-night">C</span>
                     )}
-                    {playerName?.(p.playerId) ?? p.playerId}
-                    <span className="ms-1.5 text-[11px] font-normal text-chalk-dim">
-                      {TEAM_BY_ID.get(p.teamId)?.short ?? ''}
-                    </span>
+                    <bdi className="min-w-0 truncate text-sm font-bold text-chalk">
+                      {playerName?.(p.playerId) ?? p.playerId}
+                    </bdi>
+                    {/* ★ תג בצבע המועדון במקום טקסט אפור.
+                        בפירוט של אחת־עשרה שורות, הצבע הוא מה
+                        שמאפשר לסרוק ולמצוא שחקן בלי לקרוא. */}
+                    <TeamTag
+                      teamId={p.teamId}
+                      short={TEAM_BY_ID.get(p.teamId)?.short}
+                      name={TEAM_BY_ID.get(p.teamId)?.nameHe}
+                      size="xs"
+                    />
                   </span>
                   <span className="num shrink-0 text-sm font-black text-chalk" dir="ltr">
                     {p.subtotal}

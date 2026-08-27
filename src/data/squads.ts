@@ -56,7 +56,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "1",
     "nameHe": "הפועל באר שבע",
     "nameEn": "Hapoel Beer Sheva",
-    "short": "הב״ש",
+    "short": "ה.בש",
     "city": "באר שבע",
     "stadium": null
   },
@@ -65,7 +65,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "2",
     "nameHe": "הפועל ירושלים",
     "nameEn": "Hapoel Jerusalem",
-    "short": "הי״ם",
+    "short": "ה.ים",
     "city": "ירושלים",
     "stadium": null
   },
@@ -74,7 +74,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "3",
     "nameHe": "מכבי תל אביב",
     "nameEn": "Maccabi Tel Aviv",
-    "short": "מת״א",
+    "short": "מ.תא",
     "city": "תל אביב",
     "stadium": null
   },
@@ -83,7 +83,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "4",
     "nameHe": "מכבי חיפה",
     "nameEn": "Maccabi Haifa",
-    "short": "מ״ח",
+    "short": "מ.חיפה",
     "city": "חיפה",
     "stadium": "סמי עופר"
   },
@@ -92,7 +92,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "5",
     "nameHe": "בית\"ר ירושלים",
     "nameEn": "Beitar Jerusalem",
-    "short": "בי״ר",
+    "short": "ב.ים",
     "city": "ירושלים",
     "stadium": null
   },
@@ -101,7 +101,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "6",
     "nameHe": "הפועל תל אביב",
     "nameEn": "Hapoel Tel Aviv",
-    "short": "הת״א",
+    "short": "ה.תא",
     "city": "תל אביב",
     "stadium": null
   },
@@ -110,7 +110,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "7",
     "nameHe": "מכבי נתניה",
     "nameEn": "Maccabi Netanya",
-    "short": "מ״נ",
+    "short": "מ.נתניה",
     "city": "נתניה",
     "stadium": null
   },
@@ -119,7 +119,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "8",
     "nameHe": "בני סכנין",
     "nameEn": "Bnei Sakhnin",
-    "short": "ב״ס",
+    "short": "ב.סכנין",
     "city": "סכנין",
     "stadium": null
   },
@@ -128,7 +128,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "9",
     "nameHe": "הפועל חיפה",
     "nameEn": "Hapoel Haifa",
-    "short": "הפ״ח",
+    "short": "ה.חיפה",
     "city": "חיפה",
     "stadium": null
   },
@@ -137,7 +137,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "10",
     "nameHe": "עירוני קרית שמונה",
     "nameEn": "Ironi Kiryat Shmona",
-    "short": "עק״ש",
+    "short": "ע.קש",
     "city": "קרית שמונה",
     "stadium": null
   },
@@ -146,7 +146,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "11",
     "nameHe": "עירוני טבריה",
     "nameEn": "Ironi Tiberias",
-    "short": "עי״ט",
+    "short": "ע.טבריה",
     "city": "טבריה",
     "stadium": null
   },
@@ -155,7 +155,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "12",
     "nameHe": "מכבי פתח תקווה",
     "nameEn": "Maccabi Petah Tikva",
-    "short": "מפ״ת",
+    "short": "מ.פת",
     "city": "פתח תקווה",
     "stadium": null
   },
@@ -164,7 +164,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "13",
     "nameHe": "הפועל רמת גן",
     "nameEn": "Hapoel Ramat Gan",
-    "short": "הר״ג",
+    "short": "ה.רג",
     "city": "רמת גן",
     "stadium": null
   },
@@ -173,7 +173,7 @@ export const TEAMS: TeamRow[] = [
     "externalId": "14",
     "nameHe": "הפועל פתח תקווה",
     "nameEn": "Hapoel Petah Tikva",
-    "short": "הפ״ת",
+    "short": "ה.פת",
     "city": "פתח תקווה",
     "stadium": null
   }

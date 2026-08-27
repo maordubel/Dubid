@@ -31,12 +31,12 @@ import {
   type GameweekRow, type ImportReport, type ContentRow,
   type Analytics, type DataIssue, type AuditRow,
 } from '../lib/store.ts';
-import { ruleOverrides, currentGameweekCode } from '../lib/liveData.ts';
+import { ruleOverrides, currentGameweekCode, liveDataVersion } from '../lib/liveData.ts';
 import { RULE_KEYS, readRule } from '../lib/ruleOverrides.ts';
 import { CONTENT_KEYS } from '../lib/content.ts';
 import { resolveRules, DUBID_5X5 } from '../lib/scoring/rules.ts';
 import { TEAMS } from '../data/squads.ts';
-import { GAMEWEEK } from '../data/fixtures.ts';
+import { GAMEWEEK, leagueLocalToIso } from '../data/fixtures.ts';
 
 /* ================================================================== */
 /* עזרים משותפים                                                       */
@@ -53,6 +53,17 @@ function useAction() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [bad, setBad] = useState(false);
+  /**
+   * ★ מונה, ולא ההודעה, הוא מה שמפעיל רענון.
+   *
+   * הרשימות למטה האזינו ל-`[act.msg, act.bad]`. פעולה שחוזרת
+   * על עצמה מייצרת את **אותה מחרוזת**, React מדלג על עדכון
+   * המצב, ה-effect לא רץ, והרשימה לא נטענת מחדש — כלומר
+   * שמירה שנייה של אותו ערך השאירה את התג "טיוטה/מוצג" ישן.
+   *
+   * מונה שעולה תמיד לא יכול להיתקע ככה.
+   */
+  const [done, setDone] = useState(0);
 
   const run = (fn: () => Promise<string | void>) => {
     setBusy(true);
@@ -64,10 +75,10 @@ function useAction() {
         setMsg(errorMessageHe(e instanceof Error ? e.message : 'NETWORK'));
         setBad(true);
       })
-      .finally(() => setBusy(false));
+      .finally(() => { setBusy(false); setDone((n) => n + 1); });
   };
 
-  return { busy, msg, bad, run, clear: () => setMsg(null) };
+  return { busy, msg, bad, done, run, clear: () => setMsg(null) };
 }
 
 function Note({ msg, bad }: { msg: string | null; bad: boolean }) {
@@ -123,7 +134,7 @@ export function AdminGameweeks() {
         setErr(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')));
   };
   useEffect(load, []);
-  useEffect(() => { if (act.msg && !act.bad) load(); }, [act.msg, act.bad]);
+  useEffect(() => { if (act.done && !act.bad) load(); }, [act.done, act.bad]);
 
   const next = useMemo(
     () => (rows?.length ? Math.max(...rows.map((r) => r.number)) + 1 : 1), [rows]);
@@ -254,6 +265,171 @@ function NewGameweek({ next, act }: { next: number; act: ReturnType<typeof useAc
 
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+
+export interface DraftFixture { home: string; away: string; kickoff: string }
+
+/**
+ * ★ למה בורר ולא רק הדבקה.
+ *
+ * `"home":"3"` הוא מזהה חיצוני. מי שמקליד אותו ביד צריך לזכור
+ * ש-3 היא מכבי תל אביב — וטעות של ספרה אחת יוצרת מחזור שבו
+ * הקבוצה הלא נכונה משחקת, בלי שום שגיאה: המבנה תקין.
+ *
+ * הבורר הופך את זה לבלתי אפשרי. הוא גם אוכף שני כללים שהמסד
+ * לא יכול לאכוף לבדו:
+ *
+ *   1. קבוצה לא משחקת נגד עצמה.
+ *   2. קבוצה מופיעה **פעם אחת** במחזור. זו לא קפריזה: חוק
+ *      הליבה של המשחק הוא שחקן אחד מכל קבוצה, ולכן קבוצה
+ *      שמופיעה פעמיים במחזור שוברת את ההיגיון של הבחירה.
+ *
+ * ההדבקה נשארת, בלי שינוי, בלשונית שנייה — היא הנתיב של ה-API.
+ */
+function FixturePicker({
+  list, onChange, disabled,
+}: {
+  list: DraftFixture[];
+  onChange: (next: DraftFixture[]) => void;
+  disabled: boolean;
+}) {
+  const [home, setHome] = useState('');
+  const [away, setAway] = useState('');
+  const [when, setWhen] = useState('');
+
+  const used = useMemo(() => {
+    const set = new Set<string>();
+    for (const f of list) { set.add(f.home); set.add(f.away); }
+    return set;
+  }, [list]);
+
+  const nameOf = (ext: string) =>
+    TEAMS.find((t) => t.externalId === ext)?.nameHe ?? ext;
+
+  const problem =
+    !home || !away ? 'בחר שתי קבוצות'
+      : home === away ? 'קבוצה לא משחקת נגד עצמה'
+        : used.has(home) ? `${nameOf(home)} כבר משחקת במחזור`
+          : used.has(away) ? `${nameOf(away)} כבר משחקת במחזור`
+            : !when ? 'בחר תאריך ושעת פתיחה'
+              : '';
+
+  const add = () => {
+    if (problem) return;
+    onChange([...list, { home, away, kickoff: leagueLocalToIso(when) }]);
+    setHome(''); setAway('');
+    /* ★ השעה **לא** מתאפסת: רוב המשחקים במחזור באותו יום,
+       ולעיתים קרובות באותה שעה. איפוס היה מכריח לבחור תאריך
+       מחדש שבע פעמים ברצף. */
+  };
+
+  const teamOptions = (exclude: string) => TEAMS.map((t) => (
+    <option
+      key={t.id}
+      value={t.externalId}
+      disabled={t.externalId === exclude || used.has(t.externalId)}
+    >
+      {t.nameHe} ({t.short}){used.has(t.externalId) ? ' — כבר במחזור' : ''}
+    </option>
+  ));
+
+  return (
+    <div>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-[11px] text-chalk-dim">
+          מארחת
+          <select
+            value={home}
+            disabled={disabled}
+            onChange={(e) => setHome(e.target.value)}
+            className={`mt-1 ${input}`}
+          >
+            <option value="">— בחר —</option>
+            {teamOptions(away)}
+          </select>
+        </label>
+
+        <label className="text-[11px] text-chalk-dim">
+          אורחת
+          <select
+            value={away}
+            disabled={disabled}
+            onChange={(e) => setAway(e.target.value)}
+            className={`mt-1 ${input}`}
+          >
+            <option value="">— בחר —</option>
+            {teamOptions(home)}
+          </select>
+        </label>
+      </div>
+
+      <label className="mt-2 block text-[11px] text-chalk-dim">
+        פתיחה (שעון ישראל)
+        <input
+          type="datetime-local"
+          value={when}
+          disabled={disabled}
+          onChange={(e) => setWhen(e.target.value)}
+          className={`num mt-1 ${input}`}
+        />
+      </label>
+
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          disabled={disabled || !!problem}
+          onClick={add}
+          className={`${primary} py-2`}
+        >
+          הוספת משחק
+        </button>
+        {problem && <span className="text-[11px] text-chalk-dim">{problem}</span>}
+      </div>
+
+      {list.length > 0 && (
+        <ul className="mt-3 space-y-1.5">
+          {list.map((f, i) => (
+            <li
+              key={`${f.home}-${f.away}-${i}`}
+              className="flex items-center gap-2 rounded-xl border border-gold/15 px-2.5 py-1.5"
+            >
+              <span className="num shrink-0 text-[11px] text-chalk-dim">{i + 1}.</span>
+              <span className="flex-1 text-[12.5px]">
+                {nameOf(f.home)} <span className="text-chalk-dim">—</span> {nameOf(f.away)}
+              </span>
+              <span className="num text-[11px] text-chalk-dim">{fmt(f.kickoff)}</span>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange(list.filter((_, j) => j !== i))}
+                className="tap text-[11px] text-flare"
+                aria-label="הסרה"
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* ★ כיסוי, לא רק ספירה.
+          "6 משחקים" נראה תקין; "12 מתוך 14 קבוצות" מגלה שנשכחו
+          שתיים — וזו בדיוק הטעות שמגיעה למחזור חי. */}
+      <p className="mt-2 text-[11px] text-chalk-dim">
+        <span className="num">{list.length}</span> משחקים ·{' '}
+        <span className="num">{used.size}</span> מתוך{' '}
+        <span className="num">{TEAMS.length}</span> קבוצות
+        {used.size < TEAMS.length && (
+          <span className="text-chalk-2">
+            {' '}— חסרות: {TEAMS.filter((t) => !used.has(t.externalId))
+              .map((t) => t.short).join(', ')}
+          </span>
+        )}
+      </p>
+    </div>
+  );
+}
+
 /**
  * ★ תיבת ההדבקה — זה מה שהופך "ידני היום, API מחר" לאמיתי.
  *
@@ -270,11 +446,37 @@ function ImportFixtures({
   const [raw, setRaw] = useState('');
   const [replace, setReplace] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
+  /* ★ 'pick' היא ברירת המחדל, ו-'json' נשארת במקומה המלא.
+     ההדבקה היא נתיב ה-API; הבורר הוא הנתיב האנושי. אף אחד
+     מהם לא מחליף את השני. */
+  const [how, setHow] = useState<'pick' | 'json'>('pick');
+  const [picked, setPicked] = useState<DraftFixture[]>([]);
 
   useEffect(() => { setTarget(current); }, [current]);
 
+  /* ★ החלפת מחזור מנקה את הטיוטה.
+     בלי זה, לוח שנבנה למחזור 3 היה נקלט למחזור 4 בלחיצה אחת,
+     בלי שום אזהרה — כי המבנה תקין לשניהם. */
+  useEffect(() => { setPicked([]); setReport(null); }, [target]);
+
   const teamHelp = useMemo(
     () => TEAMS.map((t) => `${t.externalId} = ${t.nameHe}`).join(' · '), []);
+
+  const send = (list: Array<{ home: string; away: string; kickoff: string }>) => {
+    act.run(async () => {
+      const r = await adminImportFixtures(target, list, replace);
+      setReport(r);
+      const bits = [`נקלטו ${r.added + r.updated} מתוך ${r.received}`];
+      if (r.removed) bits.push(`${r.removed} הוסרו`);
+      if (r.lockAt) bits.push(`הדדליין: ${fmt(r.lockAt)}`);
+      if (r.problems.length) bits.push(`${r.problems.length} שורות נדחו`);
+      /* ★ טיוטה שנקלטה נמחקת. אחרת לחיצה שנייה בטעות הייתה
+         שולחת את אותו לוח פעם נוספת — היא אמנם אידמפוטנטית
+         בשרת, אבל המסך היה נראה כאילו כלום לא קרה. */
+      if (!r.problems.length) setPicked([]);
+      return bits.join(' · ');
+    });
+  };
 
   const submit = () => {
     let parsed: unknown;
@@ -289,23 +491,14 @@ function ImportFixtures({
       act.run(async () => { throw new Error('BAD_JSON'); });
       return;
     }
-
-    act.run(async () => {
-      const r = await adminImportFixtures(
-        target, parsed as Array<{ home: string; away: string; kickoff: string }>, replace);
-      setReport(r);
-      const bits = [`נקלטו ${r.added + r.updated} מתוך ${r.received}`];
-      if (r.removed) bits.push(`${r.removed} הוסרו`);
-      if (r.lockAt) bits.push(`הדדליין: ${fmt(r.lockAt)}`);
-      if (r.problems.length) bits.push(`${r.problems.length} שורות נדחו`);
-      return bits.join(' · ');
-    });
+    send(parsed as Array<{ home: string; away: string; kickoff: string }>);
   };
 
   return (
     <Card
       title="קליטת לוח משחקים"
-      hint="הדבק JSON. אותו נתיב בדיוק ישמש את ה-API כשיתחבר — היום ידני, מחר אוטומטי."
+      hint="בחר קבוצות מהרשימה, או הדבק JSON. שני הנתיבים מגיעים לאותה
+            פונקציה בשרת — היום ידני, מחר API."
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <select
@@ -331,32 +524,78 @@ function ImportFixtures({
         </label>
       </div>
 
-      <textarea
-        dir="ltr"
-        rows={6}
-        value={raw}
-        disabled={act.busy}
-        onChange={(e) => setRaw(e.target.value)}
-        placeholder={'[\n  {"home":"3","away":"4","kickoff":"2026-09-05T20:00:00+03:00"}\n]'}
-        className={`num text-start ${input}`}
-      />
-
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <button
-          disabled={act.busy || !raw.trim()}
-          className={`${primary} py-2`}
-          onClick={submit}
-        >
-          {act.busy ? 'קולט…' : 'קליטה'}
-        </button>
-        <button
-          type="button"
-          className="text-[11px] text-chalk-dim underline"
-          onClick={() => setRaw(sampleFixtures())}
-        >
-          דוגמה
-        </button>
+      <div role="tablist" className="mb-3 flex gap-2">
+        {([['pick', 'בחירה מרשימה'], ['json', 'הדבקת JSON']] as const).map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            type="button"
+            aria-selected={how === id}
+            disabled={act.busy}
+            onClick={() => setHow(id)}
+            className={`tap flex-1 rounded-full border px-3 py-1.5 text-[12px]
+                        ${how === id
+              ? 'border-gold/60 bg-gold/10 text-gold'
+              : 'border-gold/20 text-chalk-dim'}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
+
+      {how === 'pick' ? (
+        <>
+          <FixturePicker list={picked} onChange={setPicked} disabled={act.busy} />
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <button
+              disabled={act.busy || picked.length === 0}
+              className={`${primary} py-2`}
+              onClick={() => send(picked)}
+            >
+              {act.busy ? 'קולט…' : `קליטת ${picked.length} משחקים`}
+            </button>
+            {picked.length > 0 && (
+              <button
+                type="button"
+                disabled={act.busy}
+                className="text-[11px] text-chalk-dim underline"
+                onClick={() => setPicked([])}
+              >
+                ניקוי
+              </button>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <textarea
+            dir="ltr"
+            rows={6}
+            value={raw}
+            disabled={act.busy}
+            onChange={(e) => setRaw(e.target.value)}
+            placeholder={'[\n  {"home":"3","away":"4","kickoff":"2026-09-05T20:00:00+03:00"}\n]'}
+            className={`num text-start ${input}`}
+          />
+
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <button
+              disabled={act.busy || !raw.trim()}
+              className={`${primary} py-2`}
+              onClick={submit}
+            >
+              {act.busy ? 'קולט…' : 'קליטה'}
+            </button>
+            <button
+              type="button"
+              className="text-[11px] text-chalk-dim underline"
+              onClick={() => setRaw(sampleFixtures())}
+            >
+              דוגמה
+            </button>
+          </div>
+        </>
+      )}
 
       <Note msg={act.msg} bad={act.bad} />
 
@@ -406,7 +645,11 @@ function sampleFixtures(): string {
 export function AdminRules() {
   const act = useAction();
   const overrides = ruleOverrides();
-  const base = useMemo(() => resolveRules(TEAMS.length).rules, []);
+  /* ★ `liveDataVersion()` בתלות: `TEAMS` מוחלף במקום כשהסגלים
+     מגיעים מהשרת, ו-`useMemo` עם `[]` היה נועל את ברירות המחדל
+     על הזרע המצורף לבנייה. אותו דפוס בדיוק שהמעבר לשרת בא לבטל. */
+  const base = useMemo(
+    () => resolveRules(TEAMS.length).rules, [liveDataVersion()]);
 
   const groups = useMemo(() => {
     const by = new Map<string, typeof RULE_KEYS>();
@@ -502,7 +745,14 @@ function RuleRow({
         disabled={act.busy}
         onChange={(e) => { setTouched(true); setValue(e.target.value); }}
         onBlur={() => {
-          const n = Number(value);
+          /* ★★ שדה ריק אינו אפס. ★★
+             `Number('') === 0`, והוא סופי — ולכן ניקוי השדה
+             ולחיצה על Tab שלחו `admin_set_rule(key, 0)` לכל
+             המשתמשים, בשידור חי. במכפיל הקפטן זה הפך את
+             ההחלטה המרכזית במשחק לחסרת ערך, בלי שאף אחד התכוון. */
+          const raw = value.trim();
+          if (raw === '') { setValue(String(effective)); setTouched(false); return; }
+          const n = Number(raw);
           if (!touched || !Number.isFinite(n) || n === effective) { setTouched(false); return; }
           act.run(async () => {
             await adminSetRule(ruleKey, n);
@@ -541,7 +791,7 @@ export function AdminContent() {
 
   const load = () => { void adminContentList().then(setRows).catch(() => setRows([])); };
   useEffect(load, []);
-  useEffect(() => { if (act.msg && !act.bad) load(); }, [act.msg, act.bad]);
+  useEffect(() => { if (act.done && !act.bad) load(); }, [act.done, act.bad]);
 
   const byKey = useMemo(() => {
     const m = new Map<string, ContentRow>();

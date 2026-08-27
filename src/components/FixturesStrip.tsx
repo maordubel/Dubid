@@ -5,6 +5,7 @@
  * מי בכלל משחק השבוע — לא רק מי נחשב "טוב" באופן כללי.
  */
 import { TEAM_BY_ID } from '../data/squads.ts';
+import { TeamTag } from './TeamTag.tsx';
 import { FIXTURES, GAMEWEEK, kickoffDateLabel, kickoffTimeLabel } from '../data/fixtures.ts';
 
 export function FixturesStrip({ compact = false }: { compact?: boolean }) {
@@ -23,17 +24,22 @@ export function FixturesStrip({ compact = false }: { compact?: boolean }) {
           return (
             <div
               key={f.id}
-              className="flex w-40 shrink-0 flex-col gap-1.5 rounded-xl border border-gold/15
+              className="flex w-[10.5rem] shrink-0 flex-col gap-1.5 rounded-xl border border-gold/15
                          bg-night-2 px-3 py-2.5"
             >
               <div className="flex items-center justify-between text-[10px] text-chalk-dim">
                 <span>{f.dayLabel}</span>
                 <span className="num">{kickoffDateLabel(f.kickoff)}</span>
               </div>
-              <div className="flex items-center justify-between text-xs font-bold text-chalk">
-                <span className="truncate">{home?.short}</span>
-                <span className="text-chalk-dim">–</span>
-                <span className="truncate">{away?.short}</span>
+              {/* ★ שני תגים בצבעי המועדונים.
+                  לוח משחקים הוא המסך שסורקים הכי מהר — "מי משחק
+                  נגד מי" צריך להיקלט בלי לקרוא שם אחד. */}
+              <div className="flex items-center justify-between gap-1">
+                <TeamTag teamId={f.homeTeamId} short={home?.short}
+                         name={home?.nameHe} size="xs" />
+                <span className="shrink-0 text-[10px] text-chalk-dim">–</span>
+                <TeamTag teamId={f.awayTeamId} short={away?.short}
+                         name={away?.nameHe} size="xs" />
               </div>
               <div className={`text-center text-[11px] ${f.timeConfirmed ? 'num text-gold' : 'text-chalk-dim'}`}>
                 {kickoffTimeLabel(f.kickoff, f.timeConfirmed)}

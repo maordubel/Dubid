@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FIXTURES, GAMEWEEK, GAMEWEEK_DEADLINE, HAS_UNCONFIRMED_TIMES,
-  kickoffDateLabel, kickoffTimeLabel,
+  kickoffDateLabel, kickoffTimeLabel, leagueLocalToIso,
 } from '../src/data/fixtures.ts';
 import { TEAMS } from '../src/data/squads.ts';
 
@@ -48,4 +48,30 @@ test('המחזור מסומן כמחזור 2', () => {
 test('משחקים פרושים על שלושה ימים', () => {
   assert.deepEqual([...new Set(FIXTURES.map((f) => f.dayLabel))], ['שבת', 'ראשון', 'שני']);
   assert.equal(FIXTURES.filter((f) => f.dayLabel === 'שבת').length, 5);
+});
+
+/* ================================================================== */
+/* המרת שעה מקומית ל-ISO — הנתיב של קליטת לוח באדמין                   */
+/* ================================================================== */
+
+test('leagueLocalToIso: קיץ מקבל +03:00, חורף +02:00', () => {
+  /* ★ זו לא קפדנות תיאורטית. אדמין שקולט מחזור בנובמבר עם
+     `+03:00` קבוע סוגר את הדדליין שעה לפני מה שהוא ראה על
+     המסך — והמשתתפים מפספסים את המחזור. */
+  assert.equal(leagueLocalToIso('2026-09-05T20:00'), '2026-09-05T20:00:00+03:00');
+  assert.equal(leagueLocalToIso('2026-12-05T20:00'), '2026-12-05T20:00:00+02:00');
+});
+
+test('leagueLocalToIso: הרגע שנוצר הוא באמת אותה שעה בישראל', () => {
+  for (const local of ['2026-09-05T20:00', '2026-12-05T20:00', '2026-03-28T21:30']) {
+    const label = new Date(leagueLocalToIso(local)).toLocaleTimeString('he-IL', {
+      hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem',
+    });
+    assert.equal(label, local.slice(11), local);
+  }
+});
+
+test('leagueLocalToIso: קלט לא תקין מחזיר ריק ולא NaN', () => {
+  assert.equal(leagueLocalToIso(''), '');
+  assert.equal(leagueLocalToIso('לא תאריך'), '');
 });

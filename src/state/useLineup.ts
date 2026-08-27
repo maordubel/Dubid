@@ -60,6 +60,12 @@ export function useLineup(formation: string, rules: RuleSet, meta: {
   /** `true` אחרי שהתשובה מהשרת הגיעה — לפני זה אסור לשמור. */
   const loaded = useRef(false);
   const [hydrated, setHydrated] = useState(false);
+  /**
+   * ★ "לא הצלחתי לקרוא" הוא מצב נפרד מ"אין טיוטה".
+   *   המסך חייב להבדיל ביניהם: הראשון אומר "אל תיגע, אתה עלול
+   *   לדרוס", השני אומר "בבקשה, תתחיל".
+   */
+  const [loadFailed, setLoadFailed] = useState(false);
 
   /* ---------------------------------------------------------------- *
    * טעינה
@@ -72,20 +78,41 @@ export function useLineup(formation: string, rules: RuleSet, meta: {
     let alive = true;
     loaded.current = false;
     setHydrated(false);
+    setLoadFailed(false);
+
+    /* ★ בלי זהות אין טיוטה — ואין למי לשמור אותה.
+       `save_draft` דורש `auth.uid()`, ולכן קריאה לפני שהזהות
+       הגיעה היא סיבוב סרק שמסתיים ב-`AUTH_REQUIRED`. חשוב מזה:
+       היא הייתה פותחת את השמירה מוקדם מדי. */
+    if (!meta.userId) return;
 
     void (async () => {
-      await fetchDrafts(meta.gameweekId);
+      const status = await fetchDrafts(meta.userId, meta.gameweekId);
       if (!alive) return;
+
+      /* ★★ כישלון קריאה **לא** פותח את השמירה. ★★
+       *
+       * זה היה באג הרסני: `fetchDrafts` בלע כל שגיאה והחזיר
+       * "אין טיוטה", והקוד כאן סימן `loaded = true` בכל מקרה.
+       * תקלת רשת חולפת במחשב הציגה הרכב ריק, המשתמש נגע במשבצת
+       * אחת — והשמירה דרסה את אחת־עשרה הבחירות שנבנו בטלפון.
+       *
+       * עכשיו: שגיאה משאירה את השמירה **סגורה**. המשתמש יראה
+       * הודעה, ולא יאבד כלום. */
+      if (status === 'error') {
+        setLoadFailed(true);
+        return;
+      }
 
       // ★ המערך של הטיוטה מנצח, והוא נקרא **לפני** בניית ההרכב
       //   הריק: משבצות שנבנו לפי 4-3-3 לא יכולות לקלוט טיוטה
       //   של 3-5-2 בלי לאבד שחקן.
-      const saved = draftFormation(meta.gameweekId, meta.mode);
+      const saved = draftFormation(meta.userId, meta.gameweekId, meta.mode);
       const base = createEmptyLineup(saved || formation, {
         lineupId: meta.lineupId, userId: meta.userId, gameweekId: meta.gameweekId,
       });
-      const restored = draftInto(base, meta.gameweekId, meta.mode);
-      if (restored) setLineup(restored);
+      const restored = draftInto(base, meta.userId, meta.gameweekId, meta.mode);
+      setLineup(restored ?? base);
 
       loaded.current = true;
       setHydrated(true);
@@ -192,7 +219,7 @@ export function useLineup(formation: string, rules: RuleSet, meta: {
     }));
     // ★ "התחל מחדש" מוחק גם בשרת. בלי זה הטיוטה הישנה הייתה
     //   חוזרת ברענון הבא, והמשתמש היה רואה את מה שמחק.
-    void dropDraft(meta.gameweekId, meta.mode);
+    void dropDraft(meta.userId, meta.gameweekId, meta.mode);
   }, [formation, meta.lineupId, meta.userId, meta.gameweekId, meta.mode]);
 
   /**
@@ -219,5 +246,7 @@ export function useLineup(formation: string, rules: RuleSet, meta: {
     isComplete: issues.length === 0,
     /** מצב הסנכרון — למסך שרוצה להראות "נשמר". */
     saving, savedAt, hydrated,
+    /** `true` = הטיוטה לא נקראה. עריכה עלולה לדרוס. */
+    loadFailed,
   };
 }

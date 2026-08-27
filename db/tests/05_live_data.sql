@@ -185,10 +185,14 @@ END $$;
 DO $$
 DECLARE t JSONB;
 BEGIN
-  PERFORM game.admin_upsert_team('1', 'הפועל באר שבע', NULL, 'הב״ש', 'באר שבע', 'טרנר');
+  -- ★ הקיצור בפורמט החדש (`ה.בש`), ולא בפורמט הגרשיים.
+  --   בדיקה שכותבת קיצור ישן היא בדיקה שמלמדת אותו: היא עוברת,
+  --   ומשאירה את המסד שאחריה במצב שלא תואם את db/15.
+  PERFORM game.admin_upsert_team('1', 'הפועל באר שבע', NULL, 'ה.בש', 'באר שבע', 'טרנר');
   SELECT x.value INTO t FROM jsonb_array_elements(game.squads()->'teams') x
    WHERE x.value->>'id' = 'T1';
   IF t->>'stadium' <> 'טרנר' THEN RAISE EXCEPTION 'FAIL 5: האצטדיון לא נשמר: %', t; END IF;
+  IF t->>'short' <> 'ה.בש' THEN RAISE EXCEPTION 'FAIL 5b: הקיצור לא נשמר: %', t; END IF;
 END $$;
 \echo '  ✓ 5  עריכת קבוצה נשמרת ונקראת'
 

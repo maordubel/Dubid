@@ -14,6 +14,7 @@ import {
 import { Jersey } from './Jersey.tsx';
 import { teamColor } from '../data/teamColors.ts';
 import { TeamCrest } from './TeamCrest.tsx';
+import { TeamTag } from './TeamTag.tsx';
 import { Pitch } from './Pitch.tsx';
 import { FormationPicker } from './FormationPicker.tsx';
 import { formationsFor } from '../lib/formation.ts';
@@ -723,7 +724,7 @@ function PlayerSheet({
                   onClick={() => onSelect(p)}
                   aria-disabled={block.blocked || tooExpensive}
                   className={[
-                    'tap flex w-full items-center gap-3 rounded-xl px-2 text-start',
+                    'tap flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-start',
                     'transition-colors duration-200 ease-brand',
                     block.blocked
                       // ★ האפרה + קו חוצה: ברור מיד שאי אפשר, ולמה
@@ -735,28 +736,50 @@ function PlayerSheet({
                         : 'active:bg-night-3',
                   ].join(' ')}
                 >
-                  <span className={[
-                    'grid size-8 shrink-0 place-items-center rounded-lg text-[10px] font-bold',
-                    block.blocked ? 'bg-night-3 text-chalk-dim' : 'bg-night-3',
-                  ].join(' ')}>
-                    {team?.short}
-                  </span>
+                  {/* ★★ הסמל, ולא ריבוע אפור. ★★
+                      קודם כאן ישב ריבוע 32px בצבע `bg-night-3` עם
+                      הקיצור בגודל 10px. שתי תקלות באחד: הצבע לא
+                      אמר כלום (במשחק פנטזי סורקים צבעים, לא
+                      קוראים), והרוחב חתך את הקיצורים החדשים —
+                      `מ.נתניה` הפך ל-`מ.נת…`. */}
+                  <TeamCrest
+                    teamId={p.teamId}
+                    short={team?.short}
+                    size={34}
+                    className="shrink-0"
+                  />
+
                   <span className="min-w-0 flex-1">
-                    <bdi className={[
-                      'block truncate text-sm font-bold',
-                      block.blocked ? 'line-through decoration-flare/70' : '',
-                    ].join(' ')}>
-                      {p.name}
-                    </bdi>
-                    <span className="block truncate text-[11px] text-chalk-dim">
+                    {/* שורה 1: השם, ולידו תג הקבוצה בצבעי המועדון. */}
+                    <span className="flex items-center gap-1.5">
+                      <bdi className={[
+                        'min-w-0 flex-1 truncate text-[14.5px] font-black',
+                        block.blocked ? 'line-through decoration-flare/70' : '',
+                      ].join(' ')}>
+                        {p.name}
+                      </bdi>
+                      <TeamTag
+                        teamId={p.teamId}
+                        short={team?.short}
+                        name={team?.name}
+                        size="xs"
+                        muted={block.blocked}
+                      />
+                    </span>
+
+                    {/* ★ שורה 2 היא **סיבה**, לא חזרה על שם הקבוצה.
+                        קודם היא פתחה ב-`team?.name` בכל מצב, ולכן
+                        השם הופיע פעמיים בכל שורה ודחק את המידע
+                        שבאמת מבדיל — נגד מי משחקים, ולמה חסום. */}
+                    <span className="mt-0.5 block truncate text-[11.5px] text-chalk-dim">
                       {block.blocked
                         ? occupant
-                          ? `${team?.name} · כבר בחרת את ${occupant}`
-                          : `${team?.name} · ${block.reasonHe}`
+                          ? `כבר בחרת את ${occupant}`
+                          : block.reasonHe
                         : tooExpensive
-                          ? `${team?.name} · חסרים ${((p.price ?? 0) - (remaining ?? 0)).toFixed(1)}M€`
+                          ? `חסרים ${((p.price ?? 0) - (remaining ?? 0)).toFixed(1)}M€`
                           : opponentShortByTeam?.[p.teamId]
-                            ? `${team?.name} · נגד ${opponentShortByTeam[p.teamId]}`
+                            ? `נגד ${opponentShortByTeam[p.teamId]}`
                             : team?.name}
                     </span>
                   </span>
