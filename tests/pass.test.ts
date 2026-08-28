@@ -178,3 +178,87 @@ test('★ גם מפתח עם מקפים מייצר QR תקין', async () => {
   const { passLink } = await import('../src/lib/identity.ts');
   assert.ok(encodeQr(passLink('K7M4-9XQ2-BD'), 'Q').size >= 21);
 });
+
+/* ================================================================== */
+/* אימות מייל — קוד או קישור                                           */
+/* ================================================================== */
+
+test('★★★ שליפת token_hash מקישור שהודבק', async () => {
+  /*
+   * ★ הבאג שזה קיים בשבילו.
+   *
+   * תבנית המייל של Supabase, כברירת מחדל, מכילה **רק קישור**.
+   * קוד בן שש ספרות מופיע רק אם מוסיפים ידנית `{{ .Token }}`.
+   *
+   * כלומר מסך שמבקש "הקלידו את הקוד" מול תבנית ברירת מחדל שולח
+   * את המשתמש לחפש משהו שלא קיים במייל — וזה בדיוק מה שקרה
+   * בלשונית אופסיידס: המייל הגיע, הקוד לא היה בו.
+   *
+   * התיקון: השדה מקבל גם הדבקה של הקישור המלא.
+   */
+  const { extractTokenHash } = await import('../src/lib/identity.ts');
+
+  const link = 'https://dubid.dubelteam.com/?token_hash=pkce_abc123&type=email_change';
+  assert.deepEqual(extractTokenHash(link), { token: 'pkce_abc123', type: 'email_change' });
+
+  /* גם רק החלק שאחרי הסימן — אנשים מדביקים את שניהם. */
+  assert.deepEqual(extractTokenHash('token_hash=xyz&type=email'),
+    { token: 'xyz', type: 'email' });
+
+  /* ★ קישור בלי `type` מגיע כמעט תמיד מ-Magic Link. */
+  assert.deepEqual(extractTokenHash('https://x.co/?token_hash=q1'),
+    { token: 'q1', type: 'email' });
+});
+
+test('★ קוד רגיל אינו מזוהה כקישור', async () => {
+  /* אחרת כל קוד בן שש ספרות היה נשלח כ-`token_hash` ונדחה. */
+  const { extractTokenHash } = await import('../src/lib/identity.ts');
+  assert.equal(extractTokenHash('123456'), null);
+  assert.equal(extractTokenHash(''), null);
+  assert.equal(extractTokenHash('https://dubid.dubelteam.com/'), null);
+});
+
+test('★★ כתובת ההחזרה של גוגל נגזרת מהפרויקט החי', async () => {
+  /*
+   * ★ הבאג שזה מונע: `redirect_uri_mismatch`.
+   *
+   * זו השגיאה הכי מתסכלת שיש — היא נכונה, מדויקת, ולא אומרת
+   * **איזו** כתובת חסרה. מחרוזת שכתובה ביד בתיעוד תהיה שגויה
+   * ביום שהפרויקט יוחלף, ואף אחד לא יזכור לעדכן אותה.
+   */
+  const { googleCallbackUrl } = await import('../src/lib/identity.ts');
+  const url = googleCallbackUrl();
+
+  assert.match(url, /^https:\/\/[a-z0-9]+\.supabase\.co\/auth\/v1\/callback$/,
+    `כתובת ההחזרה לא בפורמט שגוגל מצפה לו: ${url}`);
+
+  /* ★ ולא כתובת האתר — זו הטעות הנפוצה. גוגל מפנה ל-Supabase,
+     ורק אחר כך Supabase מפנה לאתר. */
+  assert.ok(!url.includes('dubid.dubelteam.com'),
+    'כתובת ההחזרה חייבת להיות של Supabase, לא של האתר');
+});
+
+test('★★ שני המוצרים מקבלים כתובות החזרה שונות', async () => {
+  /*
+   * ★ הבאג שזה מונע.
+   *
+   * דוביד ואופסיידס חולקים **OAuth client אחד** בגוגל. אותו
+   * client חייב להכיר את שתי כתובות ההחזרה — אחת לכל פרויקט
+   * Supabase, כי גוגל מפנה אל Supabase ולא אל האתר.
+   *
+   * אם שתי הפונקציות היו מחזירות את אותה כתובת (למשל בגלל
+   * העתקה של DUBID_PROJECT במקום OFFSIDES_PROJECT), לוח הניהול
+   * היה מציג את אותה שורה פעמיים — והמוצר השני היה נשאר שבור
+   * **אחרי** שהאדמין עשה בדיוק מה שנאמר לו.
+   */
+  const { googleCallbackUrl, offsidesCallbackUrl } =
+    await import('../src/lib/identity.ts');
+
+  const a = googleCallbackUrl();
+  const b = offsidesCallbackUrl();
+
+  assert.notEqual(a, b, 'שתי כתובות ההחזרה זהות — אחד המוצרים יישאר שבור');
+  for (const url of [a, b]) {
+    assert.match(url, /^https:\/\/[a-z0-9]+\.supabase\.co\/auth\/v1\/callback$/, url);
+  }
+});

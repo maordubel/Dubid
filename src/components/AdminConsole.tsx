@@ -37,6 +37,7 @@ import {
   type AdminAd, type AdStats, type LeadRow, type Funnel, type DailyRow,
 } from '../lib/store.ts';
 import { adIssues, BRANDS, BRAND_IDS, type HouseAd } from '../lib/houseAds.ts';
+import { googleCallbackUrl, offsidesCallbackUrl } from '../lib/identity.ts';
 import type { Placement } from '../lib/growth.ts';
 import { BrandWord, HouseAdPreview } from './HouseAds.tsx';
 import { ruleOverrides, currentGameweekCode, liveDataVersion } from '../lib/liveData.ts';
@@ -2040,5 +2041,238 @@ function DailyChart({ rows }: { rows: DailyRow[] }) {
         <span className="num ms-auto text-[10px] text-chalk-dim">שיא {max}</span>
       </div>
     </Card>
+  );
+}
+
+/* ================================================================== */
+/* 11 · חיבורים — מה צריך להיות מוגדר, ואיפה                           */
+/* ================================================================== */
+
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * ★★★ למה מסך כזה קיים בכלל ★★★
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * `redirect_uri_mismatch` היא השגיאה הכי מתסכלת שיש: היא נכונה,
+ * היא מדויקת, והיא לא אומרת **איזו** כתובת חסרה. המפתח מנחש,
+ * מדביק משהו דומה, ומקבל את אותה שגיאה שוב.
+ *
+ * המסך הזה מדפיס את המחרוזות **המדויקות** — נגזרות מכתובת
+ * הפרויקט החי, לא מוקלדות ביד — עם כפתור העתקה. זה הופך תקלה
+ * של חצי שעה לפעולה של שלוש שניות.
+ *
+ * ★ למה זה לא רק בתיעוד
+ *
+ * מחרוזת שכתובה בקובץ תיעוד היא מחרוזת שתהיה שגויה ביום
+ * שהפרויקט יוחלף, ואף אחד לא יזכור לעדכן אותה. כאן היא תמיד
+ * נכונה, כי היא נבנית מהחיבור עצמו.
+ */
+export function AdminConnections() {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const copy = (label: string, value: string) => {
+    void navigator.clipboard?.writeText(value).then(() => {
+      setCopied(label);
+      window.setTimeout(() => setCopied(null), 1800);
+    }).catch(() => { /* דפדפן ישן — הערך ממילא מוצג ואפשר לסמן ידנית */ });
+  };
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+
+  /*
+   * ═══════════════════════════════════════════════════════════════
+   * ★★★ מזהה לקוח אחד, שני מוצרים ★★★
+   * ═══════════════════════════════════════════════════════════════
+   *
+   * דוביד ואופסיידס חולקים **OAuth client אחד** בגוגל. זו החלטה
+   * נכונה: מסך הסכמה אחד, שם אחד, והמשתמש לא נשאל פעמיים.
+   *
+   * אבל היא מחייבת דבר אחד שקל לפספס: אותו client חייב להכיר את
+   * **שתי** כתובות ההחזרה — אחת לכל פרויקט Supabase. גוגל מפנה
+   * אל Supabase, לא אל האתר, ולשני הפרויקטים יש כתובות שונות.
+   *
+   * אם רק אחת רשומה, המוצר השני מקבל `redirect_uri_mismatch` —
+   * וזו בדיוק התקלה שהמסך הזה נועד לסגור אחת ולתמיד.
+   */
+  const rows: Array<{
+    label: string; value: string; where: string; why: string; must: boolean;
+  }> = [
+    {
+      label: 'כתובת החזרה · דוביד',
+      value: googleCallbackUrl(),
+      where: 'Google Cloud → Credentials → OAuth client → Authorized redirect URIs',
+      why: 'בלעדיה: Error 400 · redirect_uri_mismatch בכניסה לדוביד.',
+      must: true,
+    },
+    {
+      label: 'כתובת החזרה · אופסיידס',
+      value: offsidesCallbackUrl(),
+      where: 'אותו מסך בדיוק — שורה שנייה ברשימה. לא להחליף, להוסיף.',
+      why: 'בלעדיה אופסיידס יישבר ברגע שתעביר אותו למזהה הלקוח החדש.',
+      must: true,
+    },
+    {
+      label: 'מקור JavaScript',
+      value: origin,
+      where: 'אותו מסך, בשדה Authorized JavaScript origins',
+      why: 'מומלץ. נדרש רק אם יתווסף בעתיד One Tap, אבל עדיף מראש.',
+      must: false,
+    },
+    {
+      label: 'Supabase · Site URL',
+      value: origin,
+      where: 'Supabase (דוביד) → Authentication → URL Configuration',
+      why: 'לאן Supabase מחזירה את המשתמש אחרי שגוגל אישרה.',
+      must: true,
+    },
+    {
+      label: 'Supabase · Redirect URL',
+      value: `${origin}/**`,
+      where: 'אותו מסך, ברשימת Redirect URLs',
+      why: 'בלי זה ההחזרה נחסמת גם כשגוגל אישרה.',
+      must: true,
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <Card
+        title="חיבור גוגל"
+        hint="להעתיק כל מחרוזת למקום שכתוב לידה. שתי כתובות ההחזרה הן חובה — אחת לכל מוצר."
+      >
+        <ul className="space-y-3">
+          {rows.map((r) => (
+            <li key={r.label} className="rounded-xl border border-gold/12 bg-night p-3">
+              <div className="flex items-baseline gap-2">
+                <span className="flex-1 text-[12px] font-black text-chalk">
+                  {r.label}
+                  {!r.must && (
+                    <span className="ms-1.5 text-[9.5px] font-bold text-chalk-dim">
+                      לא חובה
+                    </span>
+                  )}
+                </span>
+                <button onClick={() => copy(r.label, r.value)} className={ghost}>
+                  {copied === r.label ? 'הועתק ✓' : 'העתקה'}
+                </button>
+              </div>
+              <code
+                dir="ltr"
+                className="mt-1.5 block overflow-x-auto whitespace-nowrap rounded-lg
+                           bg-night-2 px-2.5 py-2 text-[12px] text-gold-light"
+              >
+                {r.value}
+              </code>
+              <p className="mt-1.5 text-[11px] leading-snug text-chalk-dim">{r.where}</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-chalk-dim/80">{r.why}</p>
+            </li>
+          ))}
+        </ul>
+
+        {/*
+          ★★ ההבהרה שחוסכת ויכוח מאוחר ★★
+
+          שיתוף מזהה הלקוח של גוגל בין שני פרויקטים **לא** מאחד
+          את המשתמשים. לכל פרויקט Supabase יש `auth.users` משלו.
+          מה שמשותף הוא מסך ההסכמה — ומה שמזהה את אותו אדם הוא
+          המייל.
+        */}
+        <div className="mt-3 rounded-xl border border-armband/30 bg-armband/10 px-3 py-2.5">
+          <p className="text-[11.5px] font-black text-armband">
+            מזהה לקוח משותף — מה זה כן נותן, ומה לא
+          </p>
+          <p className="mt-1 text-[11.5px] leading-snug text-chalk-2">
+            <b>כן:</b> מסך הסכמה אחד, שם אפליקציה אחד, והמשתמש לא נשאל
+            פעמיים כשהוא עובר בין המוצרים.
+          </p>
+          <p className="mt-1 text-[11.5px] leading-snug text-chalk-2">
+            <b>לא:</b> זה <b>אינו</b> מאחד את המשתמשים. לכל פרויקט
+            Supabase יש טבלת <span className="num">auth.users</span> משלו.
+            מה שמזהה את אותו אדם בשני המוצרים הוא <b>המייל</b>.
+          </p>
+        </div>
+
+        {/* ★ שני המחסומים הבאים אחרי ה-redirect URI.
+            שניהם נראים כמו "זה לא עובד" ושניהם לא קשורים לקוד,
+            ולכן הם כתובים כאן ולא בתיעוד שאיש לא פותח. */}
+        <div className="mt-2 rounded-xl border border-gold/20 bg-night px-3 py-2.5">
+          <p className="text-[11.5px] font-black text-chalk">
+            שתי מלכודות במסך ההסכמה
+          </p>
+          <p className="mt-1 text-[11.5px] leading-snug text-chalk-2">
+            <b>1 · מצב Testing.</b> פרויקט חדש בגוגל מתחיל במצב בדיקה:
+            רק מיילים שהוספת ל-Test users יכולים להיכנס, עד 100.
+            מי שלא ברשימה מקבל שגיאה. לפני השקה —
+            <b> Publish app</b>.
+          </p>
+          <p className="mt-1 text-[11.5px] leading-snug text-chalk-2">
+            <b>2 · שם האפליקציה.</b> זה מה שכתוב במסך ההסכמה שהמשתמש
+            רואה. פרויקט חדש נוצר עם שם אוטומטי מכוער — כדאי לשנות
+            ל־<b>DubelTeam</b> ולהעלות לוגו.
+          </p>
+        </div>
+      </Card>
+
+      <Card
+        title="קוד במייל במקום קישור"
+        hint="לא חובה. בלי זה המוצר עובד עם קישור, וזה תקין לגמרי."
+      >
+        <p className="text-[12px] leading-snug text-chalk-2">
+          תבנית המייל של Supabase שולחת כברירת מחדל <b>קישור בלבד</b>.
+          כדי שיישלח גם קוד בן שש ספרות, להוסיף שורה אחת לתבנית:
+        </p>
+        <code
+          dir="ltr"
+          className="mt-2 block overflow-x-auto whitespace-nowrap rounded-lg bg-night px-2.5 py-2
+                     text-[12px] text-gold-light"
+        >
+          {'<p>הקוד שלך: {{ .Token }}</p>'}
+        </code>
+        <p className="mt-1.5 text-[11px] leading-snug text-chalk-dim">
+          Supabase → Authentication → Email Templates → Magic Link (וגם
+          Change Email Address).
+        </p>
+        <button
+          onClick={() => copy('token', '<p>הקוד שלך: {{ .Token }}</p>')}
+          className={`${ghost} mt-2`}
+        >
+          {copied === 'token' ? 'הועתק ✓' : 'העתקה'}
+        </button>
+      </Card>
+
+      {/* ★ הסוד לא מופיע כאן ולא בשום מקום בקוד.
+          מפתח שנכנס פעם אחת לריפו נשאר בהיסטוריה שלו לנצח, גם
+          אחרי שמוחקים את הקובץ. מקומו היחיד הוא שדה בלוח
+          הבקרה של Supabase. */}
+      <Card
+        title="איפה שמים את המפתחות"
+        hint="הסוד לא נמצא בקוד, ולא צריך להיות. הוא נכנס ידנית לשני מקומות."
+      >
+        <ol className="space-y-2 text-[12px] leading-snug text-chalk-2">
+          <li>
+            <b className="text-chalk">Supabase של דוביד</b> → Authentication →
+            Providers → Google → להדביק Client ID ו-Client Secret.
+          </li>
+          <li>
+            <b className="text-chalk">Supabase של אופסיידס</b> → אותו מסך →
+            להדביק את <b>אותם</b> שני ערכים.
+          </li>
+        </ol>
+        <p className="mt-2 rounded-lg border border-flare/25 bg-flare/5 px-2.5 py-2
+                      text-[11px] leading-snug text-chalk-2">
+          ⚠ ה-Client Secret הוא סוד אמיתי. אם קובץ ה-JSON שהורדת
+          מגוגל נשלח במייל או בצ׳אט — כדאי ליצור סוד חדש
+          (<span dir="ltr">Reset secret</span>) ולעדכן בשני המקומות.
+        </p>
+      </Card>
+
+      <Card title="מה לא צריך" hint="כדי שלא תחפש.">
+        <ul className="space-y-1.5 text-[12px] leading-snug text-chalk-2">
+          <li>· אין צורך ב-Supabase CLI.</li>
+          <li>· אין צורך לפרוס Edge Functions — אף מסך לא קורא להן.</li>
+          <li>· אין צורך במפתח <span className="num">service_role</span> בשום מקום.</li>
+        </ul>
+      </Card>
+    </div>
   );
 }

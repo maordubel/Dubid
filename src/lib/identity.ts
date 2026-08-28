@@ -54,7 +54,7 @@
  * נספר, וזה בדיוק מה שהמסך צריך לומר. זהות "מקומית" שנראית
  * אמיתית היא הבטחה שהמוצר לא יכול לקיים.
  */
-import { supabase, offsidesAuthClient } from './supabase.ts';
+import { supabase, DUBID_PROJECT, OFFSIDES_PROJECT } from './supabase.ts';
 /* ★ כתובת אחת לכל המוצר. קבוע שני היה נשאר מאחור ביום שהדומיין
    ישתנה, וכל הכרטיסים שכבר שמורים אצל משתמשים היו מצביעים לשם. */
 import { DUBID_URL } from './growth.ts';
@@ -440,108 +440,34 @@ export function passFromUrl(): string | null {
 /* ================================================================== */
 
 /**
- * שולח קוד למייל — **דרך פרויקט אופסיידס**.
+ * ★★ הקוד שהיה כאן הוסר, וזו הייתה ההחלטה הנכונה ★★
  *
- * `shouldCreateUser: false` הוא הלב: מי שאין לו חשבון באופסיידס
- * לא נרשם בטעות. הוא פשוט לא מקבל קוד, וזה הודעת השגיאה הנכונה.
+ * היו כאן שתי פונקציות: `requestOffsidesCode` שביקשה קוד
+ * מפרויקט אופסיידס, ו-`linkOffsidesAccount` ששלחה את הטוקן
+ * ל-Edge Function בשם `link-offsides` כדי לאמת אותו בשרת.
  *
- * ⚠ דורש שספק המייל מוגדר בפרויקט אופסיידס. אם לא — הקריאה
- *   תיכשל, וזו התלות היחידה בצד שלהם.
- */
-export async function requestOffsidesCode(email: string): Promise<void> {
-  const { error } = await offsidesAuthClient.auth.signInWithOtp({
-    email: email.trim(),
-    options: { shouldCreateUser: false },
-  });
-  if (error) throw new Error('OFFSIDES_OTP_FAILED');
-}
-
-/**
- * מאמת את הקוד מול אופסיידס, ואז מקשר בדוביד.
- * מחזיר את הזהות המקושרת.
- */
-export async function linkOffsidesAccount(email: string, otp: string): Promise<Identity> {
-  const { data: verified, error: vErr } = await offsidesAuthClient.auth.verifyOtp({
-    email: email.trim(), token: otp.trim(), type: 'email',
-  });
-  if (vErr || !verified.session?.access_token) throw new Error('OFFSIDES_CODE_INVALID');
-
-  const { data, error } = await supabase.functions.invoke<{
-    access_token: string; refresh_token: string; offsides_user_id: string; display_name: string | null;
-  }>('link-offsides', { body: { offsides_access_token: verified.session.access_token } });
-
-  /*
-   * ★ זו הפונקציה היחידה במוצר שבאמת חייבת שרת.
-   *
-   * היא מאמתת טוקן מול **פרויקט אחר** (אופסיידס), ורק צד שרת
-   * יכול לשאול "הטוקן הזה באמת שלך?". דפדפן יכול לשלוח כל
-   * טוקן שירצה.
-   *
-   * ולכן ההודעה כאן מבדילה: אם הפונקציה פשוט לא נפרסה, זו לא
-   * "בעיה בקוד" — זו תכונה שעוד לא הופעלה, והמסך צריך לומר
-   * את זה במקום להאשים את המשתמש בקוד שגוי.
-   */
-  if (error) {
-    const msg = String((error as { message?: string })?.message ?? '');
-    throw new Error(/not found|404|Failed to (send|fetch)/i.test(msg)
-      ? 'OFFSIDES_NOT_ENABLED'
-      : 'OFFSIDES_LINK_FAILED');
-  }
-  if (!data?.access_token) throw new Error('OFFSIDES_LINK_FAILED');
-
-  const { data: sess, error: sErr } = await supabase.auth.setSession({
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-  });
-  if (sErr || !sess.user) throw new Error('OFFSIDES_LINK_SESSION_FAILED');
-
-  /* השם מגיע מהשרת דרך `fromSession` — הוא כבר נכתב ל-
-     `game.users` בצד ה-Edge Function. אין מה לשכפל למכשיר. */
-  current = await fromSession(sess.user.id);
-  emit();
-  return current;
-}
-
-
-/* ================================================================== */
-/* הרשמה                                                              */
-/* ================================================================== */
-
-/**
- * ═══════════════════════════════════════════════════════════════
- * ★ למה יש הרשמה בכלל במוצר ש"לא דורש הרשמה"
- * ═══════════════════════════════════════════════════════════════
+ * שתיהן לא עבדו בפועל:
  *
- * אורח הוא זהות של **דפדפן**. היא נעלמת כשמנקים נתוני גלישה,
- * כשמחליפים מכשיר, וכשהטלפון הולך לאיבוד. הקוד החד־פעמי
- * (`issueAccessCode`) פותר את המעבר בין מכשירים, אבל הוא לא פותר
- * את הדבר שבאמת קורה: אנשים לא מנפיקים קוד לפני שהם מאבדים משהו.
+ *  · תבנית המייל של אופסיידס, כברירת מחדל, שולחת **קישור בלבד**.
+ *    הקוד שהמסך ביקש פשוט לא היה במייל.
+ *  · והפונקציה `link-offsides` לא נפרסה, ולכן גם הקוד הנכון
+ *    היה נכשל בשלב האחרון.
  *
- * הרשמה היא **ביטוח**, לא שער כניסה. לכן:
+ * ★ מה החליף אותן, ולמה זה מספיק
  *
- *   · אף מסך לא חוסם. אורח משחק מחזור שלם בלי לראות טופס.
- *   · ההצעה מופיעה אחרי שיש מה להגן עליו — לא לפני.
- *   · השדרוג הוא **אותה שורה במסד**. `id` לא זז, ההרכבים לא
- *     זזים, הדירוג לא זז. דגל אחד משתנה. אין מסלול הגירה שיכול
- *     להיכשל באמצע ולהשאיר מישהו בלי היסטוריה.
+ * הזהות המשותפת בין שני המוצרים היא **המייל**, לא הסשן. שיתוף
+ * מזהה הלקוח של גוגל בין הפרויקטים לא מאחד משתמשים — לכל
+ * פרויקט יש `auth.users` משלו.
  *
- * ═══════════════════════════════════════════════════════════════
- * ★ החוזה מול אופסיידס
- * ═══════════════════════════════════════════════════════════════
+ * ולכן: `upgradeStart` + `upgradeVerify` מאמתים את המייל מול
+ * **דוביד עצמו**, ומאותו רגע שני המוצרים מכירים את אותו אדם.
+ * בלי שרת, בלי פריסה, ובלי טוקן שאפשר לזייף מהדפדפן.
  *
- * הטופס והמטא־דאטה זהים לאלה של אופסיידס (`DUBIDAUTHSYNC.md` §5):
- * `username`, `avatar`, `referred_by_code`, ו-`emailRedirectTo`.
- *
- * אבל ⚠ שני המוצרים על **פרויקטים נפרדים**, בניגוד להנחה של אותו
- * מסמך. לכן הרשמה בדוביד יוצרת משתמש דוביד — היא לא יוצרת חשבון
- * באופסיידס ולא מזהה אחד קיים. מי שכבר יש לו חשבון שם צריך את
- * `linkOffsidesAccount`, ולא את `signUpWithEmail`.
- *
- * המבנה הזהה עדיין משתלם: אם שני הפרויקטים יאוחדו בעתיד, אותה
- * שורת מטא־דאטה כבר תיצור פרופיל תקין בשני הצדדים בלי לגעת בטופס.
+ * ⚠ אם יום אחד יוחלט על סשן משותף אמיתי — הוא יחייב שרת, כי רק
+ *   צד שרת יכול לשאול את אופסיידס "הטוקן הזה באמת שלך?".
+ *   `docs/OFFSIDES-SYNC.md` מתעד את הגבול הזה.
  */
 
-/** האווטארים. אותה רשימה כמו באופסיידס — כדי שאותו משתמש ייראה אותו דבר. */
 export const AVATAR_POOL = [
   '⚽', '🏆', '🎯', '🥇', '🏅', '🥊', '🏀', '⛳', '🦁', '🐺', '🦅', '🐼',
   '🦊', '🐯', '🦈', '🐉', '🦂', '🐲', '🤖', '👽', '😎', '🤠', '🧙', '🥷',
@@ -717,17 +643,144 @@ export async function upgradeStart(email: string): Promise<void> {
  *   לחלוטין, וזו שעה שאי אפשר להחזיר.
  */
 export async function upgradeVerify(email: string, token: string): Promise<Identity> {
-  const { data, error } = await supabase.auth.verifyOtp({
-    email: email.trim().toLowerCase(),
-    token: token.trim(),
-    type: 'email_change',
-  });
+  /*
+   * ═══════════════════════════════════════════════════════════
+   * ★★★ קוד **או** קישור — ולמה זה לא פינוק ★★★
+   * ═══════════════════════════════════════════════════════════
+   *
+   * תבנית המייל של Supabase, כברירת מחדל, מכילה **רק קישור**:
+   * `{{ .ConfirmationURL }}`. קוד בן שש ספרות מופיע רק אם מוסיפים
+   * ידנית `{{ .Token }}` לתבנית.
+   *
+   * כלומר מסך שמבקש "הקלידו את הקוד מהמייל" מול תבנית ברירת
+   * מחדל שולח את המשתמש לחפש משהו **שלא קיים במייל**. הוא יחפש,
+   * לא ימצא, וינטוש — ויהיה בטוח שהוא עשה משהו לא נכון.
+   *
+   * לכן השדה כאן מקבל את שניהם: קוד, או הדבקה של הקישור המלא.
+   * מהקישור נשלף `token_hash`, וזה בדיוק אותו אימות.
+   *
+   * ★ התוצאה: המוצר עובד **בלי לגעת בתבנית**, ועובד יפה יותר
+   *   אם בכל זאת מוסיפים את `{{ .Token }}`.
+   */
+  const raw = token.trim();
+  const hash = extractTokenHash(raw);
+
+  const { data, error } = hash
+    ? await supabase.auth.verifyOtp({ token_hash: hash.token, type: hash.type })
+    : await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token: raw.replace(/\s+/g, ''),
+      type: 'email_change',
+    });
   if (error || !data.user) throw new Error(mapAuthError(error?.message ?? ''));
 
   await supabase.rpc('ensure_profile', { p_display_name: null });
   current = await fromSession(data.user.id);
   emit();
   return current;
+}
+
+/**
+ * שולף `token_hash` מקישור אימות שהודבק.
+ *
+ * ★ מקבל גם כתובת מלאה וגם רק את החלק שאחרי הסימן — כי אנשים
+ *   מדביקים את שניהם, ושניהם תקינים.
+ */
+export function extractTokenHash(
+  input: string,
+): { token: string; type: string } | null {
+  if (!/token_hash=/.test(input)) return null;
+  try {
+    const q = input.slice(input.indexOf('token_hash='));
+    const params = new URLSearchParams(q.replace(/^[?#]/, ''));
+    const token = params.get('token_hash');
+    if (!token) return null;
+    /* ★ ברירת המחדל היא `email` ולא `email_change`: קישור שהגיע
+       בלי `type` מגיע כמעט תמיד מ-Magic Link. */
+    return { token, type: params.get('type') || 'email' };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * בודק מחדש מול השרת אם המייל כבר אומת.
+ *
+ * ★ זה מה שמאפשר את המסלול "לחצתי על הקישור במייל".
+ *
+ * הקישור נפתח בלשונית אחרת ומאשר את השינוי **בשרת**. הלשונית
+ * שבה המשתמש יושב לא יודעת על זה כלום — היא מחזיקה עותק ישן של
+ * המשתמש. רענון הסשן הוא מה שמביא את המצב האמיתי.
+ */
+export async function refreshIdentity(): Promise<Identity | null> {
+  try {
+    await supabase.auth.refreshSession();
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) return current;
+    current = await fromSession(data.user.id);
+    emit();
+    return current;
+  } catch {
+    return current;
+  }
+}
+
+/**
+ * שגיאת OAuth שחזרה בכתובת.
+ *
+ * ★ ספק OAuth שמסרב לא זורק — הוא **מחזיר** לכתובת עם
+ *   `error=...`. בלי קריאה מפורשת, המשתמש חוזר למסך הבית כאילו
+ *   כלום לא קרה, מנסה שוב, ומקבל בדיוק אותו כלום.
+ *
+ * ⚠ `redirect_uri_mismatch` **לא** מגיע לכאן: במקרה הזה גוגל
+ *   עוצרת אצלה ולא מפנה בחזרה בכלל. זו הסיבה שהיא מטופלת
+ *   בלוח הניהול (`googleCallbackUrl`) ולא כאן.
+ */
+export function oauthErrorFromUrl(): string | null {
+  try {
+    const from = (s: string) => new URLSearchParams(s.replace(/^[?#]/, ''));
+    const q = from(window.location.search);
+    const h = from(window.location.hash);
+    const err = q.get('error') || h.get('error');
+    if (!err) return null;
+
+    const desc = q.get('error_description') || h.get('error_description') || '';
+
+    /* ניקוי הכתובת — אחרת רענון מציג את השגיאה שוב. */
+    window.history.replaceState(null, '', window.location.pathname);
+
+    return desc || err;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * הכתובת שגוגל **חייבת** להכיר.
+ *
+ * ★ היא נגזרת מכתובת הפרויקט החי ולא מוקלדת בשום מקום.
+ *   מחרוזת שמוקלדת ביד בתיעוד היא מחרוזת שתהיה שגויה ביום
+ *   שהפרויקט יוחלף — וזו בדיוק השגיאה שקשה לאתר.
+ */
+export function googleCallbackUrl(): string {
+  return `${DUBID_PROJECT.url}/auth/v1/callback`;
+}
+
+/**
+ * אותה כתובת, בצד של אופסיידס.
+ *
+ * ★★ למה היא מופיעה במסך של דוביד ★★
+ *
+ * כששני המוצרים חולקים **מזהה לקוח אחד** בגוגל, אותו OAuth
+ * client חייב להכיר את **שתי** כתובות ההחזרה — אחת לכל פרויקט
+ * Supabase. אם רק אחת רשומה, המוצר השני מקבל
+ * `redirect_uri_mismatch`, וזה בדיוק מה שקרה.
+ *
+ * הצגת שתיהן יחד היא מה שהופך את ההגדרה לפעולה אחת במקום
+ * לשתי חקירות נפרדות בהפרש של שבוע.
+ */
+export function offsidesCallbackUrl(): string {
+  return `${OFFSIDES_PROJECT.url}/auth/v1/callback`;
 }
 
 /** סיסמה אופציונלית, אחרי שהמייל אומת. בלעדיה נכנסים בקוד למייל. */
