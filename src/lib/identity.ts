@@ -245,51 +245,72 @@ export function ensureIdentity(): Promise<Identity> {
 /* קוד חד־פעמי — העברת זהות בין מכשירים                                */
 /* ================================================================== */
 
-export interface AccessCode {
-  code: string;
-  /** ISO. אחרי זה הקוד לא תקף. */
-  expiresAt: string;
-}
+/**
+ * ★ קוד ההעברה הקצר ירד מהמוצר.
+ *
+ * הוא היה בן שש, חד־פעמי, ותקף לשעה — והוא דרש Edge Function
+ * כדי להנפיק סשן של משתמש אחר. הכרטיס עושה את אותה עבודה
+ * בדיוק: אפשר לשמור אותו כתמונה, ואפשר פשוט להקליד את המפתח
+ * במכשיר שביד.
+ *
+ * שני מנגנונים לאותה בעיה הם עוד החלטה שהמשתמש צריך לקבל
+ * במסך שכל תפקידו הוא לא לאבד את החשבון.
+ *
+ * ⚠ `claim_pass` במסד **עדיין מקבל** קודים מסוג `transfer`, כדי
+ *   שקוד שהונפק לפני השינוי לא יישבר באמצע.
+ */
 
 /**
- * מנפיק קוד חדש ומבטל את הקודם.
+ * ═══════════════════════════════════════════════════════════════
+ * ★★★ הפדיון: מעבירים דאטה, לא סשן ★★★
+ * ═══════════════════════════════════════════════════════════════
  *
- * ★ הקוד עצמו לא נשמר במסד — רק ה-hash שלו. מי שמשיג גישה לטבלה
- *   לא יכול להתחזות לאף אחד. אותו עיקרון בדיוק כמו סיסמה.
+ * הגרסה הקודמת ניסתה להיכנס **בתור** המשתמש הישן: היא ביקשה
+ * מ-Edge Function להנפיק טוקן של מישהו אחר, וזה דורש מפתח
+ * `service_role` שאסור לו להיות בדפדפן. מכאן כל התלות בשרת.
+ *
+ * ★ אבל לדפדפן הזה **כבר יש** משתמש אנונימי משלו.
+ *
+ * אז במקום להתחזות, הוא פשוט לוקח אליו את הדאטה: ההרכבים, שם
+ * הקבוצה, הזירות, הפרופיל. `game.claim_pass` עושה את זה בשאילתה
+ * אחת, כ-`SECURITY DEFINER`, בלי טוקנים ובלי שרת.
+ *
+ * מבחינת המשתמש התוצאה זהה לחלוטין — הוא רואה את הקבוצה שלו.
+ *
+ * ★ מה ש**לא** עובר: `is_admin`. מפתח נשלח בוואטסאפ ומצולם
+ *   מהמסך; אילו הוא היה גורר הרשאת ניהול, כל צילום מסך של
+ *   אדמין היה מפתח ללוח הניהול.
  */
-export async function issueAccessCode(): Promise<AccessCode> {
-  const { data, error } = await supabase.functions.invoke<AccessCode>('access-code', {
-    body: { action: 'issue' },
-  });
-  if (error || !data) throw new Error('ACCESS_CODE_ISSUE_FAILED');
-  return data;
+export interface ClaimResult {
+  ok: boolean;
+  /** כמה הרכבים עברו. 0 עם `ok` = זה כבר החשבון שלך. */
+  moved: number;
+  sameUser: boolean;
+  displayName?: string | null;
+  error?: 'INVALID_CODE' | 'TOO_MANY_ATTEMPTS';
 }
 
-/**
- * פודה קוד ומחליף את הזהות הנוכחית בזו שהקוד מצביע עליה.
- *
- * ★ הפדיון קורה בשרת, כי הוא צריך להנפיק סשן למשתמש **אחר**.
- *   דפדפן לא יכול לעשות את זה, ובצדק.
- */
-export async function redeemAccessCode(code: string): Promise<Identity> {
-  const clean = code.trim().toUpperCase().replace(/\s+/g, '');
-  const { data, error } = await supabase.functions.invoke<{
-    access_token: string; refresh_token: string; display_name: string | null;
-  }>('access-code', { body: { action: 'redeem', code: clean } });
+export async function redeemAccessCode(code: string): Promise<ClaimResult> {
+  /* ★ הזהות חייבת להיות קיימת לפני הפדיון.
+     `claim_pass` מעבירה דאטה **אל** המשתמש הנוכחי, ולכן אם אין
+     עדיין סשן אנונימי — אין לאן להעביר. */
+  await ensureIdentity();
 
-  if (error || !data?.access_token) throw new Error('ACCESS_CODE_INVALID');
+  const { data, error } = await supabase.rpc('claim_pass', { p_key: code });
+  if (error) throw new Error('ACCESS_CODE_INVALID');
 
-  const { data: sess, error: sErr } = await supabase.auth.setSession({
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-  });
-  if (sErr || !sess.user) throw new Error('ACCESS_CODE_SESSION_FAILED');
+  const res = (data ?? { ok: false, moved: 0, sameUser: false }) as ClaimResult;
 
-  /* השם מגיע מהשרת דרך `fromSession` — הוא כבר נכתב ל-
-     `game.users` בצד ה-Edge Function. אין מה לשכפל למכשיר. */
-  current = await fromSession(sess.user.id);
-  emit();
-  return current;
+  if (res.ok && !res.sameUser) {
+    /* הזהות עצמה לא השתנתה — רק מה שתלוי עליה. אבל השם כן,
+       ולכן צריך לקרוא אותה מחדש. */
+    const id = currentIdentity();
+    if (id) {
+      current = await fromSession(id.id);
+      emit();
+    }
+  }
+  return res;
 }
 
 /* ================================================================== */
@@ -334,11 +355,20 @@ export interface GuestPass {
 }
 
 export async function issueGuestPass(): Promise<GuestPass> {
-  const { data, error } = await supabase.functions.invoke<GuestPass>('access-code', {
-    body: { action: 'pass' },
-  });
-  if (error || !data?.code) throw new Error('PASS_ISSUE_FAILED');
-  return data;
+  /*
+   * ★★ RPC, ולא Edge Function ★★
+   *
+   * הגרסה הקודמת קראה ל-`functions.invoke('access-code')`, ולכן
+   * דרשה `supabase functions deploy` — צעד שאי אפשר לעשות
+   * מ-SQL Editor. תכונה שדורשת צעד תפעולי שלא מבוצע היא תכונה
+   * שלא קיימת.
+   *
+   * עכשיו הכל ב-SQL: `game.issue_pass()` מייצרת את המפתח,
+   * שומרת רק את ה-hash, ומחזירה את הטקסט פעם אחת.
+   */
+  const { data, error } = await supabase.rpc('issue_pass');
+  if (error || !data) throw new Error('PASS_ISSUE_FAILED');
+  return data as GuestPass;
 }
 
 export interface PassState {
@@ -440,7 +470,24 @@ export async function linkOffsidesAccount(email: string, otp: string): Promise<I
     access_token: string; refresh_token: string; offsides_user_id: string; display_name: string | null;
   }>('link-offsides', { body: { offsides_access_token: verified.session.access_token } });
 
-  if (error || !data?.access_token) throw new Error('OFFSIDES_LINK_FAILED');
+  /*
+   * ★ זו הפונקציה היחידה במוצר שבאמת חייבת שרת.
+   *
+   * היא מאמתת טוקן מול **פרויקט אחר** (אופסיידס), ורק צד שרת
+   * יכול לשאול "הטוקן הזה באמת שלך?". דפדפן יכול לשלוח כל
+   * טוקן שירצה.
+   *
+   * ולכן ההודעה כאן מבדילה: אם הפונקציה פשוט לא נפרסה, זו לא
+   * "בעיה בקוד" — זו תכונה שעוד לא הופעלה, והמסך צריך לומר
+   * את זה במקום להאשים את המשתמש בקוד שגוי.
+   */
+  if (error) {
+    const msg = String((error as { message?: string })?.message ?? '');
+    throw new Error(/not found|404|Failed to (send|fetch)/i.test(msg)
+      ? 'OFFSIDES_NOT_ENABLED'
+      : 'OFFSIDES_LINK_FAILED');
+  }
+  if (!data?.access_token) throw new Error('OFFSIDES_LINK_FAILED');
 
   const { data: sess, error: sErr } = await supabase.auth.setSession({
     access_token: data.access_token,
@@ -775,6 +822,8 @@ function mapAuthError(message: string): string {
 }
 
 export const AUTH_ERROR_HE: Record<string, string> = {
+  OFFSIDES_NOT_ENABLED:
+    'חיבור החשבון מאופסיידס עוד לא הופעל. אפשר להיכנס עם כרטיס המנוי או עם מייל.',
   USERNAME_TOO_SHORT: 'שם משתמש — שלושה תווים לפחות.',
   USERNAME_TAKEN: 'השם הזה כבר תפוס. נסו אחר.',
   PASSWORD_TOO_SHORT: 'סיסמה — שישה תווים לפחות.',

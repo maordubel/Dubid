@@ -29,12 +29,12 @@ import {
   adminAnalytics, adminDataQuality, adminAudit,
   adminAddBots, adminRemoveBots, adminActivity, adminActivityStats,
   adminAds, adminUpsertAd, adminSetAdEnabled, adminDeleteAd, adminAdStats,
-  adminLeads, adminFunnel,
+  adminLeads, adminFunnel, adminDaily, adminLeadsCsv,
   errorMessageHe,
   type GameweekRow, type ImportReport, type ContentRow,
   type BotResult, type ActivityRow, type ActivityStats,
   type Analytics, type DataIssue, type AuditRow,
-  type AdminAd, type AdStats, type LeadRow, type Funnel,
+  type AdminAd, type AdStats, type LeadRow, type Funnel, type DailyRow,
 } from '../lib/store.ts';
 import { adIssues, BRANDS, BRAND_IDS, type HouseAd } from '../lib/houseAds.ts';
 import type { Placement } from '../lib/growth.ts';
@@ -1836,13 +1836,35 @@ function AdEditor({
 export function AdminFunnel() {
   const [f, setF] = useState<Funnel | null>(null);
   const [rows, setRows] = useState<LeadRow[] | null>(null);
+  const [days, setDays] = useState<DailyRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   const load = () => {
-    Promise.all([adminFunnel(), adminLeads(200)])
-      .then(([a, b]) => { setF(a); setRows(b); setErr(null); })
+    Promise.all([adminFunnel(), adminLeads(200), adminDaily(14)])
+      .then(([a, b, c]) => { setF(a); setRows(b); setDays(c); setErr(null); })
       .catch((e: unknown) =>
         setErr(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')));
+  };
+
+  /**
+   * ★ ההורדה נבנית ונמחקת באותה פעולה.
+   *
+   * `URL.revokeObjectURL` הוא לא נימוס: בלעדיו כל לחיצה על
+   * "ייצוא" משאירה את כל הקובץ בזיכרון של הלשונית עד לרענון.
+   */
+  const exportCsv = () => {
+    void adminLeadsCsv().then((csv) => {
+      /* ★ BOM בתחילת הקובץ. אקסל בעברית פותח UTF-8 בלי BOM
+         כג׳יבריש, וזה הדבר הראשון שנשבר בייצוא בעברית. */
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dubid-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }).catch((e: unknown) =>
+      setErr(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')));
   };
 
   useEffect(load, []);
@@ -1885,10 +1907,15 @@ export function AdminFunnel() {
         <button onClick={load} className={`${ghost} mt-3`}>רענון</button>
       </Card>
 
+      {days.length > 0 && <DailyChart rows={days} />}
+
       <Card
         title="לידים"
         hint="רק מה שאנשים הקלידו והגישו בעצמם. «תזכורות» = אישרו במפורש."
       >
+        <button onClick={exportCsv} className={`${ghost} mb-3`}>
+          ייצוא ל-CSV
+        </button>
         {rows === null ? (
           <p className="text-[12px] text-chalk-dim">טוען…</p>
         ) : rows.length === 0 ? (
@@ -1946,5 +1973,72 @@ function Step({
         <div className="h-full rounded-full bg-gold/70" style={{ width: `${share}%` }} />
       </div>
     </li>
+  );
+}
+
+/**
+ * ארבעה עשר ימים אחורה — הגרף היחיד שצריך כאן.
+ *
+ * ★ ארבעה קווים ולא ארבעה גרפים.
+ *
+ * השאלה היא "האם המוצר גדל, ואיפה", והתשובה עליה נמצאת
+ * **ביחסים** בין הסדרות: אם ההגשות עולות והכרטיסים לא, המשמעות
+ * שונה לגמרי מזה ששניהם עולים. ארבעה גרפים נפרדים היו מסתירים
+ * בדיוק את מה שמעניין.
+ *
+ * ★ העמודות ולא קווים חלקים: המספרים כאן קטנים ובדידים (שלוש
+ *   הגשות ביום זה מספר אמיתי), וקו חלק מעליהם מרמז על מגמה
+ *   שאין לה מספיק דאטה מאחוריה.
+ */
+function DailyChart({ rows }: { rows: DailyRow[] }) {
+  const series: Array<[keyof DailyRow, string, string]> = [
+    ['newUsers', 'נכנסו', '#8B7F6A'],
+    ['entries', 'הגשות', '#D8B25C'],
+    ['passes', 'כרטיסים', '#2E9E6B'],
+    ['leads', 'לידים', '#E4453B'],
+  ];
+
+  const max = Math.max(
+    1,
+    ...rows.flatMap((r) => series.map(([k]) => Number(r[k]) || 0)),
+  );
+
+  return (
+    <Card title="ארבעה עשר יום" hint="כל עמודה היא יום. הגובה יחסי ליום החזק ביותר.">
+      <div className="flex items-end gap-[3px]" dir="ltr" style={{ height: 92 }}>
+        {rows.map((r) => (
+          <div key={r.day} className="flex h-full flex-1 items-end gap-[1px]"
+               title={`${r.day} · נכנסו ${r.newUsers} · הגשות ${r.entries} · כרטיסים ${r.passes} · לידים ${r.leads}`}>
+            {series.map(([k, , color]) => {
+              const v = Number(r[k]) || 0;
+              return (
+                <span
+                  key={String(k)}
+                  className="flex-1 rounded-t-[2px]"
+                  style={{
+                    background: color,
+                    /* ★ מינימום פיקסל אחד לערך אפס: עמודה שנעלמת
+                       לגמרי נראית כמו יום שלא נטען, ולא כמו יום
+                       שבו לא קרה כלום. */
+                    height: v === 0 ? 1 : `${Math.max(3, (v / max) * 100)}%`,
+                    opacity: v === 0 ? 0.3 : 1,
+                  }}
+                />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        {series.map(([k, label, color]) => (
+          <span key={String(k)} className="flex items-center gap-1 text-[10.5px] text-chalk-dim">
+            <span className="size-2 rounded-sm" style={{ background: color }} />
+            {label}
+          </span>
+        ))}
+        <span className="num ms-auto text-[10px] text-chalk-dim">שיא {max}</span>
+      </div>
+    </Card>
   );
 }

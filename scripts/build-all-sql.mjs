@@ -36,6 +36,7 @@ const FILES = [
   ['17_house_ads.sql',         'פרסום פנימי — מודעות, מדידה ולוח ניהול'],
   ['18_hardening.sql',         '★ הקשחה — סגירת הגישה הישירה לטבלאות, RLS, קצב, ביקורת'],
   ['19_guest_pass.sql',        'כרטיס המנוי של האורח, לכידת לידים, ומשפך'],
+  ['20_pass_sql_only.sql',     '★ כרטיס המנוי בלי Edge Functions — הכל ב-SQL'],
 ];
 
 const bar = '=' .repeat(69);

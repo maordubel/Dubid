@@ -697,9 +697,14 @@ function MainApp() {
     const key = passFromUrl();
     if (!key) return;
     void redeemAccessCode(key)
-      .then(() => window.location.reload())
+      .then((r) => {
+        if (r.ok) { window.location.reload(); return; }
+        window.alert(r.error === 'TOO_MANY_ATTEMPTS'
+          ? 'יותר מדי ניסיונות. נסו שוב בעוד רבע שעה.'
+          : 'המפתח לא תקף. אפשר להנפיק חדש מהמכשיר שבו אתם מחוברים.');
+      })
       .catch(() => {
-        window.alert('המפתח לא תקף. אפשר להנפיק חדש מהמכשיר שבו אתם מחוברים.');
+        window.alert('לא הצלחנו להתחבר לשרת. בדקו חיבור ונסו שוב.');
       });
   }, []);
 

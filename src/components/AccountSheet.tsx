@@ -18,7 +18,7 @@
  */
 import { useEffect, useState } from 'react';
 import {
-  currentIdentity, issueAccessCode, redeemAccessCode,
+  currentIdentity, redeemAccessCode, authMessageHe,
   requestOffsidesCode, linkOffsidesAccount, setDisplayName, storedDisplayName,
   signOut, type Identity,
 } from '../lib/identity.ts';
@@ -225,25 +225,20 @@ function MeTab({ identity }: { identity: Identity | null }) {
 function MoveTab({
   onDone, onShowPass, hasPass,
 }: { onDone: () => void; onShowPass?: () => void; hasPass?: boolean }) {
-  const [code, setCode] = useState<string | null>(null);
-  const [expires, setExpires] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const issue = () => {
-    setBusy(true); setError(null);
-    void issueAccessCode()
-      .then((c) => { setCode(c.code); setExpires(c.expiresAt); })
-      .catch(() => setError('לא הצלחנו להנפיק קוד. בדקו חיבור ונסו שוב.'))
-      .finally(() => setBusy(false));
-  };
-
   const redeem = () => {
     setBusy(true); setError(null);
     void redeemAccessCode(input)
-      .then(() => { window.location.reload(); onDone(); })
-      .catch(() => setError('הקוד לא תקף, פג, או כבר שומש.'))
+      .then((r) => {
+        if (r.ok) { window.location.reload(); onDone(); return; }
+        setError(r.error === 'TOO_MANY_ATTEMPTS'
+          ? 'יותר מדי ניסיונות. נסו שוב בעוד רבע שעה.'
+          : 'המפתח לא תקף. בדקו שהעתקתם אותו במלואו.');
+      })
+      .catch(() => setError('לא הצלחנו להתחבר לשרת. בדקו חיבור ונסו שוב.'))
       .finally(() => setBusy(false));
   };
 
@@ -251,35 +246,29 @@ function MoveTab({
     <div className="space-y-5">
       {/*
         ═══════════════════════════════════════════════════════
-        ★★ כרטיס המנוי ראשון, וקוד ההעברה אחריו ★★
+        ★★ מנגנון אחד, ולא שניים ★★
         ═══════════════════════════════════════════════════════
 
-        שתי היכולות נראות דומות ופותרות שתי בעיות שונות:
+        כאן ישבו קודם שני דברים: "כרטיס מנוי" ו"קוד מהיר בן שש
+        לשעה". שניהם פתרו את אותה בעיה בשתי דרכים, והמשתמש היה
+        צריך להבין את ההבדל כדי לבחור — כלומר עוד החלטה, במסך
+        שכל תפקידו הוא לא לאבד את החשבון.
 
-          כרטיס   "אני רוצה לא לאבד את החשבון." — קבוע, נשמר
-                  כתמונה, עובד תמיד. זה מה שרוב האנשים מחפשים
-                  כשהם פותחים את המסך הזה.
-
-          קוד     "יש לי עכשיו שני מכשירים ביד." — חד־פעמי,
-                  שעה. מקרה נדיר יותר, וגם מיידי יותר.
-
-        הכרטיס למעלה כי הוא התשובה לשאלה השכיחה. סדר הפוך היה
-        אומר לרוב המשתמשים "הפתרון שלך הוא קוד שפג בעוד שעה",
-        וזו תשובה שגויה שנראית נכונה.
+        הכרטיס עושה את שניהם: אפשר לשמור אותו כתמונה, ואפשר
+        פשוט להקליד את המפתח במכשיר שביד. הקוד הקצר ירד.
       */}
       {onShowPass && (
         <section className="rounded-2xl bg-night-2 p-4 edge-gold">
           <h3 className="text-sm font-black text-chalk">כרטיס המנוי שלי</h3>
           <p className="mt-1 text-[12px] leading-snug text-chalk-2">
-            תמונה עם מפתח קבוע ו-QR. שומרים אותה בגלריה או שולחים
-            לעצמכם בוואטסאפ, ונכנסים איתה מכל מכשיר — בלי סיסמה.
+            תמונה עם מפתח קבוע ו-QR. שומרים בגלריה או שולחים לעצמכם
+            בוואטסאפ, ונכנסים איתה מכל מכשיר — בלי סיסמה ובלי הרשמה.
           </p>
 
           {hasPass && (
             /* ★ אזהרה אחת, ורק כשהיא רלוונטית.
-               הנפקה מבטלת את הקודם, וזה בדיוק מה שהופך כרטיס
-               ששמור אצל המשתמש בגלריה ללא תקף. עדיף שידע
-               לפני ולא אחרי. */
+               הנפקה מבטלת את הקודם — וזה בדיוק מה שהופך כרטיס
+               ששמור בגלריה ללא תקף. עדיף שידע לפני ולא אחרי. */
             <p className="mt-2 rounded-lg border border-armband/30 bg-armband/10 px-2.5 py-2
                           text-[11.5px] leading-snug text-armband">
               כבר יש לכם כרטיס. הנפקת חדש תבטל את הישן — אם שמרתם
@@ -298,51 +287,19 @@ function MoveTab({
       )}
 
       <section className="rounded-2xl bg-night-2 p-4 edge-gold">
-        <h3 className="text-sm font-black text-chalk">קוד מהיר למכשיר שלידי</h3>
+        <h3 className="text-sm font-black text-chalk">יש לי כרטיס</h3>
         <p className="mt-1 text-[12px] leading-snug text-chalk-2">
-          למקרה שהמכשיר השני כבר ביד. הקוד תקף לשעה ולשימוש אחד —
-          לשמירה לטווח ארוך השתמשו בכרטיס למעלה.
-        </p>
-
-        {code ? (
-          <div className="mt-3 rounded-xl border border-gold/30 bg-gold/[0.07] px-4 py-3 text-center">
-            <div dir="ltr" className="num text-3xl tracking-[0.35em] text-gold-light">{code}</div>
-            {expires && (
-              <div className="mt-1 text-[11px] text-chalk-dim">
-                תקף עד{' '}
-                <span dir="ltr" className="num">
-                  {new Date(expires).toLocaleTimeString('he-IL',
-                    { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem' })}
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <button
-            onClick={issue}
-            disabled={busy}
-            className="tap mt-3 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
-                       py-2.5 font-poster text-gold-ink disabled:opacity-40"
-          >
-            {busy ? 'מנפיק…' : 'הנפקת קוד'}
-          </button>
-        )}
-      </section>
-
-      <section className="rounded-2xl bg-night-2 p-4 edge-gold">
-        <h3 className="text-sm font-black text-chalk">יש לי קוד</h3>
-        <p className="mt-1 text-[12px] leading-snug text-chalk-2">
-          קוד מהיר או מפתח מהכרטיס — שניהם עובדים כאן. ההרכבים
-          והדירוג שלכם יעברו למכשיר הזה.
+          הקלידו את המפתח מהכרטיס, או סרקו את ה-QR שעליו. ההרכבים,
+          שם הקבוצה והזירות שלכם יעברו למכשיר הזה.
         </p>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value.toUpperCase())}
-          placeholder="XXXXXX או XXXX-XXXX-XX"
+          placeholder="XXXX-XXXX-XX"
           dir="ltr"
           maxLength={14}
           className="num mt-3 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5
-                     text-center text-xl tracking-[0.3em] text-chalk outline-none focus:border-gold"
+                     text-center text-xl tracking-[0.25em] text-chalk outline-none focus:border-gold"
         />
         <button
           onClick={redeem}
@@ -350,7 +307,7 @@ function MoveTab({
           className="tap mt-3 w-full rounded-full border border-gold/35 py-2.5
                      font-poster text-gold-light disabled:opacity-40"
         >
-          {busy ? 'בודק…' : 'כניסה עם הקוד'}
+          {busy ? 'בודק…' : 'כניסה עם הכרטיס'}
         </button>
       </section>
 
@@ -363,8 +320,6 @@ function MoveTab({
     </div>
   );
 }
-
-/* ================================================================== */
 
 function OffsidesTab({ onDone }: { onDone: () => void }) {
   const [email, setEmail] = useState('');
@@ -386,7 +341,11 @@ function OffsidesTab({ onDone }: { onDone: () => void }) {
     setBusy(true); setError(null);
     void linkOffsidesAccount(email, otp)
       .then(() => { window.location.reload(); onDone(); })
-      .catch(() => setError('הקוד לא תקף. בדקו את המייל ונסו שוב.'))
+      /* ★ הודעה שמבדילה בין "קוד שגוי" לבין "התכונה לא הופעלה".
+         הודעה אחת לשני מצבים שולחת את המשתמש לבדוק את המייל
+         שלו שוב ושוב על בעיה שהיא לא שלו. */
+      .catch((e: unknown) => setError(authMessageHe(
+        e instanceof Error ? e.message : '')))
       .finally(() => setBusy(false));
   };
 

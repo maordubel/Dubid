@@ -1463,3 +1463,31 @@ export async function adminFunnel(): Promise<Funnel> {
     withPass: 0, passUsed: 0, leads: 0, leadsOptIn: 0,
   }) as Funnel;
 }
+
+export interface DailyRow {
+  day: string;
+  newUsers: number;
+  entries: number;
+  passes: number;
+  leads: number;
+}
+
+export async function adminDaily(days = 14): Promise<DailyRow[]> {
+  const { data, error } = await supabase.rpc('admin_daily', { p_days: days });
+  if (error) throw new Error(errorCode(error));
+  return (Array.isArray(data) ? data : []) as DailyRow[];
+}
+
+/**
+ * ★ CSV מהשרת ולא הרכבה בדפדפן.
+ *
+ * ציטוט לפי RFC 4180 (מרכאות בתוך שדה מוכפלות) הוא בדיוק סוג
+ * הדבר שנשבר בשקט על שם עם פסיק — ואז שורה אחת בקובץ מזיזה
+ * את כל העמודות. `quote_nullable` של PostgreSQL כבר עושה את
+ * זה נכון.
+ */
+export async function adminLeadsCsv(): Promise<string> {
+  const { data, error } = await supabase.rpc('admin_leads_csv');
+  if (error) throw new Error(errorCode(error));
+  return typeof data === 'string' ? data : '';
+}
