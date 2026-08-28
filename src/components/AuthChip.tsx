@@ -71,50 +71,35 @@ export function AuthChip({ identity, onOpen }: AuthChipProps) {
   const registered = !identity.isGuest || !!identity.offsidesUserId;
   const name = identity.displayName?.trim();
 
-  /* ---- אורח ---- */
-  if (!registered) {
-    return (
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="grid size-9 shrink-0 place-items-center rounded-full
-                         bg-night-2 ring-1 ring-inset ring-gold/25">
-          <LogoMark size={26} />
-        </span>
-
-        <span className="min-w-0 flex-1 leading-tight">
-          <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-chalk-dim">
-            מאמן
-          </span>
-          <span className="block truncate text-[15px] font-black text-chalk">
-            {name || 'אורח'}
-          </span>
-        </span>
-
-        {/* ★ הכפתור עצמו — קטן, זהוב, ובקצה. הוא לא מתחרה עם
-            השעון או עם כרטיסי המשחק; הוא פשוט קיים ונראה לחיץ. */}
-        <button
-          type="button"
-          onClick={onOpen}
-          className="tap shrink-0 rounded-full border border-gold/40 bg-gold/10 px-3
-                     py-1.5 text-[11.5px] font-black leading-none text-gold-light
-                     transition-colors active:bg-gold/20"
-        >
-          כניסה · הרשמה
-        </button>
-      </div>
-    );
-  }
-
-  /* ---- רשום ---- */
+  /*
+   * ═══════════════════════════════════════════════════════════════
+   * ★★★ למה כל השורה היא כפתור — בשני המצבים ★★★
+   * ═══════════════════════════════════════════════════════════════
+   *
+   * קודם רק האורח קיבל כפתור קטן בקצה ("כניסה · הרשמה"), והשם
+   * והאווטאר שלידו לא היו לחיצים בכלל.
+   *
+   * זה נראה סביר ויוצר בעיה אמיתית: **אורח לא יכול להגיע
+   * לפרופיל שלו.** הוא רואה את השם שלו על המסך, לוחץ עליו — ולא
+   * קורה כלום. וזה בדיוק המשתמש שהכי צריך את המסך הזה, כי שם
+   * יושב כרטיס המנוי שלו.
+   *
+   * ★ עכשיו: שורה אחת, לחיצה אחת, אותה התנהגות לכולם. מי שרואה
+   *   את השם שלו יכול לגעת בו ולהגיע למקום שלו.
+   */
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-label="הפרופיל שלי"
+      aria-label="פרופיל המאמן"
       className="tap -mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-1
                  text-start transition-colors active:bg-night-2/70"
     >
-      <span className="grid size-9 shrink-0 place-items-center rounded-full
-                       bg-night-2 text-[17px] ring-1 ring-inset ring-gold/40">
+      <span
+        className={`grid size-9 shrink-0 place-items-center rounded-full bg-night-2
+                    text-[17px] ring-1 ring-inset ${
+                      registered ? 'ring-gold/50' : 'ring-gold/25'}`}
+      >
         {identity.avatar ? (
           <span aria-hidden="true">{identity.avatar}</span>
         ) : (
@@ -123,16 +108,38 @@ export function AuthChip({ identity, onOpen }: AuthChipProps) {
       </span>
 
       <span className="min-w-0 flex-1 leading-tight">
+        {/*
+          ★★ שורת המצב אומרת **עובדה**, לא תווית ★★
+
+          "רשום" הוא קטלוג. "מחובר עם גוגל" הוא משהו שהמשתמש יכול
+          לאמת מול הזיכרון שלו — הוא באמת לחץ על גוגל לפני רגע.
+          זה ההבדל בין מסך שטוען שהוא מחובר לבין מסך שמרגיש מחובר.
+
+          ולאורח: "לא שמור" ולא "אורח". הראשון מתאר סיכון ומזמין
+          לגעת; השני הוא סתם שם של קטגוריה.
+        */}
         <span className="flex items-center gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-chalk-dim">
-            מאמן
-          </span>
-          {/* ★ הנקודה הירוקה היא הדבר היחיד שמסמן "אתה בפנים".
-              תג "רשום" היה מקטלג אנשים; נקודה פשוט מרגיעה. */}
-          <span
-            aria-hidden="true"
-            className="size-1.5 rounded-full bg-emerald-400/80"
-          />
+          {registered ? (
+            <>
+              <span
+                aria-hidden="true"
+                className="size-1.5 shrink-0 rounded-full bg-emerald-400/80"
+              />
+              <span className="truncate text-[10px] font-bold tracking-[0.14em] text-chalk-dim">
+                {providerLabel(identity.provider)}
+              </span>
+            </>
+          ) : (
+            <>
+              <span
+                aria-hidden="true"
+                className="size-1.5 shrink-0 rounded-full bg-armband/80"
+              />
+              <span className="truncate text-[10px] font-bold tracking-[0.14em] text-armband/90">
+                לא שמור · לחצו לשמירה
+              </span>
+            </>
+          )}
         </span>
         <span className="block truncate text-[15px] font-black text-chalk">
           {name || identity.username || 'מאמן'}
@@ -144,4 +151,11 @@ export function AuthChip({ identity, onOpen }: AuthChipProps) {
       </span>
     </button>
   );
+}
+
+/** "מחובר עם גוגל" / "מחובר במייל". `null` = מחובר, בלי לפרט. */
+function providerLabel(provider: string | null | undefined): string {
+  if (provider === 'google') return 'מחובר עם גוגל';
+  if (provider === 'email') return 'מחובר במייל';
+  return 'החשבון שמור';
 }

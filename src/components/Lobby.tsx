@@ -140,7 +140,8 @@ export function Lobby({
           <AuthChip
             identity={identity ?? (displayName
               ? ({ id: '', displayName, isGuest: true, username: null, avatar: null,
-                   referralCode: null, offsidesUserId: null, online: false } as Identity)
+                   referralCode: null, offsidesUserId: null, provider: null,
+                   online: false } as Identity)
               : null)}
             onOpen={() => onAccount?.()}
           />

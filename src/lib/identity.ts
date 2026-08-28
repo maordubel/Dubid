@@ -75,6 +75,13 @@ export interface Identity {
   avatar: string | null;
   referralCode: string | null;
   offsidesUserId: string | null;
+  /**
+   * איך הוא מחובר: `'google'`, `'email'`, או `null` לאורח.
+   *
+   * ★ "מחובר" זו הפשטה. "מחובר עם גוגל" היא עובדה שאפשר להראות —
+   *   וזה ההבדל בין מסך שמרגיש מחובר לבין מסך שטוען שהוא מחובר.
+   */
+  provider: string | null;
   /** `false` = זהות מקומית בלבד, בלי שרת. אין סנכרון בין מכשירים. */
   online: boolean;
 }
@@ -164,7 +171,7 @@ function localFallback(): Identity {
   return {
     id, displayName: current?.displayName ?? '', isGuest: true,
     username: null, avatar: null, referralCode: null,
-    offsidesUserId: null, online: false,
+    offsidesUserId: null, provider: null, online: false,
   };
 }
 
@@ -176,6 +183,7 @@ interface MeRow {
   isGuest?: boolean | null;
   referralCode?: string | null;
   offsidesUserId?: string | null;
+  provider?: string | null;
   isAdmin?: boolean | null;
 }
 
@@ -202,8 +210,68 @@ async function fromSession(userId: string): Promise<Identity> {
     avatar: profile?.avatar ?? null,
     referralCode: profile?.referralCode ?? null,
     offsidesUserId: profile?.offsidesUserId ?? null,
+    provider: profile?.provider ?? null,
     online: true,
   };
+}
+
+/* ================================================================== */
+/* ★★★ ההאזנה שהייתה חסרה ★★★                                          */
+/* ================================================================== */
+
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * ★ הבאג: "לחצתי על גוגל וזה פשוט טען את הדף מחדש"
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * זרימת OAuth היא **ניווט מלא**: הדפדפן עוזב את האתר, חוזר, וכל
+ * האפליקציה עולה מחדש. הסשן החדש נקלט על ידי `detectSessionInUrl`
+ * — אבל זה קורה **אסינכרונית**, אחרי שהמודול כבר נטען.
+ *
+ * ובלי מאזין, אף אחד לא מספר לאפליקציה שזה קרה.
+ *
+ * התוצאה: המשתמש חוזר, רואה בדיוק את אותו מסך, ומסיק — בצדק —
+ * שההתחברות לא עבדה. היא כן עבדה. פשוט אף מסך לא הסתכל שוב.
+ *
+ * ★★ ולמה זה גם באג של **אובדן זהות** ★★
+ *
+ * `ensureIdentity` קוראת ל-`getSession()`, וכשאין סשן היא יוצרת
+ * משתמש אנונימי **חדש**. כל מקום שבו הסשן האמיתי מגיע באיחור
+ * הוא מקום שבו נוצר אורח חדש וריק — וההיסטוריה של המשתמש
+ * נשארת תלויה על מזהה שאיש כבר לא מחזיק.
+ *
+ * המאזין סוגר את שניהם: הוא מרענן את הזהות בכל שינוי אמיתי,
+ * ומודיע לכל המסכים.
+ */
+export function watchAuth(): () => void {
+  try {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      /* ★ `TOKEN_REFRESHED` לא נכנס לכאן בכוונה: הוא קורה כל שעה
+         והוא לא משנה **מי** המשתמש. רענון זהות בכל חידוש טוקן
+         היה שולח קריאת רשת מיותרת לכל לשונית פתוחה, לנצח. */
+      if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT'
+          && event !== 'USER_UPDATED') return;
+
+      void (async () => {
+        if (!session?.user) { current = null; ensuring = null; emit(); return; }
+
+        /* ★ `ensure_profile` **לפני** קריאת הזהות.
+           אחרי חיבור גוגל, `game.users.is_guest` עדיין TRUE עד
+           שמישהו יעדכן אותו. קריאה בסדר ההפוך הייתה מחזירה
+           "אורח" בדיוק ברגע שבו המשתמש סיים להתחבר. */
+        try {
+          await supabase.rpc('ensure_profile', { p_display_name: null });
+        } catch { /* לא חוסם */ }
+
+        current = await fromSession(session.user.id);
+        ensuring = Promise.resolve(current);
+        emit();
+      })();
+    });
+    return () => data?.subscription?.unsubscribe?.();
+  } catch {
+    return () => {};
+  }
 }
 
 let ensuring: Promise<Identity> | null = null;

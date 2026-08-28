@@ -8,7 +8,7 @@
  * אותה שפת עיצוב — לא שתי אפליקציות מודבקות זו לזו.
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ensureIdentity, storedDisplayName, setDisplayName, subscribeToIdentity,
+import { ensureIdentity, storedDisplayName, setDisplayName, subscribeToIdentity, watchAuth,
   type Identity } from './lib/identity.ts';
 
 import { AppShell, AppHeader } from './components/AppShell.tsx';
@@ -33,6 +33,7 @@ import { shouldNudge, shouldOfferPass, PASS_OFFERED_KEY } from './lib/nudge.ts';
 import { PassSheet } from './components/PassSheet.tsx';
 import {
   issueGuestPass, passState, passLink, passFromUrl, redeemAccessCode,
+  oauthErrorFromUrl,
 } from './lib/identity.ts';
 import { type PassCardData } from './lib/passCard.ts';
 
@@ -374,6 +375,11 @@ function MainApp() {
   const [identity, setIdentity] = useState<Identity | null>(null);
   useEffect(() => subscribeToIdentity(setIdentity), []);
 
+  /* ★★ בלי זה, חזרה מגוגל נראית כמו "כלום לא קרה".
+     הסשן נקלט אסינכרונית אחרי שהאפליקציה כבר עלתה, ואף מסך
+     לא מסתכל שוב. ראו את ההסבר המלא ב-`watchAuth`. */
+  useEffect(() => watchAuth(), []);
+
   // שני הרכבים חיים תמיד, במקביל — לא נוצרים/נהרסים עם מעבר טאב,
   // כדי שהעבודה על אחד לא תימחק כשעוברים לשני ואז חוזרים.
   const luFull = useLineup(fullRules.constraints.formationAllowed[0], fullRules, {
@@ -693,6 +699,19 @@ function MainApp() {
    * ★ רץ פעם אחת בלבד (`[]`), ו-`passFromUrl` מנקה את הכתובת
    *   מיד. בלי הניקוי המפתח היה נשאר בשורת הכתובת ובהיסטוריה.
    */
+  /*
+   * ★★ שגיאת OAuth שחזרה בכתובת ★★
+   *
+   * ספק שמסרב לא זורק שגיאה — הוא **מחזיר** לכתובת עם
+   * `?error=...`. בלי לקרוא אותה, המשתמש נוחת בלובי כאילו כלום
+   * לא קרה, מנסה שוב, ומקבל בדיוק אותו כלום. זו הדרך הבטוחה
+   * לגרום למישהו לוותר על התחברות.
+   */
+  useEffect(() => {
+    const err = oauthErrorFromUrl();
+    if (err) window.alert(`ההתחברות לא הושלמה: ${err}`);
+  }, []);
+
   useEffect(() => {
     const key = passFromUrl();
     if (!key) return;

@@ -35,6 +35,37 @@
 
 SET search_path = game, core, public;
 
+/**
+ * דרך ההתחברות: 'google' / 'email' / NULL לאורח.
+ *
+ * ★ פונקציה נפרדת, כי `auth.identities` לא קיימת בסביבת
+ *   הבדיקות המקומית — והבידוד הזה מונע ממנה להפיל את כל
+ *   הפרופיל שם.
+ */
+CREATE OR REPLACE FUNCTION game.my_provider()
+RETURNS TEXT
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = game, auth, public
+AS $$
+DECLARE v TEXT := NULL;
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN NULL; END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables
+              WHERE table_schema = 'auth' AND table_name = 'identities') THEN
+    EXECUTE $q$
+      SELECT i.provider FROM auth.identities i
+      WHERE i.user_id = $1 AND i.provider <> 'anonymous'
+      ORDER BY i.last_sign_in_at DESC NULLS LAST LIMIT 1
+    $q$ INTO v USING auth.uid();
+  END IF;
+
+  RETURN v;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.my_provider() TO authenticated;
+
 CREATE OR REPLACE FUNCTION game.my_profile()
 RETURNS JSONB
 LANGUAGE plpgsql STABLE SECURITY DEFINER
@@ -51,6 +82,7 @@ BEGIN
     'username',     u.username,
     'avatar',       u.avatar,
     'email',        u.email,
+    'provider',     game.my_provider(),
     'isGuest',      COALESCE(u.is_guest, TRUE),
     'referralCode', u.referral_code,
     'memberSince',  to_char(u.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
@@ -102,7 +134,12 @@ BEGIN
         SELECT jsonb_build_object(
           'gw',        g.code,
           'gwNumber',  g.number,
-          'gwLabel',   g.label,
+          /* ★ `gameweeks.names` הוא דומיין מעל JSONB, לא טיפוס
+             מורכב — הגישה היא `#>>` ולא `.he`. אותה צורה בדיוק
+             כמו ב-`db/13`, ובכוונה: שתי דרכים לקרוא את אותו שדה
+             הן שתי דרכים להישבר בנפרד. */
+          'gwLabel',   COALESCE(g.names #>> '{he,full}',
+                                'מחזור ' || g.number::TEXT),
           'mode',      ul.mode,
           'teamName',  ul.team_name,
           'submitted', to_char(ul.submitted_at AT TIME ZONE 'UTC',
