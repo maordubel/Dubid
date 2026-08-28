@@ -692,7 +692,7 @@ SET search_path = core, game, public;
 
 DO $seed$
 DECLARE
-  payload  JSONB := $json${"league":{"id":1,"name_he":"ליגת העל בישראל","name_en":"Israeli Premier League","season":"2026/2027"},"teams":[{"team_id":1,"name_he":"הפועל באר שבע","name_en":"Hapoel Beer Sheva","short":"ה.בש","city":"באר שבע","stadium":null,"players":[{"id":101,"name_he":"אופיר מרציאנו","name_en":"TBD","position":"GK","number":1,"tier":2,"price":3,"overall_rank":28,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":102,"name_he":"גיא מזרחי","name_en":"TBD","position":"DF","number":2,"tier":2,"price":4,"overall_rank":29,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":103,"name_he":"מתן בלטקסה","name_en":"TBD","position":"DF","number":3,"tier":2,"price":4,"overall_rank":36,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":104,"name_he":"מיגל ויטור","name_en":"TBD","position":"DF","number":4,"tier":2,"price":4,"overall_rank":33,"rated":true,"nationality":"פורטוגל","is_club_captain":true},{"id":105,"name_he":"פדרו אמאדור","name_en":"TBD","position":"DF","number":5,"tier":2,"price":4,"overall_rank":37,"rated":true,"nationality":"פורטוגל","is_club_captain":false},{"id":106,"name_he":"אליאל פרץ","name_en":"TBD","position":"MF","number":7,"tier":1,"price":5,"overall_rank":10,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":107,"name_he":"חמודי כנעאן","name_en":"TBD","position":"MF","number":8,"tier":2,"price":3,"overall_rank":38,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":108,"name_he":"זאהי אחמד","name_en":"TBD","position":"FW","number":9,"tier":2,"price":3,"overall_rank":39,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":109,"name_he":"דן ביטון","name_en":"TBD","position":"MF","number":10,"tier":1,"price":5,"overall_rank":2,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":110,"name_he":"אמיר גנאח","name_en":"TBD","position":"MF","number":11,"tier":2,"price":3,"overall_rank":40,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":111,"name_he":"איתי רוטמן","name_en":"TBD","position":"DF","number":12,"tier":2,"price":3,"overall_rank":41,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":112,"name_he":"אופיר דוידזאדה","name_en":"TBD","position":"DF","number":13,"tier":2,"price":4,"overall_rank":42,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":113,"name_he":"יונס מלדה","name_en":"TBD","position":"FW","number":14,"tier":2,"price":3,"overall_rank":43,"rated":true,"nationality":"בלגיה/ישראל","is_club_captain":false},{"id":114,"name_he":"רועי ליוי","name_en":"TBD","position":"DF","number":18,"tier":2,"price":4,"overall_rank":44,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":115,"name_he":"ג'בון איסט","name_en":"TBD","position":"FW","number":20,"tier":2,"price":4,"overall_rank":45,"rated":true,"nationality":"גמייקה","is_club_captain":false},{"id":116,"name_he":"יואב קורן","name_en":"TBD","position":"FW","number":21,"tier":2,"price":4,"overall_rank":46,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":117,"name_he":"איתי חזות","name_en":"TBD","position":"MF","number":23,"tier":2,"price":4,"overall_rank":47,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":118,"name_he":"לוקאס ונטורה","name_en":"TBD","position":"MF","number":25,"tier":2,"price":4,"overall_rank":17,"rated":true,"nationality":"ברזיל","is_club_captain":false},{"id":119,"name_he":"יוני סטויאנוב","name_en":"TBD","position":"MF","number":27,"tier":2,"price":4,"overall_rank":48,"rated":true,"nationality":"בולגריה","is_club_captain":false},{"id":120,"name_he":"ניב יהושע","name_en":"TBD","position":"MF","number":28,"tier":2,"price":3,"overall_rank":49,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":121,"name_he":"מרקו וולף","name_en":"TBD","position":"GK","number":34,"tier":2,"price":3,"overall_rank":50,"rated":true,"nationality":"ארגנטינה","is_club_captain":false},{"id":122,"name_he":"יונתן שני","name_en":"TBD","position":"GK","number":36,"tier":2,"price":2,"overall_rank":51,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":123,"name_he":"ג'יבריל דיופ","name_en":"TBD","position":"DF","number":44,"tier":2,"price":4,"overall_rank":52,"rated":true,"nationality":"סנגל","is_club_captain":false},{"id":124,"name_he":"מוחמד אבו רומי","name_en":"TBD","position":"FW","number":45,"tier":2,"price":4,"overall_rank":53,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":125,"name_he":"ניב אליאסי","name_en":"TBD","position":"GK","number":55,"tier":2,"price":2,"overall_rank":54,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":126,"name_he":"איגור זלאטנוביץ'","name_en":"TBD","position":"FW","number":66,"tier":1,"price":5,"overall_rank":9,"rated":true,"nationality":"סרביה","is_club_captain":false},{"id":127,"name_he":"ז'ואאו ויקטור","name_en":"TBD","position":"FW","number":70,"tier":2,"price":4,"overall_rank":55,"rated":true,"nationality":"ברזיל","is_club_captain":false}]},{"team_id":2,"name_he":"הפועל ירושלים","name_en":"Hapoel Jerusalem","short":"ה.ים","city":"ירושלים","stadium":null,"players":[{"id":201,"name_he":"נועם מלמוד","name_en":"TBD","position":"DF","number":3,"tier":2,"price":3,"overall_rank":56,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":202,"name_he":"יונתן לייש","name_en":"TBD","position":"DF","number":4,"tier":2,"price":3,"overall_rank":57,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":203,"name_he":"עומר אבוהב","name_en":"TBD","position":"MF","number":5,"tier":2,"price":3,"overall_rank":58,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":204,"name_he":"לי און מזרחי","name_en":"TBD","position":"DF","number":null,"tier":2,"price":3,"overall_rank":59,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":205,"name_he":"איליאי מדמון","name_en":"TBD","position":"MF","number":8,"tier":2,"price":3,"overall_rank":60,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":206,"name_he":"עידן כהן","name_en":"TBD","position":"DF","number":15,"tier":2,"price":3,"overall_rank":61,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":207,"name_he":"עומר אגבדיש","name_en":"TBD","position":"DF","number":16,"tier":2,"price":3,"overall_rank":62,"rated":true,"nationality":"ישראל","is_club_captain":true},{"id":208,"name_he":"ינאי דיסטפלד","name_en":"TBD","position":"MF","number":17,"tier":2,"price":3,"overall_rank":63,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":209,"name_he":"אופק נדיר","name_en":"TBD","position":"DF","number":20,"tier":2,"price":4,"overall_rank":64,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":210,"name_he":"איינאו פרדה","name_en":"TBD","position":"MF","number":21,"tier":2,"price":3,"overall_rank":65,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":211,"name_he":"תמיר חיימוביץ'","name_en":"TBD","position":"DF","number":22,"tier":2,"price":2,"overall_rank":66,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":212,"name_he":"נתי שפראו","name_en":"TBD","position":"FW","number":23,"tier":2,"price":3,"overall_rank":67,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":213,"name_he":"הילאי מלמן","name_en":"TBD","position":"DF","number":null,"tier":2,"price":2,"overall_rank":68,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":214,"name_he":"אנדרו אידוקו","name_en":"TBD","position":"FW","number":25,"tier":2,"price":3,"overall_rank":69,"rated":true,"nationality":"ניגריה","is_club_captain":false},{"id":215,"name_he":"עומר בן גורדין","name_en":"TBD","position":"GK","number":28,"tier":2,"price":2,"overall_rank":70,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":216,"name_he":"ישראל דאפה","name_en":"TBD","position":"FW","number":33,"tier":2,"price":4,"overall_rank":71,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":217,"name_he":"נדב זמיר","name_en":"TBD","position":"GK","number":55,"tier":2,"price":3,"overall_rank":72,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":218,"name_he":"אוהד אלמגור","name_en":"TBD","position":"MF","number":77,"tier":2,"price":3,"overall_rank":73,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":219,"name_he":"ויט ליייה דאמאשקאן","name_en":"TBD","position":"FW","number":null,"tier":2,"price":4,"overall_rank":74,"rated":true,"nationality":"מולדובה","is_club_captain":false}]},{"team_id":3,"name_he":"מכבי תל אביב","name_en":"Maccabi Tel Aviv","short":"מ.תא","city":"תל אביב","stadium":null,"players":[{"id":301,"name_he":"רוי רביבו","name_en":"TBD","position":"DF","number":3,"tier":1,"price":5,"overall_rank":6,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":302,"name_he":"מוחמד עלי קמארה","name_en":"TBD","position":"DF","number":5,"tier":2,"price":4,"overall_rank":75,"rated":true,"nationality":"גינאה","is_club_captain":false},{"id":303,"name_he":"טייריס אסאנטה","name_en":"TBD","position":"DF","number":6,"tier":2,"price":4,"overall_rank":27,"rated":true,"nationality":"הולנד","is_club_captain":false},{"id":304,"name_he":"קרווין אנדרדה","name_en":"TBD","position":"MF","number":10,"tier":2,"price":4,"overall_rank":76,"rated":true,"nationality":"ונצואלה","is_club_captain":false},{"id":305,"name_he":"שגיב יחזקאל","name_en":"TBD","position":"DF","number":11,"tier":2,"price":4,"overall_rank":11,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":306,"name_he":"רז שלמה","name_en":"TBD","position":"DF","number":13,"tier":2,"price":4,"overall_rank":77,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":307,"name_he":"דני גרופר","name_en":"TBD","position":"DF","number":14,"tier":2,"price":4,"overall_rank":78,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":308,"name_he":"יונס מלדה","name_en":"TBD","position":"FW","number":15,"tier":2,"price":3,"overall_rank":43,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":309,"name_he":"כריסטיאן בליץ'","name_en":"TBD","position":"MF","number":17,"tier":2,"price":4,"overall_rank":79,"rated":true,"nationality":"סרביה","is_club_captain":false},{"id":310,"name_he":"אלעד מדמון","name_en":"TBD","position":"FW","number":19,"tier":2,"price":4,"overall_rank":80,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":311,"name_he":"נועם בן הרוש","name_en":"TBD","position":"DF","number":21,"tier":2,"price":4,"overall_rank":81,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":312,"name_he":"אופק מליקה","name_en":"TBD","position":"GK","number":22,"tier":2,"price":4,"overall_rank":34,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":313,"name_he":"איסוף סיסוקו","name_en":"TBD","position":"MF","number":28,"tier":2,"price":4,"overall_rank":82,"rated":true,"nationality":"מאלי","is_club_captain":false},{"id":314,"name_he":"הליו וארלה","name_en":"TBD","position":"MF","number":29,"tier":2,"price":4,"overall_rank":35,"rated":true,"nationality":"כף ורדה","is_club_captain":false},{"id":315,"name_he":"איתמר נוי","name_en":"TBD","position":"MF","number":30,"tier":2,"price":4,"overall_rank":83,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":316,"name_he":"סייד אבו פרחי","name_en":"TBD","position":"FW","number":34,"tier":2,"price":4,"overall_rank":13,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":317,"name_he":"עידו שחר","name_en":"TBD","position":"MF","number":36,"tier":2,"price":4,"overall_rank":16,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":318,"name_he":"איתי בן חמו","name_en":"TBD","position":"DF","number":41,"tier":4,"price":2,"overall_rank":84,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":319,"name_he":"דור פרץ","name_en":"TBD","position":"MF","number":42,"tier":1,"price":5,"overall_rank":1,"rated":true,"nationality":"ישראל","is_club_captain":true},{"id":320,"name_he":"שליו סעדיה","name_en":"TBD","position":"GK","number":51,"tier":4,"price":2,"overall_rank":85,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":321,"name_he":"עידן וינברג","name_en":"TBD","position":"MF","number":52,"tier":4,"price":2,"overall_rank":87,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":322,"name_he":"רועי מגור","name_en":"TBD","position":"MF","number":53,"tier":4,"price":2,"overall_rank":99,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":323,"name_he":"לוטם אסרס","name_en":"TBD","position":"MF","number":59,"tier":4,"price":2,"overall_rank":111,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":324,"name_he":"עילאי בן סימון","name_en":"TBD","position":"FW","number":60,"tier":4,"price":2,"overall_rank":123,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":325,"name_he":"אמיר סאחיטי","name_en":"TBD","position":"FW","number":70,"tier":5,"price":1,"overall_rank":135,"rated":true,"nationality":"קוסובו","is_club_captain":false},{"id":326,"name_he":"אושר דוידה","name_en":"TBD","position":"FW","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":327,"name_he":"רועי משפתי","name_en":"TBD","position":"GK","number":90,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":328,"name_he":"יון ניקולאescu","name_en":"TBD","position":"FW","number":98,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"מולדובה","is_club_captain":false}]},{"team_id":4,"name_he":"מכבי חיפה","name_en":"Maccabi Haifa","short":"מ.חיפה","city":"חיפה","stadium":"סמי עופר","players":[{"id":401,"name_he":"זוהר זסנו","name_en":"TBD","position":"DF","number":2,"tier":4,"price":3,"overall_rank":88,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":402,"name_he":"שון גולדברג","name_en":"TBD","position":"DF","number":3,"tier":4,"price":3,"overall_rank":100,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":403,"name_he":"עלי מוחמד","name_en":"TBD","position":"MF","number":4,"tier":4,"price":4,"overall_rank":112,"rated":true,"nationality":"ניזר","is_club_captain":false},{"id":404,"name_he":"גוני נאור","name_en":"TBD","position":"MF","number":5,"tier":4,"price":1,"overall_rank":124,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":405,"name_he":"ירין לוי","name_en":"TBD","position":"MF","number":7,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":406,"name_he":"אנדרייה נובאקוביץ'","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ארצות הברית","is_club_captain":false},{"id":407,"name_he":"ברוניניו","name_en":"TBD","position":"MF","number":10,"tier":2,"price":5,"overall_rank":32,"rated":true,"nationality":"ברזיל","is_club_captain":false},{"id":408,"name_he":"קנג'י חורה","name_en":"TBD","position":"MF","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"נורווגיה","is_club_captain":true},{"id":409,"name_he":"מנואל בנסון","name_en":"TBD","position":"MF","number":14,"tier":2,"price":4,"overall_rank":15,"rated":true,"nationality":"אנגולה","is_club_captain":false},{"id":410,"name_he":"ליאור קאסה","name_en":"TBD","position":"MF","number":15,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":411,"name_he":"קני סייף","name_en":"TBD","position":"MF","number":16,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":412,"name_he":"ינון פיינגזיכט","name_en":"TBD","position":"DF","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":413,"name_he":"גיא מלמד","name_en":"TBD","position":"FW","number":18,"tier":2,"price":4,"overall_rank":12,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":414,"name_he":"איתן אזולאי","name_en":"TBD","position":"MF","number":19,"tier":1,"price":4,"overall_rank":8,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":415,"name_he":"נייג'ל האוסייק","name_en":"TBD","position":"DF","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"סורינאם","is_club_captain":false},{"id":416,"name_he":"יילה בטאייה","name_en":"TBD","position":"DF","number":25,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"בלגיה","is_club_captain":false},{"id":417,"name_he":"סילבה קאני","name_en":"TBD","position":"MF","number":26,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"טוגו","is_club_captain":false},{"id":418,"name_he":"פייר קורנו","name_en":"TBD","position":"DF","number":27,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"צרפת","is_club_captain":false},{"id":419,"name_he":"אייאד חלאילי","name_en":"TBD","position":"MF","number":29,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":420,"name_he":"עמית ארזי","name_en":"TBD","position":"MF","number":31,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":421,"name_he":"נועם שטייפמן","name_en":"TBD","position":"DF","number":35,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":422,"name_he":"נבות רטנר","name_en":"TBD","position":"MF","number":36,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":423,"name_he":"אלעד אמיר","name_en":"TBD","position":"DF","number":37,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":424,"name_he":"אדם גרימברג","name_en":"TBD","position":"FW","number":38,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":425,"name_he":"ארד גייסט","name_en":"TBD","position":"DF","number":39,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":426,"name_he":"שריף כיוף","name_en":"TBD","position":"GK","number":40,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":427,"name_he":"ליאם לוסקי","name_en":"TBD","position":"FW","number":42,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":428,"name_he":"פדראו","name_en":"TBD","position":"DF","number":44,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":429,"name_he":"סדריק דון","name_en":"TBD","position":"MF","number":45,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"חוף השנהב","is_club_captain":false},{"id":430,"name_he":"עומרי גלזר","name_en":"TBD","position":"GK","number":55,"tier":2,"price":3,"overall_rank":20,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":431,"name_he":"אנדרסון צונאמי","name_en":"TBD","position":"DF","number":66,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":432,"name_he":"יאיר מרדכי","name_en":"TBD","position":"MF","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":433,"name_he":"גלן אלון","name_en":"TBD","position":"GK","number":90,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":434,"name_he":"עומר ניראון","name_en":"TBD","position":"GK","number":99,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false}]},{"team_id":5,"name_he":"בית\"ר ירושלים","name_en":"Beitar Jerusalem","short":"ב.ים","city":"ירושלים","stadium":null,"players":[{"id":501,"name_he":"בריאן קרבאלי","name_en":"TBD","position":"DF","number":4,"tier":4,"price":3,"overall_rank":89,"rated":true,"nationality":"קולומביה","is_club_captain":false},{"id":502,"name_he":"גיל כהן","name_en":"TBD","position":"DF","number":5,"tier":4,"price":3,"overall_rank":101,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":503,"name_he":"זיו בן שימול","name_en":"TBD","position":"MF","number":6,"tier":4,"price":3,"overall_rank":113,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":504,"name_he":"ירדן שועה","name_en":"TBD","position":"FW","number":7,"tier":1,"price":5,"overall_rank":4,"rated":true,"nationality":"ישראל","is_club_captain":true},{"id":505,"name_he":"נועם מוצ'ה","name_en":"TBD","position":"MF","number":30,"tier":4,"price":3,"overall_rank":125,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":506,"name_he":"ג'ונבוסקו קאלו","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ניגריה","is_club_captain":false},{"id":507,"name_he":"עדי יונה","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":508,"name_he":"טימוטי מוזי","name_en":"TBD","position":"FW","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":509,"name_he":"רועי אלימלך","name_en":"TBD","position":"DF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":510,"name_he":"דגאץ' וורקו","name_en":"TBD","position":"MF","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":511,"name_he":"ירדן כהן","name_en":"TBD","position":"DF","number":16,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":512,"name_he":"אורי דהן","name_en":"TBD","position":"DF","number":20,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":513,"name_he":"יהונתן עוזר","name_en":"TBD","position":"GK","number":22,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":514,"name_he":"יובל שלו","name_en":"TBD","position":"DF","number":25,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":515,"name_he":"עילאי חג'ג'","name_en":"TBD","position":"MF","number":28,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":516,"name_he":"אריאל מנדי","name_en":"TBD","position":"DF","number":29,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"סנגל","is_club_captain":false},{"id":517,"name_he":"בוריס אינו","name_en":"TBD","position":"MF","number":40,"tier":2,"price":3,"overall_rank":18,"rated":true,"nationality":"קמרון","is_club_captain":false},{"id":518,"name_he":"איילסון טבארש","name_en":"TBD","position":"MF","number":42,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"כף ורדה","is_club_captain":false},{"id":519,"name_he":"לוקה גדראני","name_en":"TBD","position":"DF","number":44,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאורגיה","is_club_captain":false},{"id":520,"name_he":"מיגל סילבה","name_en":"TBD","position":"GK","number":55,"tier":2,"price":3,"overall_rank":23,"rated":true,"nationality":"פורטוגל","is_club_captain":true},{"id":521,"name_he":"עומר אצילי","name_en":"TBD","position":"MF","number":null,"tier":1,"price":5,"overall_rank":3,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":522,"name_he":"תומר יוספי","name_en":"TBD","position":"MF","number":null,"tier":2,"price":4,"overall_rank":19,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":523,"name_he":"יוג'ין אנסה","name_en":"TBD","position":"FW","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false},{"id":547,"name_he":"פטריק טוומאסי","name_en":"TBD","position":"FW","number":null,"tier":2,"price":4,"overall_rank":14,"rated":true,"nationality":"גאנה","is_club_captain":false}]},{"team_id":6,"name_he":"הפועל תל אביב","name_en":"Hapoel Tel Aviv","short":"ה.תא","city":"תל אביב","stadium":null,"players":[{"id":601,"name_he":"דור בנימיני","name_en":"TBD","position":"GK","number":1,"tier":4,"price":2,"overall_rank":90,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":602,"name_he":"שיקו","name_en":"TBD","position":"DF","number":4,"tier":1,"price":5,"overall_rank":7,"rated":true,"nationality":"ברזיל","is_club_captain":false},{"id":603,"name_he":"פרנאן מאיימבו","name_en":"TBD","position":"DF","number":5,"tier":2,"price":4,"overall_rank":25,"rated":true,"nationality":"קונגו","is_club_captain":true},{"id":604,"name_he":"אנדריאן קרייב","name_en":"TBD","position":"MF","number":6,"tier":4,"price":3,"overall_rank":102,"rated":true,"nationality":"בולגריה","is_club_captain":false},{"id":605,"name_he":"רוי קורין","name_en":"TBD","position":"FW","number":7,"tier":4,"price":2,"overall_rank":114,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":606,"name_he":"יונתן פרבר","name_en":"TBD","position":"MF","number":8,"tier":4,"price":2,"overall_rank":126,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":607,"name_he":"עמנואל בואטנג","name_en":"TBD","position":"FW","number":9,"tier":2,"price":4,"overall_rank":30,"rated":true,"nationality":"גאנה","is_club_captain":false},{"id":608,"name_he":"שאנדה סילבה","name_en":"TBD","position":"FW","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"פורטוגל","is_club_captain":false},{"id":609,"name_he":"סתיו טוריאל","name_en":"TBD","position":"MF","number":11,"tier":1,"price":5,"overall_rank":5,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":610,"name_he":"אל ים קנצפולסקי","name_en":"TBD","position":"MF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":611,"name_he":"רועי אלקוקין","name_en":"TBD","position":"MF","number":15,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":612,"name_he":"דורון ליידנר","name_en":"TBD","position":"DF","number":16,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":613,"name_he":"טל ארצ'ל","name_en":"TBD","position":"DF","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":614,"name_he":"אנס מחאמיד","name_en":"TBD","position":"FW","number":19,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":615,"name_he":"שחר פיבן","name_en":"TBD","position":"DF","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":616,"name_he":"אסף צור","name_en":"TBD","position":"GK","number":22,"tier":2,"price":4,"overall_rank":21,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":617,"name_he":"עמית למקין","name_en":"TBD","position":"DF","number":23,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":618,"name_he":"מור בוסקילה","name_en":"TBD","position":"MF","number":27,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":619,"name_he":"דאגלס אווסו","name_en":"TBD","position":"FW","number":35,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false},{"id":620,"name_he":"רון תלמי","name_en":"TBD","position":"FW","number":38,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":621,"name_he":"דניאל דאפה","name_en":"TBD","position":"FW","number":44,"tier":2,"price":4,"overall_rank":31,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":622,"name_he":"עומרי אלטמן","name_en":"TBD","position":"FW","number":51,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":623,"name_he":"ישי ברוש","name_en":"TBD","position":"MF","number":66,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":624,"name_he":"עופר גלברד","name_en":"TBD","position":"DF","number":92,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":625,"name_he":"מרקוס קוקו","name_en":"TBD","position":"DF","number":97,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"צרפת","is_club_captain":false},{"id":626,"name_he":"לוקאס פלקאו","name_en":"TBD","position":"MF","number":98,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":627,"name_he":"איתי שביט","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false}]},{"team_id":7,"name_he":"מכבי נתניה","name_en":"Maccabi Netanya","short":"מ.נתניה","city":"נתניה","stadium":null,"players":[{"id":701,"name_he":"ניב אנטמן","name_en":"TBD","position":"GK","number":1,"tier":4,"price":3,"overall_rank":91,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":702,"name_he":"גריגורי מורוזוב","name_en":"TBD","position":"DF","number":2,"tier":4,"price":3,"overall_rank":103,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":703,"name_he":"איתי בן שבת","name_en":"TBD","position":"DF","number":4,"tier":4,"price":2,"overall_rank":115,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":704,"name_he":"דניס קוליקוב","name_en":"TBD","position":"DF","number":5,"tier":4,"price":2,"overall_rank":127,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":705,"name_he":"בפארי קונאטה","name_en":"TBD","position":"DF","number":6,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גינאה","is_club_captain":false},{"id":706,"name_he":"דולב חזיזה","name_en":"TBD","position":"MF","number":8,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":707,"name_he":"עוז בילו","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":708,"name_he":"דור חוגי","name_en":"TBD","position":"FW","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":709,"name_he":"אלון אזוגי","name_en":"TBD","position":"DF","number":12,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":710,"name_he":"נדב נידם","name_en":"TBD","position":"MF","number":13,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":712,"name_he":"ליאם כהן","name_en":"TBD","position":"MF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":713,"name_he":"מאור לוי","name_en":"TBD","position":"MF","number":15,"tier":2,"price":4,"overall_rank":26,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":714,"name_he":"בסאם זערורה","name_en":"TBD","position":"MF","number":75,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":715,"name_he":"מתאוס דאבו","name_en":"TBD","position":"FW","number":83,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":716,"name_he":"ירדן אבוחצירא","name_en":"TBD","position":"FW","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":717,"name_he":"עמרי שמיר","name_en":"TBD","position":"MF","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":718,"name_he":"סאהר תאג'י","name_en":"TBD","position":"MF","number":19,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":719,"name_he":"אלכס טלפה","name_en":"TBD","position":"MF","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":720,"name_he":"סמואל דה סילבה","name_en":"TBD","position":"GK","number":22,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"פורטוגל","is_club_captain":false},{"id":721,"name_he":"ליאם כהן","name_en":"TBD","position":"FW","number":23,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":722,"name_he":"עמית כהן","name_en":"TBD","position":"DF","number":24,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":723,"name_he":"ווילאן סיפריאן","name_en":"TBD","position":"MF","number":25,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":724,"name_he":"כרם ג'אבר","name_en":"TBD","position":"DF","number":26,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":true},{"id":725,"name_he":"עזיז וואטרה","name_en":"TBD","position":"MF","number":32,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"חוף השנהב","is_club_captain":false},{"id":726,"name_he":"סאבה חוואדזאני","name_en":"TBD","position":"DF","number":40,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאורגיה","is_club_captain":false},{"id":727,"name_he":"בני פלדמן","name_en":"TBD","position":"DF","number":44,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":754,"name_he":"דניאל כהן","name_en":"TBD","position":"GK","number":75,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false}]},{"team_id":8,"name_he":"בני סכנין","name_en":"Bnei Sakhnin","short":"ב.סכנין","city":"סכנין","stadium":null,"players":[{"id":801,"name_he":"דוד בן לולו","name_en":"TBD","position":"GK","number":1,"tier":4,"price":2,"overall_rank":92,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":802,"name_he":"מארון גנטוס","name_en":"TBD","position":"DF","number":2,"tier":4,"price":3,"overall_rank":104,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":803,"name_he":"קרלו ברוצ'יץ'","name_en":"TBD","position":"DF","number":3,"tier":4,"price":3,"overall_rank":116,"rated":true,"nationality":"קרואטיה","is_club_captain":false},{"id":804,"name_he":"מוסטפא שייח' יוסף","name_en":"TBD","position":"MF","number":7,"tier":4,"price":2,"overall_rank":128,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":805,"name_he":"מייקום דויד","name_en":"TBD","position":"MF","number":8,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":807,"name_he":"ארתור מיראניאן","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ארמניה","is_club_captain":false},{"id":808,"name_he":"מתיו קודג'ו","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false},{"id":810,"name_he":"אבראהימה דרמה","name_en":"TBD","position":"FW","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"מאלי","is_club_captain":false},{"id":811,"name_he":"שאקר אבו חוסיין","name_en":"TBD","position":"FW","number":16,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":812,"name_he":"חסן חילו","name_en":"TBD","position":"DF","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":813,"name_he":"עומר אבוהב","name_en":"TBD","position":"MF","number":18,"tier":2,"price":3,"overall_rank":58,"rated":true,"nationality":"אנגולה","is_club_captain":false},{"id":814,"name_he":"מוחמד גנאמה","name_en":"TBD","position":"DF","number":20,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":815,"name_he":"ג'ובייר בושאנק","name_en":"TBD","position":"FW","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":816,"name_he":"מוחמד אבו ניל","name_en":"TBD","position":"GK","number":22,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":817,"name_he":"עדן שמיר","name_en":"TBD","position":"MF","number":23,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":818,"name_he":"עומר קורסיה","name_en":"TBD","position":"DF","number":26,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":819,"name_he":"אחמד סלמן","name_en":"TBD","position":"FW","number":29,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":820,"name_he":"מג'ד סלימאן","name_en":"TBD","position":"MF","number":32,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":821,"name_he":"מקס גרצ'קין","name_en":"TBD","position":"DF","number":55,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":822,"name_he":"יואאן אנדי","name_en":"TBD","position":"DF","number":75,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גינאה ביסאו","is_club_captain":false},{"id":823,"name_he":"ג'יימס אדני","name_en":"TBD","position":"FW","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ניגריה","is_club_captain":false},{"id":824,"name_he":"דורל אבונו","name_en":"TBD","position":"MF","number":92,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"קונגו","is_club_captain":false}]},{"team_id":9,"name_he":"הפועל חיפה","name_en":"Hapoel Haifa","short":"ה.חיפה","city":"חיפה","stadium":null,"players":[{"id":901,"name_he":"יואב ג'ראפי","name_en":"TBD","position":"GK","number":1,"tier":2,"price":3,"overall_rank":22,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":902,"name_he":"תמיר ארבל","name_en":"TBD","position":"DF","number":3,"tier":4,"price":2,"overall_rank":93,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":903,"name_he":"דור מלול","name_en":"TBD","position":"DF","number":4,"tier":2,"price":4,"overall_rank":24,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":904,"name_he":"איוואן קריצ'אק","name_en":"TBD","position":"DF","number":5,"tier":4,"price":2,"overall_rank":105,"rated":true,"nationality":"קרואטיה","is_club_captain":false},{"id":905,"name_he":"איתי בוגנים","name_en":"TBD","position":"MF","number":7,"tier":4,"price":2,"overall_rank":117,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":906,"name_he":"והיב חביבאללה","name_en":"TBD","position":"FW","number":24,"tier":5,"price":3,"overall_rank":129,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":907,"name_he":"רותם חטואל","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":908,"name_he":"סער פדידה","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":909,"name_he":"אניס פורת עיאש","name_en":"TBD","position":"MF","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":910,"name_he":"אורן ביטון","name_en":"TBD","position":"DF","number":12,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":911,"name_he":"דריו די'ופריץ'","name_en":"TBD","position":"DF","number":13,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"קרואטיה","is_club_captain":false},{"id":912,"name_he":"רוי נאווי","name_en":"TBD","position":"MF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":913,"name_he":"יעד גונן","name_en":"TBD","position":"MF","number":15,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":914,"name_he":"נפתלי בלאי","name_en":"TBD","position":"DF","number":16,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":915,"name_he":"חיים מקונן","name_en":"TBD","position":"MF","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":916,"name_he":"אופק ביטון","name_en":"TBD","position":"MF","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":917,"name_he":"רוי זיקרי","name_en":"TBD","position":"FW","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":918,"name_he":"מתן עמבר","name_en":"TBD","position":"GK","number":23,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":919,"name_he":"טל נעים","name_en":"TBD","position":"DF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":920,"name_he":"לירן סרדל","name_en":"TBD","position":"MF","number":24,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":921,"name_he":"ג'ורג' דיבה","name_en":"TBD","position":"DF","number":25,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":922,"name_he":"ברונו רמירס","name_en":"TBD","position":"DF","number":33,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":923,"name_he":"נאור סבג","name_en":"TBD","position":"MF","number":55,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":924,"name_he":"רז'י אנדו","name_en":"TBD","position":"MF","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"בורקינה פאסו","is_club_captain":false},{"id":925,"name_he":"סלאם זיידון","name_en":"TBD","position":"MF","number":88,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"מאלי","is_club_captain":false},{"id":926,"name_he":"שי בלסון","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":927,"name_he":"ליאם נחום","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":928,"name_he":"סאלי פחימה","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":null,"is_club_captain":false},{"id":929,"name_he":"איתי צפרני","name_en":"TBD","position":"FW","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":930,"name_he":"אריאל מנדי","name_en":"TBD","position":"DF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"סנגל","is_club_captain":false}]},{"team_id":10,"name_he":"עירוני קרית שמונה","name_en":"Ironi Kiryat Shmona","short":"ע.קש","city":"קרית שמונה","stadium":null,"players":[{"id":1001,"name_he":"מתן זלמנוביץ'","name_en":"TBD","position":"GK","number":1,"tier":4,"price":2,"overall_rank":94,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1002,"name_he":"עמית גלזר","name_en":"TBD","position":"DF","number":4,"tier":4,"price":1,"overall_rank":106,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1003,"name_he":"אופיר בנבנישתי","name_en":"TBD","position":"DF","number":6,"tier":4,"price":2,"overall_rank":118,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1004,"name_he":"פרננדו פאצ'קו","name_en":"TBD","position":"MF","number":8,"tier":5,"price":3,"overall_rank":130,"rated":true,"nationality":"פרו","is_club_captain":false},{"id":1005,"name_he":"אדריאן אוגריסה","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"פרו","is_club_captain":false},{"id":1006,"name_he":"אריאל שרצקי","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1007,"name_he":"מור סימן טוב","name_en":"TBD","position":"MF","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1008,"name_he":"ג'ואן חלבי","name_en":"TBD","position":"FW","number":12,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1009,"name_he":"הראל גולדנברג","name_en":"TBD","position":"MF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1010,"name_he":"איציק שולמייסטר","name_en":"TBD","position":"DF","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1011,"name_he":"אורי שנפר","name_en":"TBD","position":"FW","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1012,"name_he":"דניאל טננבאום","name_en":"TBD","position":"GK","number":19,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1013,"name_he":"עובדיה דרויש","name_en":"TBD","position":"DF","number":20,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1014,"name_he":"אביב אברהם","name_en":"TBD","position":"MF","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1015,"name_he":"ואלה מוסא עלי","name_en":"TBD","position":"MF","number":22,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ניגריה","is_club_captain":false},{"id":1016,"name_he":"יואב כראדי","name_en":"TBD","position":"MF","number":25,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1017,"name_he":"נמניה ליוביסבלייביץ'","name_en":"TBD","position":"DF","number":26,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"סרביה","is_club_captain":false},{"id":1018,"name_he":"עידו וייר","name_en":"TBD","position":"DF","number":28,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1019,"name_he":"יונתן מלכה","name_en":"TBD","position":"MF","number":29,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1020,"name_he":"שי בן דוד","name_en":"TBD","position":"DF","number":32,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1021,"name_he":"ליאל דרעי","name_en":"TBD","position":"DF","number":44,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1022,"name_he":"כריסטיאן מרטינס","name_en":"TBD","position":"MF","number":70,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"פנמה","is_club_captain":false},{"id":1023,"name_he":"רוי שדו","name_en":"TBD","position":"GK","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1024,"name_he":"יאו אקה","name_en":"TBD","position":"MF","number":79,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false},{"id":1025,"name_he":"בילאל שאאין","name_en":"TBD","position":"FW","number":91,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false}]},{"team_id":11,"name_he":"עירוני טבריה","name_en":"Ironi Tiberias","short":"ע.טבריה","city":"טבריה","stadium":null,"players":[{"id":1101,"name_he":"גד עמוס","name_en":"TBD","position":"GK","number":1,"tier":4,"price":3,"overall_rank":95,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1102,"name_he":"אימרי אוזן","name_en":"TBD","position":"DF","number":2,"tier":4,"price":1,"overall_rank":107,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1103,"name_he":"דוד קלטינס","name_en":"TBD","position":"MF","number":3,"tier":4,"price":1,"overall_rank":119,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1104,"name_he":"סמביניה","name_en":"TBD","position":"DF","number":4,"tier":5,"price":2,"overall_rank":131,"rated":true,"nationality":"גינאה ביסאו","is_club_captain":false},{"id":1105,"name_he":"נהוראי חן","name_en":"TBD","position":"DF","number":5,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1106,"name_he":"גיא חדרידה","name_en":"TBD","position":"MF","number":7,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1107,"name_he":"ארי כהן","name_en":"TBD","position":"MF","number":8,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1108,"name_he":"איתמר שבירו","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1109,"name_he":"בר כהן","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1110,"name_he":"ניב גוטליב","name_en":"TBD","position":"MF","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1111,"name_he":"קייס גאנם","name_en":"TBD","position":"FW","number":12,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1112,"name_he":"גיא סנקור","name_en":"TBD","position":"DF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1113,"name_he":"רון אונגר","name_en":"TBD","position":"DF","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1114,"name_he":"עדן שמיר","name_en":"TBD","position":"MF","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1115,"name_he":"גל מעתוק","name_en":"TBD","position":"DF","number":19,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1116,"name_he":"עידו שרון","name_en":"TBD","position":"GK","number":22,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1117,"name_he":"כריס קואקו","name_en":"TBD","position":"MF","number":23,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"חוף השנהב","is_club_captain":false},{"id":1118,"name_he":"ירין שיביץ'","name_en":"TBD","position":"MF","number":24,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1119,"name_he":"רועי שחר","name_en":"TBD","position":"MF","number":25,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1120,"name_he":"ירין סוויסה","name_en":"TBD","position":"MF","number":27,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1121,"name_he":"ננה גבמבל","name_en":"TBD","position":"MF","number":29,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"חוף השנהב","is_club_captain":false},{"id":1122,"name_he":"מנסור באדג'י","name_en":"TBD","position":"FW","number":30,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גמביה","is_club_captain":false},{"id":1123,"name_he":"אונדז'יי באצ'ה","name_en":"TBD","position":"DF","number":37,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"צכיה","is_club_captain":false},{"id":1124,"name_he":"ג'ונס אבו גנימה","name_en":"TBD","position":"GK","number":55,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1125,"name_he":"אגם יהודה","name_en":"TBD","position":"FW","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false}]},{"team_id":12,"name_he":"מכבי פתח תקווה","name_en":"Maccabi Petah Tikva","short":"מ.פת","city":"פתח תקווה","stadium":null,"players":[{"id":1201,"name_he":"אופיר בתוש / עומרי לוזון","name_en":"TBD","position":"DF","number":22,"tier":4,"price":2,"overall_rank":96,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1202,"name_he":"גיא דזנט","name_en":"TBD","position":"DF","number":26,"tier":4,"price":1,"overall_rank":108,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1203,"name_he":"מוחמד הינדי","name_en":"TBD","position":"DF","number":32,"tier":4,"price":3,"overall_rank":120,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1204,"name_he":"דור חברון","name_en":"TBD","position":"GK","number":null,"tier":5,"price":1,"overall_rank":132,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1205,"name_he":"מאור ארליך","name_en":"TBD","position":"GK","number":39,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1206,"name_he":"עומר שירי","name_en":"TBD","position":"DF","number":53,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1207,"name_he":"אביב סלם","name_en":"TBD","position":"DF","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"קולומביה/ישראל","is_club_captain":false},{"id":1208,"name_he":"פרנק ריבולייה","name_en":"TBD","position":"FW","number":91,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"צרפת","is_club_captain":false},{"id":1209,"name_he":"עידו כהן","name_en":"TBD","position":"MF","number":20,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1210,"name_he":"אור דדיה","name_en":"TBD","position":"DF","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1211,"name_he":"פבליו קוראנה","name_en":"TBD","position":"DF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"קפריסין","is_club_captain":false},{"id":1212,"name_he":"איתן טיבי","name_en":"TBD","position":"DF","number":81,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1213,"name_he":"סמואל אואוסו","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false},{"id":1214,"name_he":"אריאל לוגסי","name_en":"TBD","position":"FW","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1215,"name_he":"אדר רטנר","name_en":"TBD","position":"FW","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1216,"name_he":"אייל אינברום","name_en":"TBD","position":"MF","number":99,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1217,"name_he":"קייל ספנס","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"אנגליה","is_club_captain":false},{"id":1218,"name_he":"לי-ים דן","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1219,"name_he":"איברהימה סומה","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false}]},{"team_id":13,"name_he":"הפועל רמת גן","name_en":"Hapoel Ramat Gan","short":"ה.רג","city":"רמת גן","stadium":null,"players":[{"id":1301,"name_he":"גטאוצ'ו יבלו","name_en":"TBD","position":"DF","number":2,"tier":4,"price":2,"overall_rank":97,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1302,"name_he":"דניאל טישלר","name_en":"TBD","position":"DF","number":3,"tier":4,"price":1,"overall_rank":109,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1303,"name_he":"ז'וטה","name_en":"TBD","position":"DF","number":5,"tier":4,"price":3,"overall_rank":121,"rated":true,"nationality":"פורטוגל","is_club_captain":false},{"id":1304,"name_he":"משה מאיר","name_en":"TBD","position":"MF","number":6,"tier":5,"price":1,"overall_rank":133,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1305,"name_he":"מקסים פלקושצ'נקו","name_en":"TBD","position":"MF","number":7,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1306,"name_he":"עידן ברנס","name_en":"TBD","position":"FW","number":8,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1307,"name_he":"משה סמל","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1308,"name_he":"דוד אסנקה","name_en":"TBD","position":"FW","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1309,"name_he":"הוד מסיקה","name_en":"TBD","position":"MF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1310,"name_he":"עמית צור","name_en":"TBD","position":"FW","number":15,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1311,"name_he":"עומר יצחק","name_en":"TBD","position":"DF","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1312,"name_he":"אולי ברגמן","name_en":"TBD","position":"GK","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1313,"name_he":"כריסטופר בוניפייס","name_en":"TBD","position":"MF","number":20,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"בלגיה","is_club_captain":false},{"id":1314,"name_he":"עידו עולי","name_en":"TBD","position":"MF","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1315,"name_he":"סרג'אן מיאיולוביץ'","name_en":"TBD","position":"MF","number":22,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"סרביה","is_club_captain":false},{"id":1316,"name_he":"תמיר גלזר","name_en":"TBD","position":"MF","number":24,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1317,"name_he":"אופק עובדיה","name_en":"TBD","position":"MF","number":27,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1318,"name_he":"פארד אברהם","name_en":"TBD","position":"DF","number":33,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false},{"id":1319,"name_he":"דודי טויטו","name_en":"TBD","position":"DF","number":36,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1320,"name_he":"עידו מזרחי","name_en":"TBD","position":"MF","number":37,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1321,"name_he":"מרסיו סילבה","name_en":"TBD","position":"DF","number":44,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":1322,"name_he":"עמית רייף","name_en":"TBD","position":"GK","number":55,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1323,"name_he":"ליאם אלוק","name_en":"TBD","position":"MF","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1324,"name_he":"תומר הרן","name_en":"TBD","position":"GK","number":98,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1325,"name_he":"לואן קמפוס","name_en":"TBD","position":"FW","number":99,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":1326,"name_he":"מתן חוזז","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1327,"name_he":"מריוס נוביסי","name_en":"TBD","position":"FW","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"קמרון","is_club_captain":false}]},{"team_id":14,"name_he":"הפועל פתח תקווה","name_en":"Hapoel Petah Tikva","short":"ה.פת","city":"פתח תקווה","stadium":null,"players":[{"id":1401,"name_he":"עומר כץ","name_en":"TBD","position":"GK","number":1,"tier":4,"price":2,"overall_rank":98,"rated":true,"nationality":"ישראל","is_club_captain":true},{"id":1402,"name_he":"אבישי כהן","name_en":"TBD","position":"DF","number":null,"tier":4,"price":2,"overall_rank":110,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1403,"name_he":"אלכס מוקטו-מוסונדה","name_en":"TBD","position":"DF","number":5,"tier":4,"price":2,"overall_rank":122,"rated":true,"nationality":"זימבבואה","is_club_captain":false},{"id":1404,"name_he":"שביט מזל","name_en":"TBD","position":"FW","number":7,"tier":5,"price":1,"overall_rank":134,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1405,"name_he":"תומר אלטמן","name_en":"TBD","position":"MF","number":8,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1406,"name_he":"רוי דוד","name_en":"TBD","position":"MF","number":16,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1407,"name_he":"ציפיקה סонגה","name_en":"TBD","position":"FW","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"זמביה","is_club_captain":false},{"id":1408,"name_he":"עמית משוח","name_en":"TBD","position":"GK","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1409,"name_he":"קארים קิมבדי","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"הרפובליקה הדמוקרטית של קונגו","is_club_captain":false},{"id":1410,"name_he":"סתיו ישראלי","name_en":"TBD","position":"DF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1411,"name_he":"רוי ששון","name_en":"TBD","position":"GK","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1412,"name_he":"יער זמברובסקי","name_en":"TBD","position":"DF","number":26,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1413,"name_he":"בוני אמיאן","name_en":"TBD","position":"MF","number":29,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"אירלנד","is_club_captain":false},{"id":1414,"name_he":"גיא בדש","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1415,"name_he":"יזן נסאר","name_en":"TBD","position":"DF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1416,"name_he":"אוקלידס אנדרדה","name_en":"TBD","position":"FW","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"כף ורדה","is_club_captain":false},{"id":1417,"name_he":"הראל שלום","name_en":"TBD","position":"DF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false}]}]}$json$;
+  payload  JSONB := $json${"league":{"id":1,"name_he":"ליגת העל בישראל","name_en":"Israeli Premier League","season":"2026/2027"},"teams":[{"team_id":1,"name_he":"הפועל באר שבע","name_en":"Hapoel Beer Sheva","short":"ב״ש","city":"באר שבע","stadium":null,"players":[{"id":101,"name_he":"אופיר מרציאנו","name_en":"TBD","position":"GK","number":1,"tier":2,"price":3,"overall_rank":28,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":102,"name_he":"גיא מזרחי","name_en":"TBD","position":"DF","number":2,"tier":2,"price":4,"overall_rank":29,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":103,"name_he":"מתן בלטקסה","name_en":"TBD","position":"DF","number":3,"tier":2,"price":4,"overall_rank":36,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":104,"name_he":"מיגל ויטור","name_en":"TBD","position":"DF","number":4,"tier":2,"price":4,"overall_rank":33,"rated":true,"nationality":"פורטוגל","is_club_captain":true},{"id":105,"name_he":"פדרו אמאדור","name_en":"TBD","position":"DF","number":5,"tier":2,"price":4,"overall_rank":37,"rated":true,"nationality":"פורטוגל","is_club_captain":false},{"id":106,"name_he":"אליאל פרץ","name_en":"TBD","position":"MF","number":7,"tier":1,"price":5,"overall_rank":10,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":107,"name_he":"חמודי כנעאן","name_en":"TBD","position":"MF","number":8,"tier":2,"price":3,"overall_rank":38,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":108,"name_he":"זאהי אחמד","name_en":"TBD","position":"FW","number":9,"tier":2,"price":3,"overall_rank":39,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":109,"name_he":"דן ביטון","name_en":"TBD","position":"MF","number":10,"tier":1,"price":5,"overall_rank":2,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":110,"name_he":"אמיר גנאח","name_en":"TBD","position":"MF","number":11,"tier":2,"price":3,"overall_rank":40,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":111,"name_he":"איתי רוטמן","name_en":"TBD","position":"DF","number":12,"tier":2,"price":3,"overall_rank":41,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":112,"name_he":"אופיר דוידזאדה","name_en":"TBD","position":"DF","number":13,"tier":2,"price":4,"overall_rank":42,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":113,"name_he":"יונס מלדה","name_en":"TBD","position":"FW","number":14,"tier":2,"price":3,"overall_rank":43,"rated":true,"nationality":"בלגיה/ישראל","is_club_captain":false},{"id":114,"name_he":"רועי ליוי","name_en":"TBD","position":"DF","number":18,"tier":2,"price":4,"overall_rank":44,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":115,"name_he":"ג'בון איסט","name_en":"TBD","position":"FW","number":20,"tier":2,"price":4,"overall_rank":45,"rated":true,"nationality":"גמייקה","is_club_captain":false},{"id":116,"name_he":"יואב קורן","name_en":"TBD","position":"FW","number":21,"tier":2,"price":4,"overall_rank":46,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":117,"name_he":"איתי חזות","name_en":"TBD","position":"MF","number":23,"tier":2,"price":4,"overall_rank":47,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":118,"name_he":"לוקאס ונטורה","name_en":"TBD","position":"MF","number":25,"tier":2,"price":4,"overall_rank":17,"rated":true,"nationality":"ברזיל","is_club_captain":false},{"id":119,"name_he":"יוני סטויאנוב","name_en":"TBD","position":"MF","number":27,"tier":2,"price":4,"overall_rank":48,"rated":true,"nationality":"בולגריה","is_club_captain":false},{"id":120,"name_he":"ניב יהושע","name_en":"TBD","position":"MF","number":28,"tier":2,"price":3,"overall_rank":49,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":121,"name_he":"מרקו וולף","name_en":"TBD","position":"GK","number":34,"tier":2,"price":3,"overall_rank":50,"rated":true,"nationality":"ארגנטינה","is_club_captain":false},{"id":122,"name_he":"יונתן שני","name_en":"TBD","position":"GK","number":36,"tier":2,"price":2,"overall_rank":51,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":123,"name_he":"ג'יבריל דיופ","name_en":"TBD","position":"DF","number":44,"tier":2,"price":4,"overall_rank":52,"rated":true,"nationality":"סנגל","is_club_captain":false},{"id":124,"name_he":"מוחמד אבו רומי","name_en":"TBD","position":"FW","number":45,"tier":2,"price":4,"overall_rank":53,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":125,"name_he":"ניב אליאסי","name_en":"TBD","position":"GK","number":55,"tier":2,"price":2,"overall_rank":54,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":126,"name_he":"איגור זלאטנוביץ'","name_en":"TBD","position":"FW","number":66,"tier":1,"price":5,"overall_rank":9,"rated":true,"nationality":"סרביה","is_club_captain":false},{"id":127,"name_he":"ז'ואאו ויקטור","name_en":"TBD","position":"FW","number":70,"tier":2,"price":4,"overall_rank":55,"rated":true,"nationality":"ברזיל","is_club_captain":false}]},{"team_id":2,"name_he":"הפועל ירושלים","name_en":"Hapoel Jerusalem","short":"ה·י-ם","city":"ירושלים","stadium":null,"players":[{"id":201,"name_he":"נועם מלמוד","name_en":"TBD","position":"DF","number":3,"tier":2,"price":3,"overall_rank":56,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":202,"name_he":"יונתן לייש","name_en":"TBD","position":"DF","number":4,"tier":2,"price":3,"overall_rank":57,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":203,"name_he":"עומר אבוהב","name_en":"TBD","position":"MF","number":5,"tier":2,"price":3,"overall_rank":58,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":204,"name_he":"לי און מזרחי","name_en":"TBD","position":"DF","number":null,"tier":2,"price":3,"overall_rank":59,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":205,"name_he":"איליאי מדמון","name_en":"TBD","position":"MF","number":8,"tier":2,"price":3,"overall_rank":60,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":206,"name_he":"עידן כהן","name_en":"TBD","position":"DF","number":15,"tier":2,"price":3,"overall_rank":61,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":207,"name_he":"עומר אגבדיש","name_en":"TBD","position":"DF","number":16,"tier":2,"price":3,"overall_rank":62,"rated":true,"nationality":"ישראל","is_club_captain":true},{"id":208,"name_he":"ינאי דיסטפלד","name_en":"TBD","position":"MF","number":17,"tier":2,"price":3,"overall_rank":63,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":209,"name_he":"אופק נדיר","name_en":"TBD","position":"DF","number":20,"tier":2,"price":4,"overall_rank":64,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":210,"name_he":"איינאו פרדה","name_en":"TBD","position":"MF","number":21,"tier":2,"price":3,"overall_rank":65,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":211,"name_he":"תמיר חיימוביץ'","name_en":"TBD","position":"DF","number":22,"tier":2,"price":2,"overall_rank":66,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":212,"name_he":"נתי שפראו","name_en":"TBD","position":"FW","number":23,"tier":2,"price":3,"overall_rank":67,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":213,"name_he":"הילאי מלמן","name_en":"TBD","position":"DF","number":null,"tier":2,"price":2,"overall_rank":68,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":214,"name_he":"אנדרו אידוקו","name_en":"TBD","position":"FW","number":25,"tier":2,"price":3,"overall_rank":69,"rated":true,"nationality":"ניגריה","is_club_captain":false},{"id":215,"name_he":"עומר בן גורדין","name_en":"TBD","position":"GK","number":28,"tier":2,"price":2,"overall_rank":70,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":216,"name_he":"ישראל דאפה","name_en":"TBD","position":"FW","number":33,"tier":2,"price":4,"overall_rank":71,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":217,"name_he":"נדב זמיר","name_en":"TBD","position":"GK","number":55,"tier":2,"price":3,"overall_rank":72,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":218,"name_he":"אוהד אלמגור","name_en":"TBD","position":"MF","number":77,"tier":2,"price":3,"overall_rank":73,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":219,"name_he":"ויט ליייה דאמאשקאן","name_en":"TBD","position":"FW","number":null,"tier":2,"price":4,"overall_rank":74,"rated":true,"nationality":"מולדובה","is_club_captain":false}]},{"team_id":3,"name_he":"מכבי תל אביב","name_en":"Maccabi Tel Aviv","short":"מ·ת״א","city":"תל אביב","stadium":null,"players":[{"id":301,"name_he":"רוי רביבו","name_en":"TBD","position":"DF","number":3,"tier":1,"price":5,"overall_rank":6,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":302,"name_he":"מוחמד עלי קמארה","name_en":"TBD","position":"DF","number":5,"tier":2,"price":4,"overall_rank":75,"rated":true,"nationality":"גינאה","is_club_captain":false},{"id":303,"name_he":"טייריס אסאנטה","name_en":"TBD","position":"DF","number":6,"tier":2,"price":4,"overall_rank":27,"rated":true,"nationality":"הולנד","is_club_captain":false},{"id":304,"name_he":"קרווין אנדרדה","name_en":"TBD","position":"MF","number":10,"tier":2,"price":4,"overall_rank":76,"rated":true,"nationality":"ונצואלה","is_club_captain":false},{"id":305,"name_he":"שגיב יחזקאל","name_en":"TBD","position":"DF","number":11,"tier":2,"price":4,"overall_rank":11,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":306,"name_he":"רז שלמה","name_en":"TBD","position":"DF","number":13,"tier":2,"price":4,"overall_rank":77,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":307,"name_he":"דני גרופר","name_en":"TBD","position":"DF","number":14,"tier":2,"price":4,"overall_rank":78,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":308,"name_he":"יונס מלדה","name_en":"TBD","position":"FW","number":15,"tier":2,"price":3,"overall_rank":43,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":309,"name_he":"כריסטיאן בליץ'","name_en":"TBD","position":"MF","number":17,"tier":2,"price":4,"overall_rank":79,"rated":true,"nationality":"סרביה","is_club_captain":false},{"id":310,"name_he":"אלעד מדמון","name_en":"TBD","position":"FW","number":19,"tier":2,"price":4,"overall_rank":80,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":311,"name_he":"נועם בן הרוש","name_en":"TBD","position":"DF","number":21,"tier":2,"price":4,"overall_rank":81,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":312,"name_he":"אופק מליקה","name_en":"TBD","position":"GK","number":22,"tier":2,"price":4,"overall_rank":34,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":313,"name_he":"איסוף סיסוקו","name_en":"TBD","position":"MF","number":28,"tier":2,"price":4,"overall_rank":82,"rated":true,"nationality":"מאלי","is_club_captain":false},{"id":314,"name_he":"הליו וארלה","name_en":"TBD","position":"MF","number":29,"tier":2,"price":4,"overall_rank":35,"rated":true,"nationality":"כף ורדה","is_club_captain":false},{"id":315,"name_he":"איתמר נוי","name_en":"TBD","position":"MF","number":30,"tier":2,"price":4,"overall_rank":83,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":316,"name_he":"סייד אבו פרחי","name_en":"TBD","position":"FW","number":34,"tier":2,"price":4,"overall_rank":13,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":317,"name_he":"עידו שחר","name_en":"TBD","position":"MF","number":36,"tier":2,"price":4,"overall_rank":16,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":318,"name_he":"איתי בן חמו","name_en":"TBD","position":"DF","number":41,"tier":4,"price":2,"overall_rank":84,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":319,"name_he":"דור פרץ","name_en":"TBD","position":"MF","number":42,"tier":1,"price":5,"overall_rank":1,"rated":true,"nationality":"ישראל","is_club_captain":true},{"id":320,"name_he":"שליו סעדיה","name_en":"TBD","position":"GK","number":51,"tier":4,"price":2,"overall_rank":85,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":321,"name_he":"עידן וינברג","name_en":"TBD","position":"MF","number":52,"tier":4,"price":2,"overall_rank":87,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":322,"name_he":"רועי מגור","name_en":"TBD","position":"MF","number":53,"tier":4,"price":2,"overall_rank":99,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":323,"name_he":"לוטם אסרס","name_en":"TBD","position":"MF","number":59,"tier":4,"price":2,"overall_rank":111,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":324,"name_he":"עילאי בן סימון","name_en":"TBD","position":"FW","number":60,"tier":4,"price":2,"overall_rank":123,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":325,"name_he":"אמיר סאחיטי","name_en":"TBD","position":"FW","number":70,"tier":5,"price":1,"overall_rank":135,"rated":true,"nationality":"קוסובו","is_club_captain":false},{"id":326,"name_he":"אושר דוידה","name_en":"TBD","position":"FW","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":327,"name_he":"רועי משפתי","name_en":"TBD","position":"GK","number":90,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":328,"name_he":"יון ניקולאescu","name_en":"TBD","position":"FW","number":98,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"מולדובה","is_club_captain":false}]},{"team_id":4,"name_he":"מכבי חיפה","name_en":"Maccabi Haifa","short":"מ·חיפה","city":"חיפה","stadium":"סמי עופר","players":[{"id":401,"name_he":"זוהר זסנו","name_en":"TBD","position":"DF","number":2,"tier":4,"price":3,"overall_rank":88,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":402,"name_he":"שון גולדברג","name_en":"TBD","position":"DF","number":3,"tier":4,"price":3,"overall_rank":100,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":403,"name_he":"עלי מוחמד","name_en":"TBD","position":"MF","number":4,"tier":4,"price":4,"overall_rank":112,"rated":true,"nationality":"ניזר","is_club_captain":false},{"id":404,"name_he":"גוני נאור","name_en":"TBD","position":"MF","number":5,"tier":4,"price":1,"overall_rank":124,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":405,"name_he":"ירין לוי","name_en":"TBD","position":"MF","number":7,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":406,"name_he":"אנדרייה נובאקוביץ'","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ארצות הברית","is_club_captain":false},{"id":407,"name_he":"ברוניניו","name_en":"TBD","position":"MF","number":10,"tier":2,"price":5,"overall_rank":32,"rated":true,"nationality":"ברזיל","is_club_captain":false},{"id":408,"name_he":"קנג'י חורה","name_en":"TBD","position":"MF","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"נורווגיה","is_club_captain":true},{"id":409,"name_he":"מנואל בנסון","name_en":"TBD","position":"MF","number":14,"tier":2,"price":4,"overall_rank":15,"rated":true,"nationality":"אנגולה","is_club_captain":false},{"id":410,"name_he":"ליאור קאסה","name_en":"TBD","position":"MF","number":15,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":411,"name_he":"קני סייף","name_en":"TBD","position":"MF","number":16,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":412,"name_he":"ינון פיינגזיכט","name_en":"TBD","position":"DF","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":413,"name_he":"גיא מלמד","name_en":"TBD","position":"FW","number":18,"tier":2,"price":4,"overall_rank":12,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":414,"name_he":"איתן אזולאי","name_en":"TBD","position":"MF","number":19,"tier":1,"price":4,"overall_rank":8,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":415,"name_he":"נייג'ל האוסייק","name_en":"TBD","position":"DF","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"סורינאם","is_club_captain":false},{"id":416,"name_he":"יילה בטאייה","name_en":"TBD","position":"DF","number":25,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"בלגיה","is_club_captain":false},{"id":417,"name_he":"סילבה קאני","name_en":"TBD","position":"MF","number":26,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"טוגו","is_club_captain":false},{"id":418,"name_he":"פייר קורנו","name_en":"TBD","position":"DF","number":27,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"צרפת","is_club_captain":false},{"id":419,"name_he":"אייאד חלאילי","name_en":"TBD","position":"MF","number":29,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":420,"name_he":"עמית ארזי","name_en":"TBD","position":"MF","number":31,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":421,"name_he":"נועם שטייפמן","name_en":"TBD","position":"DF","number":35,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":422,"name_he":"נבות רטנר","name_en":"TBD","position":"MF","number":36,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":423,"name_he":"אלעד אמיר","name_en":"TBD","position":"DF","number":37,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":424,"name_he":"אדם גרימברג","name_en":"TBD","position":"FW","number":38,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":425,"name_he":"ארד גייסט","name_en":"TBD","position":"DF","number":39,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":426,"name_he":"שריף כיוף","name_en":"TBD","position":"GK","number":40,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":427,"name_he":"ליאם לוסקי","name_en":"TBD","position":"FW","number":42,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":428,"name_he":"פדראו","name_en":"TBD","position":"DF","number":44,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":429,"name_he":"סדריק דון","name_en":"TBD","position":"MF","number":45,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"חוף השנהב","is_club_captain":false},{"id":430,"name_he":"עומרי גלזר","name_en":"TBD","position":"GK","number":55,"tier":2,"price":3,"overall_rank":20,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":431,"name_he":"אנדרסון צונאמי","name_en":"TBD","position":"DF","number":66,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":432,"name_he":"יאיר מרדכי","name_en":"TBD","position":"MF","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":433,"name_he":"גלן אלון","name_en":"TBD","position":"GK","number":90,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":434,"name_he":"עומר ניראון","name_en":"TBD","position":"GK","number":99,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false}]},{"team_id":5,"name_he":"בית\"ר ירושלים","name_en":"Beitar Jerusalem","short":"בית״ר","city":"ירושלים","stadium":null,"players":[{"id":501,"name_he":"בריאן קרבאלי","name_en":"TBD","position":"DF","number":4,"tier":4,"price":3,"overall_rank":89,"rated":true,"nationality":"קולומביה","is_club_captain":false},{"id":502,"name_he":"גיל כהן","name_en":"TBD","position":"DF","number":5,"tier":4,"price":3,"overall_rank":101,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":503,"name_he":"זיו בן שימול","name_en":"TBD","position":"MF","number":6,"tier":4,"price":3,"overall_rank":113,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":504,"name_he":"ירדן שועה","name_en":"TBD","position":"FW","number":7,"tier":1,"price":5,"overall_rank":4,"rated":true,"nationality":"ישראל","is_club_captain":true},{"id":505,"name_he":"נועם מוצ'ה","name_en":"TBD","position":"MF","number":30,"tier":4,"price":3,"overall_rank":125,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":506,"name_he":"ג'ונבוסקו קאלו","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ניגריה","is_club_captain":false},{"id":507,"name_he":"עדי יונה","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":508,"name_he":"טימוטי מוזי","name_en":"TBD","position":"FW","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":509,"name_he":"רועי אלימלך","name_en":"TBD","position":"DF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":510,"name_he":"דגאץ' וורקו","name_en":"TBD","position":"MF","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":511,"name_he":"ירדן כהן","name_en":"TBD","position":"DF","number":16,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":512,"name_he":"אורי דהן","name_en":"TBD","position":"DF","number":20,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":513,"name_he":"יהונתן עוזר","name_en":"TBD","position":"GK","number":22,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":514,"name_he":"יובל שלו","name_en":"TBD","position":"DF","number":25,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":515,"name_he":"עילאי חג'ג'","name_en":"TBD","position":"MF","number":28,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":516,"name_he":"אריאל מנדי","name_en":"TBD","position":"DF","number":29,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"סנגל","is_club_captain":false},{"id":517,"name_he":"בוריס אינו","name_en":"TBD","position":"MF","number":40,"tier":2,"price":3,"overall_rank":18,"rated":true,"nationality":"קמרון","is_club_captain":false},{"id":518,"name_he":"איילסון טבארש","name_en":"TBD","position":"MF","number":42,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"כף ורדה","is_club_captain":false},{"id":519,"name_he":"לוקה גדראני","name_en":"TBD","position":"DF","number":44,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאורגיה","is_club_captain":false},{"id":520,"name_he":"מיגל סילבה","name_en":"TBD","position":"GK","number":55,"tier":2,"price":3,"overall_rank":23,"rated":true,"nationality":"פורטוגל","is_club_captain":true},{"id":521,"name_he":"עומר אצילי","name_en":"TBD","position":"MF","number":null,"tier":1,"price":5,"overall_rank":3,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":522,"name_he":"תומר יוספי","name_en":"TBD","position":"MF","number":null,"tier":2,"price":4,"overall_rank":19,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":523,"name_he":"יוג'ין אנסה","name_en":"TBD","position":"FW","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false},{"id":547,"name_he":"פטריק טוומאסי","name_en":"TBD","position":"FW","number":null,"tier":2,"price":4,"overall_rank":14,"rated":true,"nationality":"גאנה","is_club_captain":false}]},{"team_id":6,"name_he":"הפועל תל אביב","name_en":"Hapoel Tel Aviv","short":"ה·ת״א","city":"תל אביב","stadium":null,"players":[{"id":601,"name_he":"דור בנימיני","name_en":"TBD","position":"GK","number":1,"tier":4,"price":2,"overall_rank":90,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":602,"name_he":"שיקו","name_en":"TBD","position":"DF","number":4,"tier":1,"price":5,"overall_rank":7,"rated":true,"nationality":"ברזיל","is_club_captain":false},{"id":603,"name_he":"פרנאן מאיימבו","name_en":"TBD","position":"DF","number":5,"tier":2,"price":4,"overall_rank":25,"rated":true,"nationality":"קונגו","is_club_captain":true},{"id":604,"name_he":"אנדריאן קרייב","name_en":"TBD","position":"MF","number":6,"tier":4,"price":3,"overall_rank":102,"rated":true,"nationality":"בולגריה","is_club_captain":false},{"id":605,"name_he":"רוי קורין","name_en":"TBD","position":"FW","number":7,"tier":4,"price":2,"overall_rank":114,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":606,"name_he":"יונתן פרבר","name_en":"TBD","position":"MF","number":8,"tier":4,"price":2,"overall_rank":126,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":607,"name_he":"עמנואל בואטנג","name_en":"TBD","position":"FW","number":9,"tier":2,"price":4,"overall_rank":30,"rated":true,"nationality":"גאנה","is_club_captain":false},{"id":608,"name_he":"שאנדה סילבה","name_en":"TBD","position":"FW","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"פורטוגל","is_club_captain":false},{"id":609,"name_he":"סתיו טוריאל","name_en":"TBD","position":"MF","number":11,"tier":1,"price":5,"overall_rank":5,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":610,"name_he":"אל ים קנצפולסקי","name_en":"TBD","position":"MF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":611,"name_he":"רועי אלקוקין","name_en":"TBD","position":"MF","number":15,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":612,"name_he":"דורון ליידנר","name_en":"TBD","position":"DF","number":16,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":613,"name_he":"טל ארצ'ל","name_en":"TBD","position":"DF","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":614,"name_he":"אנס מחאמיד","name_en":"TBD","position":"FW","number":19,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":615,"name_he":"שחר פיבן","name_en":"TBD","position":"DF","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":616,"name_he":"אסף צור","name_en":"TBD","position":"GK","number":22,"tier":2,"price":4,"overall_rank":21,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":617,"name_he":"עמית למקין","name_en":"TBD","position":"DF","number":23,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":618,"name_he":"מור בוסקילה","name_en":"TBD","position":"MF","number":27,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":619,"name_he":"דאגלס אווסו","name_en":"TBD","position":"FW","number":35,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false},{"id":620,"name_he":"רון תלמי","name_en":"TBD","position":"FW","number":38,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":621,"name_he":"דניאל דאפה","name_en":"TBD","position":"FW","number":44,"tier":2,"price":4,"overall_rank":31,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":622,"name_he":"עומרי אלטמן","name_en":"TBD","position":"FW","number":51,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":623,"name_he":"ישי ברוש","name_en":"TBD","position":"MF","number":66,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":624,"name_he":"עופר גלברד","name_en":"TBD","position":"DF","number":92,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":625,"name_he":"מרקוס קוקו","name_en":"TBD","position":"DF","number":97,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"צרפת","is_club_captain":false},{"id":626,"name_he":"לוקאס פלקאו","name_en":"TBD","position":"MF","number":98,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":627,"name_he":"איתי שביט","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false}]},{"team_id":7,"name_he":"מכבי נתניה","name_en":"Maccabi Netanya","short":"נתניה","city":"נתניה","stadium":null,"players":[{"id":701,"name_he":"ניב אנטמן","name_en":"TBD","position":"GK","number":1,"tier":4,"price":3,"overall_rank":91,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":702,"name_he":"גריגורי מורוזוב","name_en":"TBD","position":"DF","number":2,"tier":4,"price":3,"overall_rank":103,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":703,"name_he":"איתי בן שבת","name_en":"TBD","position":"DF","number":4,"tier":4,"price":2,"overall_rank":115,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":704,"name_he":"דניס קוליקוב","name_en":"TBD","position":"DF","number":5,"tier":4,"price":2,"overall_rank":127,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":705,"name_he":"בפארי קונאטה","name_en":"TBD","position":"DF","number":6,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גינאה","is_club_captain":false},{"id":706,"name_he":"דולב חזיזה","name_en":"TBD","position":"MF","number":8,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":707,"name_he":"עוז בילו","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":708,"name_he":"דור חוגי","name_en":"TBD","position":"FW","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":709,"name_he":"אלון אזוגי","name_en":"TBD","position":"DF","number":12,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":710,"name_he":"נדב נידם","name_en":"TBD","position":"MF","number":13,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":712,"name_he":"ליאם כהן","name_en":"TBD","position":"MF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":713,"name_he":"מאור לוי","name_en":"TBD","position":"MF","number":15,"tier":2,"price":4,"overall_rank":26,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":714,"name_he":"בסאם זערורה","name_en":"TBD","position":"MF","number":75,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":715,"name_he":"מתאוס דאבו","name_en":"TBD","position":"FW","number":83,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":716,"name_he":"ירדן אבוחצירא","name_en":"TBD","position":"FW","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":717,"name_he":"עמרי שמיר","name_en":"TBD","position":"MF","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":718,"name_he":"סאהר תאג'י","name_en":"TBD","position":"MF","number":19,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":719,"name_he":"אלכס טלפה","name_en":"TBD","position":"MF","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":720,"name_he":"סמואל דה סילבה","name_en":"TBD","position":"GK","number":22,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"פורטוגל","is_club_captain":false},{"id":721,"name_he":"ליאם כהן","name_en":"TBD","position":"FW","number":23,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":722,"name_he":"עמית כהן","name_en":"TBD","position":"DF","number":24,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":723,"name_he":"ווילאן סיפריאן","name_en":"TBD","position":"MF","number":25,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":724,"name_he":"כרם ג'אבר","name_en":"TBD","position":"DF","number":26,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":true},{"id":725,"name_he":"עזיז וואטרה","name_en":"TBD","position":"MF","number":32,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"חוף השנהב","is_club_captain":false},{"id":726,"name_he":"סאבה חוואדזאני","name_en":"TBD","position":"DF","number":40,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאורגיה","is_club_captain":false},{"id":727,"name_he":"בני פלדמן","name_en":"TBD","position":"DF","number":44,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":754,"name_he":"דניאל כהן","name_en":"TBD","position":"GK","number":75,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false}]},{"team_id":8,"name_he":"בני סכנין","name_en":"Bnei Sakhnin","short":"סכנין","city":"סכנין","stadium":null,"players":[{"id":801,"name_he":"דוד בן לולו","name_en":"TBD","position":"GK","number":1,"tier":4,"price":2,"overall_rank":92,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":802,"name_he":"מארון גנטוס","name_en":"TBD","position":"DF","number":2,"tier":4,"price":3,"overall_rank":104,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":803,"name_he":"קרלו ברוצ'יץ'","name_en":"TBD","position":"DF","number":3,"tier":4,"price":3,"overall_rank":116,"rated":true,"nationality":"קרואטיה","is_club_captain":false},{"id":804,"name_he":"מוסטפא שייח' יוסף","name_en":"TBD","position":"MF","number":7,"tier":4,"price":2,"overall_rank":128,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":805,"name_he":"מייקום דויד","name_en":"TBD","position":"MF","number":8,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":807,"name_he":"ארתור מיראניאן","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ארמניה","is_club_captain":false},{"id":808,"name_he":"מתיו קודג'ו","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false},{"id":810,"name_he":"אבראהימה דרמה","name_en":"TBD","position":"FW","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"מאלי","is_club_captain":false},{"id":811,"name_he":"שאקר אבו חוסיין","name_en":"TBD","position":"FW","number":16,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":812,"name_he":"חסן חילו","name_en":"TBD","position":"DF","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":813,"name_he":"עומר אבוהב","name_en":"TBD","position":"MF","number":18,"tier":2,"price":3,"overall_rank":58,"rated":true,"nationality":"אנגולה","is_club_captain":false},{"id":814,"name_he":"מוחמד גנאמה","name_en":"TBD","position":"DF","number":20,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":815,"name_he":"ג'ובייר בושאנק","name_en":"TBD","position":"FW","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":816,"name_he":"מוחמד אבו ניל","name_en":"TBD","position":"GK","number":22,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":817,"name_he":"עדן שמיר","name_en":"TBD","position":"MF","number":23,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":818,"name_he":"עומר קורסיה","name_en":"TBD","position":"DF","number":26,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":819,"name_he":"אחמד סלמן","name_en":"TBD","position":"FW","number":29,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":820,"name_he":"מג'ד סלימאן","name_en":"TBD","position":"MF","number":32,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":821,"name_he":"מקס גרצ'קין","name_en":"TBD","position":"DF","number":55,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":822,"name_he":"יואאן אנדי","name_en":"TBD","position":"DF","number":75,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גינאה ביסאו","is_club_captain":false},{"id":823,"name_he":"ג'יימס אדני","name_en":"TBD","position":"FW","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ניגריה","is_club_captain":false},{"id":824,"name_he":"דורל אבונו","name_en":"TBD","position":"MF","number":92,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"קונגו","is_club_captain":false}]},{"team_id":9,"name_he":"הפועל חיפה","name_en":"Hapoel Haifa","short":"ה·חיפה","city":"חיפה","stadium":null,"players":[{"id":901,"name_he":"יואב ג'ראפי","name_en":"TBD","position":"GK","number":1,"tier":2,"price":3,"overall_rank":22,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":902,"name_he":"תמיר ארבל","name_en":"TBD","position":"DF","number":3,"tier":4,"price":2,"overall_rank":93,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":903,"name_he":"דור מלול","name_en":"TBD","position":"DF","number":4,"tier":2,"price":4,"overall_rank":24,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":904,"name_he":"איוואן קריצ'אק","name_en":"TBD","position":"DF","number":5,"tier":4,"price":2,"overall_rank":105,"rated":true,"nationality":"קרואטיה","is_club_captain":false},{"id":905,"name_he":"איתי בוגנים","name_en":"TBD","position":"MF","number":7,"tier":4,"price":2,"overall_rank":117,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":906,"name_he":"והיב חביבאללה","name_en":"TBD","position":"FW","number":24,"tier":5,"price":3,"overall_rank":129,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":907,"name_he":"רותם חטואל","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":908,"name_he":"סער פדידה","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":909,"name_he":"אניס פורת עיאש","name_en":"TBD","position":"MF","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":910,"name_he":"אורן ביטון","name_en":"TBD","position":"DF","number":12,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":911,"name_he":"דריו די'ופריץ'","name_en":"TBD","position":"DF","number":13,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"קרואטיה","is_club_captain":false},{"id":912,"name_he":"רוי נאווי","name_en":"TBD","position":"MF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":913,"name_he":"יעד גונן","name_en":"TBD","position":"MF","number":15,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":914,"name_he":"נפתלי בלאי","name_en":"TBD","position":"DF","number":16,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":915,"name_he":"חיים מקונן","name_en":"TBD","position":"MF","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":916,"name_he":"אופק ביטון","name_en":"TBD","position":"MF","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":917,"name_he":"רוי זיקרי","name_en":"TBD","position":"FW","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":918,"name_he":"מתן עמבר","name_en":"TBD","position":"GK","number":23,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":919,"name_he":"טל נעים","name_en":"TBD","position":"DF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":920,"name_he":"לירן סרדל","name_en":"TBD","position":"MF","number":24,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":921,"name_he":"ג'ורג' דיבה","name_en":"TBD","position":"DF","number":25,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":922,"name_he":"ברונו רמירס","name_en":"TBD","position":"DF","number":33,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":923,"name_he":"נאור סבג","name_en":"TBD","position":"MF","number":55,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":924,"name_he":"רז'י אנדו","name_en":"TBD","position":"MF","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"בורקינה פאסו","is_club_captain":false},{"id":925,"name_he":"סלאם זיידון","name_en":"TBD","position":"MF","number":88,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"מאלי","is_club_captain":false},{"id":926,"name_he":"שי בלסון","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":927,"name_he":"ליאם נחום","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":928,"name_he":"סאלי פחימה","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":null,"is_club_captain":false},{"id":929,"name_he":"איתי צפרני","name_en":"TBD","position":"FW","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":930,"name_he":"אריאל מנדי","name_en":"TBD","position":"DF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"סנגל","is_club_captain":false}]},{"team_id":10,"name_he":"עירוני קרית שמונה","name_en":"Ironi Kiryat Shmona","short":"קר״ש","city":"קרית שמונה","stadium":null,"players":[{"id":1001,"name_he":"מתן זלמנוביץ'","name_en":"TBD","position":"GK","number":1,"tier":4,"price":2,"overall_rank":94,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1002,"name_he":"עמית גלזר","name_en":"TBD","position":"DF","number":4,"tier":4,"price":1,"overall_rank":106,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1003,"name_he":"אופיר בנבנישתי","name_en":"TBD","position":"DF","number":6,"tier":4,"price":2,"overall_rank":118,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1004,"name_he":"פרננדו פאצ'קו","name_en":"TBD","position":"MF","number":8,"tier":5,"price":3,"overall_rank":130,"rated":true,"nationality":"פרו","is_club_captain":false},{"id":1005,"name_he":"אדריאן אוגריסה","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"פרו","is_club_captain":false},{"id":1006,"name_he":"אריאל שרצקי","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1007,"name_he":"מור סימן טוב","name_en":"TBD","position":"MF","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1008,"name_he":"ג'ואן חלבי","name_en":"TBD","position":"FW","number":12,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1009,"name_he":"הראל גולדנברג","name_en":"TBD","position":"MF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1010,"name_he":"איציק שולמייסטר","name_en":"TBD","position":"DF","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1011,"name_he":"אורי שנפר","name_en":"TBD","position":"FW","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1012,"name_he":"דניאל טננבאום","name_en":"TBD","position":"GK","number":19,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1013,"name_he":"עובדיה דרויש","name_en":"TBD","position":"DF","number":20,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1014,"name_he":"אביב אברהם","name_en":"TBD","position":"MF","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1015,"name_he":"ואלה מוסא עלי","name_en":"TBD","position":"MF","number":22,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ניגריה","is_club_captain":false},{"id":1016,"name_he":"יואב כראדי","name_en":"TBD","position":"MF","number":25,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1017,"name_he":"נמניה ליוביסבלייביץ'","name_en":"TBD","position":"DF","number":26,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"סרביה","is_club_captain":false},{"id":1018,"name_he":"עידו וייר","name_en":"TBD","position":"DF","number":28,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1019,"name_he":"יונתן מלכה","name_en":"TBD","position":"MF","number":29,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1020,"name_he":"שי בן דוד","name_en":"TBD","position":"DF","number":32,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1021,"name_he":"ליאל דרעי","name_en":"TBD","position":"DF","number":44,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1022,"name_he":"כריסטיאן מרטינס","name_en":"TBD","position":"MF","number":70,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"פנמה","is_club_captain":false},{"id":1023,"name_he":"רוי שדו","name_en":"TBD","position":"GK","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1024,"name_he":"יאו אקה","name_en":"TBD","position":"MF","number":79,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false},{"id":1025,"name_he":"בילאל שאאין","name_en":"TBD","position":"FW","number":91,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false}]},{"team_id":11,"name_he":"עירוני טבריה","name_en":"Ironi Tiberias","short":"טבריה","city":"טבריה","stadium":null,"players":[{"id":1101,"name_he":"גד עמוס","name_en":"TBD","position":"GK","number":1,"tier":4,"price":3,"overall_rank":95,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1102,"name_he":"אימרי אוזן","name_en":"TBD","position":"DF","number":2,"tier":4,"price":1,"overall_rank":107,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1103,"name_he":"דוד קלטינס","name_en":"TBD","position":"MF","number":3,"tier":4,"price":1,"overall_rank":119,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1104,"name_he":"סמביניה","name_en":"TBD","position":"DF","number":4,"tier":5,"price":2,"overall_rank":131,"rated":true,"nationality":"גינאה ביסאו","is_club_captain":false},{"id":1105,"name_he":"נהוראי חן","name_en":"TBD","position":"DF","number":5,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1106,"name_he":"גיא חדרידה","name_en":"TBD","position":"MF","number":7,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1107,"name_he":"ארי כהן","name_en":"TBD","position":"MF","number":8,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1108,"name_he":"איתמר שבירו","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1109,"name_he":"בר כהן","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1110,"name_he":"ניב גוטליב","name_en":"TBD","position":"MF","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1111,"name_he":"קייס גאנם","name_en":"TBD","position":"FW","number":12,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1112,"name_he":"גיא סנקור","name_en":"TBD","position":"DF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1113,"name_he":"רון אונגר","name_en":"TBD","position":"DF","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1114,"name_he":"עדן שמיר","name_en":"TBD","position":"MF","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1115,"name_he":"גל מעתוק","name_en":"TBD","position":"DF","number":19,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1116,"name_he":"עידו שרון","name_en":"TBD","position":"GK","number":22,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1117,"name_he":"כריס קואקו","name_en":"TBD","position":"MF","number":23,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"חוף השנהב","is_club_captain":false},{"id":1118,"name_he":"ירין שיביץ'","name_en":"TBD","position":"MF","number":24,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1119,"name_he":"רועי שחר","name_en":"TBD","position":"MF","number":25,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1120,"name_he":"ירין סוויסה","name_en":"TBD","position":"MF","number":27,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1121,"name_he":"ננה גבמבל","name_en":"TBD","position":"MF","number":29,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"חוף השנהב","is_club_captain":false},{"id":1122,"name_he":"מנסור באדג'י","name_en":"TBD","position":"FW","number":30,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גמביה","is_club_captain":false},{"id":1123,"name_he":"אונדז'יי באצ'ה","name_en":"TBD","position":"DF","number":37,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"צכיה","is_club_captain":false},{"id":1124,"name_he":"ג'ונס אבו גנימה","name_en":"TBD","position":"GK","number":55,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1125,"name_he":"אגם יהודה","name_en":"TBD","position":"FW","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false}]},{"team_id":12,"name_he":"מכבי פתח תקווה","name_en":"Maccabi Petah Tikva","short":"מ·פ״ת","city":"פתח תקווה","stadium":null,"players":[{"id":1201,"name_he":"אופיר בתוש / עומרי לוזון","name_en":"TBD","position":"DF","number":22,"tier":4,"price":2,"overall_rank":96,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1202,"name_he":"גיא דזנט","name_en":"TBD","position":"DF","number":26,"tier":4,"price":1,"overall_rank":108,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1203,"name_he":"מוחמד הינדי","name_en":"TBD","position":"DF","number":32,"tier":4,"price":3,"overall_rank":120,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1204,"name_he":"דור חברון","name_en":"TBD","position":"GK","number":null,"tier":5,"price":1,"overall_rank":132,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1205,"name_he":"מאור ארליך","name_en":"TBD","position":"GK","number":39,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1206,"name_he":"עומר שירי","name_en":"TBD","position":"DF","number":53,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1207,"name_he":"אביב סלם","name_en":"TBD","position":"DF","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"קולומביה/ישראל","is_club_captain":false},{"id":1208,"name_he":"פרנק ריבולייה","name_en":"TBD","position":"FW","number":91,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"צרפת","is_club_captain":false},{"id":1209,"name_he":"עידו כהן","name_en":"TBD","position":"MF","number":20,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1210,"name_he":"אור דדיה","name_en":"TBD","position":"DF","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1211,"name_he":"פבליו קוראנה","name_en":"TBD","position":"DF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"קפריסין","is_club_captain":false},{"id":1212,"name_he":"איתן טיבי","name_en":"TBD","position":"DF","number":81,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1213,"name_he":"סמואל אואוסו","name_en":"TBD","position":"FW","number":9,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false},{"id":1214,"name_he":"אריאל לוגסי","name_en":"TBD","position":"FW","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1215,"name_he":"אדר רטנר","name_en":"TBD","position":"FW","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1216,"name_he":"אייל אינברום","name_en":"TBD","position":"MF","number":99,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1217,"name_he":"קייל ספנס","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"אנגליה","is_club_captain":false},{"id":1218,"name_he":"לי-ים דן","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1219,"name_he":"איברהימה סומה","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false}]},{"team_id":13,"name_he":"הפועל רמת גן","name_en":"Hapoel Ramat Gan","short":"ר״ג","city":"רמת גן","stadium":null,"players":[{"id":1301,"name_he":"גטאוצ'ו יבלו","name_en":"TBD","position":"DF","number":2,"tier":4,"price":2,"overall_rank":97,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1302,"name_he":"דניאל טישלר","name_en":"TBD","position":"DF","number":3,"tier":4,"price":1,"overall_rank":109,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1303,"name_he":"ז'וטה","name_en":"TBD","position":"DF","number":5,"tier":4,"price":3,"overall_rank":121,"rated":true,"nationality":"פורטוגל","is_club_captain":false},{"id":1304,"name_he":"משה מאיר","name_en":"TBD","position":"MF","number":6,"tier":5,"price":1,"overall_rank":133,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1305,"name_he":"מקסים פלקושצ'נקו","name_en":"TBD","position":"MF","number":7,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1306,"name_he":"עידן ברנס","name_en":"TBD","position":"FW","number":8,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1307,"name_he":"משה סמל","name_en":"TBD","position":"MF","number":10,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1308,"name_he":"דוד אסנקה","name_en":"TBD","position":"FW","number":11,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1309,"name_he":"הוד מסיקה","name_en":"TBD","position":"MF","number":14,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1310,"name_he":"עמית צור","name_en":"TBD","position":"FW","number":15,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1311,"name_he":"עומר יצחק","name_en":"TBD","position":"DF","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1312,"name_he":"אולי ברגמן","name_en":"TBD","position":"GK","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1313,"name_he":"כריסטופר בוניפייס","name_en":"TBD","position":"MF","number":20,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"בלגיה","is_club_captain":false},{"id":1314,"name_he":"עידו עולי","name_en":"TBD","position":"MF","number":21,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1315,"name_he":"סרג'אן מיאיולוביץ'","name_en":"TBD","position":"MF","number":22,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"סרביה","is_club_captain":false},{"id":1316,"name_he":"תמיר גלזר","name_en":"TBD","position":"MF","number":24,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1317,"name_he":"אופק עובדיה","name_en":"TBD","position":"MF","number":27,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1318,"name_he":"פארד אברהם","name_en":"TBD","position":"DF","number":33,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"גאנה","is_club_captain":false},{"id":1319,"name_he":"דודי טויטו","name_en":"TBD","position":"DF","number":36,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1320,"name_he":"עידו מזרחי","name_en":"TBD","position":"MF","number":37,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1321,"name_he":"מרסיו סילבה","name_en":"TBD","position":"DF","number":44,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":1322,"name_he":"עמית רייף","name_en":"TBD","position":"GK","number":55,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1323,"name_he":"ליאם אלוק","name_en":"TBD","position":"MF","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1324,"name_he":"תומר הרן","name_en":"TBD","position":"GK","number":98,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1325,"name_he":"לואן קמפוס","name_en":"TBD","position":"FW","number":99,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ברזיל","is_club_captain":false},{"id":1326,"name_he":"מתן חוזז","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1327,"name_he":"מריוס נוביסי","name_en":"TBD","position":"FW","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"קמרון","is_club_captain":false}]},{"team_id":14,"name_he":"הפועל פתח תקווה","name_en":"Hapoel Petah Tikva","short":"ה·פ״ת","city":"פתח תקווה","stadium":null,"players":[{"id":1401,"name_he":"עומר כץ","name_en":"TBD","position":"GK","number":1,"tier":4,"price":2,"overall_rank":98,"rated":true,"nationality":"ישראל","is_club_captain":true},{"id":1402,"name_he":"אבישי כהן","name_en":"TBD","position":"DF","number":null,"tier":4,"price":2,"overall_rank":110,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1403,"name_he":"אלכס מוקטו-מוסונדה","name_en":"TBD","position":"DF","number":5,"tier":4,"price":2,"overall_rank":122,"rated":true,"nationality":"זימבבואה","is_club_captain":false},{"id":1404,"name_he":"שביט מזל","name_en":"TBD","position":"FW","number":7,"tier":5,"price":1,"overall_rank":134,"rated":true,"nationality":"ישראל","is_club_captain":false},{"id":1405,"name_he":"תומר אלטמן","name_en":"TBD","position":"MF","number":8,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1406,"name_he":"רוי דוד","name_en":"TBD","position":"MF","number":16,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1407,"name_he":"ציפיקה סонגה","name_en":"TBD","position":"FW","number":17,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"זמביה","is_club_captain":false},{"id":1408,"name_he":"עמית משוח","name_en":"TBD","position":"GK","number":18,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1409,"name_he":"קארים קิมבדי","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"הרפובליקה הדמוקרטית של קונגו","is_club_captain":false},{"id":1410,"name_he":"סתיו ישראלי","name_en":"TBD","position":"DF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1411,"name_he":"רוי ששון","name_en":"TBD","position":"GK","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1412,"name_he":"יער זמברובסקי","name_en":"TBD","position":"DF","number":26,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1413,"name_he":"בוני אמיאן","name_en":"TBD","position":"MF","number":29,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"אירלנד","is_club_captain":false},{"id":1414,"name_he":"גיא בדש","name_en":"TBD","position":"MF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1415,"name_he":"יזן נסאר","name_en":"TBD","position":"DF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false},{"id":1416,"name_he":"אוקלידס אנדרדה","name_en":"TBD","position":"FW","number":77,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"כף ורדה","is_club_captain":false},{"id":1417,"name_he":"הראל שלום","name_en":"TBD","position":"DF","number":null,"tier":5,"price":1,"overall_rank":null,"rated":false,"nationality":"ישראל","is_club_captain":false}]}]}$json$;
   v_league UUID;
   v_season UUID;
   t        JSONB;
@@ -5727,7 +5727,7 @@ UPDATE game.data_revision SET revision = revision + 1, scope = 'migration-14' WH
 
 
 -- =====================================================================
--- ▼▼▼  15_team_names.sql  —  קיצורי הקבוצות — ה.תא, מ.חיפה, ע.קש
+-- ▼▼▼  15_team_names.sql  —  קיצורי הקבוצות — ב״ש, מ·ת״א, קר״ש
 -- =====================================================================
 
 -- =====================================================================
@@ -5741,19 +5741,33 @@ UPDATE game.data_revision SET revision = revision + 1, scope = 'migration-14' WH
 --  בתוך רצף שנראה כמעט זהה, ו-`מ״ח` יכול להיות מכבי חיפה או
 --  מכבי חדרה. בכרטיס שחקן בגודל 11px זה הופך לניחוש.
 --
---  ★ הפורמט החדש
+--  ★ הפורמט
 --
---      <אות המועדון> . <העיר>
+--      עיר חד־משמעית  →  שם העיר לבדו
+--      עיר עם שתי קבוצות →  אות המועדון · העיר
 --
---      ה.תא    הפועל תל אביב        מ.תא    מכבי תל אביב
---      ה.ים    הפועל ירושלים        ב.ים    בית"ר ירושלים
---      ה.פת    הפועל פתח תקווה      מ.פת    מכבי פתח תקווה
---      ה.חיפה  הפועל חיפה           מ.חיפה  מכבי חיפה
---      ע.קש    עירוני קרית שמונה    ע.טבריה עירוני טבריה
+--      ב״ש     הפועל באר שבע      נתניה   מכבי נתניה
+--      סכנין   בני סכנין          טבריה   עירוני טבריה
+--      קר״ש    עירוני קרית שמונה  ר״ג     הפועל רמת גן
+--      בית״ר   בית"ר ירושלים  ← המועדון היחיד בשם הזה בליגה
 --
---  הנקודה מפרידה בין המועדון לעיר, ולכן העין קוראת שני חלקים
---  ולא רצף אחד. עיר בת מילה אחת נשארת שלמה; עיר בת שתי מילים
---  מקבלת ראשי תיבות.
+--      מ·ת״א / ה·ת״א      מ·חיפה / ה·חיפה
+--      מ·פ״ת / ה·פ״ת      ה·י-ם
+--
+--  ★ למה זה השתנה מ-`ה.תא` / `ע.קש`
+--
+--  הפורמט הקודם היה `<אות>.<עיר>` בכל הקבוצות, וזה יצר מילים:
+--  `ה.ים` נקרא "הים", `ע.קש` נקרא "עקש", ו-`מ.תא` נקרא "מתא".
+--  נקודה בין שתי אותיות עבריות אינה מפריד חזק מספיק, והעין
+--  קוראת את הרצף כמילה אחת לפני שהיא מגיעה לנקודה.
+--
+--  שני תיקונים:
+--    · הפרדה ב-`·` ולא בנקודה — מפריד ויזואלי שאינו סימן פיסוק
+--      ולכן לא נבלע לתוך המילה.
+--    · **רוב הקבוצות לא צריכות אות מועדון בכלל.** יש ליגה אחת
+--      ובה שש ערים עם קבוצה יחידה; "נתניה" ו"סכנין" הם השמות
+--      שאוהד באמת אומר, והם קצרים וברורים יותר מכל קיצור.
+--      אות המועדון נשמרת רק לארבע הערים שבהן היא מכריעה.
 --
 --  ★ למה טבלה מפורשת ולא כלל שנגזר מהשם
 --
@@ -5783,20 +5797,20 @@ DECLARE
 BEGIN
   FOR r IN
     SELECT * FROM (VALUES
-      ('1',  'ה.בש',    'הפועל באר שבע'),
-      ('2',  'ה.ים',    'הפועל ירושלים'),
-      ('3',  'מ.תא',    'מכבי תל אביב'),
-      ('4',  'מ.חיפה',  'מכבי חיפה'),
-      ('5',  'ב.ים',    'בית"ר ירושלים'),
-      ('6',  'ה.תא',    'הפועל תל אביב'),
-      ('7',  'מ.נתניה', 'מכבי נתניה'),
-      ('8',  'ב.סכנין', 'בני סכנין'),
-      ('9',  'ה.חיפה',  'הפועל חיפה'),
-      ('10', 'ע.קש',    'עירוני קרית שמונה'),
-      ('11', 'ע.טבריה', 'עירוני טבריה'),
-      ('12', 'מ.פת',    'מכבי פתח תקווה'),
-      ('13', 'ה.רג',    'הפועל רמת גן'),
-      ('14', 'ה.פת',    'הפועל פתח תקווה')
+      ('1',  'ב״ש',     'הפועל באר שבע'),
+      ('2',  'ה·י-ם',   'הפועל ירושלים'),
+      ('3',  'מ·ת״א',   'מכבי תל אביב'),
+      ('4',  'מ·חיפה',  'מכבי חיפה'),
+      ('5',  'בית״ר',   'בית"ר ירושלים'),
+      ('6',  'ה·ת״א',   'הפועל תל אביב'),
+      ('7',  'נתניה',   'מכבי נתניה'),
+      ('8',  'סכנין',   'בני סכנין'),
+      ('9',  'ה·חיפה',  'הפועל חיפה'),
+      ('10', 'קר״ש',    'עירוני קרית שמונה'),
+      ('11', 'טבריה',   'עירוני טבריה'),
+      ('12', 'מ·פ״ת',   'מכבי פתח תקווה'),
+      ('13', 'ר״ג',     'הפועל רמת גן'),
+      ('14', 'ה·פ״ת',   'הפועל פתח תקווה')
     ) AS t(ext, short, expect_he)
   LOOP
     v_team := core.team_by_ext(r.ext);
@@ -5845,6 +5859,714 @@ END
 $guard$;
 
 UPDATE game.data_revision SET revision = revision + 1, scope = 'migration-15' WHERE id = 1;
+
+
+-- =====================================================================
+-- ▼▼▼  16_team_names_bots_activity.sql  —  שם קבוצה, משתתפים גלויים, בוטים, יומן פעילות
+-- =====================================================================
+
+-- =====================================================================
+--  Dubid · מיגרציה 16 — שם קבוצה, משתתפים גלויים, בוטים, ויומן פעילות
+-- =====================================================================
+--
+--  ארבעה שינויים שנראים לא קשורים, ויש להם מכנה משותף אחד:
+--  **המחזור צריך להרגיש מאוכלס לפני שהוא מתחיל.**
+--
+--    1. לכל הרכב יש שם קבוצה ושם מאמן — לא רק "אלמוני".
+--    2. כל מי שהגיש נראה בטבלה עוד לפני הנעילה.
+--    3. אדמין יכול להוסיף בוטים למחזור ריק.
+--    4. אדמין רואה יומן פעילות חי של מי הגיש מה.
+--
+--  אידמפוטנטי. אפשר להריץ שוב.
+-- =====================================================================
+
+SET search_path = game, core, public;
+
+-- ---------------------------------------------------------------------
+-- §1 · שם הקבוצה
+-- ---------------------------------------------------------------------
+--
+--  ★ למה שם קבוצה **בנוסף** לשם המאמן, ולא במקומו
+--
+--  שם המאמן הוא הזהות של האדם ("מאור"). שם הקבוצה הוא הזהות של
+--  ה**הרכב** ("שכונת התקווה יונייטד"), והוא מה שהופך טבלה של
+--  שמות פרטיים לליגה. בכל משחק פנטזי מוצלח יש את שניהם, וזה
+--  לא במקרה: השם הפרטי מזהה, שם הקבוצה **משתתף**.
+--
+--  ★ הוא יושב על ההרכב ולא על המשתמש
+--
+--  כי אותו אדם משחק גם דוביד 5 וגם דוביד 11, ואולי ירצה שם אחר
+--  לכל אחד. וגם: שם שנקבע בהגשה נשאר קפוא באותו מחזור גם אם
+--  המשתמש שינה אותו אחר כך — בדיוק כמו הסגל וכמו המחיר.
+-- ---------------------------------------------------------------------
+
+ALTER TABLE game.user_lineups
+  ADD COLUMN IF NOT EXISTS team_name TEXT;
+
+COMMENT ON COLUMN game.user_lineups.team_name IS
+  'שם הקבוצה של המתמודד באותו מחזור. NULL = טרם נבחר.';
+
+-- ---------------------------------------------------------------------
+-- §2 · הגשה עם שם קבוצה
+-- ---------------------------------------------------------------------
+--
+--  ★ פרמטר חדש בסוף ועם DEFAULT — ולא חתימה חדשה.
+--
+--  קליינט ישן שעוד לא נפרס ממשיך לקרוא לפונקציה עם חמישה
+--  ארגומנטים ולקבל בדיוק את מה שקיבל קודם. חתימה שנשברת באמצע
+--  פריסה מפילה הגשות בזמן שהמחזור פתוח.
+-- ---------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION game.set_entry_team_name(
+  p_gw_code TEXT, p_mode TEXT, p_team_name TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+DECLARE
+  v_auth UUID := auth.uid();
+  v_gw   game.gameweeks;
+  v_name TEXT := NULLIF(btrim(p_team_name), '');
+BEGIN
+  IF v_auth IS NULL THEN RAISE EXCEPTION 'AUTH_REQUIRED'; END IF;
+
+  /* ★ תקרה על האורך. שם של מאתיים תווים לא "נראה רע" — הוא
+     שובר כל שורה בטבלה ובכל כרטיס שיתוף. */
+  IF v_name IS NOT NULL AND length(v_name) > 24 THEN
+    v_name := left(v_name, 24);
+  END IF;
+
+  SELECT * INTO v_gw FROM game.gameweeks WHERE code = p_gw_code;
+  IF v_gw.id IS NULL THEN RAISE EXCEPTION 'GAMEWEEK_NOT_FOUND'; END IF;
+
+  UPDATE game.user_lineups
+     SET team_name = v_name
+   WHERE user_id = v_auth AND gameweek_id = v_gw.id AND mode = p_mode;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.set_entry_team_name(TEXT, TEXT, TEXT) TO authenticated;
+
+-- ---------------------------------------------------------------------
+-- §3 · המשתתפים נראים לפני הנעילה
+-- ---------------------------------------------------------------------
+--
+--  ★★ מה שהיה, ולמה זה פגע במוצר ★★
+--
+--  `game.entries` החזירה לפני הנעילה **רק את ההגשה שלי**:
+--
+--      AND (now() >= v_gw.lock_at OR ul.user_id = v_auth)
+--
+--  כלומר משתמש שהגיש ראשון פתח את הטבלה וראה את עצמו לבד. מחזור
+--  שנראה ריק הוא מחזור שלא מרגיש כמו תחרות, וזה בדיוק הרגע שבו
+--  הוא מפסיק לחכות לו.
+--
+--  ★★ ולמה אי אפשר פשוט להסיר את השורה ★★
+--
+--  כי אז כל אחד יכול לפתוח את הטבלה, לראות את ההרכב של מי שהוא
+--  חושב שמבין, ולהעתיק אותו דקה לפני הנעילה. זה הורג את המשחק.
+--
+--  ★ הפתרון: לחשוף את ה**משתתף**, להסתיר את ה**הרכב**.
+--
+--  לפני הנעילה כל הגשה חוזרת עם שם, שם קבוצה וחותמת זמן —
+--  ובלי שחקנים (`slots: []`, `hidden: true`). אחרי הנעילה הכל
+--  נפתח. ההסתרה היא בשרת, ולא במסך: קליינט הוא בקשת רשת, ומה
+--  שהוא לא אמור לדעת פשוט לא נשלח אליו.
+-- ---------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION game.entries(p_gw_code TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+DECLARE
+  v_gw     game.gameweeks;
+  v_auth   UUID := auth.uid();
+  v_open   BOOLEAN;
+BEGIN
+  SELECT * INTO v_gw FROM game.gameweeks WHERE code = p_gw_code;
+  IF v_gw.id IS NULL THEN RETURN '[]'::jsonb; END IF;
+
+  -- TRUE = ההרכבים עדיין סודיים.
+  v_open := (now() < v_gw.lock_at);
+
+  RETURN COALESCE((
+    SELECT jsonb_agg(e ORDER BY e->>'submittedAt')
+    FROM (
+      SELECT jsonb_build_object(
+        'id',          ul.id,
+        'userId',      ul.user_id,
+        'displayName', COALESCE(NULLIF(btrim(u.display_name), ''), 'אלמוני'),
+        'teamName',    ul.team_name,
+        'isBot',       COALESCE(u.is_bot, FALSE),
+        'gameweekId',  p_gw_code,
+        'mode',        ul.mode,
+        -- ★ הדגל שאומר למסך "יש כאן משתתף, אין כאן הרכב".
+        --   בלעדיו המסך היה מנסה לנקד רשימה ריקה ומציג 0.
+        'hidden',      (v_open AND ul.user_id IS DISTINCT FROM v_auth),
+        'submittedAt', to_char(ul.submitted_at AT TIME ZONE 'UTC',
+                               'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+        'lineup', jsonb_build_object(
+          'lineupId',   ul.id,
+          'userId',     ul.user_id,
+          'gameweekId', p_gw_code,
+          'formation',  ul.formation,
+          'slots', CASE
+            WHEN v_open AND ul.user_id IS DISTINCT FROM v_auth THEN '[]'::jsonb
+            ELSE COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'slotNo',    s.slot_no,
+                'playerId',  'P' || xp.external_id,
+                'teamId',    'T' || xt.external_id,
+                'position',  s.position,
+                'price',     s.price,
+                'isCaptain', s.is_captain,
+                'isVice',    s.is_vice,
+                'isBench',   s.is_bench
+              ) ORDER BY s.slot_no)
+              FROM game.user_lineup_slots s
+              JOIN core.v_ext xp ON xp.entity_type = 'player' AND xp.entity_id = s.player_id
+              JOIN core.v_ext xt ON xt.entity_type = 'team'   AND xt.entity_id = s.team_id
+              WHERE s.lineup_id = ul.id
+            ), '[]'::jsonb)
+          END
+        )
+      ) AS e
+      FROM game.user_lineups ul
+      LEFT JOIN game.users u ON u.id = ul.user_id
+      WHERE ul.gameweek_id = v_gw.id
+        AND ul.status IN ('submitted','locked','scored')
+    ) q
+  ), '[]'::jsonb);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.entries(TEXT) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- §4 · בוטים
+-- ---------------------------------------------------------------------
+--
+--  ★ למה בוטים הם כלי מוצר ולא רמאות
+--
+--  מחזור ראשון עם שני משתתפים אינו תחרות, וטבלה עם שתי שורות
+--  אומרת למשתמש החדש "אין כאן אף אחד". בוטים פותרים בעיה
+--  אמיתית של השקה — ובתנאי אחד: **שהם יהיו מסומנים.**
+--
+--  `is_bot` נשמר על המשתמש וחוזר לכל מסך. אף מסך לא חייב להציג
+--  את זה, אבל אף מסך לא יכול לטעון שהוא לא ידע. הסתרה של זה
+--  הייתה הופכת כלי לגיטימי להטעיה.
+--
+--  ★ הבוט משחק לפי אותם חוקים
+--
+--  הוא עובר דרך אותה ולידציה: שחקן אחד מכל קבוצה, גודל הרכב,
+--  תקציב. אין כאן "הרכב שהוזרק" — יש הגשה שנבנית ונבדקת.
+--
+--  ★ והוא דטרמיניסטי
+--
+--  אותו מחזור + אותו אינדקס בוט = אותו הרכב, תמיד. `random()`
+--  היה הופך כל הרצה חוזרת של המיגרציה לתוצאה אחרת, ואת הבדיקה
+--  לחסרת ערך. הזרע נגזר מקוד המחזור ומהמספר הסידורי.
+-- ---------------------------------------------------------------------
+
+ALTER TABLE game.users
+  ADD COLUMN IF NOT EXISTS is_bot BOOLEAN NOT NULL DEFAULT FALSE;
+
+COMMENT ON COLUMN game.users.is_bot IS
+  'משתתף שנוצר על ידי האדמין. חוזר לכל מסך — הסתרה הייתה הטעיה.';
+
+CREATE INDEX IF NOT EXISTS users_is_bot_idx ON game.users (is_bot) WHERE is_bot;
+
+/**
+ * שמות הבוטים. שכונתיים, ולא "Bot 1".
+ *
+ * ★ בוט בשם "Bot 4" הורס את האווירה גם כשהוא מסומן. שם אמיתי
+ *   הופך את הטבלה למאוכלסת; התג לידו הוא מה ששומר על ההגינות.
+ */
+CREATE OR REPLACE FUNCTION game.bot_identity(p_index INT)
+RETURNS TABLE (coach TEXT, team TEXT)
+LANGUAGE sql IMMUTABLE
+AS $$
+  WITH c(n) AS (
+    SELECT * FROM unnest(ARRAY[
+      'אבי','מוטי','שוקי','ג׳קי','רפי','חיים','ניסים','דודו',
+      'אלי','יוסי','שמעון','מאיר','ציון','רוני','אמנון','גבי'
+    ])
+  ), t(n) AS (
+    SELECT * FROM unnest(ARRAY[
+      'שכונת התקווה','אצטדיון הסמטה','בני המרכזייה','מכבי הפנימייה',
+      'הפועל הקיוסק','נבחרת הפלאפל','שער הכניסה','יוניון בית הקפה',
+      'אלופי החניון','ספסל הרזרבה','מועדון הצהריים','ליגת המרפסת',
+      'אחוזת הדשא','ועד השכונה','חלוצי הרחוב','גיבורי המגרש'
+    ])
+  )
+  SELECT
+    (SELECT n FROM c OFFSET (abs(p_index) % 16) LIMIT 1),
+    (SELECT n FROM t OFFSET (abs(p_index) % 16) LIMIT 1);
+$$;
+
+/**
+ * הוספת בוטים למחזור.
+ *
+ * מחזיר {added, skipped, problems[]}. `skipped` אינו שגיאה: בוט
+ * שכבר הגיש למחזור הזה פשוט נשאר כמו שהוא, וזה מה שהופך את
+ * הפונקציה לבטוחה להרצה חוזרת.
+ */
+CREATE OR REPLACE FUNCTION game.admin_add_bots(
+  p_gw_code TEXT,
+  p_mode    TEXT,
+  p_count   INT
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+DECLARE
+  v_gw       game.gameweeks;
+  v_size     INT;
+  v_budget   NUMERIC := 15;
+  v_added    INT := 0;
+  v_skipped  INT := 0;
+  v_problems JSONB := '[]'::jsonb;
+  i          INT;
+  v_seed     INT;
+  v_user     UUID;
+  v_coach    TEXT;
+  v_team     TEXT;
+  v_lineup   UUID;
+  v_slot_no  INT;
+  v_spent    NUMERIC;
+  r          RECORD;
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
+  IF p_mode NOT IN ('five','full') THEN RAISE EXCEPTION 'INVALID_MODE'; END IF;
+
+  SELECT * INTO v_gw FROM game.gameweeks WHERE code = p_gw_code;
+  IF v_gw.id IS NULL THEN RAISE EXCEPTION 'GAMEWEEK_NOT_FOUND'; END IF;
+
+  v_size := CASE WHEN p_mode = 'five' THEN 5 ELSE 11 END;
+
+  FOR i IN 1..GREATEST(1, LEAST(p_count, 60)) LOOP
+    /* ★ הזרע נגזר מקוד המחזור ומהאינדקס — ולא מ-`random()`.
+       אותה הרצה, אותה תוצאה, תמיד. */
+    v_seed := abs(hashtext(p_gw_code || ':' || p_mode || ':' || i));
+
+    SELECT coach, team INTO v_coach, v_team FROM game.bot_identity(v_seed);
+    v_coach := v_coach || ' ' || i::TEXT;
+
+    /* המשתמש. `username` ייחודי ולכן הוא גם מפתח החיפוש. */
+    SELECT id INTO v_user FROM game.users
+     WHERE username = ('bot_' || p_gw_code || '_' || p_mode || '_' || i)::CITEXT;
+
+    IF v_user IS NULL THEN
+      INSERT INTO game.users (display_name, username, is_guest, is_bot)
+      VALUES (v_coach,
+              ('bot_' || p_gw_code || '_' || p_mode || '_' || i)::CITEXT,
+              TRUE, TRUE)
+      RETURNING id INTO v_user;
+    END IF;
+
+    /* כבר הגיש? מדלגים. */
+    PERFORM 1 FROM game.user_lineups
+     WHERE user_id = v_user AND gameweek_id = v_gw.id AND mode = p_mode
+       AND status IN ('submitted','locked','scored');
+    IF FOUND THEN v_skipped := v_skipped + 1; CONTINUE; END IF;
+
+    DELETE FROM game.user_lineups
+     WHERE user_id = v_user AND gameweek_id = v_gw.id AND mode = p_mode;
+
+    INSERT INTO game.user_lineups
+      (user_id, gameweek_id, mode, formation, status, submitted_at, team_name)
+    VALUES (v_user, v_gw.id, p_mode,
+            CASE WHEN p_mode = 'five' THEN '2-1-1' ELSE '4-3-3' END,
+            'submitted', now(), v_team)
+    RETURNING id INTO v_lineup;
+
+    v_slot_no := 0;
+    v_spent := 0;
+
+    /*
+     * ★ בחירת השחקנים.
+     *
+     *   · שחקן אחד מכל קבוצה — `DISTINCT ON (team_id)`, אותו
+     *     חוק ליבה שחל על בני אדם.
+     *   · הסדר נגזר מהזרע, כך שכל בוט בוחר אחרת אבל באופן קבוע.
+     *   · במצב חמישה גם התקציב נאכף, ולכן ממיינים מהזול ליקר
+     *     בתוך הערבוב — בוט שחרג בתקציב היה נדחה בהגשה של
+     *     בן אדם, ואסור לו להיות פטור.
+     */
+    FOR r IN
+      SELECT * FROM (
+        SELECT DISTINCT ON (sq.team_id)
+               sq.player_id, sq.team_id, sq.position,
+               COALESCE(sq.fantasy_price, 0) AS price
+          FROM core.squads sq
+         WHERE sq.valid_to IS NULL AND sq.status = 'active'
+         ORDER BY sq.team_id, md5(sq.player_id::TEXT || v_seed::TEXT)
+      ) picks
+      ORDER BY CASE WHEN p_mode = 'five' THEN picks.price ELSE 0 END,
+               md5(picks.team_id::TEXT || v_seed::TEXT)
+      LIMIT v_size
+    LOOP
+      v_slot_no := v_slot_no + 1;
+      v_spent := v_spent + r.price;
+      INSERT INTO game.user_lineup_slots
+        (lineup_id, slot_no, player_id, team_id, position, price,
+         is_captain, is_vice, is_bench)
+      VALUES (v_lineup, v_slot_no, r.player_id, r.team_id, r.position, r.price,
+              v_slot_no = 1, v_slot_no = 2, FALSE);
+    END LOOP;
+
+    IF v_slot_no < v_size THEN
+      v_problems := v_problems || jsonb_build_object(
+        'bot', i, 'issue', 'אין מספיק קבוצות פעילות בליגה');
+      DELETE FROM game.user_lineups WHERE id = v_lineup;
+      CONTINUE;
+    END IF;
+
+    IF p_mode = 'five' AND v_spent > v_budget THEN
+      v_problems := v_problems || jsonb_build_object(
+        'bot', i, 'issue', format('חריגה מתקציב: %s > %s', v_spent, v_budget));
+      DELETE FROM game.user_lineups WHERE id = v_lineup;
+      CONTINUE;
+    END IF;
+
+    v_added := v_added + 1;
+    PERFORM game.log_activity(v_user, 'bot_submit', p_mode, p_gw_code, v_team);
+  END LOOP;
+
+  INSERT INTO game.audit_logs (actor, action, entity, entity_id, new_value)
+  VALUES (COALESCE(auth.uid()::TEXT, 'admin'), 'admin_add_bots', 'gameweek', p_gw_code,
+          jsonb_build_object('mode', p_mode, 'added', v_added, 'skipped', v_skipped));
+
+  /* ★ `bump_revision` הוא פונקציית טריגר ואי אפשר לקרוא לה
+     ישירות — היא נורית ממילא מהטריגר על `user_lineups`. עדכון
+     מפורש כאן היה מפיל את כל הפונקציה ב-
+     "trigger functions can only be called as triggers". */
+  UPDATE game.data_revision
+     SET revision = revision + 1, scope = 'bots', updated_at = now()
+   WHERE id = 1;
+
+  RETURN jsonb_build_object(
+    'added', v_added, 'skipped', v_skipped, 'problems', v_problems);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.admin_add_bots(TEXT, TEXT, INT) TO authenticated;
+
+/** הסרת כל הבוטים ממחזור. שגיאה בהוספה לא צריכה להיות בלתי הפיכה. */
+CREATE OR REPLACE FUNCTION game.admin_remove_bots(p_gw_code TEXT, p_mode TEXT DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+DECLARE v_gw game.gameweeks; v_n INT;
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
+  SELECT * INTO v_gw FROM game.gameweeks WHERE code = p_gw_code;
+  IF v_gw.id IS NULL THEN RAISE EXCEPTION 'GAMEWEEK_NOT_FOUND'; END IF;
+
+  WITH gone AS (
+    DELETE FROM game.user_lineups ul
+     USING game.users u
+     WHERE u.id = ul.user_id AND u.is_bot
+       AND ul.gameweek_id = v_gw.id
+       AND (p_mode IS NULL OR ul.mode = p_mode)
+    RETURNING 1
+  ) SELECT count(*) INTO v_n FROM gone;
+
+  INSERT INTO game.audit_logs (actor, action, entity, entity_id, new_value)
+  VALUES (COALESCE(auth.uid()::TEXT, 'admin'), 'admin_remove_bots', 'gameweek', p_gw_code,
+          jsonb_build_object('mode', p_mode, 'removed', v_n));
+
+  UPDATE game.data_revision
+     SET revision = revision + 1, scope = 'bots', updated_at = now()
+   WHERE id = 1;
+  RETURN jsonb_build_object('removed', v_n);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.admin_remove_bots(TEXT, TEXT) TO authenticated;
+
+-- ---------------------------------------------------------------------
+-- §5 · יומן פעילות
+-- ---------------------------------------------------------------------
+--
+--  ★ למה טבלה נפרדת מ-`audit_logs`
+--
+--  `audit_logs` הוא יומן **אדמין**: מי שינה חוק, מי פרסם מחזור.
+--  הוא נועד לאחריות, הוא נדיר, והוא נשמר לנצח.
+--
+--  יומן הפעילות הוא משהו אחר לגמרי: הוא **תנועה** של משתמשים,
+--  הוא תכוף, והוא בעיקר מעניין בשבועיים האחרונים. לערבב ביניהם
+--  אומר שאלף הגשות קוברות את השורה האחת שבה מישהו שינה את
+--  מכפיל הקפטן — כלומר להרוס את יומן האחריות בדיוק כשצריך אותו.
+--
+--  ★ מה שנשמר, ומה שלא
+--
+--  נשמר: מי, מה, מתי, ובאיזה מצב. **לא** נשמר: אילו שחקנים
+--  נבחרו. יומן שמכיל הרכבים הוא דלת אחורית לצפייה בהרכבים לפני
+--  הנעילה, וזה בדיוק מה ש-§3 סגר.
+-- ---------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS game.activity_log (
+  id         BIGSERIAL PRIMARY KEY,
+  user_id    UUID REFERENCES game.users(id) ON DELETE SET NULL,
+  action     TEXT NOT NULL,
+  mode       TEXT,
+  gw_code    TEXT,
+  detail     TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS activity_log_recent_idx
+  ON game.activity_log (created_at DESC);
+CREATE INDEX IF NOT EXISTS activity_log_gw_idx
+  ON game.activity_log (gw_code, created_at DESC);
+
+/**
+ * רישום פעולה.
+ *
+ * ★ `SECURITY DEFINER` ובלי GRANT ל-anon: רק פונקציות אחרות
+ *   בסכימה קוראות לזה. לו הקליינט היה יכול לכתוב ליומן, היומן
+ *   היה מקור מידע שאי אפשר לסמוך עליו — וזה גרוע מאין יומן.
+ */
+CREATE OR REPLACE FUNCTION game.log_activity(
+  p_user UUID, p_action TEXT, p_mode TEXT, p_gw TEXT, p_detail TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE sql SECURITY DEFINER
+SET search_path = game, public
+AS $$
+  INSERT INTO game.activity_log (user_id, action, mode, gw_code, detail)
+  VALUES (p_user, p_action, p_mode, p_gw, NULLIF(btrim(p_detail), ''));
+$$;
+
+-- ---------------------------------------------------------------------
+--  ★ ההגשה והביטול רושמים ליומן.
+--
+--  הרישום נעשה **בתוך** הפונקציות הקיימות ולא בטריגר, בכוונה:
+--  טריגר על `user_lineups` היה נורה גם על שמירת טיוטה, ואז
+--  היומן היה מתמלא ב"שחר עדכן טיוטה" שלוש פעמים בדקה. מה
+--  שמעניין הוא ה**אירוע**, לא השינוי בשורה.
+-- ---------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------
+--  ★★ איך מוסיפים פרמטר לפונקציה שקליינטים כבר קוראים לה ★★
+--
+--  הפיתוי הוא להוסיף ארגומנט עם DEFAULT. זו טעות: PostgreSQL
+--  היה מקבל **שתי** פונקציות בשם `submit_entry` — זו בת חמשת
+--  הארגומנטים מ-db/09 וזו בת השישה — וכל קריאה עם חמישה
+--  ארגומנטים הייתה נכשלת ב-`function is not unique`. כלומר כל
+--  הגשה במוצר, בבת אחת.
+--
+--  לכן: המימוש המקורי **משנה שם** ל-`submit_entry_core`, והשם
+--  `submit_entry` מקבל עטיפה. הלוגיקה נשארת במקום אחד — שכפול
+--  שלה כאן היה יוצר שני מסלולי הגשה שיום אחד יתפצלו, וזה בדיוק
+--  סוג הבאג שאי אפשר לאתר.
+--
+--  ★ ואידמפוטנטי: `DROP … IF EXISTS` לפני השינוי, כדי שהרצה
+--    שנייה של RUN-ALL (שבה db/09 יוצר מחדש את בן החמישה) תעבוד.
+-- ---------------------------------------------------------------------
+
+DO $rename$
+BEGIN
+  /* ★ `pronargs` ולא `pg_get_function_identity_arguments`.
+     הפונקציה השנייה מחזירה את שמות הפרמטרים יחד עם הטיפוסים
+     ("p_gw_code text, ..."), ולכן ההשוואה לרשימת טיפוסים בלבד
+     לעולם לא התאימה — השם `submit_entry_core` מעולם לא נוצר,
+     והעטיפה קראה לפונקציה שאינה קיימת. הבדיקה תפסה את זה כ-
+     `function is not unique`, כלומר שתי גרסאות חיו זו לצד זו. */
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'game' AND p.proname = 'submit_entry' AND p.pronargs = 5
+  ) THEN
+    DROP FUNCTION IF EXISTS game.submit_entry_core(TEXT, TEXT, TEXT, JSONB, TEXT);
+    ALTER FUNCTION game.submit_entry(TEXT, TEXT, TEXT, JSONB, TEXT)
+      RENAME TO submit_entry_core;
+  END IF;
+END
+$rename$;
+
+DO $rename2$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'game' AND p.proname = 'withdraw_entry' AND p.pronargs = 2
+  ) AND NOT EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'game' AND p.proname = 'withdraw_entry_core'
+  ) THEN
+    ALTER FUNCTION game.withdraw_entry(TEXT, TEXT) RENAME TO withdraw_entry_core;
+  END IF;
+END
+$rename2$;
+
+CREATE OR REPLACE FUNCTION game.submit_entry(
+  p_gw_code   TEXT,
+  p_mode      TEXT,
+  p_formation TEXT,
+  p_slots     JSONB,
+  p_display_name TEXT DEFAULT NULL,
+  p_team_name    TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = core, game, public
+AS $$
+DECLARE
+  v_result JSONB;
+  v_auth   UUID := auth.uid();
+  v_team   TEXT := NULLIF(btrim(p_team_name), '');
+BEGIN
+  v_result := game.submit_entry_core(p_gw_code, p_mode, p_formation, p_slots, p_display_name);
+
+  IF v_team IS NOT NULL THEN
+    PERFORM game.set_entry_team_name(p_gw_code, p_mode, v_team);
+  END IF;
+
+  PERFORM game.log_activity(
+    v_auth, 'submit', p_mode, p_gw_code,
+    COALESCE(v_team, (SELECT display_name FROM game.users WHERE id = v_auth)));
+
+  RETURN v_result || jsonb_build_object('teamName', v_team);
+END;
+$$;
+
+/* ★ `BOOLEAN` ולא `VOID` — זה טיפוס ההחזרה של המקור.
+   `CREATE OR REPLACE` אינו יכול לשנות טיפוס החזרה, וניסיון
+   כזה מפיל את כל המיגרציה. הקריאה מחזירה את מה שהמקור החזיר. */
+CREATE OR REPLACE FUNCTION game.withdraw_entry(p_gw_code TEXT, p_mode TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+DECLARE v_auth UUID := auth.uid(); v_ok BOOLEAN;
+BEGIN
+  v_ok := game.withdraw_entry_core(p_gw_code, p_mode);
+  IF v_ok THEN
+    PERFORM game.log_activity(v_auth, 'withdraw', p_mode, p_gw_code, NULL);
+  END IF;
+  RETURN v_ok;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.withdraw_entry(TEXT, TEXT) TO authenticated;
+
+GRANT EXECUTE ON FUNCTION game.submit_entry(TEXT, TEXT, TEXT, JSONB, TEXT, TEXT)
+  TO authenticated;
+
+/**
+ * ★ יומן פעילות לאדמין.
+ *
+ * מחזיר משפטים מוכנים ("שחר שלח הרכב · דוביד 5"), ולא שדות
+ * גולמיים. הסיבה: הניסוח הוא החלטת מוצר, והוא צריך להיות זהה
+ * בכל מקום שמציג את היומן — כולל התראה, ייצוא ודוח.
+ */
+CREATE OR REPLACE FUNCTION game.admin_activity(
+  p_limit INT DEFAULT 60, p_gw_code TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = game, public
+AS $$
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
+
+  RETURN COALESCE((
+    SELECT jsonb_agg(a ORDER BY (a->>'at') DESC)
+    FROM (
+      SELECT jsonb_build_object(
+        'id',     l.id,
+        'action', l.action,
+        'mode',   l.mode,
+        'gw',     l.gw_code,
+        'who',    COALESCE(NULLIF(btrim(u.display_name), ''), 'אורח'),
+        'isBot',  COALESCE(u.is_bot, FALSE),
+        'detail', l.detail,
+        'at',     to_char(l.created_at AT TIME ZONE 'UTC',
+                          'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+        'text',   CASE l.action
+                    WHEN 'submit'     THEN COALESCE(NULLIF(btrim(u.display_name),''),'אורח')
+                                           || ' שלח הרכב'
+                    WHEN 'bot_submit' THEN COALESCE(NULLIF(btrim(u.display_name),''),'בוט')
+                                           || ' (בוט) שלח הרכב'
+                    WHEN 'withdraw'   THEN COALESCE(NULLIF(btrim(u.display_name),''),'אורח')
+                                           || ' ביטל הרכב'
+                    WHEN 'signup'     THEN COALESCE(NULLIF(btrim(u.display_name),''),'אורח')
+                                           || ' נרשם'
+                    ELSE COALESCE(NULLIF(btrim(u.display_name),''),'אורח') || ' · ' || l.action
+                  END
+                  || CASE WHEN l.mode = 'five' THEN ' · דוביד 5'
+                          WHEN l.mode = 'full' THEN ' · דוביד 11'
+                          ELSE '' END
+      ) AS a
+      FROM game.activity_log l
+      LEFT JOIN game.users u ON u.id = l.user_id
+      WHERE p_gw_code IS NULL OR l.gw_code = p_gw_code
+      ORDER BY l.created_at DESC
+      LIMIT GREATEST(1, LEAST(p_limit, 300))
+    ) q), '[]'::jsonb);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.admin_activity(INT, TEXT) TO authenticated;
+
+/**
+ * ★ הסטטיסטיקה שיוצאת מהיומן.
+ *
+ * לא "כמה שורות יש" — אלא שלוש שאלות שמנהל מוצר באמת שואל:
+ *
+ *   כמה הגישו היום · באיזו שעה מגישים · כמה מהם בוטים
+ *
+ * הפילוח לפי שעה הוא זה שקובע מתי לשלוח תזכורת, וזה המספר
+ * היחיד כאן שמשנה החלטה.
+ */
+CREATE OR REPLACE FUNCTION game.admin_activity_stats(p_gw_code TEXT DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = game, public
+AS $$
+DECLARE v JSONB;
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
+
+  SELECT jsonb_build_object(
+    'total',    count(*) FILTER (WHERE l.action IN ('submit','bot_submit')),
+    'humans',   count(*) FILTER (WHERE l.action = 'submit'),
+    'bots',     count(*) FILTER (WHERE l.action = 'bot_submit'),
+    'withdraw', count(*) FILTER (WHERE l.action = 'withdraw'),
+    'today',    count(*) FILTER (WHERE l.action IN ('submit','bot_submit')
+                                   AND l.created_at >= date_trunc('day', now())),
+    'five',     count(*) FILTER (WHERE l.action IN ('submit','bot_submit') AND l.mode = 'five'),
+    'full',     count(*) FILTER (WHERE l.action IN ('submit','bot_submit') AND l.mode = 'full'),
+    'byHour',   COALESCE((
+      SELECT jsonb_agg(jsonb_build_object('hour', h, 'n', n) ORDER BY h)
+      FROM (
+        SELECT extract(hour FROM l2.created_at AT TIME ZONE 'Asia/Jerusalem')::INT AS h,
+               count(*) AS n
+        FROM game.activity_log l2
+        WHERE l2.action IN ('submit','bot_submit')
+          AND (p_gw_code IS NULL OR l2.gw_code = p_gw_code)
+        GROUP BY 1
+      ) hh), '[]'::jsonb)
+  ) INTO v
+  FROM game.activity_log l
+  WHERE p_gw_code IS NULL OR l.gw_code = p_gw_code;
+
+  RETURN COALESCE(v, '{}'::jsonb);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.admin_activity_stats(TEXT) TO authenticated;
+
+-- ---------------------------------------------------------------------
+-- §6 · הרשאות קריאה
+-- ---------------------------------------------------------------------
+GRANT SELECT ON game.activity_log TO authenticated;
+
+UPDATE game.data_revision SET revision = revision + 1, scope = 'migration-16' WHERE id = 1;
 
 
 -- =====================================================================

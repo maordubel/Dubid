@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   teamCoverage, validateLineup, formatIssue, teamBlock,
 } from '../lib/scoring/validate.ts';
-import { Jersey } from './Jersey.tsx';
+import { Footballer } from './Footballer.tsx';
 import { teamColor } from '../data/teamColors.ts';
 import { TeamCrest } from './TeamCrest.tsx';
 import { TeamTag } from './TeamTag.tsx';
@@ -31,6 +31,8 @@ export interface PoolPlayer {
   position: Position;
   name: string;         // כבר מותאם לשפת המשתמש בשרת
   nameShort: string;
+  /** מספר חולצה. מוצג בעיגול על הדמות המצוירת. */
+  shirt?: number | null;
   form?: number;
   price?: number;
 }
@@ -599,10 +601,9 @@ function SlotCard({
   onVice?: () => void;
 }) {
   if (!player) {
-    /* ★ משבצת ריקה על נייר, לא על לילה.
-       הרקע כאן בהיר עכשיו, ולכן `text-chalk/60` על `bg-night/40`
-       היה כתם כהה מרחף. הילה בהירה + דיו היא אותה שפה כמו
-       השמות בכרטיס — וגם קריאה יותר. */
+    /* ★ משבצת ריקה — אותה דמות, במתאר מקווקו.
+       חולצה ריקה ודמות ריקה הן שתי שפות; הדמות היא זו שאומרת
+       "כאן חסר שחקן" ולא "כאן חסר פריט". */
     return (
       <button
         onClick={onPick}
@@ -610,11 +611,8 @@ function SlotCard({
         className="tap flex w-full flex-col items-center gap-1
                    transition-transform duration-200 ease-brand active:scale-95"
       >
-        <span
-          className="relative grid w-[62%] max-w-[40px] place-items-center"
-          style={{ color: PRESS.ink }}
-        >
-          <Jersey ghost position={slot.position} size="fluid" />
+        <span className="relative grid w-[74%] max-w-[52px] place-items-center">
+          <Footballer ghost position={slot.position} />
           <span className="absolute text-lg font-black leading-none" style={{ color: PRESS.ink }}>
             +
           </span>
@@ -636,39 +634,48 @@ function SlotCard({
 
   return (
     <div className="group relative flex w-full flex-col items-center gap-1">
-      {/* הסמל — גם הוא הכפתור לפתיחת הבחירה מחדש */}
+      {/*
+        ★★ הדמות המצוירת, ולא סמל המועדון ★★
+
+        הסמל אומר "איזו קבוצה". הדמות אומרת "**שחקן** מהקבוצה
+        הזו" — וזה ההבדל בין רשימת לוגואים לבין הרכב שעומד על
+        הדשא. זו גם אותה דמות בדיוק שמופיעה בכרטיס השיתוף
+        ובאיור של הלובי, ולכן שלושת המסכים נקראים כמוצר אחד.
+
+        הסמל לא נעלם: הוא ירד לתג קטן בפינה, שם הוא עדיין עונה
+        על "מאיזו קבוצה" במבט.
+      */}
       <button
         onClick={onPick}
         aria-label={`החלף את ${player.nameShort}`}
-        className="relative grid w-[62%] max-w-[42px] place-items-center"
+        className="relative grid w-[86%] max-w-[62px] place-items-center"
       >
-        {/* ★ הסמל יושב על דיסקית נייר עם טבעת דיו.
-            קובצי הסמלים מגיעים עם רקע לבן. על מגרש כהה זה לא
-            הפריע; על דשא מודפס בהיר הם נראו כמו מדבקות לבנות
-            שהודבקו על הציור. דיסקית הופכת את הרקע הלבן מתקלה
-            לאלמנט — וזו אותה צורה כמו עיגולי המספרים בכרטיס. */}
+        <Footballer
+          teamId={slot.teamId}
+          position={slot.position}
+          shirt={player.shirt ?? null}
+          captain={cap}
+          vice={vice}
+        />
         <span
-          className="grid aspect-square w-full place-items-center rounded-full p-[9%]"
-          style={{ background: PRESS.card, boxShadow: `0 0 0 1.8px ${PRESS.ink}` }}
+          className="absolute bottom-[14%] grid size-[36%] max-w-[20px] place-items-center
+                     rounded-full"
+          style={{ insetInlineEnd: '0%', background: PRESS.card, boxShadow: `0 0 0 1.4px ${PRESS.ink}` }}
         >
           <TeamCrest teamId={slot.teamId} short={team?.short} size="fluid" />
         </span>
 
-        {/* ★ עיגול הסימון — בדיוק כמו בכרטיס העיתון: עיגול צהוב
-            עם קו מתאר שחור, ואדום לקפטן. קודם היה כאן תג מלבני
-            קטן; עכשיו זו אותה צורה שהמשתמש יראה בסטורי, וזה מה
-            שהופך את שני המסכים לאותו משחק. */}
-        {(cap || vice) && (
+        {/* ★ המחיר יושב על הדמות ולא בשורה משלו.
+            שורה שלישית הייתה מוסיפה 17 פיקסלים לכל כרטיס, וזה
+            מכריח את כל המגרש להתכווץ — ראו `CARD_ASPECT`. */}
+        {price !== undefined && (
           <span
-            className="absolute -top-1 -end-1.5 grid size-[15px] place-items-center
-                       rounded-full text-[8.5px] font-black leading-none"
-            style={{
-              background: cap ? PRESS.red : PRESS.mark,
-              color: cap ? '#fff' : PRESS.ink,
-              boxShadow: `0 0 0 1.6px ${PRESS.ink}`,
-            }}
+            className="num absolute bottom-[14%] rounded-[2px] px-[3px] text-[8.5px]
+                       font-black leading-[1.5]"
+            dir="ltr"
+            style={{ insetInlineStart: '0%', background: PRESS.ink, color: PRESS.mark }}
           >
-            {cap ? 'C' : 'V'}
+            {price}
           </span>
         )}
       </button>
@@ -682,55 +689,87 @@ function SlotCard({
         {player.nameShort}
       </bdi>
 
-      {/* מחיר ב-5 על 5, אחרת קיצור הקבוצה */}
-      <span
-        className="w-full truncate rounded-[2px] px-1 text-center text-[8.5px] font-black leading-[1.5]"
-        style={price !== undefined
-          ? { background: PRESS.ink, color: PRESS.mark }
-          : { background: 'rgba(239,243,230,.86)', color: PRESS.onGrass }}
-      >
-        {price !== undefined ? <span className="num" dir="ltr">{price}</span> : team?.short}
-      </span>
+      {/*
+        ★★ בחירת הקפטן — מה שהיה שבור כאן ★★
 
-      {/* ★ פעולות מופיעות בלחיצה/ריחוף ולא תמיד.
-          שלושה כפתורים קבועים על כרטיס ברוחב 44 פיקסלים היו
-          מכסים את השחקן עצמו — בדיוק התלונה על כפתורים שעולים
-          זה על זה. */}
-      <div className="absolute -top-1.5 start-0 flex gap-0.5 opacity-0 transition-opacity
-                      duration-150 focus-within:opacity-100 group-hover:opacity-100
-                      group-active:opacity-100">
-        <button
-          onClick={onClear}
-          aria-label="הסר שחקן"
-          className="grid size-5 place-items-center rounded-full bg-flare text-[10px]
-                     font-black text-white shadow-md"
-        >
-          ✕
-        </button>
-        <button
+        הכפתורים היו `opacity-0` והופיעו רק ב-hover או ב-active.
+        במובייל אין hover: המשתמש היה צריך **ללחוץ ולהחזיק** על
+        הכרטיס כדי לגלות שיש בכלל אפשרות לבחור קפטן — ואיש לא
+        מנחש לעשות את זה.
+
+        וזו לא פינה קטנה: הקפטן הוא ההחלטה היחידה במשחק שמכפילה
+        ניקוד. משתמש שלא מצא אותה משחק משחק אחר לגמרי.
+
+        עכשיו: הכפתורים **תמיד גלויים**, יושבים מתחת לכרטיס בשורה
+        משלהם, ומסומנים באות. הכרטיס גדל בעשרים פיקסלים — וזה
+        המחיר הנכון עבור ההחלטה החשובה ביותר בהרכב.
+      */}
+      <div className="flex w-full items-center justify-center gap-[3px]">
+        <MarkButton
+          label="C"
+          title={cap ? 'הסר קפטן' : 'קפטן ×3'}
+          active={cap}
+          activeBg={PRESS.red}
           onClick={onCaptain}
-          aria-pressed={cap}
-          aria-label={cap ? 'הסר קפטן' : 'הפוך לקפטן'}
-          className={`grid size-5 place-items-center rounded-full text-[9px] font-black shadow-md ${
-            cap ? 'bg-armband text-night' : 'bg-night/90 text-chalk'
-          }`}
-        >
-          C
-        </button>
-        {onVice && !cap && (
-          <button
+        />
+        {onVice && (
+          <MarkButton
+            label="V"
+            title={vice ? 'הסר סגן' : 'סגן'}
+            active={vice}
+            activeBg="#2F6FA8"
             onClick={onVice}
-            aria-pressed={vice}
-            aria-label={vice ? 'הסר סגן' : 'הפוך לסגן'}
-            className={`grid size-5 place-items-center rounded-full text-[9px] font-black shadow-md ${
-              vice ? 'bg-tekhelet text-white' : 'bg-night/90 text-chalk'
-            }`}
-          >
-            V
-          </button>
+            disabled={cap}
+          />
         )}
+        <MarkButton
+          label="✕"
+          title="הסר שחקן"
+          active={false}
+          activeBg={PRESS.red}
+          onClick={onClear}
+        />
       </div>
     </div>
+  );
+}
+
+/**
+ * כפתור סימון קטן שתמיד גלוי.
+ *
+ * ★ 22 פיקסלים ולא 44: הוא יושב בתוך כרטיס ברוחב 44–76, ושלושה
+ *   כפתורים בגודל מגע מלא היו רחבים מהכרטיס עצמו. השורה כולה
+ *   מקבלת גובה מגע דרך המרווח שמסביבה, וזה הפשרה הנכונה —
+ *   כפתור שאי אפשר למצוא גרוע מכפתור שקצת קטן.
+ */
+function MarkButton({
+  label, title, active, activeBg, onClick, disabled = false,
+}: {
+  label: string;
+  title: string;
+  active: boolean;
+  activeBg: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
+      aria-label={title}
+      title={title}
+      className="grid h-[18px] flex-1 place-items-center rounded-[2px] text-[9px]
+                 font-black leading-none transition-colors duration-150
+                 disabled:opacity-30"
+      style={{
+        background: active ? activeBg : 'rgba(239,243,230,.86)',
+        color: active ? '#fff' : PRESS.onGrass,
+        boxShadow: `0 0 0 1.2px ${PRESS.ink}`,
+      }}
+    >
+      {label}
+    </button>
   );
 }
 

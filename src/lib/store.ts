@@ -63,12 +63,33 @@ export interface LineupEntry {
   id: string;
   /** נשאר לתאימות. במצב מקוון הזהות היא הסשן, לא קוד. */
   magicCode: string;
+  /** שם המאמן — הזהות של האדם. */
   displayName: string;
+  /**
+   * שם הקבוצה — הזהות של ה**הרכב**.
+   *
+   * ★ שני שמות ולא אחד: השם הפרטי מזהה, שם הקבוצה משתתף. זה
+   *   ההבדל בין טבלה של שמות פרטיים לבין ליגה.
+   */
+  teamName?: string | null;
   gameweekId: string;
   mode: 'full' | 'five';
   userId: string;
   lineup: Lineup;
   submittedAt: string;
+  /**
+   * ★ ההרכב מוסתר כי המחזור עדיין פתוח.
+   *
+   * לפני הנעילה השרת מחזיר את **המשתתף** בלי ה**הרכב**: שם,
+   * שם קבוצה וחותמת זמן, ו-`slots: []`. כך הטבלה מראה שהמחזור
+   * מאוכלס בלי לאפשר להעתיק בחירות דקה לפני הנעילה.
+   *
+   * מסך שמקבל `hidden` חייב להציג משתתף ולא לנקד אותו — הרכב
+   * ריק היה מקבל 0 ונראה כמו מישהו שנכשל.
+   */
+  hidden?: boolean;
+  /** משתתף שנוצר על ידי האדמין. מוצג, לא מוסתר. */
+  isBot?: boolean;
 }
 
 export interface FixtureScore {
@@ -411,6 +432,7 @@ export async function saveEntry(
   _userId: string,
   lineup: Lineup,
   _priceById?: Map<string, number> | Record<string, number>,
+  teamName?: string,
 ): Promise<LineupEntry> {
   const id = await ensureIdentity();
 
@@ -431,6 +453,7 @@ export async function saveEntry(
     p_formation: lineup.formation,
     p_slots: slots,
     p_display_name: displayName.trim() || null,
+    p_team_name: teamName?.trim() || null,
   });
   if (error) throw new Error(errorCode(error));
 
@@ -445,6 +468,7 @@ export async function saveEntry(
     id: `pending-${Date.now()}`,
     magicCode: '',
     displayName: displayName.trim(),
+    teamName: teamName?.trim() || null,
     gameweekId, mode, userId: id.id,
     lineup, submittedAt: new Date().toISOString(),
   };
@@ -1239,4 +1263,90 @@ export async function adminAudit(limit = 40): Promise<AuditRow[]> {
   const { data, error } = await supabase.rpc('admin_audit', { p_limit: limit });
   if (error) throw new Error(errorCode(error));
   return (data ?? []) as AuditRow[];
+}
+
+/* ------------------------------------------------------------------ */
+/* בוטים                                                               */
+/* ------------------------------------------------------------------ */
+
+export interface BotResult {
+  added: number;
+  skipped: number;
+  problems: Array<{ bot: number; issue: string }>;
+}
+
+/**
+ * הוספת בוטים למחזור.
+ *
+ * ★ אידמפוטנטי: בוט שכבר הגיש נספר ב-`skipped` ולא נוצר שוב.
+ *   לחיצה כפולה על הכפתור לא מכפילה את הטבלה.
+ */
+export async function adminAddBots(
+  gameweekId: string, mode: 'full' | 'five', count: number,
+): Promise<BotResult> {
+  const { data, error } = await supabase.rpc('admin_add_bots', {
+    p_gw_code: gameweekId, p_mode: mode, p_count: count,
+  });
+  if (error) throw new Error(errorCode(error));
+  await refresh();
+  return (data ?? { added: 0, skipped: 0, problems: [] }) as BotResult;
+}
+
+export async function adminRemoveBots(
+  gameweekId: string, mode?: 'full' | 'five',
+): Promise<number> {
+  const { data, error } = await supabase.rpc('admin_remove_bots', {
+    p_gw_code: gameweekId, p_mode: mode ?? null,
+  });
+  if (error) throw new Error(errorCode(error));
+  await refresh();
+  return ((data as { removed?: number })?.removed) ?? 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* יומן פעילות                                                         */
+/* ------------------------------------------------------------------ */
+
+export interface ActivityRow {
+  id: number;
+  action: string;
+  mode: string | null;
+  gw: string | null;
+  who: string;
+  isBot: boolean;
+  detail: string | null;
+  at: string;
+  /** משפט מוכן: "שחר שלח הרכב · דוביד 5". */
+  text: string;
+}
+
+export interface ActivityStats {
+  total: number;
+  humans: number;
+  bots: number;
+  withdraw: number;
+  today: number;
+  five: number;
+  full: number;
+  byHour: Array<{ hour: number; n: number }>;
+}
+
+export async function adminActivity(
+  limit = 60, gameweekId?: string,
+): Promise<ActivityRow[]> {
+  const { data, error } = await supabase.rpc('admin_activity', {
+    p_limit: limit, p_gw_code: gameweekId ?? null,
+  });
+  if (error) throw new Error(errorCode(error));
+  return (data ?? []) as ActivityRow[];
+}
+
+export async function adminActivityStats(gameweekId?: string): Promise<ActivityStats> {
+  const { data, error } = await supabase.rpc('admin_activity_stats', {
+    p_gw_code: gameweekId ?? null,
+  });
+  if (error) throw new Error(errorCode(error));
+  return (data ?? {
+    total: 0, humans: 0, bots: 0, withdraw: 0, today: 0, five: 0, full: 0, byHour: [],
+  }) as ActivityStats;
 }

@@ -230,18 +230,56 @@ END $$;
 \echo '  ✓ 8  הדירוג — שתי הגשות גלויות לכולם אחרי הנעילה'
 
 -- ---------------------------------------------------------------------
--- 9. לפני הנעילה — אני רואה רק את עצמי
+-- 9. לפני הנעילה — רואים את המשתתף, לא את ההרכב
+-- ---------------------------------------------------------------------
+--
+--  ★★ שני דברים נבדקים כאן, והם מושכים לכיוונים הפוכים ★★
+--
+--   · **כל** מי שהגיש חייב להיראות. מחזור שנראה ריק אינו תחרות,
+--     וזה בדיוק הרגע שבו משתמש מפסיק לחכות לו.
+--   · **אף הרכב** של מישהו אחר לא נחשף. אחרת אפשר לפתוח את
+--     הטבלה דקה לפני הנעילה, להעתיק את ההרכב של מי שנראה
+--     שמבין, ולהגיש אותו. זה הורג את המשחק.
+--
+--  ההסתרה היא בשרת. קליינט הוא בקשת רשת, ומה שהוא לא אמור
+--  לדעת פשוט לא נשלח אליו.
 -- ---------------------------------------------------------------------
 UPDATE game.gameweeks SET lock_at = now() + interval '1 day' WHERE code = 'gw-2';
 SET dubid.test_uid = '22222222-2222-2222-2222-222222222222';
 
 DO $$
-DECLARE n INT;
+DECLARE e JSONB; mine JSONB; other JSONB;
 BEGIN
-  n := jsonb_array_length(game.entries('gw-2'));
-  IF n <> 1 THEN RAISE EXCEPTION 'FAIL 9: לפני הנעילה נראו % הגשות במקום אחת', n; END IF;
+  e := game.entries('gw-2');
+
+  IF jsonb_array_length(e) <> 2 THEN
+    RAISE EXCEPTION 'FAIL 9: נראו % משתתפים במקום שניים', jsonb_array_length(e);
+  END IF;
+
+  SELECT x INTO mine FROM jsonb_array_elements(e) x
+   WHERE x->>'userId' = '22222222-2222-2222-2222-222222222222';
+  SELECT x INTO other FROM jsonb_array_elements(e) x
+   WHERE x->>'userId' <> '22222222-2222-2222-2222-222222222222';
+
+  IF (mine->>'hidden')::BOOLEAN THEN
+    RAISE EXCEPTION 'FAIL 9a: ההרכב שלי מוסתר ממני';
+  END IF;
+  IF jsonb_array_length(mine->'lineup'->'slots') = 0 THEN
+    RAISE EXCEPTION 'FAIL 9b: ההרכב שלי חזר ריק';
+  END IF;
+
+  IF NOT (other->>'hidden')::BOOLEAN THEN
+    RAISE EXCEPTION 'FAIL 9c: הרכב של אחר אינו מסומן כמוסתר';
+  END IF;
+  IF jsonb_array_length(other->'lineup'->'slots') <> 0 THEN
+    RAISE EXCEPTION 'FAIL 9d: ★ דליפה ★ ההרכב של אחר נחשף לפני הנעילה';
+  END IF;
+  IF (other->>'displayName') IS NULL THEN
+    RAISE EXCEPTION 'FAIL 9e: משתתף בלי שם — הטבלה תיראה ריקה';
+  END IF;
 END $$;
-\echo '  ✓ 9  לפני הנעילה — הרכב של אחר אינו גלוי'
+\echo '  ✓ 9  לפני הנעילה — המשתתף גלוי, ההרכב שלו לא'
+
 
 -- ---------------------------------------------------------------------
 -- 10. מצב המחזור ללובי

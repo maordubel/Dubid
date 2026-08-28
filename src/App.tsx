@@ -46,6 +46,8 @@ import {
 import { resolveRules, DUBID_5X5, DUBID_5X5_BUDGET } from './lib/scoring/rules.ts';
 import { scoreLineup } from './lib/scoring/engine.ts';
 import { buildLeaderboard } from './lib/leaderboard.ts';
+import { pickName, cleanTeamName, TEAM_NAME_MAX } from './lib/teamNames.ts';
+import { NIGHT_PRESS as NP, MISREGISTER } from './lib/pressPalette.ts';
 import {
   scoringRows, captainRows, differentialRows, tiebreakSteps,
 } from './lib/rulesExplain.ts';
@@ -320,6 +322,9 @@ function MainApp() {
       position: p.position,
       name: p.nameHe,
       nameShort: shortName(p.nameHe),
+      /* ★ מספר החולצה נדרש לדמות המצוירת על המגרש. הוא כבר
+         היה ב-`PLAYERS` ופשוט לא הועבר הלאה. */
+      shirt: p.shirt,
       price: p.price,
     })),
     [liveVersion],
@@ -951,7 +956,35 @@ function DemoBanner({ message, size }: { message: string; size: number }) {
 /* שמירת הרכב: שם תצוגה + קוד קסם, בדיוק כמו במשחק ה-5x5 המקורי         */
 /* ================================================================== */
 
-function SaveEntryModal({
+/**
+ * ★★ המסך שבין "בניתי הרכב" ל"אני בליגה" ★★
+ *
+ * עד עכשיו הוא ביקש דבר אחד: שם תצוגה. זה עבד, וזה גם היה
+ * הרגע הכי שטוח במוצר — טופס עם שדה אחד, בדיוק לפני הפעולה
+ * הכי מרגשת בשבוע.
+ *
+ * עכשיו יש שני שמות, והם לא אותו דבר:
+ *
+ *   **שם המאמן**  — הזהות של האדם. "מאור".
+ *   **שם הקבוצה** — הזהות של ההרכב. "שכונת התקווה".
+ *
+ * ★ למה זה משנה
+ *
+ * טבלה של שמות פרטיים היא רשימת אנשים. טבלה של שמות קבוצות
+ * היא **ליגה**. זה ההבדל בין "מאור 74" לבין "שכונת התקווה 74",
+ * ובכל משחק פנטזי מוצלח יש את שניהם — לא במקרה.
+ *
+ * ★ ולמה יש כפתור הגרלה
+ *
+ * שדה ריק שכתוב מעליו "שם הקבוצה" הוא מטלה, ורוב האנשים
+ * יקלידו את שמם הפרטי או ידלגו. כפתור שמגריל שם מצחיק הופך
+ * מטלה למשחק: מי שיש לו שם מוכן מקליד, ומי שאין לו לוחץ
+ * פעמיים ובוחר את זה שהצחיק אותו. בשני המקרים הטבלה מקבלת שם.
+ *
+ * ★ שם הקבוצה אינו חובה. חובה נוספת לפני ההגשה היא חיכוך
+ *   ברגע היחיד שבו אסור להוסיף חיכוך.
+ */
+export function SaveEntryModal({
   lineup, mode, userId, priceById, onSaved, onCancel,
 }: {
   lineup: Parameters<typeof saveEntry>[4];
@@ -963,23 +996,30 @@ function SaveEntryModal({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(() => storedDisplayName());
+  const [team, setTeam] = useState('');
+  /* ★ מונה ולא `Math.random()` בתוך רינדור: אקראיות שם הייתה
+     מחליפה את ההצעה בכל פעימת שעון, בזמן שהמשתמש קורא אותה. */
+  const [roll, setRoll] = useState(() => Math.floor(Math.random() * 997));
+  const suggestion = useMemo(() => pickName(roll), [roll]);
+
   /**
    * ★ שלושה מצבים, ולא שניים.
    *
-   * "שולח" חייב להיות מצב נפרד מ"מוכן": ההגשה עוברת עכשיו בשרת,
-   * ומשתמש שלוחץ פעמיים בזמן שהבקשה באוויר שולח שתי הגשות. הכפתור
-   * ננעל בזמן השליחה, וזו הסיבה היחידה שהוא ננעל.
+   * "שולח" חייב להיות מצב נפרד מ"מוכן": ההגשה עוברת בשרת,
+   * ומשתמש שלוחץ פעמיים בזמן שהבקשה באוויר שולח שתי הגשות.
    *
-   * "שגיאה" חייב להיות נראה: השרת דוחה הגשה אחרי הדדליין, והמשתמש
-   * צריך לדעת **למה** ההרכב לא נשמר — לא רק שהמסך לא זז.
+   * "שגיאה" חייב להיות נראה: השרת דוחה הגשה אחרי הדדליין,
+   * והמשתמש צריך לדעת **למה** ההרכב לא נשמר.
    */
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = modeTheme(mode);
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-night/80 px-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-night/85 px-5 backdrop-blur-sm">
       <form
-        className="w-full max-w-xs rounded-2xl border border-gold/15 bg-night-2 p-6 edge-gold"
+        className="w-full max-w-sm overflow-hidden"
+        style={{ border: `3px double ${NP.rule}`, background: NP.paper }}
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim() || busy) return;
@@ -988,7 +1028,8 @@ function SaveEntryModal({
           void (async () => {
             try {
               await setDisplayName(name);
-              const saved = await saveEntry(name, gwCode(), mode, userId, lineup, priceById);
+              const saved = await saveEntry(
+                name, gwCode(), mode, userId, lineup, priceById, team.trim());
               onSaved(saved);
             } catch (err) {
               setError(errorMessageHe(err instanceof Error ? err.message : 'NETWORK'));
@@ -998,46 +1039,121 @@ function SaveEntryModal({
           })();
         }}
       >
-        <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-gold" />
-        <h2 className="text-center font-press text-lg font-black">כמעט סיימנו</h2>
-        <p className="mt-1 text-center text-xs text-chalk-dim">
-          בחרו שם תצוגה לדירוג ({MODE_LABEL[mode]}). לאחר ההגשה ההרכב
-          ננעל למחזור — עריכה נוספת תדרוש ביטול הגשה מפורש.
-        </p>
-        <input
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="השם שלכם בדירוג"
-          disabled={busy}
-          className="mt-5 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5 text-center
-                     text-chalk outline-none focus:border-gold disabled:opacity-50"
-        />
+        {/* פס הכותרת — בצבע המצב, כמו כל כתבה בעיתון */}
+        <div
+          className="px-3 py-1.5 text-center text-[11px] font-bold"
+          style={{ background: t.accent, color: NP.paper, letterSpacing: 2 }}
+        >
+          {'רישום לליגה'.split('').join(' ')}
+        </div>
 
-        {error && (
-          <p role="alert" className="mt-3 rounded-xl border border-flare/40 bg-flare/10
-                                     px-3 py-2 text-center text-[12px] font-bold text-flare">
-            {error}
+        <div className="px-4 pb-4 pt-3">
+          <h2 className="font-press text-center text-[22px] font-black leading-tight"
+              style={{ color: NP.ink, textShadow: MISREGISTER }}>
+            מי מגיש את ההרכב?
+          </h2>
+          <p className="pt-1 text-center text-[12px] leading-snug" style={{ color: NP.inkDim }}>
+            אחרי ההגשה ההרכב ננעל למחזור. אפשר לבטל הגשה עד הנעילה.
           </p>
-        )}
 
-        <button
-          type="submit"
-          disabled={!name.trim() || busy}
-          className="tap mt-4 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
-                     py-2.5 font-poster text-gold-ink disabled:opacity-40"
-        >
-          {busy ? 'שולח לשרת…' : 'שמירת ההרכב'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={busy}
-          className="mt-3 w-full text-center text-xs text-chalk-dim underline underline-offset-2
-                     disabled:opacity-40"
-        >
-          חזרה לעריכה
-        </button>
+          <div className="mt-3" style={{ borderTop: `1px dotted ${NP.rule}` }} />
+
+          {/* ---- שם המאמן ---- */}
+          <label className="mt-3 block">
+            <span className="text-[11px] font-bold tracking-[2px]" style={{ color: NP.gold }}>
+              שם המאמן
+            </span>
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="איך יקראו לך בטבלה"
+              disabled={busy}
+              maxLength={20}
+              className="font-press mt-1 w-full px-3 py-2 text-center text-[17px] font-bold
+                         outline-none disabled:opacity-50"
+              style={{ border: `1px solid ${NP.rule}`, background: NP.card, color: NP.ink }}
+            />
+          </label>
+
+          {/* ---- שם הקבוצה ---- */}
+          <label className="mt-3 block">
+            <span className="flex items-baseline justify-between">
+              <span className="text-[11px] font-bold tracking-[2px]" style={{ color: NP.gold }}>
+                שם הקבוצה
+              </span>
+              <span className="text-[10px]" style={{ color: NP.inkFaint }}>לא חובה</span>
+            </span>
+            <input
+              value={team}
+              onChange={(e) => setTeam(cleanTeamName(e.target.value))}
+              placeholder={suggestion}
+              disabled={busy}
+              maxLength={TEAM_NAME_MAX}
+              className="font-press mt-1 w-full px-3 py-2 text-center text-[17px] font-bold
+                         outline-none disabled:opacity-50"
+              style={{ border: `1px solid ${NP.rule}`, background: NP.card, color: NP.ink }}
+            />
+          </label>
+
+          {/* ★ שתי פעולות, ולא אחת: "תן לי שם" ממלא, "עוד אחד"
+              מגלגל. משתמש שלוחץ פעם אחת ולא אהב צריך דרך לנסות
+              שוב בלי למחוק ידנית.
+
+              ★★ `min-w-0` על כפתור ההצעה, ולא רק `flex-1`.
+              לפריט flex יש `min-width:auto`, ולכן שם הצעה ארוך
+              מרחיב את הכפתור מעבר לרוחב המודל. המודל יושב בתוך
+              `grid place-items-center`, שנמדד לפי התוכן — ולכן
+              שורה אחת שגולשת דוחפת את **כל** החלון מחוץ למסך. */}
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setTeam(suggestion)}
+              className="tap min-w-0 flex-1 truncate px-2 py-1.5 text-[12px] font-bold"
+              style={{ background: t.accent, color: NP.paper }}
+            >
+              קח את «{suggestion}»
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setRoll((n) => n + 1)}
+              aria-label="הצעה אחרת"
+              className="tap shrink-0 px-3 py-1.5 text-[12px] font-bold"
+              style={{ border: `1px solid ${NP.rule}`, color: NP.inkDim }}
+            >
+              עוד אחד ↻
+            </button>
+          </div>
+
+          {error && (
+            <p role="alert" className="mt-3 px-3 py-2 text-center text-[12px] font-bold"
+               style={{ border: '1px solid #C4342F', background: 'rgba(196,52,47,.12)', color: '#C4342F' }}>
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={!name.trim() || busy}
+            className="font-press tap mt-4 w-full py-2.5 text-[16px] font-black
+                       disabled:opacity-40"
+            style={{ background: NP.ink, color: NP.paper }}
+          >
+            {busy ? 'שולח לשרת…' : 'נעילת ההרכב'}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="mt-2 w-full text-center text-[11.5px] underline underline-offset-2
+                       disabled:opacity-40"
+            style={{ color: NP.inkFaint }}
+          >
+            חזרה לעריכה
+          </button>
+        </div>
       </form>
     </div>
   );
@@ -1260,7 +1376,7 @@ function demoGameweek(lineup: ReturnType<typeof useLineup>['lineup']) {
  *   שהמנוע קורא ואיש לא הסביר, בונוס תוצאה שניתן גם למי שלא
  *   שיחק, והסבר שגוי של הבחירה הנדירה. כולם מתוקנים כאן.
  */
-function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
+export function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
   const [tab, setTab] = useState<Mode>('full');
   const rules = rulesByMode[tab];
   const t = modeTheme(tab === 'five' ? 'five' : 'full');
@@ -1271,7 +1387,11 @@ function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
   const tiebreak = useMemo(() => tiebreakSteps(rules), [rules]);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-5">
+    /* ★ `text-chalk` על השורש ולא רק על הפריטים.
+       תאי הטבלה ירשו את הצבע מהמעטפת של האפליקציה. זה עבד, אבל
+       כל מסך שמרנדר את החוקים מחוץ למעטפת (תצוגה, בדיקה, עמוד
+       עצמאי) קיבל טקסט כהה על רקע כהה. הצבע שייך למסך. */
+    <div className="mx-auto max-w-2xl px-4 py-5 text-chalk">
       {/* ★ בורר המצב קודם לכל השאר.
           דוביד 5 ודוביד 11 חולקים את אותה טבלת ניקוד אבל **לא**
           את אותם אילוצים. מסך אחד שמתאר את שניהם היה מחייב
@@ -1317,7 +1437,7 @@ function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
         </p>
       </section>
 
-      <h2 className="mt-6 font-press text-lg font-black">טבלת הניקוד</h2>
+      <SectionRule>טבלת הניקוד</SectionRule>
       <table className="mt-2 w-full text-sm">
         <tbody>
           {scoring.map((r) => (
@@ -1336,7 +1456,7 @@ function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
         </tbody>
       </table>
 
-      <h2 className="mt-6 font-press text-lg font-black">הקפטן הדובידי</h2>
+      <SectionRule>הקפטן הדובידי</SectionRule>
       <ul className="mt-2 space-y-2 text-sm text-chalk-2">
         {captain.map((r, i) => (
           <li key={`${r.label}-${i}`}>
@@ -1353,7 +1473,7 @@ function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
         מורכב מחוקים שמכוונים ל-0 ולכן לעולם לא יכול להכריע.
         עכשיו הרשימה נגזרת מהחוקים, ומדלגת על שלב מת.
       */}
-      <h2 className="mt-6 font-press text-lg font-black">מה קורה בשוויון</h2>
+      <SectionRule>מה קורה בשוויון</SectionRule>
       <p className="mt-1 text-sm text-chalk-2">
         לעולם לא הגרלה. יורדים ברשימה עד שנמצא הבדל:
       </p>
@@ -1366,7 +1486,7 @@ function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
         ))}
       </ol>
 
-      <h2 className="mt-6 font-press text-lg font-black">בחירה נדירה</h2>
+      <SectionRule>בחירה נדירה</SectionRule>
       <p className="mt-1 text-sm text-chalk-2">
         שחקן שמעטים בחרו ושהביא נקודות שווה יותר.
       </p>
@@ -1401,6 +1521,28 @@ function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
       <ShadesDivider className="my-7 px-8" />
 
       <DubelCredit variant="card" />
+    </div>
+  );
+}
+
+/**
+ * כותרת מדור — קו כפול מעל, קו דק מתחת.
+ *
+ * ★ אותה צורה בדיוק כמו בלובי ובדירוג. כותרת שהיא רק טקסט
+ *   מודגש נראית כמו אפליקציה; כותרת בין שני קווים נראית כמו
+ *   עמוד מודפס, וזה כל ההבדל בין שני המסכים.
+ */
+function SectionRule({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-6">
+      <div aria-hidden="true"
+           style={{ borderTop: `3px solid ${NP.ruleStrong}`,
+                    borderBottom: `1px solid ${NP.rule}`, height: 4 }} />
+      <h2 className="font-press py-1.5 text-[19px] font-black leading-none"
+          style={{ color: NP.ink, textShadow: MISREGISTER }}>
+        {children}
+      </h2>
+      <div aria-hidden="true" style={{ borderTop: `1px solid ${NP.rule}` }} />
     </div>
   );
 }

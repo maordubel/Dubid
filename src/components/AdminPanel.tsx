@@ -25,7 +25,7 @@ import {
 import type { PlayerPerformance, Position, TeamOutcome } from '../lib/scoring/types.ts';
 import { AdminSquads } from './AdminSquads.tsx';
 import {
-  AdminGameweeks, AdminRules, AdminContent, AdminAnalytics,
+  AdminGameweeks, AdminRules, AdminContent, AdminAnalytics, AdminActivity,
 } from './AdminConsole.tsx';
 import { LogoMark } from './Logo.tsx';
 import { resolveGate, type AdminGate } from '../lib/adminGate.ts';
@@ -94,7 +94,8 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
    * לפעמים, והשאר נדיר.
    */
   const [section, setSection] = useState<
-    'results' | 'gameweeks' | 'gameweek' | 'squads' | 'rules' | 'content' | 'stats'
+    'results' | 'gameweeks' | 'gameweek' | 'squads' | 'rules' | 'content'
+    | 'activity' | 'stats'
   >('results');
 
   useEffect(() => subscribeToStore(() => forceTick((n) => n + 1)), []);
@@ -187,9 +188,12 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
             והצטמצמות הייתה הופכת כל תווית לשתי אותיות. */}
         <div className="mb-4 flex gap-1 overflow-x-auto rounded-full bg-night-2 p-1 edge-gold
                         [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {([['results', 'תוצאות'], ['gameweeks', 'מחזורים'], ['gameweek', 'המחזור'],
-             ['squads', 'סגלים'], ['rules', 'חוקים'], ['content', 'תוכן'],
-             ['stats', 'ניתוח']] as const)
+          {/* ★ "פעילות" יושבת שלישית ולא אחרונה: זו הלשונית
+              שנפתחת הכי הרבה אחרי תוצאות — היא עונה על "מה
+              קורה עכשיו", וזו השאלה שפותחים בשבילה את הלוח. */}
+          {([['results', 'תוצאות'], ['gameweeks', 'מחזורים'], ['activity', 'פעילות'],
+             ['gameweek', 'המחזור'], ['squads', 'סגלים'], ['rules', 'חוקים'],
+             ['content', 'תוכן'], ['stats', 'ניתוח']] as const)
             .map(([id, label]) => (
               <button
                 key={id}
@@ -207,6 +211,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
 
         {section === 'squads' && <AdminSquads />}
         {section === 'gameweeks' && <AdminGameweeks />}
+        {section === 'activity' && <AdminActivity />}
         {section === 'gameweek' && <AdminGameweek />}
         {section === 'rules' && <AdminRules />}
         {section === 'content' && <AdminContent />}

@@ -32,6 +32,8 @@ import { listEntries, getResults, subscribeToStore, type LineupEntry } from '../
 import type { LineupScore } from '../lib/scoring/types.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import { Table, type Column } from './Table.tsx';
+import { modeTheme } from '../lib/modeTheme.ts';
+import { NIGHT_PRESS as NP, MISREGISTER } from '../lib/pressPalette.ts';
 
 const MODE_LABEL: Record<'full' | 'five', string> = { full: 'דוביד 11', five: 'דוביד 5' };
 
@@ -92,15 +94,21 @@ export function Leaderboard({
       primary: true,
       render: (r) => (
         <div className="min-w-0">
-          <div className="truncate text-sm font-bold text-chalk">
-            {r.entry.displayName}
+          {/* ★ שם הקבוצה בשורה הראשונה ושם המאמן מתחתיו.
+              טבלה של שמות פרטיים היא רשימת אנשים; טבלה של שמות
+              קבוצות היא ליגה. כשאין שם קבוצה, שם המאמן עולה
+              לשורה הראשונה — שורה ריקה גרועה משתי שורות. */}
+          <div className="font-press truncate text-[15px] font-black text-chalk">
+            {r.entry.teamName || r.entry.displayName}
             {r.isMe && (
               <span className="ms-1.5 rounded bg-gold px-1.5 py-px text-[10px] font-black text-night">
                 אני
               </span>
             )}
+            {r.entry.isBot && <BotTag />}
           </div>
           <div className="truncate text-[11px] text-chalk-dim">
+            {r.entry.teamName ? `${r.entry.displayName} · ` : ''}
             {captainLabel(r.score)}
             {r.tied && r.brokenBy && r.brokenBy !== 'total'
               ? ` · ${TIEBREAK_LABEL[r.brokenBy]}`
@@ -144,36 +152,59 @@ export function Leaderboard({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-5">
+      {/* ★ כותרת מדור, כמו בעמוד פנימי של עיתון: קו כפול מעל,
+          קו דק מתחת, ותת-כותרת בשורת פוליו. אותה שפה כמו הלובי
+          ולא "כותרת של אפליקציה". */}
       <header className="mb-4">
-        <h2 className="font-press text-xl font-black">דירוג חכמים</h2>
-        <p className="text-xs text-chalk-dim">
-          {GAMEWEEK.label} · {entries.length} הרכבים הוגשו
-        </p>
+        <div aria-hidden="true"
+             style={{ borderTop: `3px solid ${NP.ruleStrong}`, borderBottom: `1px solid ${NP.rule}`, height: 4 }} />
+        <div className="flex items-baseline justify-between gap-3 py-2">
+          <h2 className="font-press text-[26px] font-black leading-none"
+              style={{ color: NP.ink, textShadow: MISREGISTER }}>
+            דירוג חכמים
+          </h2>
+          <span className="press-folio">
+            {GAMEWEEK.label} · <span className="num">{entries.length}</span> הרכבים
+          </span>
+        </div>
+        <div aria-hidden="true" style={{ borderTop: `1px solid ${NP.rule}` }} />
       </header>
 
-      <div className="mb-4 flex gap-1.5 rounded-full bg-night-2 p-1">
-        {(['five', 'full'] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={`tap flex-1 rounded-full py-2 text-sm font-black transition-colors
-                        duration-200 ease-brand ${
-                          mode === m ? 'bg-gold text-night' : 'text-chalk-dim'
-                        }`}
-          >
-            {MODE_LABEL[m]}
-          </button>
-        ))}
+      <div className="mb-4 flex gap-2">
+        {(['five', 'full'] as const).map((m) => {
+          const on = mode === m;
+          const mt = modeTheme(m);
+          return (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className="font-press tap flex-1 py-1.5 text-[14px] font-black transition-colors
+                         duration-200 ease-brand"
+              style={on
+                ? { background: mt.accent, color: NP.paper }
+                : { border: `1px solid ${NP.rule}`, color: NP.inkFaint }}
+            >
+              {MODE_LABEL[m]}
+            </button>
+          );
+        })}
       </div>
 
       {!results.published ? (
-        <div className="rounded-2xl border border-gold/15 bg-night-2 px-4 py-8 text-center">
-          <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-gold" />
-          <p className="font-bold text-chalk">הדירוג ייפתח כשהמחזור יסתיים</p>
-          <p className="mt-1 text-sm text-chalk-dim">
-            ברגע שהמחזור מפורסם, כל ההרכבים מדורגים כאן אוטומטית.
-          </p>
-        </div>
+        /*
+         * ★★ מה שהיה כאן, ולמה זה פגע ★★
+         *
+         * מסך אחד שאומר "הדירוג ייפתח כשהמחזור יסתיים". נכון,
+         * ריק, וחסר תועלת: משתמש שהגיש ובא לבדוק מה קורה ראה
+         * הודעה ולא ראה **אף אחד**. מחזור שנראה ריק אינו תחרות,
+         * וזה בדיוק הרגע שבו הוא מפסיק לחכות לו.
+         *
+         * עכשיו הוא רואה את כל מי שכבר בפנים. ההרכבים עצמם
+         * מוסתרים בשרת (`game.entries` מחזירה `hidden` ו-
+         * `slots: []` לפני הנעילה), ולכן אי אפשר להעתיק בחירות
+         * דקה לפני הסגירה — וזה בדיוק האיזון הנכון.
+         */
+        <ParticipantList entries={entries} userId={userId} mode={mode} />
       ) : (
         <>
           {/* ★ הכרטיס שלי — לפני הטבלה, תמיד נראה */}
@@ -230,6 +261,95 @@ export function Leaderboard({
         gameweekNumber={GAMEWEEK.number}
         className="mt-3"
       />
+    </div>
+  );
+}
+
+/**
+ * ★ תג הבוט.
+ *
+ * בוטים הם כלי מוצר לגיטימי — מחזור ראשון עם שני משתתפים אינו
+ * תחרות. הם לגיטימיים **בתנאי אחד**: שהם מסומנים. הדגל מגיע
+ * מהשרת (`game.users.is_bot`), והמסך רק מציג אותו. הסתרה כאן
+ * הייתה הופכת כלי לגיטימי להטעיה.
+ */
+function BotTag() {
+  return (
+    <span className="ms-1.5 rounded px-1.5 py-px text-[9.5px] font-black"
+          style={{ background: 'rgba(216,178,92,.18)', color: '#D8B25C' }}>
+      בוט
+    </span>
+  );
+}
+
+/**
+ * רשימת המשתתפים — לפני שיש תוצאות.
+ *
+ * ★ למה זו לא טבלה
+ *
+ * טבלה בלי מספרים מזמינה את העין לחפש עמודה שאין. כאן אין מה
+ * לדרג עדיין, ולכן זו **רשימה** לפי סדר ההגשה — וסדר ההגשה
+ * הוא בדיוק מה שמעניין ברגע הזה: מי הספיק.
+ */
+export function ParticipantList({
+  entries, userId, mode,
+}: { entries: LineupEntry[]; userId?: string; mode: 'full' | 'five' }) {
+  if (entries.length === 0) {
+    return (
+      <div className="rounded-2xl border border-gold/15 bg-night-2 px-4 py-8 text-center">
+        <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-gold" />
+        <p className="font-bold text-chalk">אף אחד עוד לא הגיש</p>
+        <p className="mt-1 text-sm text-chalk-dim">
+          תהיה הראשון ב{MODE_LABEL[mode]} — השם שלך יופיע כאן מיד.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-gold/15 bg-night-2">
+      <div className="flex items-baseline justify-between border-b border-gold/15 px-4 py-2.5">
+        <span className="text-[11px] font-black tracking-[2px] text-gold">
+          כבר בפנים
+        </span>
+        <span className="text-[11px] text-chalk-dim">
+          הדירוג ייפתח עם פרסום התוצאות
+        </span>
+      </div>
+      <ul>
+        {entries.map((e, i) => {
+          const isMe = !!userId && e.userId === userId;
+          return (
+            <li
+              key={e.id}
+              className={`flex items-center gap-3 border-b border-gold/10 px-4 py-2.5 last:border-0
+                          ${isMe ? 'bg-gold/10' : ''}`}
+            >
+              <span className="num w-6 shrink-0 text-[12px] text-chalk-dim">{i + 1}</span>
+              <span className="min-w-0 flex-1">
+                <span className="font-press block truncate text-[15px] font-black text-chalk">
+                  {e.teamName || e.displayName}
+                  {isMe && (
+                    <span className="ms-1.5 rounded bg-gold px-1.5 py-px text-[10px]
+                                     font-black text-night">אני</span>
+                  )}
+                  {e.isBot && <BotTag />}
+                </span>
+                {e.teamName && (
+                  <span className="block truncate text-[11px] text-chalk-dim">
+                    {e.displayName}
+                  </span>
+                )}
+              </span>
+              {/* ★ "מוכן" ולא ניקוד. אין עדיין ניקוד, ומספר מומצא
+                  ברגע הזה היה הופך רשימה כנה לטבלה משקרת. */}
+              <span className="shrink-0 text-[11px] font-bold text-chalk-dim">
+                {e.hidden ? 'ההרכב סגור' : 'ההרכב שלך'}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

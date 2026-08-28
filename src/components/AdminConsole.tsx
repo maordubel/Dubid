@@ -27,8 +27,10 @@ import {
   adminImportFixtures, adminSetRule, adminClearRule,
   adminContentList, adminSetContent, adminDeleteContent,
   adminAnalytics, adminDataQuality, adminAudit,
+  adminAddBots, adminRemoveBots, adminActivity, adminActivityStats,
   errorMessageHe,
   type GameweekRow, type ImportReport, type ContentRow,
+  type BotResult, type ActivityRow, type ActivityStats,
   type Analytics, type DataIssue, type AuditRow,
 } from '../lib/store.ts';
 import { ruleOverrides, currentGameweekCode, liveDataVersion } from '../lib/liveData.ts';
@@ -1144,4 +1146,280 @@ function fmtShort(iso: string): string {
       timeZone: 'Asia/Jerusalem',
     });
   } catch { return ''; }
+}
+
+/* ================================================================== */
+/* פעילות · יומן, סטטיסטיקה ובוטים                                    */
+/* ================================================================== */
+
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * ★ למה יומן פעילות הוא לא "נחמד שיהיה"
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * הבקשה הייתה "שאדע מה קורה — שחר שלח הרכב דוביד 5". מאחורי
+ * הניסוח הזה יש שאלה אמיתית שאין לה תשובה היום: **האם המחזור
+ * הזה עובד?**
+ *
+ * מספר המשתתפים לבדו לא עונה עליה. שמונה הגשות ביום ראשון ושמונה
+ * בשעה האחרונה הם שני מוצרים שונים לגמרי, ורק הפילוח לפי שעה
+ * מבדיל ביניהם — וזה גם המספר היחיד כאן שמשנה החלטה, כי הוא
+ * קובע מתי לשלוח תזכורת.
+ *
+ * ★ ומה שאין כאן, בכוונה: הרכבים.
+ *
+ * היומן מציג מי הגיש, לא **מה** הוא הגיש. אילו היה מציג, הוא
+ * היה דלת אחורית לצפייה בהרכבים לפני הנעילה — בדיוק מה שהשרת
+ * סוגר ב-`game.entries`.
+ */
+export function AdminActivity() {
+  const [rows, setRows] = useState<ActivityRow[] | null>(null);
+  const [stats, setStats] = useState<ActivityStats | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [scope, setScope] = useState<'gw' | 'all'>('gw');
+  const act = useAction();
+
+  const gw = currentGameweekCode() || GAMEWEEK.id;
+  const target = scope === 'gw' ? gw : undefined;
+
+  const load = () => {
+    Promise.all([adminActivity(80, target), adminActivityStats(target)])
+      .then(([a, s]) => { setRows(a); setStats(s); setErr(null); })
+      .catch((e: unknown) =>
+        setErr(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')));
+  };
+
+  useEffect(load, [scope, gw, act.done]);
+
+  return (
+    <div className="space-y-4">
+      <Card
+        title="פעילות במחזור"
+        hint="מי הגיש, מתי, ובאיזה מצב. ההרכבים עצמם אינם ביומן — הוא לא דלת אחורית."
+      >
+        <div className="mb-3 flex gap-2">
+          {([['gw', `המחזור הנוכחי (${gw})`], ['all', 'הכל']] as const).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setScope(id)}
+              className={`tap shrink-0 rounded-lg px-3 py-1.5 text-[11.5px] font-black ${
+                scope === id ? 'bg-gold text-gold-ink' : 'border border-gold/25 text-chalk-dim'}`}
+            >
+              {label}
+            </button>
+          ))}
+          <button onClick={load} className={ghost}>רענון</button>
+        </div>
+
+        {stats && <StatGrid stats={stats} />}
+        {err && <Note msg={err} bad />}
+      </Card>
+
+      {stats && stats.byHour.length > 0 && <HourChart data={stats.byHour} />}
+
+      <Card title="היומן" hint="שמונים הרשומות האחרונות.">
+        <ActivityLog rows={rows} />
+      </Card>
+
+      <AdminBots act={act} />
+    </div>
+  );
+}
+
+/**
+ * היומן עצמו — שלושת המצבים שלו במקום אחד.
+ *
+ * ★ הופרד מ-`AdminActivity` כדי שאפשר יהיה לרנדר אותו עם שורות
+ *   נתונות: הטעינה יושבת ב-`useEffect`, ורינדור סטטי (תצוגה,
+ *   בדיקה) היה מראה לנצח "טוען…" ולא את הצורה האמיתית.
+ */
+export function ActivityLog({ rows }: { rows: ActivityRow[] | null }) {
+  if (rows === null) return <p className="text-[12px] text-chalk-dim">טוען…</p>;
+  if (rows.length === 0) {
+    return <p className="text-[12px] text-chalk-dim">אין עדיין פעילות במחזור הזה.</p>;
+  }
+  return (
+    <ul className="space-y-1">
+      {rows.map((r) => (
+        <li
+          key={r.id}
+          className="flex items-baseline gap-2 border-b border-gold/10 py-1.5 last:border-0"
+        >
+          <span
+            aria-hidden="true"
+            className="mt-1 size-1.5 shrink-0 rounded-full"
+            style={{ background: dotColor(r.action) }}
+          />
+          <span className="min-w-0 flex-1 text-[12.5px] text-chalk">
+            {r.text}
+            {r.detail && r.detail !== r.who && (
+              <span className="text-chalk-dim"> · {r.detail}</span>
+            )}
+          </span>
+          <span className="num shrink-0 text-[10.5px] text-chalk-dim">{fmt(r.at)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function dotColor(action: string): string {
+  if (action === 'withdraw') return '#E4453B';
+  if (action === 'bot_submit') return '#8B7F6A';
+  return '#D8B25C';
+}
+
+export function StatGrid({ stats }: { stats: ActivityStats }) {
+  const items: Array<[string, number]> = [
+    ['הגשות', stats.total],
+    ['אנשים', stats.humans],
+    ['בוטים', stats.bots],
+    ['היום', stats.today],
+    ['דוביד 5', stats.five],
+    ['דוביד 11', stats.full],
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {items.map(([label, n]) => (
+        <div key={label} className="rounded-lg bg-night px-2 py-2 text-center">
+          <div className="num text-[17px] font-black leading-none text-gold-light" dir="ltr">{n}</div>
+          <div className="mt-1 text-[10px] text-chalk-dim">{label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * ★ הפילוח לפי שעה — המספר היחיד כאן שמשנה החלטה.
+ *
+ * הוא עונה על "מתי לשלוח תזכורת". גרף עמודות פשוט ולא ספרייה:
+ * עשרים וארבעה מספרים לא דורשים 40kb של קוד.
+ */
+export function HourChart({ data }: { data: Array<{ hour: number; n: number }> }) {
+  const byHour = new Map(data.map((d) => [d.hour, d.n]));
+  const max = Math.max(1, ...data.map((d) => d.n));
+
+  return (
+    <Card title="באיזו שעה מגישים" hint="שעון ישראל. זה מה שקובע מתי לשלוח תזכורת.">
+      <div className="flex items-end gap-[2px]" style={{ height: 92 }}>
+        {Array.from({ length: 24 }, (_, h) => {
+          const n = byHour.get(h) ?? 0;
+          return (
+            <div key={h} className="flex flex-1 flex-col items-center gap-1" title={`${h}:00 — ${n}`}>
+              <div
+                className="w-full rounded-t-[2px]"
+                style={{
+                  height: `${(n / max) * 72}px`,
+                  minHeight: n > 0 ? 3 : 1,
+                  background: n > 0 ? '#D8B25C' : 'rgba(216,178,92,.18)',
+                }}
+              />
+              {h % 6 === 0 && (
+                <span className="num text-[8.5px] text-chalk-dim" dir="ltr">{h}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * ★ בוטים
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * מחזור ראשון עם שני משתתפים אינו תחרות, וטבלה עם שתי שורות
+ * אומרת למשתמש החדש "אין כאן אף אחד". בוטים פותרים בעיית השקה
+ * אמיתית — ובתנאי אחד: **שהם מסומנים.**
+ *
+ * הם חוזרים לכל מסך עם `isBot`, ומופיעים בטבלה עם תג "בוט".
+ * הסתרה של זה הייתה הופכת כלי לגיטימי להטעיה, ולכן אין כאן
+ * מתג "בוטים סמויים" — לא כי שכחנו.
+ *
+ * ★ והם משחקים לפי אותם חוקים: שחקן אחד מכל קבוצה, גודל הרכב,
+ *   ותקציב בדוביד 5. בוט פטור מהתקציב היה מנצח בגלל שהוא בוט.
+ */
+function AdminBots({ act }: { act: ReturnType<typeof useAction> }) {
+  const [mode, setMode] = useState<'five' | 'full'>('five');
+  const [count, setCount] = useState(8);
+  const [report, setReport] = useState<BotResult | null>(null);
+  const gw = currentGameweekCode() || GAMEWEEK.id;
+
+  return (
+    <Card
+      title="בוטים"
+      hint="משתתפים שהמערכת מייצרת כדי שהמחזור לא ייראה ריק. הם מסומנים בטבלה, ומשחקים לפי אותם חוקים."
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={mode}
+          disabled={act.busy}
+          onChange={(e) => setMode(e.target.value as 'five' | 'full')}
+          className={`w-auto ${input}`}
+        >
+          <option value="five">דוביד 5</option>
+          <option value="full">דוביד 11</option>
+        </select>
+
+        <label className="flex items-center gap-1.5 text-[11.5px] text-chalk-2">
+          כמה
+          <input
+            type="number"
+            min={1}
+            max={60}
+            value={count}
+            disabled={act.busy}
+            onChange={(e) => setCount(Math.max(1, Math.min(60, Number(e.target.value) || 1)))}
+            className={`num w-16 ${input}`}
+          />
+        </label>
+
+        <button
+          disabled={act.busy}
+          className={`${primary} py-2`}
+          onClick={() => act.run(async () => {
+            const r = await adminAddBots(gw, mode, count);
+            setReport(r);
+            const bits = [`נוספו ${r.added}`];
+            if (r.skipped) bits.push(`${r.skipped} כבר היו`);
+            if (r.problems.length) bits.push(`${r.problems.length} נדחו`);
+            return bits.join(' · ');
+          })}
+        >
+          {act.busy ? 'מוסיף…' : `הוספה ל-${gw}`}
+        </button>
+
+        <button
+          disabled={act.busy}
+          className={ghost}
+          onClick={() => act.run(async () => {
+            const n = await adminRemoveBots(gw);
+            setReport(null);
+            return `הוסרו ${n} בוטים`;
+          })}
+        >
+          הסרת כל הבוטים
+        </button>
+      </div>
+
+      <Note msg={act.msg} bad={act.bad} />
+
+      {/* ★ דוח דחיות, לא רק ספירה. "נוספו 6" מסתיר "ושניים נדחו". */}
+      {report && report.problems.length > 0 && (
+        <div className="mt-3 rounded-xl border border-flare/30 bg-flare/5 p-3">
+          <p className="text-[12px] font-black text-flare">בוטים שלא נוספו</p>
+          <ul className="mt-1.5 space-y-1">
+            {report.problems.map((p, i) => (
+              <li key={i} className="text-[11.5px] text-chalk-2">
+                <span className="num">#{p.bot}</span> — {p.issue}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
+  );
 }

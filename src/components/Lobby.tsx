@@ -50,7 +50,7 @@ import {
 import type { ModeId } from '../lib/events/bus.ts';
 import { modeTheme } from '../lib/modeTheme.ts';
 import { NIGHT_PRESS as NP, MISREGISTER } from '../lib/pressPalette.ts';
-import { IMPRINT, pressNote } from '../lib/pressNotes.ts';
+import { pressNote } from '../lib/pressNotes.ts';
 import { text as content, hasText } from '../lib/content.ts';
 import { ModeMark } from './ModeMark.tsx';
 
@@ -277,25 +277,19 @@ export function Lobby({
 
         {/* ═══════════ בית הדפוס ═══════════ */}
         <Rule weight="top" className="mt-4" />
-        <footer className="relative z-[2] px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2 text-center">
-          <p className="text-[9.5px] leading-[1.75]" style={{ color: NP.inkFaint }}>
-            {IMPRINT.split('DubelTeam').map((part, i) => (
-              <span key={i}>
-                {part}
-                {i === 0 && <b style={{ color: NP.gold }}>DubelTeam</b>}
-              </span>
-            ))}
-            <br />
-            {/* ★ הערת המחזור. אותה הערה לכולם, כי בדיחה פרטית
-                היא רעש — ראו `lib/pressNotes.ts`. */}
-            <i>{pressNote(gameweekNumber)}</i>
+        <footer className="relative z-[2] px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 text-center">
+          {/* ★ הקרדיט **הוא** שורת בית הדפוס.
+              קודם היו כאן שתי שורות שאומרות את אותו דבר: "הובא
+              לדפוס ע״י DubelTeam" ומתחתיה "נבנה על ידי Dubel
+              Team". שתי חתימות של אותה חברה בתחתית אותו עמוד. */}
+          <DubelCredit />
+          <p className="pt-2 text-[9.5px] italic leading-[1.7]" style={{ color: NP.inkFaint }}>
+            {/* ★ הערת המחזור. אותה הערה לכולם — ראו `lib/pressNotes.ts`. */}
+            {pressNote(gameweekNumber)}
           </p>
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between pt-2.5">
             <span className="press-folio">DUBID.DUBELTEAM.COM</span>
             <span className="press-folio">עמוד <span className="num">1</span></span>
-          </div>
-          <div className="pt-3">
-            <DubelCredit />
           </div>
         </footer>
       </div>
@@ -704,7 +698,11 @@ function ModeArticle({
             className="font-press shrink-0 px-4 py-1 text-[13.5px] font-bold"
             style={{ background: t.accent, color: NP.paper }}
           >
-            {done ? 'לצפייה ›' : open ? 'להמשיך ›' : 'נעול'}
+            {/* ★ "שחק עכשיו" ולא "להמשיך".
+                "להמשיך" הוא ניווט; "שחק עכשיו" אומר שיש כאן
+                משחק. זה המסך הראשון, ולרוב האנשים שמגיעים אליו
+                עדיין לא ברור מה בדיוק קורה כאן. */}
+            {done ? 'לצפייה ›' : open ? 'שחק עכשיו ›' : 'נעול'}
           </span>
         </span>
       </span>

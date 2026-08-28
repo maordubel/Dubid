@@ -20,6 +20,8 @@
  */
 import { useState } from 'react';
 import { DUBEL } from '../lib/growth.ts';
+import { IMPRINT_PREFIX, IMPRINT_PLACE } from '../lib/pressNotes.ts';
+import { NIGHT_PRESS as NP } from '../lib/pressPalette.ts';
 
 /** שם היסטורי. המקור הוא `DUBEL.site` ב-`lib/growth.ts`. */
 export const DUBEL_URL = DUBEL.site;
@@ -37,38 +39,46 @@ export function DubelCredit({ variant = 'quiet', className = '' }: DubelCreditPr
         href={DUBEL_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className={`tap flex items-center gap-3 rounded-2xl border border-gold/15
-                    bg-night-2 px-4 py-3 transition-colors duration-200 ease-brand
-                    hover:border-armband/30 ${className}`}
+        className={`tap flex items-center gap-3 px-3 py-2.5 transition-colors
+                    duration-200 ease-brand ${className}`}
+        style={{ border: `1px solid ${NP.rule}`, background: NP.card }}
       >
         <DubelMark size={34} />
         <span className="min-w-0 flex-1">
-          <span className="block text-[10px] uppercase tracking-[0.2em] text-chalk-dim">
-            נבנה על ידי
+          <span className="block text-[10px] tracking-[0.2em]" style={{ color: NP.inkFaint }}>
+            {IMPRINT_PREFIX}
           </span>
-          <span className="block font-display text-sm font-black text-chalk">
-            DUBEL TEAM
+          <span className="font-press block text-[15px] font-black" style={{ color: NP.ink }}>
+            {DUBEL.name}
+          </span>
+          <span className="block text-[10px]" style={{ color: NP.inkFaint }}>
+            {IMPRINT_PLACE}
           </span>
         </span>
-        <span aria-hidden className="text-chalk-dim">←</span>
+        <span aria-hidden style={{ color: NP.gold }}>←</span>
       </a>
     );
   }
 
   return (
-    <p className={`flex items-center justify-center gap-2 text-[11px] text-chalk-dim ${className}`}>
-      <DubelMark size={18} />
+    <p
+      className={`flex items-center justify-center gap-2 text-center text-[10.5px] leading-[1.6] ${className}`}
+      style={{ color: NP.inkFaint }}
+    >
+      <DubelMark size={20} />
       <span>
-        נבנה על ידי{' '}
+        {IMPRINT_PREFIX}{' '}
         <a
           href={DUBEL_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-black text-chalk-2 underline decoration-armband/50
-                     underline-offset-2 hover:text-chalk"
+          className="font-black underline underline-offset-2"
+          style={{ color: NP.gold, textDecorationColor: 'rgba(216,178,92,.5)' }}
         >
-          Dubel Team
+          {DUBEL.name}
         </a>
+        <br />
+        {IMPRINT_PLACE}
       </span>
     </p>
   );

@@ -10,7 +10,7 @@
       "team_id": 1,
       "name_he": "הפועל באר שבע",
       "name_en": "Hapoel Beer Sheva",
-      "short": "ה.בש",
+      "short": "ב״ש",
       "city": "באר שבע",
       "stadium": null,
       "players": [
@@ -371,7 +371,7 @@
       "team_id": 2,
       "name_he": "הפועל ירושלים",
       "name_en": "Hapoel Jerusalem",
-      "short": "ה.ים",
+      "short": "ה·י-ם",
       "city": "ירושלים",
       "stadium": null,
       "players": [
@@ -628,7 +628,7 @@
       "team_id": 3,
       "name_he": "מכבי תל אביב",
       "name_en": "Maccabi Tel Aviv",
-      "short": "מ.תא",
+      "short": "מ·ת״א",
       "city": "תל אביב",
       "stadium": null,
       "players": [
@@ -1002,7 +1002,7 @@
       "team_id": 4,
       "name_he": "מכבי חיפה",
       "name_en": "Maccabi Haifa",
-      "short": "מ.חיפה",
+      "short": "מ·חיפה",
       "city": "חיפה",
       "stadium": "סמי עופר",
       "players": [
@@ -1454,7 +1454,7 @@
       "team_id": 5,
       "name_he": "בית\"ר ירושלים",
       "name_en": "Beitar Jerusalem",
-      "short": "ב.ים",
+      "short": "בית״ר",
       "city": "ירושלים",
       "stadium": null,
       "players": [
@@ -1776,7 +1776,7 @@
       "team_id": 6,
       "name_he": "הפועל תל אביב",
       "name_en": "Hapoel Tel Aviv",
-      "short": "ה.תא",
+      "short": "ה·ת״א",
       "city": "תל אביב",
       "stadium": null,
       "players": [
@@ -2137,7 +2137,7 @@
       "team_id": 7,
       "name_he": "מכבי נתניה",
       "name_en": "Maccabi Netanya",
-      "short": "מ.נתניה",
+      "short": "נתניה",
       "city": "נתניה",
       "stadium": null,
       "players": [
@@ -2498,7 +2498,7 @@
       "team_id": 8,
       "name_he": "בני סכנין",
       "name_en": "Bnei Sakhnin",
-      "short": "ב.סכנין",
+      "short": "סכנין",
       "city": "סכנין",
       "stadium": null,
       "players": [
@@ -2794,7 +2794,7 @@
       "team_id": 9,
       "name_he": "הפועל חיפה",
       "name_en": "Hapoel Haifa",
-      "short": "ה.חיפה",
+      "short": "ה·חיפה",
       "city": "חיפה",
       "stadium": null,
       "players": [
@@ -3194,7 +3194,7 @@
       "team_id": 10,
       "name_he": "עירוני קרית שמונה",
       "name_en": "Ironi Kiryat Shmona",
-      "short": "ע.קש",
+      "short": "קר״ש",
       "city": "קרית שמונה",
       "stadium": null,
       "players": [
@@ -3529,7 +3529,7 @@
       "team_id": 11,
       "name_he": "עירוני טבריה",
       "name_en": "Ironi Tiberias",
-      "short": "ע.טבריה",
+      "short": "טבריה",
       "city": "טבריה",
       "stadium": null,
       "players": [
@@ -3864,7 +3864,7 @@
       "team_id": 12,
       "name_he": "מכבי פתח תקווה",
       "name_en": "Maccabi Petah Tikva",
-      "short": "מ.פת",
+      "short": "מ·פ״ת",
       "city": "פתח תקווה",
       "stadium": null,
       "players": [
@@ -4121,7 +4121,7 @@
       "team_id": 13,
       "name_he": "הפועל רמת גן",
       "name_en": "Hapoel Ramat Gan",
-      "short": "ה.רג",
+      "short": "ר״ג",
       "city": "רמת גן",
       "stadium": null,
       "players": [
@@ -4482,7 +4482,7 @@
       "team_id": 14,
       "name_he": "הפועל פתח תקווה",
       "name_en": "Hapoel Petah Tikva",
-      "short": "ה.פת",
+      "short": "ה·פ״ת",
       "city": "פתח תקווה",
       "stadium": null,
       "players": [
