@@ -68,6 +68,21 @@ export function AuthChip({ identity, onOpen }: AuthChipProps) {
     );
   }
 
+  /*
+   * ★★ "ידוע" הוא מצב בפני עצמו ★★
+   *
+   * הלובי מרנדר שורת זהות **לפני** שהשרת ענה, כדי לא להבהב.
+   * במקרה הזה יש לנו את השם מהדפדפן אבל **אין** לנו את מצב
+   * החשבון — ו-`id` ריק הוא הסימן.
+   *
+   * קודם הקוד הניח "אורח" במצב הזה, ולכן משתמש רשום לחלוטין
+   * נחת בלובי וקרא על עצמו "לא שמור · לחצו לשמירה". זו הסיבה
+   * המדויקת ל"אין תחושת חיבור": המסך אמר לו שהוא לא מחובר.
+   *
+   * ★ עכשיו: השם מוצג מיד, ושורת המצב היא פס טוען עד שיש
+   *   תשובה. אנחנו לא ממציאים מצב חשבון.
+   */
+  const known = !!identity.id;
   const registered = !identity.isGuest || !!identity.offsidesUserId;
   const name = identity.displayName?.trim();
 
@@ -119,7 +134,12 @@ export function AuthChip({ identity, onOpen }: AuthChipProps) {
           לגעת; השני הוא סתם שם של קטגוריה.
         */}
         <span className="flex items-center gap-1.5">
-          {registered ? (
+          {!known ? (
+            <span
+              aria-hidden="true"
+              className="h-[11px] w-24 animate-pulse rounded bg-night-2"
+            />
+          ) : registered ? (
             <>
               <span
                 aria-hidden="true"

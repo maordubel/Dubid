@@ -259,6 +259,12 @@ export function watchAuth(): () => void {
            אחרי חיבור גוגל, `game.users.is_guest` עדיין TRUE עד
            שמישהו יעדכן אותו. קריאה בסדר ההפוך הייתה מחזירה
            "אורח" בדיוק ברגע שבו המשתמש סיים להתחבר. */
+        /* ★★ המיזוג **לפני** קריאת הזהות.
+           האורח בנה הרכבים, ואנחנו בדיוק נחתנו בחשבון האמיתי.
+           אם נקרא את הזהות קודם, המסך יצייר חשבון ריק — ורק
+           הרענון הבא יראה את ההרכבים. המשתמש יראה את הריק. */
+        try { await finishPendingMerge(); } catch { /* לא חוסם */ }
+
         try {
           await supabase.rpc('ensure_profile', { p_display_name: null });
         } catch { /* לא חוסם */ }
@@ -589,147 +595,222 @@ export async function isUsernameAvailable(username: string): Promise<boolean> {
   }
 }
 
-export interface SignUpInput {
-  email: string;
-  password: string;
-  username: string;
-  referralCode?: string;
-}
+/* ================================================================== */
+/* התחברות — מסלול אחד שעובד תמיד                                      */
+/* ================================================================== */
 
-export interface SignUpResult {
-  /** `true` = נשלח מייל אימות והמשתמש עוד לא מחובר. */
-  needsEmailConfirmation: boolean;
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * ★★★ הטעות שתוקנה כאן ★★★
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * הגרסה הקודמת ניסתה **לקשר** את חשבון גוגל לאורח הנוכחי
+ * (`linkIdentity`). זה עובד בדיוק במקרה אחד: כשחשבון הגוגל הזה
+ * עוד לא מוכר למערכת.
+ *
+ * אבל המקרה השכיח הפוך — לאדם **כבר יש** חשבון. ואז הקישור
+ * נכשל עם "החשבון כבר קיים", והמשתמש נתקע: לא נכנס, לא נרשם,
+ * ולא מבין מה הוא עשה לא נכון.
+ *
+ * ★ והוא לא עשה שום דבר לא נכון. הוא לחץ "התחבר עם גוגל".
+ *
+ * ═══════════════════════════════════════════════════════════════
+ * ★★ הגישה: להיכנס רגיל, ואז לגרור את מה שנבנה ★★
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * `signInWithOAuth` עובד **תמיד** — גם למי שיש חשבון וגם למי
+ * שאין. אין מצב שבו הוא נכשל בגלל חשבון קיים; חשבון קיים הוא
+ * בדיוק מה שהוא מחפש.
+ *
+ * ומה עם ההרכבים שהאורח בנה לפני שהתחבר? לפני היציאה לגוגל
+ * מונפק **אסימון העברה**, ואחרי החזרה הוא נפדה אוטומטית — הדאטה
+ * עוברת אל החשבון שנחתנו בו, בין אם הוא חדש ובין אם קיים.
+ *
+ * זה בדיוק אותו מנגנון של כרטיס המנוי (`claim_pass`), על אותו
+ * קוד ועם אותן בדיקות. לא נבנתה כאן שום מכונה חדשה.
+ *
+ * ★ ומה שזה מבטל בדרך:
+ *   · אין `linkIdentity` → אין צורך ב-"Manual linking" בלוח
+ *     הבקרה. מתג פחות להגדיר, ואחד פחות לשכוח.
+ *   · אין "החשבון כבר קיים" — לא כי הסתרנו את ההודעה, אלא כי
+ *     המצב שיצר אותה כבר לא קיים.
+ */
+
+/** איפה נשמר אסימון ההעברה בין היציאה לגוגל לבין החזרה. */
+const MERGE_KEY = 'dubid.merge.v1';
+
+/**
+ * ★★ ולמה יש גם עותק ב-`localStorage` ★★
+ *
+ * `sessionStorage` שורד ניווט באותה לשונית — וזה בדיוק מה
+ * שקורה בגוגל. אבל **קישור במייל נפתח בלשונית חדשה**, ושם
+ * `sessionStorage` ריק. בלי עותק שני, האורח היה נכנס לחשבון
+ * שלו ומגלה אותו ריק, בזמן שההרכבים שלו תלויים על זהות
+ * שאיש כבר לא מחזיק.
+ *
+ * העותק ב-`localStorage` נושא חותמת זמן וחי 15 דקות — בדיוק
+ * כמו האסימון בשרת. אסימון שנשאר בדפדפן אחרי שפג הוא רק
+ * זבל, ולכן הוא נמחק בקריאה הראשונה שרואה אותו.
+ */
+const MERGE_TTL_MS = 15 * 60 * 1000;
+
+/**
+ * מנפיק אסימון העברה — אבל רק אם יש מה להעביר.
+ *
+ * ★ `has_anything` חוסך שורה מיותרת בטבלה בכל לחיצה של מישהו
+ *   שנכנס לפני שנייה ולא עשה כלום. וזה הרוב.
+ */
+async function stashMergeToken(): Promise<void> {
+  try {
+    const id = currentIdentity();
+    if (id && !id.isGuest) return;
+
+    const { data: has } = await supabase.rpc('has_anything');
+    if (has !== true) return;
+
+    const { data: token, error } = await supabase.rpc('issue_merge_token');
+    if (error || typeof token !== 'string') return;
+
+    try { sessionStorage.setItem(MERGE_KEY, token); } catch { /* מצב פרטי */ }
+    try {
+      localStorage.setItem(MERGE_KEY, JSON.stringify({ t: token, at: Date.now() }));
+    } catch { /* מצב פרטי */ }
+  } catch {
+    /* ★ כישלון כאן לא מבטל את ההתחברות. עדיף להיכנס בלי למזג
+       מאשר לא להיכנס בכלל — הדאטה עדיין ניתנת לשחזור דרך
+       כרטיס המנוי. */
+  }
 }
 
 /**
- * הרשמה עם אימייל.
+ * פודה אסימון שממתין, אם יש. נקרא אחרי כל התחברות מוצלחת.
  *
- * ★ `emailRedirectTo` הוא לא פרט טכני.
- *
- * ה-Site URL בהגדרות הפרויקט הוא שדה **יחיד**, והוא ברירת המחדל
- * לקישורים במיילים. בלי `emailRedirectTo` מפורש, משתמש שנרשם
- * בדוביד לוחץ על קישור האימות ונוחת במוצר אחר. אותו כלל חל על
- * אופסיידס, וזו הסיבה ששניהם שולחים `window.location.origin`.
+ * ★ `sessionStorage` ולא `localStorage`: האסימון תקף לרגע אחד
+ *   וצריך למות עם הלשונית. אסימון ששורד סגירה הוא אסימון שאיש
+ *   כבר לא מצפה לו.
  */
-export async function signUpWithEmail(
-  { email, password, username, referralCode }: SignUpInput,
-): Promise<SignUpResult> {
-  const handle = username.trim();
-  // ★ trim לפני הבדיקה, לא אחריה.
-  //   באג מוכר בטופס של אופסיידס: הבדיקה על המחרוזת הגולמית
-  //   והשליחה על ה-trim, ולכן "  a" (אורך 3) עבר והגיע כ-"a".
-  if (handle.length < 3) throw new Error('USERNAME_TOO_SHORT');
-  if (password.length < 6) throw new Error('PASSWORD_TOO_SHORT');
+export async function finishPendingMerge(): Promise<number> {
+  const token = peekMergeToken();
+  if (!token) return 0;
 
-  if (!(await isUsernameAvailable(handle))) throw new Error('USERNAME_TAKEN');
+  try {
+    const { data } = await supabase.rpc('claim_pass', { p_key: token });
+    const res = (data ?? {}) as { ok?: boolean; moved?: number; sameUser?: boolean };
 
-  const { data, error } = await supabase.auth.signUp({
-    email: email.trim(),
-    password,
+    /*
+     * ═══════════════════════════════════════════════════════════
+     * ★★★ למה `sameUser` **לא** מוחק את האסימון ★★★
+     * ═══════════════════════════════════════════════════════════
+     *
+     * הפונקציה הזו נקראת גם בעלייה של האפליקציה, והסשן של גוגל
+     * נקלט **אסינכרונית** — יש חלון של כמה מאיות שנייה שבו
+     * `auth.uid()` הוא עדיין האורח הישן.
+     *
+     * במצב הזה השרת מחזיר `sameUser: true` בצדק ("אין מה
+     * להעביר"), והוא **לא** מסמן את האסימון כנפדה. אם היינו
+     * מוחקים אותו כאן, המיזוג האמיתי — זה שקורה שנייה אחר כך
+     * ב-`watchAuth` — היה מגיע בלי מפתח.
+     *
+     * ★ התוצאה הייתה בדיוק הבאג שהכי קשה לאתר: המשתמש מתחבר,
+     *   הכל נראה תקין, וההרכבים שלו פשוט לא שם.
+     *
+     * האסימון חי 15 דקות ונמחק לבד כשפג. השארתו לרגע נוסף לא
+     * עולה כלום; מחיקתו מוקדם עולה למשתמש את ההיסטוריה שלו.
+     */
+    if (res.sameUser === true) return 0;
+
+    clearMergeToken();
+    return res.ok ? (res.moved ?? 0) : 0;
+  } catch {
+    /* שגיאת רשת — האסימון נשאר, והניסיון הבא יתפוס אותו. */
+    return 0;
+  }
+}
+
+/**
+ * קורא את האסימון **בלי** למחוק אותו. אסימון פג נמחק כאן.
+ *
+ * ★ הפרדה בין קריאה למחיקה היא מה שמאפשר לקרוא לפדיון פעמיים
+ *   בלי סיכון: הפדיון הראשון (לפני שהסשן נקלט) לא הורס את
+ *   המפתח בשביל השני.
+ */
+function peekMergeToken(): string | null {
+  try {
+    const t = sessionStorage.getItem(MERGE_KEY);
+    if (t) return t;
+  } catch { /* מצב פרטי */ }
+
+  try {
+    const raw = localStorage.getItem(MERGE_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as { t?: string; at?: number };
+    if (typeof saved.t === 'string'
+        && typeof saved.at === 'number'
+        && Date.now() - saved.at < MERGE_TTL_MS) {
+      return saved.t;
+    }
+    localStorage.removeItem(MERGE_KEY);   // פג — אין למה לשמור
+  } catch { /* מצב פרטי, או JSON פגום */ }
+
+  return null;
+}
+
+/** מוחק את שני העותקים. נקרא רק אחרי תשובה סופית מהשרת. */
+function clearMergeToken(): void {
+  try { sessionStorage.removeItem(MERGE_KEY); } catch { /* מצב פרטי */ }
+  try { localStorage.removeItem(MERGE_KEY); } catch { /* מצב פרטי */ }
+}
+
+/**
+ * ★ כפתור אחד. תמיד עובד.
+ *
+ * גם למי שנרשם עכשיו, גם למי שחוזר אחרי חודש, וגם לאורח שבנה
+ * הרכב לפני חמש דקות.
+ */
+export async function continueWithGoogle(): Promise<void> {
+  await stashMergeToken();
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
     options: {
-      data: {
-        username: handle,
-        avatar: randomAvatar(),
-        ...(referralCode?.trim()
-          ? { referred_by_code: referralCode.trim().toUpperCase() }
-          : {}),
-      },
-      emailRedirectTo: window.location.origin,
+      redirectTo: window.location.origin,
+      /* ★ בלעדיו גוגל נועלת על החשבון האחרון, ומי שיש לו שניים
+         לא יכול לבחור. */
+      queryParams: { prompt: 'select_account' },
     },
   });
   if (error) throw new Error(mapAuthError(error.message));
-
-  // יש סשן ⇒ אישור מייל כבוי בפרויקט, והמשתמש כבר בפנים.
-  if (data.session?.user) {
-    await supabase.rpc('ensure_profile', { p_display_name: handle });
-    current = await fromSession(data.session.user.id);
-    emit();
-    return { needsEmailConfirmation: false };
-  }
-
-  return { needsEmailConfirmation: true };
 }
 
-/* ================================================================== */
-/* הפיכת אורח לחשבון קבוע                                              */
-/* ================================================================== */
-
 /**
- * ═══════════════════════════════════════════════════════════════
- * ★★★ הבאג שהיה כאן, והוא הגרוע ביותר במוצר ★★★
- * ═══════════════════════════════════════════════════════════════
+ * אותו דבר במייל.
  *
- * המסלול היחיד להירשם היה `signUpWithEmail`, שקורא ל-
- * `supabase.auth.signUp()`.
+ * ★ `shouldCreateUser: true` — במפורש.
  *
- * כשהסשן הנוכחי הוא **אנונימי**, `signUp` לא משדרג אותו. הוא
- * יוצר משתמש **חדש לגמרי**, עם `auth.uid()` חדש.
- *
- * המשמעות: אורח שבנה הרכב, נעל אותו, קיבל דירוג — ואז לחץ
- * "שמור את החשבון שלי" — קיבל חשבון ריק. ההרכבים, שם הקבוצה,
- * הדירוג וההיסטוריה נשארו תלויים על משתמש שאין לו יותר דרך
- * להתחבר אליו.
- *
- * זה הרס בדיוק את מה שההרשמה הבטיחה להגן עליו, וזה קרה בשקט:
- * שום שגיאה, שום אזהרה. המשתמש פשוט ראה טבלה ריקה והסיק
- * שהמערכת מחקה לו הכל.
- *
- * ═══════════════════════════════════════════════════════════════
- * ★ מה נכון: `updateUser`, לא `signUp`
- * ═══════════════════════════════════════════════════════════════
- *
- * `updateUser({ email })` על סשן אנונימי **משדרג את אותו
- * משתמש** — אותו `uid`, אותה היסטוריה, אותו הכל. Supabase
- * שולחת קוד אימות לכתובת, והמשתמש מקליד אותו.
- *
- * ⚠ תלות בהגדרות הפרויקט: Authentication → "Manual linking"
- *   חייב להיות מופעל. בלעדיו הקריאה נדחית.
- *   (מתועד ב-README של הסבב.)
- *
- * ★ סיסמה — רק **אחרי** אימות המייל.
- *   זו דרישה של Supabase ולא בחירה שלנו, והיא גם הגיונית:
- *   סיסמה על כתובת לא מאומתת היא חשבון שאי אפשר לשחזר.
+ * זה מה שהופך את הכפתור ל"התחברות **או** הרשמה" במקום לשניים.
+ * המשתמש לא צריך לדעת מראש אם יש לו חשבון; ברוב המקרים הוא
+ * באמת לא זוכר.
  */
-export async function upgradeStart(email: string): Promise<void> {
+export async function continueWithEmail(email: string): Promise<void> {
   const clean = email.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new Error('EMAIL_INVALID');
 
-  const { error } = await supabase.auth.updateUser(
-    { email: clean },
-    { emailRedirectTo: window.location.origin },
-  );
+  await stashMergeToken();
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email: clean,
+    options: { shouldCreateUser: true, emailRedirectTo: window.location.origin },
+  });
   if (error) throw new Error(mapAuthError(error.message));
 }
 
 /**
- * מסיים את השדרוג עם הקוד שהגיע למייל.
+ * מאמת קוד שהגיע במייל — או קישור שהודבק.
  *
- * ★ `type: 'email_change'` ולא `'email'`.
- *   `'email'` הוא אימות של הרשמה חדשה. כאן מדובר בשינוי
- *   כתובת על משתמש קיים, וזה סוג אחר של אסימון — טעות כאן
- *   מחזירה "Token has expired or is invalid" על קוד תקין
- *   לחלוטין, וזו שעה שאי אפשר להחזיר.
+ * ★ `type: 'email'` ולא `'email_change'`. זו התחברות, לא שינוי
+ *   כתובת. טיפוס שגוי מחזיר "הקוד פג או שגוי" על קוד תקין.
  */
-export async function upgradeVerify(email: string, token: string): Promise<Identity> {
-  /*
-   * ═══════════════════════════════════════════════════════════
-   * ★★★ קוד **או** קישור — ולמה זה לא פינוק ★★★
-   * ═══════════════════════════════════════════════════════════
-   *
-   * תבנית המייל של Supabase, כברירת מחדל, מכילה **רק קישור**:
-   * `{{ .ConfirmationURL }}`. קוד בן שש ספרות מופיע רק אם מוסיפים
-   * ידנית `{{ .Token }}` לתבנית.
-   *
-   * כלומר מסך שמבקש "הקלידו את הקוד מהמייל" מול תבנית ברירת
-   * מחדל שולח את המשתמש לחפש משהו **שלא קיים במייל**. הוא יחפש,
-   * לא ימצא, וינטוש — ויהיה בטוח שהוא עשה משהו לא נכון.
-   *
-   * לכן השדה כאן מקבל את שניהם: קוד, או הדבקה של הקישור המלא.
-   * מהקישור נשלף `token_hash`, וזה בדיוק אותו אימות.
-   *
-   * ★ התוצאה: המוצר עובד **בלי לגעת בתבנית**, ועובד יפה יותר
-   *   אם בכל זאת מוסיפים את `{{ .Token }}`.
-   */
+export async function verifyEmailCode(email: string, token: string): Promise<Identity> {
   const raw = token.trim();
   const hash = extractTokenHash(raw);
 
@@ -738,11 +819,13 @@ export async function upgradeVerify(email: string, token: string): Promise<Ident
     : await supabase.auth.verifyOtp({
       email: email.trim().toLowerCase(),
       token: raw.replace(/\s+/g, ''),
-      type: 'email_change',
+      type: 'email',
     });
   if (error || !data.user) throw new Error(mapAuthError(error?.message ?? ''));
 
-  await supabase.rpc('ensure_profile', { p_display_name: null });
+  await finishPendingMerge();
+  try { await supabase.rpc('ensure_profile', { p_display_name: null }); } catch { /* לא חוסם */ }
+
   current = await fromSession(data.user.id);
   emit();
   return current;
@@ -751,8 +834,9 @@ export async function upgradeVerify(email: string, token: string): Promise<Ident
 /**
  * שולף `token_hash` מקישור אימות שהודבק.
  *
- * ★ מקבל גם כתובת מלאה וגם רק את החלק שאחרי הסימן — כי אנשים
- *   מדביקים את שניהם, ושניהם תקינים.
+ * ★ תבנית המייל של Supabase, כברירת מחדל, מכילה **רק קישור**.
+ *   מסך שמבקש "הקלידו את הקוד" שולח את המשתמש לחפש משהו שלא
+ *   קיים במייל.
  */
 export function extractTokenHash(
   input: string,
@@ -763,8 +847,6 @@ export function extractTokenHash(
     const params = new URLSearchParams(q.replace(/^[?#]/, ''));
     const token = params.get('token_hash');
     if (!token) return null;
-    /* ★ ברירת המחדל היא `email` ולא `email_change`: קישור שהגיע
-       בלי `type` מגיע כמעט תמיד מ-Magic Link. */
     return { token, type: params.get('type') || 'email' };
   } catch {
     return null;
@@ -772,19 +854,21 @@ export function extractTokenHash(
 }
 
 /**
- * בודק מחדש מול השרת אם המייל כבר אומת.
+ * בודק מחדש מול השרת אם ההתחברות הושלמה.
  *
- * ★ זה מה שמאפשר את המסלול "לחצתי על הקישור במייל".
- *
- * הקישור נפתח בלשונית אחרת ומאשר את השינוי **בשרת**. הלשונית
- * שבה המשתמש יושב לא יודעת על זה כלום — היא מחזיקה עותק ישן של
- * המשתמש. רענון הסשן הוא מה שמביא את המצב האמיתי.
+ * ★ זה מה שמאפשר את המסלול "לחצתי על הקישור במייל": הקישור
+ *   נפתח בלשונית אחרת ומאשר בשרת, והלשונית שבה המשתמש יושב
+ *   מחזיקה עותק ישן.
  */
 export async function refreshIdentity(): Promise<Identity | null> {
   try {
     await supabase.auth.refreshSession();
     const { data } = await supabase.auth.getUser();
     if (!data.user) return current;
+
+    await finishPendingMerge();
+    try { await supabase.rpc('ensure_profile', { p_display_name: null }); } catch { /* לא חוסם */ }
+
     current = await fromSession(data.user.id);
     emit();
     return current;
@@ -794,29 +878,51 @@ export async function refreshIdentity(): Promise<Identity | null> {
 }
 
 /**
+ * ═══════════════════════════════════════════════════════════════
+ * ★★ שלוש פונקציות הוסרו מכאן, ובכוונה ★★
+ * ═══════════════════════════════════════════════════════════════
+ *
+ *   signUpWithEmail   `auth.signUp` — נכשל על "כבר קיים"
+ *   signInWithEmail   סיסמה — שדה שנשכח ואי אפשר לשחזר בלי מיילר
+ *   signInWithGoogle  זהה ל-`continueWithGoogle`, בלי המיזוג
+ *
+ * כולן חלקו את אותה תקלה: הן הכריחו את המשתמש **לדעת מראש** אם
+ * יש לו חשבון. הוא לא יודע, ובצדק — הוא נכנס לאתר כדורגל.
+ *
+ * מי שבחר לא נכון קיבל שגיאה שמאשימה אותו במשהו שהוא לא עשה,
+ * ואז ניסה את השנייה, ובינתיים כבר לא היה בטוח שהוא במקום הנכון.
+ *
+ * `continueWithGoogle` ו-`continueWithEmail` מחליפות את שלושתן:
+ * יש חשבון — נכנסים אליו. אין — נוצר. אותה לחיצה.
+ *
+ * ★ קוד מת של אימות הוא לא סתם רעש: הוא בדיוק סוג הדבר שמישהו
+ *   מחבר בטעות חזרה בעוד חצי שנה, ואז הבאג חוזר.
+ */
+
+/* ================================================================== */
+/* אבחון חיבורים — משמש את לוח הניהול                                  */
+/* ================================================================== */
+
+/**
  * שגיאת OAuth שחזרה בכתובת.
  *
- * ★ ספק OAuth שמסרב לא זורק — הוא **מחזיר** לכתובת עם
- *   `error=...`. בלי קריאה מפורשת, המשתמש חוזר למסך הבית כאילו
- *   כלום לא קרה, מנסה שוב, ומקבל בדיוק אותו כלום.
+ * ★ ספק שמסרב לא זורק — הוא **מחזיר** לכתובת עם `error=...`.
+ *   בלי קריאה מפורשת המשתמש נוחת בלובי כאילו כלום לא קרה,
+ *   מנסה שוב, ומקבל בדיוק אותו כלום.
  *
- * ⚠ `redirect_uri_mismatch` **לא** מגיע לכאן: במקרה הזה גוגל
- *   עוצרת אצלה ולא מפנה בחזרה בכלל. זו הסיבה שהיא מטופלת
- *   בלוח הניהול (`googleCallbackUrl`) ולא כאן.
+ * ⚠ `redirect_uri_mismatch` לא מגיע לכאן: שם גוגל עוצרת אצלה
+ *   ולא מפנה בחזרה בכלל.
  */
 export function oauthErrorFromUrl(): string | null {
   try {
-    const from = (s: string) => new URLSearchParams(s.replace(/^[?#]/, ''));
+    const from = (x: string) => new URLSearchParams(x.replace(/^[?#]/, ''));
     const q = from(window.location.search);
     const h = from(window.location.hash);
     const err = q.get('error') || h.get('error');
     if (!err) return null;
 
     const desc = q.get('error_description') || h.get('error_description') || '';
-
-    /* ניקוי הכתובת — אחרת רענון מציג את השגיאה שוב. */
     window.history.replaceState(null, '', window.location.pathname);
-
     return desc || err;
   } catch {
     return null;
@@ -824,134 +930,36 @@ export function oauthErrorFromUrl(): string | null {
 }
 
 /**
- * הכתובת שגוגל **חייבת** להכיר.
+ * הכתובת שגוגל חייבת להכיר, נגזרת מהפרויקט החי.
  *
- * ★ היא נגזרת מכתובת הפרויקט החי ולא מוקלדת בשום מקום.
- *   מחרוזת שמוקלדת ביד בתיעוד היא מחרוזת שתהיה שגויה ביום
- *   שהפרויקט יוחלף — וזו בדיוק השגיאה שקשה לאתר.
+ * ★ מחרוזת שמוקלדת ביד בתיעוד תהיה שגויה ביום שהפרויקט יוחלף,
+ *   ואף אחד לא יזכור לעדכן אותה.
  */
 export function googleCallbackUrl(): string {
   return `${DUBID_PROJECT.url}/auth/v1/callback`;
 }
 
-/**
- * אותה כתובת, בצד של אופסיידס.
- *
- * ★★ למה היא מופיעה במסך של דוביד ★★
- *
- * כששני המוצרים חולקים **מזהה לקוח אחד** בגוגל, אותו OAuth
- * client חייב להכיר את **שתי** כתובות ההחזרה — אחת לכל פרויקט
- * Supabase. אם רק אחת רשומה, המוצר השני מקבל
- * `redirect_uri_mismatch`, וזה בדיוק מה שקרה.
- *
- * הצגת שתיהן יחד היא מה שהופך את ההגדרה לפעולה אחת במקום
- * לשתי חקירות נפרדות בהפרש של שבוע.
- */
+/** אותה כתובת בצד של אופסיידס — אותו OAuth client מכיר את שתיהן. */
 export function offsidesCallbackUrl(): string {
   return `${OFFSIDES_PROJECT.url}/auth/v1/callback`;
 }
 
 /**
- * ═══════════════════════════════════════════════════════════════
- * ★★★ "אחרי גוגל זה שולח אותי ל-Vercel" ★★★
- * ═══════════════════════════════════════════════════════════════
+ * ★ "אחרי גוגל זה שולח אותי ל-Vercel".
  *
- * זו לא תקלה בקוד אלא שרשרת הפניות שקל לא לראות:
- *
- *   1. הדפדפן הולך לגוגל.
- *   2. גוגל מפנה ל-**Supabase** (`/auth/v1/callback`).
- *   3. Supabase מפנה ל-`redirectTo` שביקשנו —
- *      **אבל רק אם הוא ברשימת ההיתר.**
- *   4. אם הוא לא ברשימה, Supabase מתעלמת ממנו בשקט ומפנה
- *      ל-**Site URL** של הפרויקט.
- *
- * ולכן, אם Site URL עדיין מצביע לכתובת ה-Vercel הזמנית, כל
- * התחברות נוחתת שם — בלי שום שגיאה, כי מבחינת Supabase הכל
- * עבד בדיוק כמתוכנן.
- *
- * ★★ ולמה זה גרוע יותר מ"נחתתי בכתובת הלא נכונה" ★★
- *
- * הסשן נשמר ב-`localStorage` של **המקור שאליו נחתת**. כלומר
- * המשתמש מחובר ב-Vercel, וכשהוא חוזר לדומיין האמיתי הוא נראה
- * מנותק — ומנסה להתחבר שוב, ושוב נוחת ב-Vercel.
- *
- * ההגנה: `redirectTo` הוא תמיד המקור הנוכחי (כדי שפיתוח מקומי
- * ו-staging ימשיכו לעבוד), והפונקציה הזו נותנת ללוח הניהול את
- * מה שצריך כדי לומר "אתה לא על הדומיין הנכון".
+ * Supabase מפנה ל-`redirectTo` רק אם הוא ברשימת ההיתר; אחרת
+ * היא נופלת **בשקט** ל-Site URL. והסשן נשמר ב-`localStorage` של
+ * המקור שאליו נחתת — ולכן חוזרים לדומיין האמיתי ונראים מנותקים.
  */
 export function isCanonicalOrigin(): boolean {
   try {
     return window.location.origin === DUBID_URL;
   } catch {
-    return true;   // מחוץ לדפדפן אין מה לבדוק
+    return true;
   }
 }
 
-/** הדומיין שהמוצר אמור לחיות בו. */
 export const CANONICAL_ORIGIN = DUBID_URL;
-
-/** סיסמה אופציונלית, אחרי שהמייל אומת. בלעדיה נכנסים בקוד למייל. */
-export async function upgradeSetPassword(password: string): Promise<void> {
-  if (password.length < 6) throw new Error('PASSWORD_TOO_SHORT');
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) throw new Error(mapAuthError(error.message));
-  if (current) {
-    current = await fromSession(current.id);
-    emit();
-  }
-}
-
-/**
- * גוגל — כקישור זהות, לא כהתחברות חדשה.
- *
- * ★ `linkIdentity` ולא `signInWithOAuth`.
- *
- * אותו באג בדיוק כמו למעלה: `signInWithOAuth` על סשן אנונימי
- * מחליף את המשתמש. `linkIdentity` **מוסיף** את גוגל למשתמש
- * הקיים ומשאיר את ה-uid — כלומר את ההרכבים ואת הדירוג.
- *
- * ⚠ גם זה דורש "Manual linking" מופעל בפרויקט.
- */
-export async function upgradeWithGoogle(): Promise<void> {
-  const { error } = await supabase.auth.linkIdentity({
-    provider: 'google',
-    options: { redirectTo: window.location.origin },
-  });
-  if (error) throw new Error(mapAuthError(error.message));
-}
-
-export async function signInWithEmail(email: string, password: string): Promise<Identity> {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim(), password,
-  });
-  if (error || !data.user) throw new Error(mapAuthError(error?.message ?? ''));
-
-  await supabase.rpc('ensure_profile', { p_display_name: null });
-  current = await fromSession(data.user.id);
-  emit();
-  return current;
-}
-
-/**
- * גוגל.
- *
- * ★ `prompt: 'select_account'` — בלעדיו גוגל נועלת על החשבון
- *   האחרון שהמשתמש נכנס איתו, ומי שיש לו שני חשבונות לא יכול
- *   לבחור. זהה לאופסיידס.
- *
- * הפונקציה לא מחזירה זהות: היא מנווטת החוצה. הסשן נקלט בחזרה
- * על ידי `detectSessionInUrl` בלקוח.
- */
-export async function signInWithGoogle(): Promise<void> {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: window.location.origin,
-      queryParams: { prompt: 'select_account' },
-    },
-  });
-  if (error) throw new Error(mapAuthError(error.message));
-}
 
 /**
  * יציאה.
@@ -978,10 +986,26 @@ function mapAuthError(message: string): string {
   if (m.includes('password')) return 'PASSWORD_TOO_SHORT';
   if (m.includes('rate limit') || m.includes('too many')) return 'RATE_LIMIT';
   if (m.includes('provider is not enabled')) return 'PROVIDER_DISABLED';
+  /* ★ שלוש ההודעות של Supabase שהמשתמש הכי סביר לפגוש, ושכולן
+     נשמעות כמו האשמה: "החשבון כבר קיים". הן ממופות כדי שהמסך
+     יגיד מה **לעשות** ולא מה נכשל. */
+  if (m.includes('identity is already linked')
+      || m.includes('identity already exists')) return 'identity_already_exists';
+  if (m.includes('user already exists')) return 'user_already_exists';
+  if (m.includes('manual linking')) return 'manual_linking_disabled';
   return 'AUTH_FAILED';
 }
 
 export const AUTH_ERROR_HE: Record<string, string> = {
+  /* ★ ההודעות האלה כמעט לא אמורות להופיע יותר — המסלול החדש
+     נכנס לחשבון קיים במקום להיכשל עליו. הן נשארות כרשת ביטחון,
+     ומנוסחות כהוראה ולא כהאשמה. */
+  identity_already_exists:
+    'החשבון הזה כבר מחובר. נסו שוב — הפעם ניכנס אליו ישירות.',
+  user_already_exists:
+    'כבר יש חשבון עם הכתובת הזו. אותו כפתור יכניס אתכם אליו.',
+  manual_linking_disabled:
+    'החיבור הזה לא פעיל בהגדרות. אפשר להיכנס עם גוגל או עם מייל.',
   OFFSIDES_NOT_ENABLED:
     'חיבור החשבון מאופסיידס עוד לא הופעל. אפשר להיכנס עם כרטיס המנוי או עם מייל.',
   USERNAME_TOO_SHORT: 'שם משתמש — שלושה תווים לפחות.',

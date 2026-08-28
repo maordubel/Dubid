@@ -18,7 +18,7 @@
  */
 import { useEffect, useState } from 'react';
 import {
-  currentIdentity, redeemAccessCode,
+  currentIdentity, subscribeToIdentity, ensureIdentity, redeemAccessCode,
   setDisplayName, storedDisplayName, myProfile, setAvatar, AVATAR_POOL,
   signOut, type Identity, type CoachProfile,
 } from '../lib/identity.ts';
@@ -38,7 +38,32 @@ export function AccountSheet({
   const [tab, setTab] = useState<Tab>('me');
   const [identity, setIdentity] = useState<Identity | null>(currentIdentity());
 
-  useEffect(() => { setIdentity(currentIdentity()); }, [tab]);
+  /*
+   * ═══════════════════════════════════════════════════════════════
+   * ★★★ למה יש כאן מנוי ולא קריאה חד־פעמית ★★★
+   * ═══════════════════════════════════════════════════════════════
+   *
+   * קודם הגיליון קרא את הזהות פעם אחת, בפתיחה. זה נראה מספיק
+   * ויצר בדיוק את התלונה: **"רשום לי שמירה עם גוגל, אבל אני
+   * כבר קיים."**
+   *
+   * שני מצבים ייצרו את זה, ושניהם שכיחים:
+   *
+   *   1. הגיליון נפתח לפני שהזהות נטענה מהשרת. `identity` הוא
+   *      `null`, וכל בדיקה בסגנון `isGuest !== false` מכריזה
+   *      "אורח" על משתמש רשום לחלוטין.
+   *   2. המשתמש התחבר **בזמן** שהגיליון פתוח. השרת יודע, המסך
+   *      לא — כי אף אחד לא הסתכל שוב.
+   *
+   * ★ המנוי סוגר את שניהם: כל שינוי אמיתי בזהות מצייר מחדש,
+   *   וקריאת `ensureIdentity` מבטיחה שגם מי שפתח מהר יקבל
+   *   תשובה במקום ניחוש.
+   */
+  useEffect(() => {
+    const off = subscribeToIdentity(setIdentity);
+    void ensureIdentity().then(setIdentity).catch(() => {});
+    return off;
+  }, []);
 
   return (
     <div
@@ -148,7 +173,24 @@ function ProfileTab({
   const [name, setName] = useState(storedDisplayName());
   const [saved, setSaved] = useState(false);
   const [pickAvatar, setPickAvatar] = useState(false);
-  const guest = identity?.isGuest !== false;
+
+  /*
+   * ═══════════════════════════════════════════════════════════════
+   * ★★★ שלושה מצבים, ולא שניים ★★★
+   * ═══════════════════════════════════════════════════════════════
+   *
+   * הקוד הקודם היה `identity?.isGuest !== false` — כלומר "לא
+   * ידוע" נחשב **אורח**. וזה בדיוק הרגע שבו משתמש רשום פותח את
+   * הפרופיל ורואה "שמירה עם גוגל", לוחץ, ומקבל שהחשבון קיים.
+   *
+   * ★ `null` = עוד לא יודעים, ואז **לא מציגים כלום** בנושא הזה.
+   *   שלד קצר עדיף על תווית שגויה: תווית שגויה שולחת אנשים
+   *   לפעולה מיותרת, שלד רק מבקש רבע שנייה.
+   *
+   * ★★ והשרת מנצח: `my_profile()` הוא המקור המוסמך ל-`isGuest`,
+   *    והזהות המקומית משמשת רק עד שהוא עונה.
+   */
+  const guest: boolean | null = p ? p.isGuest : identity ? identity.isGuest : null;
 
   useEffect(() => { void myProfile().then(setP); }, [identity?.id]);
 
@@ -178,12 +220,16 @@ function ProfileTab({
               </p>
             )}
             <p className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span
-                className={`rounded px-1.5 py-px text-[9.5px] font-black ${
-                  guest ? 'bg-chalk/10 text-chalk-dim' : 'bg-gold/20 text-gold'}`}
-              >
-                {guest ? 'אורח' : 'חשבון קבוע'}
-              </span>
+              {guest === null ? (
+                <span className="h-[15px] w-16 animate-pulse rounded bg-night" />
+              ) : (
+                <span
+                  className={`rounded px-1.5 py-px text-[9.5px] font-black ${
+                    guest ? 'bg-chalk/10 text-chalk-dim' : 'bg-gold/20 text-gold'}`}
+                >
+                  {guest ? 'אורח' : 'חשבון קבוע'}
+                </span>
+              )}
               {p?.hasPass && (
                 <span className="rounded bg-gold/12 px-1.5 py-px text-[9.5px] font-black text-gold">
                   יש כרטיס
@@ -314,7 +360,7 @@ function ProfileTab({
       </section>
 
       {/* ═══════════ הרשמה — רק לאורח ═══════════ */}
-      {guest && (
+      {guest === true && (
         <section>
           <div className="mb-2.5">
             <h3 className="font-press text-[15px] font-black text-chalk">
@@ -367,7 +413,7 @@ function ProfileTab({
           </div>
         )}
 
-        {!guest && (
+        {guest === false && (
           <button
             onClick={() => { void signOut().then(() => window.location.reload()); }}
             className="tap w-full rounded-xl border border-flare/30 py-2.5 text-[12.5px]

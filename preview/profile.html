@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8"><title>פרופיל המאמן</title>
+<style>
+:root{--night:#0c0a08;--night-2:#16120d;--night-3:#211a13;--gold:#d8b25c;--gold-light:#f0d693;--gold-deep:#a9822f;--gold-ink:#14100a;--chalk:#f4ecdc;--chalk-2:#c6b99f;--chalk-dim:#8b7f6a;--flare:#e4453b;--armband:#f5c518;}
+body{margin:0;background:#050403;font-family:Assistant,Heebo,system-ui,sans-serif;display:flex;padding:24px}
+*,*::before,*::after{box-sizing:border-box}
+button,input{background:transparent;border:0;padding:0;margin:0;font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3,p,ul,ol,figure,label{margin:0;padding:0} ul,ol{list-style:none}
+.num{font-family:Anton,ui-monospace,monospace;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.tap{min-height:44px;min-width:44px}
+.tex-wood{background:#100d0a}
+.edge-gold{box-shadow:0 0 0 1px rgba(216,178,92,.16)}
+
+  /* ═══════════════════════════════════════════════════════════════
+     ★ העץ הכהה — המשטח של המוצר
+     ═══════════════════════════════════════════════════════════════
+     שלוש שכבות, וכל אחת עושה עבודה אחרת:
+       1. גרדיאנט רדיאלי — נותן לפינות ליפול. בלעדיו המסך שטוח.
+       2. פסי עץ אנכיים בעוצמה של 2% — הסיב. מעל 4% זה הופך
+          למרקם שמתחרה עם התוכן.
+       3. גרעיניות — שוברת את הפסים כדי שלא ייראו כמו באג רינדור
+          על מסכי OLED.
+     כולן ב-CSS. אין תמונת רקע, אין בקשת רשת, ואין קובץ לתחזק. */
+  .tex-wood {
+    background-color: var(--night);
+    background-image:
+      radial-gradient(120% 90% at 50% -10%, rgba(216, 178, 92, 0.09), transparent 62%),
+      repeating-linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.016) 0 2px,
+        transparent 2px 5px,
+        rgba(0, 0, 0, 0.22) 5px 6px,
+        transparent 6px 13px
+      ),
+      radial-gradient(rgba(255, 255, 255, 0.02) 0.5px, transparent 0.6px);
+    background-size: auto, auto, 6px 6px;
+  }
+
+  /* מסגרת זהב דקה. הכפילות (ring + shadow) מכוונת: הטבעת היא הקו
+     הנקי, הצל הוא העומק. אחת בלי השנייה נראית שטוחה או מלוכלכת. */
+  .edge-gold {
+    box-shadow:
+      inset 0 0 0 1px rgba(216, 178, 92, 0.22),
+      inset 0 1px 0 0 rgba(240, 214, 147, 0.12),
+      0 14px 34px -24px rgba(0, 0, 0, 0.95);
+  }
+
+  /* טקסט זהב מוברש — לכותרות בלבד. על טקסט רץ זה לא נקרא. */
+  .text-gold-brushed {
+    background-image: linear-gradient(180deg, #f6e0a8 0%, #d8b25c 46%, #a9822f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ★ הלוגו על משטח כהה.
+     הקו של הלוגו דק. במקומות שבהם הוא יושב מעל תמונה או מעל
+     גרדיאנט, הוא נבלע. שכבת ה"אאוט־ליין" היא ארבעה צללים כהים
+     בארבעה כיוונים — קו מתאר של פיקסל אחד שמחזיר לו הפרדה,
+     בלי לצייר מסגרת. */
+  .logo-outline {
+    filter:
+      drop-shadow(0 1px 0 rgba(0, 0, 0, 0.85))
+      drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.85))
+      drop-shadow(1px 0 0 rgba(0, 0, 0, 0.85))
+      drop-shadow(-1px 0 0 rgba(0, 0, 0, 0.85));
+  }
+
+  .logo-glow {
+    filter: drop-shadow(0 10px 30px rgba(216, 178, 92, 0.35));
+  }
+
+  .tex-turf {
+    background-image: repeating-linear-gradient(
+      100deg,
+      var(--pitch) 0 34px,
+      var(--pitch-2) 34px 68px
+    );
+  }
+
+  .tex-halftone {
+    background-image:
+      radial-gradient(currentColor 1.6px, transparent 1.7px),
+      radial-gradient(currentColor 1.6px, transparent 1.7px);
+    background-size: 10px 10px;
+    background-position: 0 0, 5px 5px;
+  }
+
+  .tex-misprint {
+    text-shadow: 3px 3px 0 var(--tekhelet);
+  }
+
+  /* נייר — משטח הקרם של המקור, עם גרעיניות עדינה. */
+  .tex-paper {
+    background-color: var(--paper);
+    background-image:
+      radial-gradient(rgba(20, 24, 28, 0.045) 0.6px, transparent 0.7px),
+      radial-gradient(rgba(20, 24, 28, 0.03) 0.6px, transparent 0.7px);
+    background-size: 7px 7px, 11px 11px;
+    background-position: 0 0, 3px 4px;
+  }
+
+  .tex-tartan {
+    background-image:
+      repeating-linear-gradient(90deg,
+        transparent 0 11px, rgba(200, 51, 47, 0.5) 11px 14px,
+        transparent 14px 25px, rgba(46, 125, 79, 0.5) 25px 27px),
+      repeating-linear-gradient(0deg,
+        transparent 0 11px, rgba(200, 51, 47, 0.35) 11px 14px,
+        transparent 14px 25px, rgba(46, 125, 79, 0.35) 25px 27px);
+  }
+
+  /* זוהר רך מאחורי אלמנט גיבור */
+  .glow-toto {
+    box-shadow: 0 0 0 1px rgba(216, 178, 92, 0.25), 0 18px 60px -18px rgba(216, 178, 92, 0.5);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ★★ הלוגו שמצייר את עצמו ★★
+   ═══════════════════════════════════════════════════════════════════
+
+   הבקשה: שהלוגו ייראה כאילו יד מציירת אותו — לא שהתמונה תדהה.
+
+   ★ למה לא SVG עם stroke-dashoffset
+
+   זו התשובה הקנונית, והיא דורשת נתיבים. ללוגו אין נתיבים: הוא
+   סריקה של ציור בקו אחד. תרגום ל-SVG היה מייצר אלפי נתיבים,
+   מאות קילובייטים, וקו מרוצף — יקר יותר, ודומה פחות למקור.
+
+   ★ מה כן: לחשוף את הפיקסלים לפי סדר הציור
+
+   שלוש שכבות (`build-logo-layers.mjs`), שלוש תנועות:
+
+     1. הטבעת והדיוקן — חשיפה מעגלית, עם "ציפורן" נוסעת על הקו
+     2. החתימה Dubid  — מגב אופקי, כמו כתיבה
+     3. הכדור והקווים — חותמת אחת בסוף
+
+   ★ העלות
+
+   `mask-image` ו-`transform` בלבד. אין JavaScript בלולאה, אין
+   ציור מחדש, ואין layout. הכל על ה-GPU, גם על טלפון ישן.
+
+   ⚠ `@property` נדרש כדי שזווית ב-conic-gradient תוכל להיות
+     מונפשת. הוא נתמך בכל דפדפן רלוונטי היום, אבל לא בכולם אי
+     פעם — ולכן `main.tsx` מסמן `no-cssprop` על `<html>` כשאין
+     לו, ואז השכבה פשוט נכנסת בדהייה. לעולם לא מסך ריק.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@property --dubid-sweep {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+
+  .draw-stage {
+    position: relative;
+    display: block;
+    aspect-ratio: 1;
+  }
+
+  .draw-stage > img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    user-select: none;
+  }
+
+  /* ---- 1. הטבעת והדיוקן ---- */
+  .draw-l1 {
+    --dubid-sweep: 0deg;
+    /* ★ `from -90deg` — הציפורן יוצאת מ-12 בשעון, כמו יד שמתחילה
+       מלמעלה. הקצה הרך (12°) הוא מה שמונע קו חיתוך חד שמסגיר
+       שזו מסכה ולא ציור. */
+    -webkit-mask-image: conic-gradient(
+      from -90deg,
+      #000 0deg,
+      #000 var(--dubid-sweep),
+      transparent calc(var(--dubid-sweep) + 12deg),
+      transparent 360deg
+    );
+    mask-image: conic-gradient(
+      from -90deg,
+      #000 0deg,
+      #000 var(--dubid-sweep),
+      transparent calc(var(--dubid-sweep) + 12deg),
+      transparent 360deg
+    );
+    animation: dubid-sweep var(--draw-1, 900ms) cubic-bezier(0.4, 0.05, 0.2, 1) both;
+    animation-delay: var(--draw-start, 0ms);
+  }
+
+  @keyframes dubid-sweep {
+    from { --dubid-sweep: 0deg; }
+    to   { --dubid-sweep: 360deg; }
+  }
+
+  /* ---- הציפורן ----
+     נקודת אור שנוסעת על הטבעת. היא זו שמוכרת את "מצויר":
+     בלעדיה החשיפה המעגלית נקראת כמו מכ"ם. */
+  .draw-nib {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    animation: dubid-nib-spin var(--draw-1, 900ms) cubic-bezier(0.4, 0.05, 0.2, 1) both,
+               dubid-nib-out 220ms ease-out forwards;
+    animation-delay: var(--draw-start, 0ms),
+                     calc(var(--draw-start, 0ms) + var(--draw-1, 900ms) - 120ms);
+  }
+
+  .draw-nib::after {
+    content: '';
+    position: absolute;
+    top: 3.5%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    margin-inline-start: -2.5px;
+    border-radius: 999px;
+    background: #fdf3d8;
+    box-shadow:
+      0 0 6px 2px rgba(240, 214, 147, 0.9),
+      0 0 18px 6px rgba(216, 178, 92, 0.45);
+  }
+
+  @keyframes dubid-nib-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  @keyframes dubid-nib-out {
+    to { opacity: 0; }
+  }
+
+  /* ---- 2. החתימה ----
+     מגב משמאל לימין. `mask-position` מונפש נייטיב — בלי `@property`
+     ובלי תלות בשום דבר. */
+  .draw-l2 {
+    -webkit-mask-image: linear-gradient(90deg, #000 42%, rgba(0, 0, 0, 0.35) 50%, transparent 58%);
+    mask-image: linear-gradient(90deg, #000 42%, rgba(0, 0, 0, 0.35) 50%, transparent 58%);
+    -webkit-mask-size: 260% 100%;
+    mask-size: 260% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    animation: dubid-write var(--draw-2, 520ms) cubic-bezier(0.35, 0, 0.25, 1) both;
+    animation-delay: calc(var(--draw-start, 0ms) + var(--draw-1, 900ms) - 160ms);
+  }
+
+  @keyframes dubid-write {
+    from { -webkit-mask-position: -160% 0; mask-position: -160% 0; }
+    to   { -webkit-mask-position: 0% 0;    mask-position: 0% 0; }
+  }
+
+  /* ---- 3. הכדור והקווים ----
+     חותמת. הציור נגמר בהנחה של היד, לא בעוד תנועה. */
+  .draw-l3 {
+    animation: dubid-stamp var(--draw-3, 320ms) cubic-bezier(0.2, 1.5, 0.4, 1) both;
+    animation-delay: calc(var(--draw-start, 0ms) + var(--draw-1, 900ms)
+                          + var(--draw-2, 520ms) - 220ms);
+  }
+
+  @keyframes dubid-stamp {
+    from { opacity: 0; transform: scale(0.86); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* ★ נפילה חיננית: בלי `@property` הזווית לא ניתנת להנפשה,
+     והמסכה הייתה קופאת על 0 — כלומר לוגו בלתי נראה. */
+  .no-cssprop .draw-l1 {
+    -webkit-mask-image: none;
+    mask-image: none;
+    animation: dubid-fade var(--draw-1, 900ms) ease-out both;
+  }
+  .no-cssprop .draw-nib { display: none; }
+
+  @keyframes dubid-fade {
+    from { opacity: 0; transform: scale(1.04); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* ★ ההחלפה ברצועת הפרסום הפנימי.
+     הצלבה בלבד — בלי הזזה, בלי שינוי גובה. יחידה שקופצת
+     גונבת תשומת לב פעם אחת ואז מאומנת להתעלמות לתמיד. */
+  @keyframes housefade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-\[housefade_\.5s_ease-out\] { animation: none; }
+  }
+
+  /* ★ מי שביקש פחות תנועה מקבל את הלוגו, מיד ובשלמותו.
+     "בלי אנימציה" אף פעם לא אומר "בלי תוכן". */
+  @media (prefers-reduced-motion: reduce) {
+    .draw-l1, .draw-l2, .draw-l3 {
+      animation: none;
+      -webkit-mask-image: none;
+      mask-image: none;
+      opacity: 1;
+      transform: none;
+    }
+    .draw-nib { display: none; }
+  }
+
+</style>
+<style>
+.backdrop-blur{backdrop-filter:blur(8px)}
+.backdrop-blur-sm{backdrop-filter:blur(4px)}
+.bg-chalk{background-color:#f4ecdc}
+.bg-chalk\/10{background-color:rgba(244, 236, 220, 0.1)}
+.bg-gold{background-color:#d8b25c}
+.bg-gold\/15{background-color:rgba(216, 178, 92, 0.15)}
+.bg-gradient-to-b{background-repeat:no-repeat}
+.bg-night{background-color:#0c0a08}
+.bg-night-2{background-color:#16120d}
+.bg-night\/80{background-color:rgba(12, 10, 8, 0.8)}
+.bg-night\/85{background-color:rgba(12, 10, 8, 0.85)}
+.block{display:block}
+.border{border-width:1px;border-style:solid;border-color:currentColor}
+.border-b{border-bottom-width:1px;border-bottom-style:solid}
+.border-gold\/12{border-color:rgba(216, 178, 92, 0.12)}
+.border-gold\/15{border-color:rgba(216, 178, 92, 0.15)}
+.border-gold\/25{border-color:rgba(216, 178, 92, 0.25)}
+.border-gold\/30{border-color:rgba(216, 178, 92, 0.3)}
+.border-t{border-top-width:1px;border-top-style:solid}
+.disabled\:opacity-40:disabled{opacity:0.4}
+.disabled\:opacity-50:disabled{opacity:0.5}
+.fixed{position:fixed}
+.flex{display:flex}
+.flex-1{flex:1 1 0%}
+.flex-wrap{flex-wrap:wrap}
+.font-black{font-weight:900}
+.font-bold{font-weight:700}
+.font-press{font-family:'Frank Ruhl Libre','David Libre',Georgia,serif}
+.from-gold-light{background-image:linear-gradient(to left, #f0d693, transparent)}
+.gap-1{gap:4px}
+.gap-1\.5{gap:6px}
+.gap-2{gap:8px}
+.gap-2\.5{gap:10px}
+.gap-3{gap:12px}
+.grid{display:grid}
+.grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.h-px{height:1px}
+.inset-0{top:0;right:0;bottom:0;left:0}
+.items-center{align-items:center}
+.items-end{align-items:flex-end}
+.justify-center{justify-content:center}
+.leading-none{line-height:1}
+.leading-snug{line-height:1.375}
+.leading-tight{line-height:1.25}
+.max-h-\[92dvh\]{max-height:92dvh}
+.max-w-lg{max-width:512px}
+.mb-2\.5{margin-bottom:10px}
+.min-w-0{min-width:0}
+.mt-1{margin-top:4px}
+.mt-2\.5{margin-top:10px}
+.mt-3{margin-top:12px}
+.mx-4{margin-left:16px;margin-right:16px}
+.outline-none{outline:0}
+.overflow-y-auto{overflow-y:auto}
+.p-1{padding:4px}
+.p-4{padding:16px}
+.pb-\[calc\(1\.5rem\+env\(safe-area-inset-bottom\)\)\]{padding-bottom:calc(1.5rem+env(safe-area-inset-bottom))}
+.place-items-center{place-items:center}
+.pt-0\.5{padding-top:2px}
+.px-1{padding-left:4px;padding-right:4px}
+.px-1\.5{padding-left:6px;padding-right:6px}
+.px-3{padding-left:12px;padding-right:12px}
+.px-4{padding-left:16px;padding-right:16px}
+.py-0\.5{padding-top:2px;padding-bottom:2px}
+.py-1\.5{padding-top:6px;padding-bottom:6px}
+.py-2\.5{padding-top:10px;padding-bottom:10px}
+.py-3{padding-top:12px;padding-bottom:12px}
+.py-4{padding-top:16px;padding-bottom:16px}
+.py-px{padding-top:1px;padding-bottom:1px}
+.ring-1{box-shadow:0 0 0 1px currentColor}
+.ring-gold\/30{--ring:rgba(216, 178, 92, 0.3);box-shadow:0 0 0 1px rgba(216, 178, 92, 0.3) inset}
+.ring-inset{box-sizing:border-box}
+.rounded{border-radius:4px}
+.rounded-2xl{border-radius:16px}
+.rounded-full{border-radius:9999px}
+.rounded-t-3xl{border-start-start-radius:1.5rem;border-start-end-radius:1.5rem}
+.rounded-xl{border-radius:12px}
+.select-none{user-select:none}
+.shrink-0{flex-shrink:0}
+.size-16{width:64px;height:64px}
+.size-9{width:36px;height:36px}
+.space-y-2 > * + *{margin-top:8px}
+.space-y-3 > * + *{margin-top:12px}
+.space-y-4 > * + *{margin-top:16px}
+.sticky{position:sticky}
+.text-3xl{font-size:1.875rem;line-height:2.25rem}
+.text-\[10px\]{font-size:10px}
+.text-\[11px\]{font-size:11px}
+.text-\[12\.5px\]{font-size:12.5px}
+.text-\[12px\]{font-size:12px}
+.text-\[13px\]{font-size:13px}
+.text-\[15px\]{font-size:15px}
+.text-\[19px\]{font-size:19px}
+.text-\[9\.5px\]{font-size:9.5px}
+.text-center{text-align:center}
+.text-chalk{color:#f4ecdc}
+.text-chalk-2{color:#c6b99f}
+.text-chalk-dim{color:#8b7f6a}
+.text-gold{color:#d8b25c}
+.text-gold-ink{color:#20180a}
+.text-gold-light{color:#f0d693}
+.text-lg{font-size:18px}
+.text-night{color:#0c0a08}
+.text-sm{font-size:14px}
+.to-gold{background-repeat:no-repeat}
+.top-0{top:0px}
+.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.w-full{width:100%}
+.z-10{z-index:10}
+.z-sheet{z-index:60}
+.animate-pulse{animation:previewpulse 1.5s ease-in-out infinite}
+@keyframes previewpulse{0%,100%{opacity:1}50%{opacity:.45}}
+.animate-slideUp{animation:none}
+.h-\[15px\]{height:15px}
+.w-16{width:64px}
+.transition-colors{transition:color .2s,background-color .2s}
+.focus\:border-gold:focus{border-color:#d8b25c}
+.disabled\:opacity-40:disabled{opacity:0.4}
+.frame{position:relative;width:430px;height:1000px;background:#0c0a08;border-radius:26px;overflow:hidden;box-shadow:0 40px 90px -30px #000,0 0 0 8px #17130f}
+.frame .fixed{position:absolute!important}
+</style></head><body><figure style="margin:0"><div class="frame"><link rel="preload" as="image" href="/brand/dubid-mark-gold.png"/><div class="fixed inset-0 z-sheet flex items-end justify-center bg-night/80 backdrop-blur-sm" role="presentation"><div role="dialog" aria-label="פרופיל המאמן" class="tex-wood max-h-[92dvh] w-full max-w-lg animate-slideUp overflow-y-auto
+                   rounded-t-3xl border-t border-gold/25 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"><div class="sticky top-0 z-10 flex items-center gap-3 border-b border-gold/15
+                        bg-night/85 px-4 py-3 backdrop-blur"><img src="/brand/dubid-mark-gold.png" alt="" aria-hidden="true" width="28" height="28" decoding="async" class="block shrink-0 select-none" style="width:28px;height:28px"/><h2 class="flex-1 font-press text-lg font-black text-chalk">פרופיל המאמן</h2><button aria-label="סגירה" class="tap grid size-9 place-items-center rounded-full text-chalk-dim">✕</button></div><div class="mx-4 mt-3 flex gap-1 rounded-full bg-night-2 p-1 edge-gold"><button class="tap flex-1 rounded-full py-1.5 text-[12.5px] font-black transition-colors
+                            bg-gradient-to-b from-gold-light to-gold text-gold-ink">פרופיל המאמן</button><button class="tap flex-1 rounded-full py-1.5 text-[12.5px] font-black transition-colors
+                            text-chalk-dim">הכרטיס שלי</button></div><div class="px-4 py-4"><div class="space-y-4"><section class="rounded-2xl bg-night-2 p-4 edge-gold"><div class="flex items-center gap-3"><button aria-label="שינוי אווטאר" class="tap grid size-16 shrink-0 place-items-center rounded-2xl bg-night
+                       text-3xl ring-1 ring-inset ring-gold/30">⚽</button><div class="min-w-0 flex-1"><h3 class="font-press truncate text-[19px] font-black leading-tight text-chalk">מאמן</h3><p class="mt-1 flex flex-wrap items-center gap-1.5"><span class="h-[15px] w-16 animate-pulse rounded bg-night"></span></p></div></div></section><section class="grid grid-cols-4 gap-2"><div class="rounded-xl border border-gold/12 bg-night-2 px-1 py-2.5 text-center"><div class="num text-[19px] leading-none text-gold">0</div><div class="mt-1 text-[9.5px] leading-tight text-chalk-dim">מחזורים</div></div><div class="rounded-xl border border-gold/12 bg-night-2 px-1 py-2.5 text-center"><div class="num text-[19px] leading-none text-gold"><span class="text-chalk-dim">—</span></div><div class="mt-1 text-[9.5px] leading-tight text-chalk-dim">נקודות</div></div><div class="rounded-xl border border-gold/12 bg-night-2 px-1 py-2.5 text-center"><div class="num text-[19px] leading-none text-gold"><span class="text-chalk-dim">—</span></div><div class="mt-1 text-[9.5px] leading-tight text-chalk-dim">שיא</div></div><div class="rounded-xl border border-gold/12 bg-night-2 px-1 py-2.5 text-center"><div class="num text-[19px] leading-none text-gold"><span class="text-chalk-dim">—</span></div><div class="mt-1 text-[9.5px] leading-tight text-chalk-dim">מקום הכי טוב</div></div></section><section class="rounded-2xl bg-night-2 p-4 edge-gold"><h3 class="text-sm font-black text-chalk">שם המאמן</h3><p class="mt-1 text-[12px] leading-snug text-chalk-2">זה מה שמופיע בטבלה ובכרטיס השיתוף.</p><div class="mt-2.5 flex gap-2"><input maxLength="20" placeholder="איך יקראו לך בטבלה" class="min-w-0 flex-1 rounded-xl border border-gold/25 bg-night px-3 py-2.5
+                       text-chalk outline-none focus:border-gold" value=""/><button disabled="" class="tap shrink-0 rounded-xl bg-gold px-4 text-[13px] font-black
+                       text-gold-ink disabled:opacity-40">שמירה</button></div></section><section class="space-y-2"><button class="tap w-full rounded-xl border border-gold/25 py-2.5 text-[13px]
+                       font-bold text-gold-light">קבלת כרטיס מנוי</button></section></div></div></div></div></div></figure></body></html>

@@ -221,4 +221,213 @@ END $$;
 -- ניקוי
 DELETE FROM game.user_lineups WHERE user_id::TEXT LIKE 'd7000000-%';
 
+
+-- ---------------------------------------------------------------------
+-- 8. ★★★ "החשבון כבר קיים" — התרחיש שנשבר ★★★
+-- ---------------------------------------------------------------------
+--
+--  אורח בנה הרכב, ואז לחץ "התחבר עם גוגל" — עם חשבון גוגל
+--  ש**כבר** מוכר למערכת. הגישה הישנה (`linkIdentity`) נכשלה
+--  כאן, והמשתמש נתקע.
+--
+--  הגישה החדשה: נכנסים לחשבון הקיים, ואז גוררים אליו את מה
+--  שהאורח בנה. הבדיקה הזו מריצה בדיוק את זה.
+-- ---------------------------------------------------------------------
+DELETE FROM auth.users WHERE id::TEXT LIKE 'd8000000-%';
+INSERT INTO auth.users (id, email, is_anonymous) VALUES
+  ('d8000000-0000-0000-0000-000000000001', NULL,             TRUE),   -- האורח
+  ('d8000000-0000-0000-0000-000000000002', 'exists@x.test',  FALSE);  -- החשבון הקיים
+
+SET dubid.test_uid = 'd8000000-0000-0000-0000-000000000002';
+SELECT game.ensure_profile('מאור הרשום');
+
+-- האורח בונה משהו
+SET dubid.test_uid = 'd8000000-0000-0000-0000-000000000001';
+SELECT game.ensure_profile('אורח עם הרכב');
+
+DO $$
+DECLARE v_gw UUID;
+BEGIN
+  SELECT id INTO v_gw FROM game.gameweeks WHERE code = 'gw-2';
+  INSERT INTO game.user_lineups
+    (user_id, gameweek_id, mode, formation, status, submitted_at, team_name)
+  VALUES ('d8000000-0000-0000-0000-000000000001', v_gw, 'full', '4-3-3',
+          'submitted', now(), 'הקבוצה של האורח')
+  ON CONFLICT (user_id, gameweek_id, mode) DO UPDATE SET status = 'submitted';
+
+  /* ★ `has_anything` היא מה שמונע הנפקת אסימון מיותרת לכל מי
+     שנכנס ולא עשה כלום — וזה הרוב. */
+  IF NOT game.has_anything() THEN
+    RAISE EXCEPTION 'FAIL 8: has_anything לא מזהה הרכב קיים';
+  END IF;
+END $$;
+
+-- לפני היציאה לגוגל: מנפיקים אסימון העברה
+DO $$
+DECLARE v_token TEXT;
+BEGIN
+  v_token := game.issue_merge_token();
+  IF length(v_token) <> 10 THEN
+    RAISE EXCEPTION 'FAIL 8b: אסימון באורך % במקום 10', length(v_token);
+  END IF;
+
+  /* ★★ הנפקת אסימון העברה **לא** נוגעת בכרטיס המנוי.
+     אילו היא הייתה מבטלת אותו, כל לחיצה על "התחבר עם גוגל"
+     הייתה הורגת בשקט את התמונה ששמרנו למשתמש בגלריה. */
+  PERFORM game.issue_pass();
+  PERFORM game.issue_merge_token();
+  IF (SELECT count(*) FROM game.access_codes
+       WHERE user_id = 'd8000000-0000-0000-0000-000000000001'
+         AND kind = 'pass' AND revoked_at IS NULL) <> 1 THEN
+    RAISE EXCEPTION 'FAIL 8c: אסימון ההעברה ביטל את כרטיס המנוי';
+  END IF;
+
+  CREATE TEMP TABLE IF NOT EXISTS t_merge (code TEXT);
+  DELETE FROM t_merge;
+  INSERT INTO t_merge VALUES (game.issue_merge_token());
+END $$;
+
+-- ...ואז נכנסים לחשבון ה**קיים** ופודים
+SET dubid.test_uid = 'd8000000-0000-0000-0000-000000000002';
+DO $$
+DECLARE v JSONB; v_token TEXT; n INT;
+BEGIN
+  DELETE FROM game.probe_attempts;
+  SELECT code INTO v_token FROM t_merge;
+
+  v := game.claim_pass(v_token);
+  IF (v->>'ok')::BOOLEAN IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL 8d: המיזוג נכשל (%)', v;
+  END IF;
+
+  /* ההרכב של האורח עבר לחשבון הקיים */
+  SELECT count(*) INTO n FROM game.user_lineups
+   WHERE user_id = 'd8000000-0000-0000-0000-000000000002' AND status <> 'draft';
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL 8e: % הרכבים בחשבון הקיים במקום 1', n;
+  END IF;
+
+  IF (SELECT team_name FROM game.user_lineups
+       WHERE user_id = 'd8000000-0000-0000-0000-000000000002')
+     <> 'הקבוצה של האורח' THEN
+    RAISE EXCEPTION 'FAIL 8f: שם הקבוצה לא עבר';
+  END IF;
+
+  /* ★ והחשבון הקיים נשאר רשום — לא הפך לאורח בגלל המיזוג. */
+  IF (SELECT is_guest FROM game.users
+       WHERE id = 'd8000000-0000-0000-0000-000000000002') THEN
+    RAISE EXCEPTION 'FAIL 8g: החשבון הרשום הפך לאורח אחרי המיזוג';
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------
+-- 9. אסימון העברה הוא חד־פעמי
+-- ---------------------------------------------------------------------
+DO $$
+DECLARE v JSONB; v_token TEXT;
+BEGIN
+  DELETE FROM game.probe_attempts;
+  SELECT code INTO v_token FROM t_merge;
+
+  /* ★ פדיון שני של אותו אסימון חייב להיכשל. אסימון שנשאר תקף
+     הוא מפתח כניסה שמסתובב ב-sessionStorage בלי סיבה. */
+  v := game.claim_pass(v_token);
+  IF (v->>'ok')::BOOLEAN IS TRUE AND (v->>'sameUser')::BOOLEAN IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL 9: אסימון ההעברה נפדה פעמיים';
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------
+-- 10. ★★★ פדיון מוקדם מדי לא שורף את האסימון ★★★
+-- ---------------------------------------------------------------------
+--
+--  ★ הבאג שזה נועל.
+--
+--  האפליקציה מנסה למזג גם בעלייה הרגילה, כי לשונית שנטענה
+--  מחדש אחרי החזרה מגוגל לא בהכרח מקבלת אירוע התחברות.
+--
+--  אבל הסשן של גוגל נקלט **אסינכרונית**. יש חלון קצר שבו
+--  `auth.uid()` הוא עדיין האורח הישן — ואז הפדיון מתבצע
+--  "על עצמו".
+--
+--  אם המצב הזה היה מסמן את האסימון כנפדה, המיזוג האמיתי —
+--  זה שקורה שנייה אחר כך — היה מגיע בלי מפתח, והמשתמש היה
+--  מתחבר לחשבון ריק בלי שאיש ידע למה.
+--
+--  ולכן: `sameUser` הוא לא־אירוע. הוא לא פודה, לא מבטל,
+--  ולא נוגע בכלום.
+-- ---------------------------------------------------------------------
+DELETE FROM auth.users WHERE id::TEXT LIKE 'd9000000-%';
+INSERT INTO auth.users (id, email, is_anonymous) VALUES
+  ('d9000000-0000-0000-0000-000000000001', NULL,            TRUE),
+  ('d9000000-0000-0000-0000-000000000002', 'later@x.test',  FALSE);
+
+SET dubid.test_uid = 'd9000000-0000-0000-0000-000000000002';
+SELECT game.ensure_profile('החשבון האמיתי');
+
+SET dubid.test_uid = 'd9000000-0000-0000-0000-000000000001';
+SELECT game.ensure_profile('אורח ממתין');
+
+DO $$
+DECLARE v_gw UUID; v JSONB; v_token TEXT;
+BEGIN
+  SELECT id INTO v_gw FROM game.gameweeks WHERE code = 'gw-2';
+  INSERT INTO game.user_lineups
+    (user_id, gameweek_id, mode, formation, status, submitted_at, team_name)
+  VALUES ('d9000000-0000-0000-0000-000000000001', v_gw, 'five', '2-2',
+          'submitted', now(), 'ממתין למיזוג')
+  ON CONFLICT (user_id, gameweek_id, mode) DO UPDATE SET status = 'submitted';
+
+  DELETE FROM game.probe_attempts;
+  CREATE TEMP TABLE IF NOT EXISTS t_early (code TEXT);
+  DELETE FROM t_early;
+  INSERT INTO t_early VALUES (game.issue_merge_token());
+  SELECT code INTO v_token FROM t_early;
+
+  /* ---- הפדיון המוקדם: עדיין האורח ---- */
+  v := game.claim_pass(v_token);
+  IF (v->>'sameUser')::BOOLEAN IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL 10: פדיון על אותו משתמש לא זוהה כ-sameUser (%)', v;
+  END IF;
+
+  /* ★ והאסימון **עדיין לא** סומן כנפדה. */
+  IF EXISTS (SELECT 1 FROM game.access_codes
+              WHERE user_id = 'd9000000-0000-0000-0000-000000000001'
+                AND kind = 'transfer' AND redeemed_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'FAIL 10b: פדיון מוקדם שרף את האסימון';
+  END IF;
+END $$;
+
+-- ...ורגע אחר כך הסשן האמיתי נקלט, ואותו אסימון עובד
+SET dubid.test_uid = 'd9000000-0000-0000-0000-000000000002';
+DO $$
+DECLARE v JSONB; v_token TEXT; n INT;
+BEGIN
+  DELETE FROM game.probe_attempts;
+  SELECT code INTO v_token FROM t_early;
+
+  v := game.claim_pass(v_token);
+  IF (v->>'ok')::BOOLEAN IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL 10c: המיזוג המאוחר נכשל (%)', v;
+  END IF;
+
+  SELECT count(*) INTO n FROM game.user_lineups
+   WHERE user_id = 'd9000000-0000-0000-0000-000000000002'
+     AND team_name = 'ממתין למיזוג';
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL 10d: ההרכב לא הגיע לחשבון האמיתי (% שורות)', n;
+  END IF;
+END $$;
+\echo '  ✓ 10 פדיון לפני שהסשן נקלט — לא שורף את האסימון'
+
+DELETE FROM game.user_lineups WHERE user_id::TEXT LIKE 'd9000000-%';
+DELETE FROM game.access_codes WHERE user_id::TEXT LIKE 'd9000000-%';
+DELETE FROM auth.users        WHERE id::TEXT      LIKE 'd9000000-%';
+DROP TABLE IF EXISTS t_early;
+
+DELETE FROM game.user_lineups WHERE user_id::TEXT LIKE 'd8000000-%';
+DELETE FROM game.access_codes WHERE user_id::TEXT LIKE 'd8000000-%';
+DELETE FROM game.probe_attempts;
+DROP TABLE IF EXISTS t_merge;
+
 SELECT '12_profile · OK' AS result;

@@ -39,6 +39,7 @@ const FILES = [
   ['20_pass_sql_only.sql',     '★ כרטיס המנוי בלי Edge Functions — הכל ב-SQL'],
   ['21_coach_profile.sql',     'פרופיל המאמן — היסטוריה, שיאים ואווטאר'],
   ['22_account_status.sql',    '★ "התחברתי ולא קרה כלום" — זיהוי נכון של חשבון מחובר'],
+  ['23_merge_on_signin.sql',   '★ "החשבון כבר קיים" — נכנסים, ואז גוררים את מה שנבנה'],
 ];
 
 const bar = '=' .repeat(69);

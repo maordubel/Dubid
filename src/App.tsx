@@ -9,6 +9,7 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ensureIdentity, storedDisplayName, setDisplayName, subscribeToIdentity, watchAuth,
+  finishPendingMerge,
   type Identity } from './lib/identity.ts';
 
 import { AppShell, AppHeader } from './components/AppShell.tsx';
@@ -379,6 +380,12 @@ function MainApp() {
      הסשן נקלט אסינכרונית אחרי שהאפליקציה כבר עלתה, ואף מסך
      לא מסתכל שוב. ראו את ההסבר המלא ב-`watchAuth`. */
   useEffect(() => watchAuth(), []);
+
+  /* ★ מיזוג ממתין גם בעלייה רגילה, לא רק באירוע התחברות.
+     משתמש שחזר מגוגל והלשונית נטענה מחדש לפני שהאירוע נורה
+     היה נשאר עם אסימון תקוע — כלומר עם ההרכבים על החשבון
+     האנונימי הישן, בלי שידע. */
+  useEffect(() => { void finishPendingMerge(); }, []);
 
   // שני הרכבים חיים תמיד, במקביל — לא נוצרים/נהרסים עם מעבר טאב,
   // כדי שהעבודה על אחד לא תימחק כשעוברים לשני ואז חוזרים.
@@ -765,7 +772,11 @@ function MainApp() {
         identity={identity}
         nudge={
           shouldNudge({
-            isGuest: identity?.isGuest !== false,
+            /* ★ `=== true` ולא `!== false`: כל עוד הזהות לא
+               נטענה אנחנו לא יודעים, ומי שלא יודע לא מנדנד.
+               הצעת הרשמה למשתמש רשום היא הדבר שגרם ל"רשום לי
+               שהחשבון כבר קיים". */
+            isGuest: identity?.isGuest === true,
             // ★ "יש מה לאבד" = הגשתי באחד משני המצבים.
             hasSubmitted: !!entryFive || !!entryFull,
             published: results.published,
@@ -1002,7 +1013,7 @@ function MainApp() {
              */
             if (revealBack === 'card'
                 && shouldOfferPass({
-                  isGuest: identity?.isGuest !== false,
+                  isGuest: identity?.isGuest === true,
                   hasSubmitted: true,
                   offeredBefore: passOfferedBefore(),
                   hasPass: hasPass === true,
