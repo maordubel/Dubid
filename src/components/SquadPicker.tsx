@@ -486,7 +486,7 @@ function ControlSheet({
                    motion-safe:animate-slideUp lg:mx-auto lg:mb-8 lg:max-w-lg lg:rounded-3xl"
       >
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-chalk/25" />
-        <h2 className="px-4 pb-1 pt-3 font-display text-base font-black">{title}</h2>
+        <h2 className="px-4 pb-1 pt-3 font-press text-base font-black">{title}</h2>
         <div className="pb-4">{children}</div>
       </div>
     </div>
@@ -831,7 +831,7 @@ function PlayerSheet({
 
         <div className="px-4 py-3">
           <div className="flex items-baseline justify-between">
-            <h2 className="font-display text-lg font-black">
+            <h2 className="font-press text-lg font-black">
               בחירת {POSITION_LABEL[slot.position]}
             </h2>
             <span className="text-xs text-chalk-dim">

@@ -146,7 +146,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
       <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b
                           border-gold/15 bg-night/95 px-4 py-3 backdrop-blur">
         <div>
-          <h1 className="font-display text-lg font-black">לוח ניהול</h1>
+          <h1 className="font-press text-lg font-black">לוח ניהול</h1>
           <p className="text-xs text-chalk-dim">
             {GAMEWEEK.label} · {GAMEWEEK.seasonLabel} ·{' '}
             <span className={results.published ? 'text-gold' : 'text-chalk-dim'}>
@@ -578,7 +578,7 @@ function AdminLogin({ onIn, onExit }: { onIn: () => void; onExit: () => void }) 
           <div className="mb-4 flex items-center gap-3">
             <LogoMark size={34} />
             <div className="flex-1">
-              <h1 className="font-display text-lg font-black">בדיקת מערכת</h1>
+              <h1 className="font-press text-lg font-black">בדיקת מערכת</h1>
               <p className="text-[11px] text-chalk-dim">
                 מה חסר כדי שהשרת יעבוד
               </p>
@@ -602,7 +602,7 @@ function AdminLogin({ onIn, onExit }: { onIn: () => void; onExit: () => void }) 
       <form onSubmit={submit} className="w-full max-w-xs">
         <div className="flex flex-col items-center">
           <LogoMark size={52} />
-          <h1 className="mt-3 font-display text-xl font-black">לוח ניהול</h1>
+          <h1 className="mt-3 font-press text-xl font-black">לוח ניהול</h1>
           <p className="mt-1 text-center text-[12px] text-chalk-dim">
             כניסת צוות. הסיסמה גם פותחת את המסך וגם נותנת הרשאה במסד.
           </p>
@@ -714,7 +714,7 @@ function AdminHealth() {
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="font-display text-base font-black text-chalk">בדיקת מערכת</h3>
+        <h3 className="font-press text-base font-black text-chalk">בדיקת מערכת</h3>
         <button
           onClick={run}
           disabled={busy}

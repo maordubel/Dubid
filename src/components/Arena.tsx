@@ -116,7 +116,7 @@ function ArenaEmpty({ userId, displayName }: { userId: string; displayName: stri
             <rect x="19" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".4" />
           </svg>
         </div>
-        <h2 className="mt-3 font-display text-xl font-black text-chalk">זירה</h2>
+        <h2 className="mt-3 font-press text-xl font-black text-chalk">זירה</h2>
         <p className="mx-auto mt-1.5 max-w-xs text-[13px] leading-snug text-chalk-2">
           טבלה פרטית מול החברים. אותו ניקוד, אותם שוברי שוויון —
           רק שכאן אתה יודע בדיוק את מי ניצחת.
@@ -461,7 +461,7 @@ function InviteCard({
     <div className="rounded-2xl border border-gold/15 bg-night-2 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="truncate font-display text-lg font-black text-chalk">{league.name}</h2>
+          <h2 className="truncate font-press text-lg font-black text-chalk">{league.name}</h2>
           <p className="text-[11px] text-chalk-dim">
             {MODE_LABEL[league.mode as 'full' | 'five']} ·{' '}
             <span className="num">{memberCount}</span> משתתפים

@@ -999,7 +999,7 @@ function SaveEntryModal({
         }}
       >
         <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-gold" />
-        <h2 className="text-center font-display text-lg font-black">כמעט סיימנו</h2>
+        <h2 className="text-center font-press text-lg font-black">כמעט סיימנו</h2>
         <p className="mt-1 text-center text-xs text-chalk-dim">
           בחרו שם תצוגה לדירוג ({MODE_LABEL[mode]}). לאחר ההגשה ההרכב
           ננעל למחזור — עריכה נוספת תדרוש ביטול הגשה מפורש.
@@ -1163,7 +1163,7 @@ function CardScreen({
     <div className="grid h-full place-items-center px-6 text-center">
       <div className="max-w-sm">
         <div className="mx-auto mb-4 h-1 w-16 rounded-full bg-gold" />
-        <h2 className="font-display text-2xl font-black">עוד אין תוצאות למחזור</h2>
+        <h2 className="font-press text-2xl font-black">עוד אין תוצאות למחזור</h2>
         <p className="mt-2 text-sm text-chalk-dim">
           {ready
             ? 'הכרטיס ייווצר אוטומטית ברגע שהמחזור ייסגר והניקוד יחושב.'
@@ -1300,7 +1300,7 @@ function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
         className="mt-4 rounded-2xl border p-4"
         style={{ borderColor: `${t.accent}4d`, background: `${t.accent}14` }}
       >
-        <h2 className="font-display text-xl font-black" style={{ color: t.accentLight }}>
+        <h2 className="font-press text-xl font-black" style={{ color: t.accentLight }}>
           הכלל היחיד שחשוב
         </h2>
         <p className="mt-1 text-sm text-chalk-2">
@@ -1317,7 +1317,7 @@ function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
         </p>
       </section>
 
-      <h2 className="mt-6 font-display text-lg font-black">טבלת הניקוד</h2>
+      <h2 className="mt-6 font-press text-lg font-black">טבלת הניקוד</h2>
       <table className="mt-2 w-full text-sm">
         <tbody>
           {scoring.map((r) => (
@@ -1336,7 +1336,7 @@ function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
         </tbody>
       </table>
 
-      <h2 className="mt-6 font-display text-lg font-black">הקפטן הדובידי</h2>
+      <h2 className="mt-6 font-press text-lg font-black">הקפטן הדובידי</h2>
       <ul className="mt-2 space-y-2 text-sm text-chalk-2">
         {captain.map((r, i) => (
           <li key={`${r.label}-${i}`}>
@@ -1353,7 +1353,7 @@ function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
         מורכב מחוקים שמכוונים ל-0 ולכן לעולם לא יכול להכריע.
         עכשיו הרשימה נגזרת מהחוקים, ומדלגת על שלב מת.
       */}
-      <h2 className="mt-6 font-display text-lg font-black">מה קורה בשוויון</h2>
+      <h2 className="mt-6 font-press text-lg font-black">מה קורה בשוויון</h2>
       <p className="mt-1 text-sm text-chalk-2">
         לעולם לא הגרלה. יורדים ברשימה עד שנמצא הבדל:
       </p>
@@ -1366,7 +1366,7 @@ function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
         ))}
       </ol>
 
-      <h2 className="mt-6 font-display text-lg font-black">בחירה נדירה</h2>
+      <h2 className="mt-6 font-press text-lg font-black">בחירה נדירה</h2>
       <p className="mt-1 text-sm text-chalk-2">
         שחקן שמעטים בחרו ושהביא נקודות שווה יותר.
       </p>

@@ -109,7 +109,7 @@ export function AppHeader({
     >
       <LogoMark size={30} className="opacity-90" />
       <div className="min-w-0 flex-1">
-        <h1 className="truncate font-display text-xl font-black leading-tight text-chalk">
+        <h1 className="truncate font-press text-xl font-black leading-tight text-chalk">
           {title}
         </h1>
         {subtitle ? <div className="text-xs text-chalk-dim">{subtitle}</div> : null}

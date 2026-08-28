@@ -12,7 +12,7 @@ export function FixturesStrip({ compact = false }: { compact?: boolean }) {
   return (
     <div className={compact ? 'px-3 pt-3' : 'mx-auto max-w-2xl px-4 pt-4'}>
       <div className="mb-2 flex items-baseline justify-between">
-        <h2 className="font-display text-sm font-black text-chalk">
+        <h2 className="font-press text-sm font-black text-chalk">
           {GAMEWEEK.label} · לוח המשחקים
         </h2>
         <span className="text-[11px] text-chalk-dim">{GAMEWEEK.seasonLabel}</span>

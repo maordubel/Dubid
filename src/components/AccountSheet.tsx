@@ -50,7 +50,7 @@ export function AccountSheet({ onClose }: { onClose: () => void }) {
         <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gold/15
                         bg-night/85 px-4 py-3 backdrop-blur">
           <LogoMark size={28} />
-          <h2 className="flex-1 font-display text-lg font-black text-chalk">החשבון שלי</h2>
+          <h2 className="flex-1 font-press text-lg font-black text-chalk">החשבון שלי</h2>
           <button
             onClick={onClose}
             aria-label="סגירה"
@@ -107,7 +107,7 @@ function MeTab({ identity }: { identity: Identity | null }) {
       {guest && (
         <section>
           <div className="mb-2.5">
-            <h3 className="font-display text-[15px] font-black text-chalk">
+            <h3 className="font-press text-[15px] font-black text-chalk">
               שמירת החשבון
             </h3>
             {/*

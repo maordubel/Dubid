@@ -1,46 +1,56 @@
 /**
- * components/Lobby.tsx — מסך הכניסה.
+ * components/Lobby.tsx — מסך הכניסה. מהדורת הלילה.
  *
  * ═══════════════════════════════════════════════════════════════
- * ★ סבב הלוגו החדש
+ * ★ למה הלובי הוא עמוד עיתון
  * ═══════════════════════════════════════════════════════════════
  *
- * הרפרנס שסופק הוא מסך אחד עם ארבע קומות ברורות:
+ * כרטיס השיתוף ומסך בניית ההרכב כבר חיים בעולם אחד: נייר, דיו,
+ * דשא מודפס בנקודות. הלובי היה העולם השני — כרטיסים מעוגלים,
+ * גרדיאנטים, טיפוגרפיה גיאומטרית. כלומר **המסך הראשון שרואים
+ * לא נראה כמו המוצר**.
  *
- *      זהות     →  מי אני, בשורה דקה
- *      גיבור    →  הלוגו, גדול, על עץ כהה
- *      מדדים    →  ארבעה מספרים בפס אחד
- *      פעולה    →  כרטיסי המצבים, ואז המשחקים הקרובים
+ * עכשיו הוא עמוד ראשון של עיתון ספורט: מאסטהד, מבזק, כותרת
+ * ראשית, תצלום מוסרק, שתי עמודות, ושתי כתבות ממוסגרות.
  *
- * ההיררכיה מהגרסה הקודמת נשמרה במלואה — השעון עדיין הדבר הדחוף,
- * וכרטיסי המשחק עדיין הפעולה. מה שהשתנה הוא **הנוכחות**: ללוגו
- * יש עכשיו מקום משלו במקום להידחס לשורת כותרת של 60px.
+ * ★ ולמה כהה
  *
- * ★ מה לא נלקח מהרפרנס, ובכוונה
+ * הלילה הוא הזהות של המוצר, ואין סיבה לוותר עליה. הפתרון הוא
+ * היפוך של אותה מערכת: דיו שמנת על נייר כהה, קווים בזהב עמום,
+ * והתצלום כנגטיב. `NIGHT_PRESS` ב-`lib/pressPalette.ts` הוא
+ * המקור — אותו קובץ שממנו קוראים גם הכרטיס וגם המגרש.
  *
- *   · "LVL 23", פעמון התראות, "רצף 7" — אין לנו את הנתונים
- *     האלה. מדד שמראה מספר מומצא הוא גרוע ממדד שלא קיים.
- *   · ארבעה מצבי משחק. יש לנו שניים, והם השניים הנכונים.
+ * ═══════════════════════════════════════════════════════════════
+ * ★ סדר הקומות, ולמה הוא כזה
+ * ═══════════════════════════════════════════════════════════════
  *
- * הפס העליון מציג את מה שאנחנו באמת יודעים: מי המשתמש, וכמה
- * אנשים במחזור.
+ *   פוליו    →  מי אני · גיליון · כמה משתתפים
+ *   מאסטהד   →  הלוגו והשם. המסך היחיד שבו יש להם מקום.
+ *   כותרת    →  **הדדליין**. זה הדבר הדחוף, ולכן הוא הכותרת.
+ *   תצלום    →  אווירה. הוא לא נושא מידע, והוא לא מתיימר.
+ *   כתבות    →  שני מצבי המשחק. זו הפעולה.
+ *   עמודות   →  התוצאות שלי · לוח המשחקים. זה ההקשר.
+ *   מדורים   →  ליגות ודירוג.
+ *   קרדיט    →  בית הדפוס, והערת המחזור.
+ *
+ * ★ הכתבות עלו מעל העמודות בכוונה: הפעולה קודמת להקשר. משתמש
+ *   שנכנס כדי להגיש לא צריך לעבור דרך הטבלה שלו בדרך.
  */
-import type { ReactNode } from 'react';
-import { Logo } from './Logo.tsx';
+import type { CSSProperties, ReactNode } from 'react';
 import { AuthChip } from './AuthChip.tsx';
 import { TeamTag } from './TeamTag.tsx';
 import type { Identity } from '../lib/identity.ts';
-import { ShadesDivider } from './Shades.tsx';
 import { OffsidesBanner } from './OffsidesBanner.tsx';
 import { DubelCredit } from './DubelCredit.tsx';
-import { TeamCrest } from './TeamCrest.tsx';
 import type { Promo } from '../lib/growth.ts';
 import {
-  GameweekStatus, STATUS_LABEL_HE, countdown, daysLabel,
-  isSubmissionOpen, msUntilDeadline, type Gameweek,
+  GameweekStatus, STATUS_LABEL_HE, deadlineView, msUntilDeadline,
+  isSubmissionOpen, type Gameweek,
 } from '../lib/gameweek.ts';
 import type { ModeId } from '../lib/events/bus.ts';
-import { modeTheme, modeVars, modeTexture } from '../lib/modeTheme.ts';
+import { modeTheme } from '../lib/modeTheme.ts';
+import { NIGHT_PRESS as NP, MISREGISTER } from '../lib/pressPalette.ts';
+import { IMPRINT, pressNote } from '../lib/pressNotes.ts';
 import { text as content, hasText } from '../lib/content.ts';
 import { ModeMark } from './ModeMark.tsx';
 
@@ -77,42 +87,22 @@ export interface LobbyProps {
   displayName?: string;
   entrants?: number;
   leagueCount?: number;
-  /** המקום שלי במחזור, כשכבר נוקד. */
   myRank?: number;
-  /** הנקודות שלי במחזור, כשכבר נוקד. */
   myPoints?: number;
   fixtures?: LobbyFixture[];
   onPlay: (mode: ModeId) => void;
   onLeagues: () => void;
   onLeaderboard: () => void;
-  /**
-   * פתיחת גיליון החשבון — גם לכניסה/הרשמה וגם לפרופיל.
-   * השורה העליונה היא הכניסה היחידה אליו.
-   */
   onAccount?: () => void;
-  /**
-   * הזהות המלאה. `null` = עוד לא נטענה.
-   *
-   * ★ נדרשת כדי לדעת אם להציג "כניסה · הרשמה" או את השם.
-   *   `displayName` לבדו לא מספיק: לאורח יכול להיות שם, ולמשתמש
-   *   רשום יכול לא להיות אחד.
-   */
   identity?: Identity | null;
-  /**
-   * ההצעה להירשם. `null` = אין מה להציע עכשיו.
-   * מי שמחליט הוא `RegisterNudge.shouldNudge`, לא המסך הזה —
-   * אותה הפרדה בדיוק כמו בפרסומת לאופסיידס.
-   */
   nudge?: ReactNode;
-  /**
-   * הפרסומת לאופסיידס. `null` = אין מה להציג עכשיו (נדחתה, או
-   * שהתקרה נגמרה). מי שמחליט הוא `lib/growth.ts`, לא המסך הזה.
-   */
   promo?: Promo | null;
   gameweekNumber?: number;
   onDismissPromo?: () => void;
   onOpenPromo?: (promo: Promo) => void;
 }
+
+/* ================================================================== */
 
 export function Lobby({
   gameweek, nowMs, modes, displayName, entrants, leagueCount,
@@ -124,494 +114,680 @@ export function Lobby({
    * ★★ הזמן מגיע מבחוץ, נקודה. ★★
    *
    * כאן ישב מונה פנימי: `now = nowMs + tick * 1000`. הוא היה
-   * נכון בדיוק כל עוד `nowMs` לא זז — אבל `nowMs` היה
-   * `serverNow()` שנקרא בכל רינדור של האפליקציה. אחרי עשרים
-   * דקות בלובי, `tick` הגיע ל-1200; ואז מישהו אחר הגיש, הגיע
-   * אירוע זמן אמת, האפליקציה רינדרה מחדש, ו-`nowMs` קפץ קדימה
-   * ב-1200 שניות — **על גבי** `tick` שכבר ספר אותן.
+   * נכון בדיוק כל עוד `nowMs` לא זז — אבל `nowMs` הוא
+   * `serverNow()` שנקרא בכל רינדור. אחרי עשרים דקות בלובי
+   * `tick` הגיע ל-1200; ואז מישהו אחר הגיש, הגיע אירוע זמן
+   * אמת, האפליקציה רינדרה מחדש, ו-`nowMs` קפץ ב-1200 שניות —
+   * **על גבי** `tick` שכבר ספר אותן.
    *
    * התוצאה: השעון קפץ עשרים דקות קדימה, הגיע ל-00:00, וכרטיסי
    * המשחק הכריזו "נעול" בזמן שהשרת עדיין קיבל הגשות. שקר, ולא
    * חסימה — וזה גרוע יותר.
-   *
-   * עכשיו `MainApp` מחזיק את הפעימה היחידה (שנייה אחת בדיוק),
-   * והמסך הזה רק קורא. שני מונים שמתקדמים לאותו כיוון הם באג
-   * שמחכה לרינדור.
    */
-  const now = nowMs;
-  const remaining = msUntilDeadline(gameweek, now);
-  const open = isSubmissionOpen(gameweek, now);
-  // פחות משעה = דחוף. הצבע משתנה, לא רק המספר.
-  const urgent = open && remaining < 3600_000;
-  const clock = countdown(remaining);
+  const remaining = msUntilDeadline(gameweek, nowMs);
+  const open = isSubmissionOpen(gameweek, nowMs);
+  const view = deadlineView(open ? remaining : 0);
 
   return (
-    <div className="tex-wood flex min-h-full flex-col pb-6">
-      {/* ═══════════ 1 · זהות — שורה דקה, לא כרזה ═══════════ */}
-      <header className="mx-auto flex w-full max-w-lg items-center gap-2.5 px-4
-                         pt-[calc(0.6rem+env(safe-area-inset-top))] lg:max-w-3xl">
-        {/* ★ שורת הזהות היא כפתור — ועכשיו היא **נראית** כזה.
-            קודם היא הייתה טקסט שאפשר ללחוץ עליו, ולכן אורח לא
-            ידע שאפשר להירשם ומשתמש רשום לא ידע איך לצאת.
-            ראו `AuthChip`. */}
-        <AuthChip
-          identity={identity ?? (displayName
-            ? ({ id: '', displayName, isGuest: true, username: null, avatar: null,
-                 referralCode: null, offsidesUserId: null, online: false } as Identity)
-            : null)}
-          onOpen={() => onAccount?.()}
-        />
-        {entrants ? (
-          <span className="shrink-0 rounded-full bg-night-2 px-2.5 py-1
-                           ring-1 ring-inset ring-gold/20">
-            <span dir="ltr" className="num text-[13px] leading-none text-gold">{entrants}</span>
-            <span className="ms-1 text-[10px] text-chalk-dim">משתתפים</span>
-          </span>
-        ) : null}
-      </header>
+    <div className="min-h-full" style={{ background: NP.paperDeep }}>
+      <div className="relative mx-auto w-full max-w-lg overflow-hidden lg:max-w-2xl"
+           style={pageSurface}>
+        <PaperTexture />
 
-      {/* ★ הודעת מערכת — נערכת מלוח הניהול, בלי פריסה.
-          ריקה = לא מוצגת בכלל. אין כאן "אין הודעות" שתופס מקום. */}
-      {hasText('announce.text') && (
-        <div
-          role="status"
-          className={`mx-auto mt-2 w-full max-w-lg px-4 lg:max-w-3xl`}
-        >
-          <p className={`rounded-xl border px-3 py-2 text-[12.5px] leading-snug ${
-            content('announce.tone') === 'alert'
-              ? 'border-flare/40 bg-flare/10 text-flare'
-              : content('announce.tone') === 'warn'
-                ? 'border-armband/35 bg-armband/10 text-armband'
-                : 'border-gold/25 bg-gold/5 text-chalk-2'}`}>
-            {content('announce.text')}
+        {/* ═══════════ פוליו עליון ═══════════ */}
+        <div className="relative z-[2] flex items-center gap-2 px-3 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+          <AuthChip
+            identity={identity ?? (displayName
+              ? ({ id: '', displayName, isGuest: true, username: null, avatar: null,
+                   referralCode: null, offsidesUserId: null, online: false } as Identity)
+              : null)}
+            onOpen={() => onAccount?.()}
+          />
+          <span className="flex-1" />
+          <span className="press-folio">
+            שנה ב׳ · גיליון <span className="num">{gameweekNumber}</span>
+          </span>
+          {entrants ? (
+            <span className="press-folio">
+              <b className="num" style={{ color: NP.ink }}>{entrants}</b> משתתפים
+            </span>
+          ) : null}
+        </div>
+
+        <Rule weight="top" />
+
+        {/* ═══════════ מאסטהד ═══════════ */}
+        {/*
+          ★ הלוגו גדול כאן ולא בשום מקום אחר.
+          זה המסך היחיד שבו למשתמש אין משימה פתוחה. בכל שאר
+          המסכים יש הרכב לבנות או טבלה לקרוא, ושם הסמל יורד
+          ל-26px בכותרת. גודל הוא החלטה לפי מסך, לא קבוע מותג.
+        */}
+        <div className="relative z-[2] px-3 pt-1.5 text-center">
+          <img
+            src="/brand/dubid-logo-cream@360.png"
+            alt=""
+            width={90}
+            height={90}
+            className="mx-auto block w-[86px]"
+            style={{ filter: 'drop-shadow(0 0 22px rgba(216,178,92,.22))' }}
+          />
+          <h1
+            className="font-press text-[44px] font-black leading-[0.94] tracking-[-.02em]"
+            style={{ color: NP.ink, textShadow: MISREGISTER }}
+          >
+            דוביד
+          </h1>
+          <p className="press-spaced pt-[3px] text-[10.5px]" style={{ color: NP.gold }}>
+            {spaced('מהדורת המחזור')}
           </p>
         </div>
-      )}
 
-      {/* ═══════════ 2 · הגיבור — הלוגו ═══════════ */}
-      {/*
-        ★ למה הלוגו גדול כאן ולא בשום מקום אחר.
-        זה המסך היחיד שבו למשתמש אין משימה פתוחה. בכל שאר המסכים
-        יש הרכב לבנות או טבלה לקרוא, ושם הלוגו יורד לסמל של 26px
-        בכותרת. גודל הוא החלטה לפי מסך, לא קבוע של מותג.
-      */}
-      <div className="relative mx-auto mt-1 flex w-full max-w-lg justify-center px-4 lg:max-w-3xl">
-        <div
-          className="pointer-events-none absolute left-1/2 top-2 h-32 w-64 -translate-x-1/2
-                     rounded-full bg-gold/15 blur-3xl"
-          aria-hidden="true"
+        <Rule weight="bottom" />
+
+        {/* ★ הודעת מערכת — נערכת מלוח הניהול, בלי פריסה.
+            ריקה = לא מוצגת בכלל. */}
+        {hasText('announce.text') && (
+          <div role="status" className="relative z-[2] px-3 pt-2.5">
+            <p
+              className="border px-3 py-2 text-[12.5px] leading-snug"
+              style={announceStyle(content('announce.tone'))}
+            >
+              {content('announce.text')}
+            </p>
+          </div>
+        )}
+
+        {/* ═══════════ הכותרת הראשית — הדדליין ═══════════ */}
+        <Headline
+          view={view}
+          statusLabel={STATUS_LABEL_HE[gameweek.status]}
+          published={gameweek.status === GameweekStatus.Published}
+          kicker={content('lobby.hero.kicker')}
         />
-        <Logo size={168} variant="gold" glow alt="דוביד" className="relative" />
-      </div>
 
-      {/* ───── השעון — פס, לא קופסה ───── */}
-      <div className="mx-auto -mt-1 w-full max-w-lg px-4 lg:max-w-3xl">
-        <DeadlineStrip
-          label={`${gameweek.label} · ${STATUS_LABEL_HE[gameweek.status]}`}
-          open={open}
-          urgent={urgent}
-          clock={clock}
-          closedText={
-            gameweek.status === GameweekStatus.Published
-              ? 'התוצאות פורסמו'
-              : 'ההרכבים נעולים'
-          }
-        />
-      </div>
+        <PressPhoto gameweekNumber={gameweekNumber} />
 
-      {/* ═══════════ 3 · המדדים ═══════════ */}
-      <div className="mx-auto mt-2.5 w-full max-w-lg px-4 lg:max-w-3xl">
-        <StatStrip
-          items={[
-            { label: 'המחזור', value: String(gameweekNumber) },
-            { label: 'הנקודות שלי', value: myPoints !== undefined ? String(myPoints) : '—' },
-            { label: 'המקום שלי', value: myRank ? `#${myRank}` : '—' },
-            { label: 'ליגות', value: leagueCount ? String(leagueCount) : '—' },
-          ]}
-        />
-      </div>
+        <Ornament />
 
-      {/* ═══════════ ההצעה להירשם ═══════════ */}
-      {/* ★ מתחת למדדים ומעל הפעולה, ובכוונה: היא מגיעה אחרי
-          שהמשתמש ראה מה יש לו, ולפני שהוא הולך לעשות עוד. */}
-      {nudge && (
-        <div className="mx-auto mt-2.5 w-full max-w-lg px-4 lg:max-w-3xl">{nudge}</div>
-      )}
-
-      {/* ═══════════ 4 · הפעולה ═══════════ */}
-      <section className="mx-auto mt-4 w-full max-w-lg px-4 lg:max-w-3xl" aria-label="בחירת מצב משחק">
-        <SectionTitle>במה משחקים</SectionTitle>
-        {/* ★ שורות ולא רשת.
-            הרפרנס משתמש בשורות ברוחב מלא, ובצדק: לכל מצב יש
-            כותרת, משפט הסבר ומצב נוכחי. בחצי רוחב מסך הכותרת
-            נשברת לשתי שורות והמשפט נחתך — ואז שני הכרטיסים
-            נראים זהים, וזה בדיוק מה שהם לא. */}
-        <div className="mt-2 space-y-2.5">
-          {modes.map((m) => (
-            <ModeRow key={m.id} mode={m} open={open} onPlay={() => onPlay(m.id)} />
+        {/* ═══════════ הכתבות — מצבי המשחק ═══════════ */}
+        <section className="relative z-[2] px-3" aria-label="בחירת מצב משחק">
+          {modes.map((m, i) => (
+            <div key={m.id} className={i > 0 ? 'mt-2.5' : ''}>
+              <ModeArticle mode={m} open={open} onPlay={() => onPlay(m.id)} />
+            </div>
           ))}
-        </div>
-      </section>
+        </section>
 
-      {/* ═══════════ המשחקים הקרובים ═══════════ */}
-      {fixtures.length > 0 && (
-        <section className="mx-auto mt-5 w-full max-w-lg px-4 lg:max-w-3xl">
-          <SectionTitle>המשחקים הקרובים</SectionTitle>
-          <ul className="mt-2 overflow-hidden rounded-2xl bg-night-2/70 edge-gold">
-            {fixtures.slice(0, 4).map((f) => (
-              <li key={f.id}
-                  className="flex items-center gap-2 border-b border-gold/10 px-3 py-2.5 last:border-0">
-                <span className="w-[52px] shrink-0 text-[10px] leading-tight text-chalk-dim">
-                  {f.dayLabel}
-                  <br />
-                  <span dir="ltr" className="num text-[11px] text-chalk-2">{f.timeLabel}</span>
-                </span>
-                <TeamCrest teamId={f.homeTeamId} short={f.homeShort} size={22} />
-                {/* ★ תגים בצבעי המועדונים במקום טקסט אחיד.
-                    "מ.תא מול מ.חיפה" בצבע אחד דורש קריאה; שני
-                    תגים צבועים נקראים במבט. */}
-                <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
+        {/* ★ ההצעה להירשם — אחרי שראה מה יש לו, לפני שהוא הולך. */}
+        {nudge && <div className="relative z-[2] px-3 pt-2.5">{nudge}</div>}
+
+        {/* ═══════════ שתי עמודות ═══════════ */}
+        <Rule weight="hair" className="mt-3" />
+        <div className="relative z-[2] grid grid-cols-[1fr_1px_1fr]">
+          <Column title="התוצאות שלי">
+            <LeaderRow label="מחזור" value={String(gameweekNumber)} />
+            <LeaderRow label="נקודות" value={myPoints !== undefined ? String(myPoints) : '—'} />
+            <LeaderRow label="מקום" value={myRank ? String(myRank) : '—'} />
+            <LeaderRow label="ליגות" value={leagueCount ? String(leagueCount) : '—'} />
+          </Column>
+          <span aria-hidden="true" style={{ background: NP.rule }} />
+          <Column title="לוח המשחקים">
+            {fixtures.length === 0 ? (
+              <p className="px-2 pt-1 text-[11.5px]" style={{ color: NP.inkFaint }}>
+                הלוח טרם פורסם.
+              </p>
+            ) : fixtures.slice(0, 4).map((f) => (
+              <li key={f.id} className="flex items-baseline gap-1.5 px-2 py-[3px] text-[11.5px]">
+                <span className="flex min-w-0 shrink items-center gap-1">
                   <TeamTag teamId={f.homeTeamId} short={f.homeShort} size="xs" />
-                  <span className="shrink-0 text-[10px] text-chalk-dim">מול</span>
+                  <span aria-hidden="true" style={{ color: NP.inkFaint }}>—</span>
                   <TeamTag teamId={f.awayTeamId} short={f.awayShort} size="xs" />
                 </span>
-                <TeamCrest teamId={f.awayTeamId} short={f.awayShort} size={22} />
+                <span className="press-lead" aria-hidden="true" />
+                <span className="num shrink-0 text-[11px] font-bold" style={{ color: NP.goldLight }}>
+                  {f.timeLabel}
+                </span>
               </li>
             ))}
-          </ul>
-        </section>
-      )}
-
-      <ShadesDivider className="mx-auto my-5 max-w-lg px-8 lg:max-w-3xl" />
-
-      {/* ═══════════ משני ═══════════ */}
-      <section className="mx-auto w-full max-w-lg px-4 lg:max-w-3xl">
-        <div className="grid grid-cols-2 gap-3">
-          <TileButton
-            label="ליגות פרטיות"
-            hint={leagueCount ? `${leagueCount} ליגות` : 'שחקו מול חברים'}
-            onClick={onLeagues}
-            icon={<TileShades />}
-          />
-          <TileButton
-            label="הדירוג"
-            hint="מי מוביל"
-            onClick={onLeaderboard}
-            icon={<TilePodium />}
-          />
+          </Column>
         </div>
-      </section>
+        <Rule weight="hair" />
 
-      {/* ═══════════ אופסיידס — הפרסומת ═══════════ */}
-      {promo && (
-        <section className="mx-auto mt-6 w-full max-w-lg px-4 lg:max-w-3xl">
-          <OffsidesBanner
-            promo={promo}
-            placement="lobby"
-            gameweekNumber={gameweekNumber}
-            onDismiss={onDismissPromo}
-            onOpen={onOpenPromo}
-          />
-        </section>
-      )}
+        {/* ═══════════ מדורים ═══════════ */}
+        <div className="relative z-[2] grid grid-cols-2 gap-2.5 px-3 pt-3">
+          <SectionTile label="ליגות פרטיות"
+                       hint={leagueCount ? `${leagueCount} ליגות` : 'שחקו מול חברים'}
+                       onClick={onLeagues} icon={<TileShades />} />
+          <SectionTile label="הדירוג" hint="מי מוביל"
+                       onClick={onLeaderboard} icon={<TilePodium />} />
+        </div>
 
-      {/* ═══════════ קרדיט ═══════════ */}
-      <footer className="mx-auto mt-6 w-full max-w-lg px-4 lg:max-w-3xl">
-        <DubelCredit />
-      </footer>
+        {promo && (
+          <div className="relative z-[2] px-3 pt-3">
+            <OffsidesBanner
+              promo={promo}
+              placement="lobby"
+              gameweekNumber={gameweekNumber}
+              onDismiss={onDismissPromo}
+              onOpen={onOpenPromo}
+            />
+          </div>
+        )}
+
+        {/* ═══════════ בית הדפוס ═══════════ */}
+        <Rule weight="top" className="mt-4" />
+        <footer className="relative z-[2] px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2 text-center">
+          <p className="text-[9.5px] leading-[1.75]" style={{ color: NP.inkFaint }}>
+            {IMPRINT.split('DubelTeam').map((part, i) => (
+              <span key={i}>
+                {part}
+                {i === 0 && <b style={{ color: NP.gold }}>DubelTeam</b>}
+              </span>
+            ))}
+            <br />
+            {/* ★ הערת המחזור. אותה הערה לכולם, כי בדיחה פרטית
+                היא רעש — ראו `lib/pressNotes.ts`. */}
+            <i>{pressNote(gameweekNumber)}</i>
+          </p>
+          <div className="flex items-center justify-between pt-2">
+            <span className="press-folio">DUBID.DUBELTEAM.COM</span>
+            <span className="press-folio">עמוד <span className="num">1</span></span>
+          </div>
+          <div className="pt-3">
+            <DubelCredit />
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
 
 /* ================================================================== */
+/* הנייר                                                               */
+/* ================================================================== */
 
-function SectionTitle({ children }: { children: ReactNode }) {
+const pageSurface: CSSProperties = {
+  background: NP.paper,
+  backgroundImage: [
+    'radial-gradient(150px 110px at 12% 7%, rgba(216,178,92,.10), transparent 70%)',
+    'radial-gradient(180px 130px at 90% 32%, rgba(216,178,92,.075), transparent 72%)',
+    'radial-gradient(130px 100px at 28% 76%, rgba(196,52,47,.055), transparent 70%)',
+  ].join(','),
+};
+
+/**
+ * ★ שלוש שכבות שהופכות משטח כהה לנייר כהה.
+ *
+ *   גרעיניות — נקודות דיו זעירות. בלעדיה המשטח נקרא כמו מסך.
+ *   כתמים    — ארבעה כתמי דיו לא סדירים.
+ *   קיפול    — קו אור לאורך המרכז, כמו עמוד שהיה מקופל.
+ *
+ * הכול `pointer-events-none` ו-`aria-hidden`: זו אווירה, ואסור
+ * לה להיכנס לעץ הנגישות או לחסום לחיצה.
+ */
+function PaperTexture() {
   return (
-    <h2 className="flex items-center gap-2 text-[10px] font-black uppercase
-                   tracking-[0.22em] text-chalk-dim">
-      <span aria-hidden className="h-px w-3 bg-gold/40" />
-      {children}
-    </h2>
+    <>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-[1]"
+        style={{
+          backgroundImage: [
+            'radial-gradient(rgba(237,228,206,.10) .55px, transparent .8px)',
+            'radial-gradient(rgba(237,228,206,.05) .5px, transparent .7px)',
+            'radial-gradient(2.6px 2.2px at 24% 17%, rgba(216,178,92,.10), transparent 100%)',
+            'radial-gradient(3px 2.4px at 73% 29%, rgba(216,178,92,.08), transparent 100%)',
+            'radial-gradient(2.4px 2px at 38% 61%, rgba(196,52,47,.09), transparent 100%)',
+            'radial-gradient(3.2px 2.6px at 82% 78%, rgba(216,178,92,.08), transparent 100%)',
+          ].join(','),
+          backgroundSize: '5px 5px, 11px 11px, 100% 100%, 100% 100%, 100% 100%, 100% 100%',
+          backgroundPosition: '0 0, 3px 4px, 0 0, 0 0, 0 0, 0 0',
+        }}
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-[1]"
+        style={{
+          background:
+            'linear-gradient(90deg,transparent calc(50% - 10px),rgba(0,0,0,.42) calc(50% - 3px),' +
+            'rgba(237,228,206,.055) 50%,rgba(0,0,0,.42) calc(50% + 3px),transparent calc(50% + 10px))',
+        }}
+      />
+    </>
+  );
+}
+
+/**
+ * קווי העימוד.
+ *
+ * ★ זהב עמום ולא לבן: קו לבן על נייר כהה חותך את הדף לשניים
+ *   ומושך את העין יותר מהכותרת שהוא אמור להפריד.
+ */
+function Rule({ weight, className = '' }: { weight: 'top' | 'bottom' | 'hair'; className?: string }) {
+  const style: CSSProperties =
+    weight === 'hair'
+      ? { borderTop: `1px solid ${NP.rule}` }
+      : weight === 'top'
+        ? { borderTop: `3px solid ${NP.ruleStrong}`, borderBottom: `1px solid ${NP.rule}`, height: 4 }
+        : { borderTop: `1px solid ${NP.rule}`, borderBottom: `3px solid ${NP.ruleStrong}`, height: 4 };
+  return <div aria-hidden="true" className={`relative z-[2] mx-3 ${className}`} style={style} />;
+}
+
+function Ornament() {
+  return (
+    <div aria-hidden="true" className="relative z-[2] py-2 text-center text-[11px]"
+         style={{ color: NP.goldDeep, letterSpacing: '8px' }}>
+      ✦ ✦ ✦
+    </div>
   );
 }
 
 /* ================================================================== */
-/* פס המדדים                                                           */
+/* הכותרת הראשית — הדדליין                                             */
 /* ================================================================== */
 
 /**
- * ★ למה '—' ולא אפס.
+ * ★★ למה הדדליין הוא הכותרת הראשית ★★
  *
- * "0 נקודות" ו"עוד אין תוצאות" הם שני דברים שונים לגמרי, ומשתמש
- * שרואה אפס אחרי שהגיש הרכב חושב שמשהו נשבר. מקף אומר "אין נתון
- * עדיין", ואפס אומר "נוקד, ולא הבאת".
+ * בעמוד ראשון של עיתון, הכותרת היא הדבר שדחוף היום. בלובי של
+ * דוביד יש בדיוק דבר אחד כזה: **כמה זמן נשאר להגיש**. הנקודות
+ * שלי הן היסטוריה, לוח המשחקים הוא רקע — רק השעון דורש פעולה.
+ *
+ * ★ והשעון רץ רק ביממה האחרונה.
+ *
+ * `72:14:07` כשנשארו שלושה ימים הוא מספר שאיש לא מתרגם לימים
+ * בראש, והשניות שרצות הן רעש. גרוע מזה: שעון שרץ תמיד מפסיק
+ * להיות סימן לדחיפות, ואז ביום האחרון הוא נראה בדיוק כמו תמיד.
+ * ההחלטה עצמה יושבת ב-`deadlineView` ונבדקת שם.
  */
-function StatStrip({ items }: { items: Array<{ label: string; value: string }> }) {
-  return (
-    <div className="grid grid-cols-4 overflow-hidden rounded-2xl bg-night-2/70 edge-gold">
-      {items.map((s, i) => (
-        <div
-          key={s.label}
-          className={`px-1.5 py-2.5 text-center ${i > 0 ? 'border-s border-gold/12' : ''}`}
-        >
-          <div dir="ltr" className="num text-[17px] leading-none text-gold-light">{s.value}</div>
-          <div className="mt-1 truncate text-[9.5px] font-bold text-chalk-dim">{s.label}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ================================================================== */
-/* השעון                                                               */
-/* ================================================================== */
-
-function DeadlineStrip({
-  label, open, urgent, clock, closedText,
+function Headline({
+  view, statusLabel, published, kicker,
 }: {
-  label: string;
-  open: boolean;
-  urgent: boolean;
-  clock: { days: number; clock: string };
-  closedText: string;
+  view: ReturnType<typeof deadlineView>;
+  statusLabel: string;
+  published: boolean;
+  kicker: string;
 }) {
+  const urgent = view.mode === 'urgent';
+  const closed = view.mode === 'closed';
+
   return (
-    <div
-      className={[
-        'flex items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 transition-colors',
-        urgent
-          ? 'border-flare/40 bg-flare/10'
-          : open
-            ? 'border-gold/25 bg-gold/[0.06]'
-            : 'border-gold/15 bg-night-2',
-      ].join(' ')}
-    >
+    <div className="relative z-[2] px-4 pt-2.5 text-center">
       <span
-        className={[
-          'size-1.5 shrink-0 rounded-full',
-          open ? (urgent ? 'animate-pulse bg-flare' : 'bg-gold') : 'bg-chalk-dim',
-        ].join(' ')}
-        aria-hidden="true"
-      />
-      <span className="min-w-0 flex-1 truncate text-[11px] font-black
-                       uppercase tracking-[0.16em] text-chalk-dim">
-        {label}
+        className="inline-block px-2.5 py-[2px] text-[11px] font-bold tracking-[1.5px]"
+        style={{
+          background: urgent || closed ? NP.red : NP.red,
+          color: '#fff',
+          transform: 'rotate(-1.2deg)',
+        }}
+      >
+        {closed ? statusLabel : view.flash}
       </span>
 
-      {open ? (
-        <span className="flex shrink-0 items-baseline gap-1.5">
-          {clock.days > 0 && (
-            <span className="text-[11px] font-black text-chalk-2">
-              {daysLabel(clock.days)}
-            </span>
-          )}
-          {/* המספר לחוד, העברית לחוד. עירוב ביניהם הופך
-              "4ד 02:12:38" ל-"402:12:38 ד" ברינדור. */}
-          <span
-            dir="ltr"
-            className={`num text-lg font-black leading-none ${
-              urgent ? 'text-flare' : 'text-gold-light'
-            }`}
-          >
-            {clock.clock}
-          </span>
-        </span>
-      ) : (
-        <span className="shrink-0 text-[12px] font-black text-chalk">{closedText}</span>
+      {kicker && (
+        <p className="pt-1.5 text-[11px] font-bold tracking-[3px]" style={{ color: NP.gold }}>
+          {kicker}
+        </p>
       )}
+
+      {view.ticking ? (
+        <>
+          <h2 className="font-press pt-1.5 text-[21px] font-black leading-[1.02]"
+              style={{ color: NP.ink, textShadow: MISREGISTER }}>
+            {urgent ? 'ננעל בעוד' : 'ההרכבים ננעלים בעוד'}
+          </h2>
+          {/* המספר לחוד ובכיוון שלו. עירוב עברית בתוך מספר LTR
+              הופך "02:12:38" ל-"402:12:38 ד" ברינדור. */}
+          <div
+            dir="ltr"
+            className="num pt-[3px] leading-none"
+            style={{
+              fontSize: 44,
+              letterSpacing: 1,
+              color: urgent ? NP.redLight : NP.goldLight,
+              textShadow: urgent
+                ? '0 0 20px rgba(224,87,79,.42)'
+                : '0 0 18px rgba(240,214,147,.32)',
+            }}
+          >
+            {view.value}
+          </div>
+        </>
+      ) : (
+        <h2 className="font-press pt-1.5 text-[25px] font-black leading-[1.05]"
+            style={{ color: NP.ink, textShadow: MISREGISTER }}>
+          {closed
+            ? (published ? 'התוצאות פורסמו' : 'ההרכבים נעולים')
+            : `ההרכבים ננעלים ${view.value}`}
+        </h2>
+      )}
+
+      <p className="pt-1 text-[12.5px] leading-snug" style={{ color: NP.inkDim }}>
+        {view.note}
+      </p>
     </div>
   );
 }
 
 /* ================================================================== */
-/* שורת מצב משחק                                                       */
+/* התצלום המוסרק                                                       */
 /* ================================================================== */
 
 /**
- * ★ התמונה נשארה — היא ירדה מלהיות הכרטיס להיות הרקע שלו.
+ * ★ למה תצלום שלא נושא שום מידע הוא בכל זאת נכון.
  *
- * בגרסה הקודמת האיור *היה* הכפתור, כולל ה-CTA המוטבע בו. זה עבד
- * כשהאיור היה כל מה שהיה לנו. עכשיו יש שפה: זהב על עץ, טיפוגרפיה
- * אחת, ומסגרת אחת. איור עם טקסט צרוב בפנים לא יכול להשתתף בה —
- * הוא לא מתיישר, לא מתרגם, ולא משנה מצב.
+ * עמוד ספורט בלי תמונה נראה כמו טופס. התמונה כאן לא אומרת
+ * כלום — והיא לא מתיימרת: הכיתוב מתחתיה כתוב באות נטויה ואומר
+ * "צילום: ארכיון", בדיוק כמו תצלום ארכיון בעיתון אמיתי.
  *
- * לכן: האיור מתוח לרוחב השורה ומועם, והשכבה שמעליו היא הממשק.
- * המידע — כותרת, משפט, מצב, התקדמות — הוא טקסט אמיתי.
+ * ★ ולמה זה SVG ולא קובץ.
+ *
+ * אלה בדיוק אותן דמויות שמצוירות בכרטיס השיתוף ועל המגרש: קו
+ * מתאר, ראש, חולצה עם שרוולים. תמונה אמיתית הייתה שוברת את
+ * החיבור בין שלושת המסכים — ושוקלת 80kb במסך הראשון.
+ *
+ * ★ ובגרסה הכהה היא **נגטיב**: נקודות ההלפטון בהירות על כהה.
+ *   אותו מסך דפוס, הפוך.
  */
+function PressPhoto({ gameweekNumber }: { gameweekNumber: number }) {
+  return (
+    <figure className="relative z-[2] px-3 pt-2.5">
+      <div
+        className="relative h-[88px] overflow-hidden"
+        style={{ border: `1px solid ${NP.rule}`, background: NP.grassDark }}
+      >
+        <span
+          aria-hidden="true"
+          className="absolute inset-0"
+          style={{
+            background:
+              `linear-gradient(180deg,${NP.grass} 0%,#333A2C 40%,#252E20 41%,${NP.grassDark} 100%)`,
+          }}
+        />
+        <PitchScene />
+        <span
+          aria-hidden="true"
+          className="absolute inset-0"
+          style={{
+            mixBlendMode: 'overlay',
+            opacity: 0.55,
+            backgroundImage:
+              'radial-gradient(rgba(237,228,206,.9) 1.1px,transparent 1.3px),' +
+              'radial-gradient(rgba(237,228,206,.9) 1.1px,transparent 1.3px)',
+            backgroundSize: '4px 4px, 4px 4px',
+            backgroundPosition: '0 0, 2px 2px',
+          }}
+        />
+        <span
+          className="absolute bottom-[5px] px-[7px] py-[1px] text-[9.5px] font-bold"
+          style={{ insetInlineStart: 6, background: NP.gold, color: NP.paper, letterSpacing: 1 }}
+        >
+          ליגת העל · מחזור <span className="num">{gameweekNumber}</span>
+        </span>
+      </div>
+      <figcaption className="px-1 pt-[3px] text-[9.5px] italic" style={{ color: NP.inkFaint }}>
+        מי שמכיר את הליגה — יודע מה קורה בשבת. <b>צילום: ארכיון</b>
+      </figcaption>
+    </figure>
+  );
+}
+
+function PitchScene() {
+  return (
+    <svg viewBox="0 0 320 104" preserveAspectRatio="xMidYMax slice"
+         className="absolute inset-0 h-full w-full" aria-hidden="true">
+      <g stroke={NP.ink} strokeLinejoin="round" strokeLinecap="round">
+        <g stroke="rgba(237,228,206,.55)" strokeWidth="1.5" fill="none">
+          <path d="M0 86 H320" /><path d="M232 104 V70 H320" /><path d="M264 104 V84 H320" />
+          <circle cx="86" cy="104" r="26" />
+        </g>
+        <g>
+          <path d="M14 78 L26 50 L74 50 L82 78 Z" fill="rgba(237,228,206,.10)" />
+          <g stroke="rgba(237,228,206,.35)" strokeWidth=".7">
+            <path d="M26 50 L28 78 M38 50 L38 78 M50 50 L50 78 M62 50 L62 78 M74 50 L70 78" />
+            <path d="M20 64 H78 M23 57 H76" />
+          </g>
+          <path d="M14 78 L26 50 L74 50 L82 78" fill="none" strokeWidth="2.4" />
+        </g>
+        <Figure x={126} y={80} s={1.35} shirt="#C8BFA8" striped />
+        <Figure x={196} y={86} s={1.5} shirt="#6E6A5C" />
+        <Figure x={268} y={78} s={1.15} shirt="#A9A08C" />
+        <g transform="translate(160,94)">
+          <circle r="6.5" fill={NP.ink} strokeWidth="1.6" />
+          <path d="M0 -6.5 L4 -2 L2 3.5 L-2 3.5 L-4 -2 Z" fill="#141210" />
+        </g>
+      </g>
+    </svg>
+  );
+}
+
+function Figure({
+  x, y, s, shirt, striped = false,
+}: { x: number; y: number; s: number; shirt: string; striped?: boolean }) {
+  return (
+    <g transform={`translate(${x},${y}) scale(${s})`}>
+      <g fill="#4A4438" strokeWidth="1.5">
+        <rect x="-9.5" y="6" width="7" height="17" rx="2.6" />
+        <rect x="2.5" y="6" width="7" height="17" rx="2.6" />
+      </g>
+      <path d="M-14 23 h10 v4 h-10 z M2 23 h10 v4 h-10 z" fill={NP.ink} />
+      <rect x="-11" y="-3" width="22" height="11" rx="2.6" fill="#1A1712" strokeWidth="1.5" />
+      <g fill="#4A4438" strokeWidth="1.5">
+        <rect x="-18.5" y="-18" width="6" height="16" rx="2.6" />
+        <rect x="12.5" y="-18" width="6" height="16" rx="2.6" />
+      </g>
+      <path d="M-13 -21 h26 l2 18 h-30 z" fill={shirt} strokeWidth="1.6" />
+      {striped && (
+        <path d="M-9 -21 v18 M-3 -21 v18 M3 -21 v18 M9 -21 v18"
+              stroke="#1A1712" strokeWidth="2.4" fill="none" />
+      )}
+      <circle cx="0" cy="-28" r="7" fill="#4A4438" strokeWidth="1.5" />
+      <path d="M-7 -29.5 a7 7 0 0 1 14 0 z" fill="#17140F" />
+    </g>
+  );
+}
+
+/* ================================================================== */
+/* הכתבה — מצב משחק                                                    */
+/* ================================================================== */
+
 /**
- * ★★ כרטיס המצב — כאן נולדת הזהות הנפרדת ★★
+ * ★★ כאן נולדת הזהות הנפרדת בין המצבים ★★
  *
- * עד הסבב הזה שני הכרטיסים היו זהים: אותו זהב, אותו רקע, אותה
- * איקונה כללית. שני מצבי משחק שנראים אותו דבר **נחווים** אותו
- * דבר — ואז אין סיבה לשחק בשניהם.
+ * שני מצבים שנראים אותו דבר **נחווים** אותו דבר, ואז אין סיבה
+ * לשחק בשניהם. מה שמפריד, לפי סדר החשיבות מבחינת העין:
  *
- * מה שמפריד ביניהם עכשיו, לפי סדר החשיבות מבחינת העין:
+ *   1. **פס הכותרת.** בצבע המצב, מלא מקצה לקצה. נקלט ראשון.
+ *   2. **הדיאגרמה ברקע.** מגרש חמישה מול מגרש מלא, עם מספר
+ *      הנקודות הנכון בכל אחד. היא אומרת "חמישה על מגרש קטן"
+ *      בלי מילה אחת של הסבר.
+ *   3. **הספרה המעומעמת.** `5×5` / `11×11` בגודל ענק ובאטימות
+ *      נמוכה, כמו מספר עמוד ענק בעיתון.
+ *   4. **שם הקוד.** "הרחוב" מול "הליגה".
  *
- *   1. **המשטח.** נחושת של תאורת רחוב מול ירוק של דשא. זה מה
- *      שנקלט לפני שקוראים מילה. (`modeTexture`)
- *   2. **הסמל.** כדור בקו אחד מול לוח הטקטיקה של המאמן —
- *      אותו לוח שהוא מחזיק בלוגו. (`ModeMark`)
- *   3. **שם הקוד.** "הרחוב" מול "הליגה". שתי מילים שמסבירות
- *      את כל ההבדל בלי משפט הסבר.
- *   4. **הפס התחתון.** בצבע המצב, לא בזהב.
+ * ★ מה **לא** משתנה: הטיפוגרפיה, המרווחים והגובה. שני מצבים
+ *   של אותו מוצר, לא שני מוצרים.
  *
- * ★ מה **לא** משתנה: הטיפוגרפיה, המרווחים, וגובה הכרטיס. שני
- *   מצבים של אותו מוצר, לא שני מוצרים. הזהב נשאר הקו של המותג
- *   בכל מקום שבו הוא מזוהה — התג, הכותרת, והמסגרת.
- *
- * ★ ולמה זה לא עולה כלום: אין כאן תמונות. שני האיורים
- *   (`mode-five.jpg` / `mode-full.jpg`, ~80kb כל אחד) ירדו
- *   והוחלפו בגרדיאנטים. המסך נטען מהר יותר ממה שהיה.
+ * ★ ואין כאן שום תמונה. הדיאגרמות הן SVG של כמה מאות בתים —
+ *   המסך הראשון של המוצר לא מחכה לרשת.
  */
-function ModeRow({
+function ModeArticle({
   mode, open, onPlay,
 }: { mode: LobbyMode; open: boolean; onPlay: () => void }) {
   const t = modeTheme(mode.id);
   const done = mode.state === 'submitted' || mode.state === 'scored';
-  const progress = mode.size > 0 ? Math.min(1, mode.filled / mode.size) : 0;
+  const five = mode.id === 'five';
 
   return (
     <button
       onClick={onPlay}
       aria-label={`${mode.title} — ${mode.tagline}`}
-      style={{ ...modeVars(mode.id), ...modeTexture(mode.id) }}
-      className="tap group relative block w-full overflow-hidden rounded-2xl
-                 text-start edge-gold transition-transform duration-200 ease-brand
-                 active:scale-[0.99]"
+      className="tap relative block w-full overflow-hidden text-start
+                 transition-transform duration-200 ease-brand active:scale-[.995]"
+      style={{ border: `3px double ${t.accent}99`, background: NP.card, color: t.accent }}
     >
-      {/* שטיפת הצבע של המצב — מהפינה, כמו אור שנופל */}
+      {/* פס הכותרת */}
       <span
-        aria-hidden="true"
-        className="absolute inset-0"
-        style={{ background: 'var(--mode-wash)' }}
-      />
-
-      <span className="relative flex items-center gap-3 px-3.5 py-3.5">
-        <span
-          className="grid size-11 shrink-0 place-items-center rounded-xl
-                     ring-1 ring-inset"
-          style={{
-            color: 'var(--mode-accent-light)',
-            background: 'rgba(0,0,0,.28)',
-            boxShadow: 'var(--mode-glow)',
-            // eslint-disable-next-line
-            ['--tw-ring-color' as string]: 'var(--mode-accent)',
-          }}
-        >
-          <ModeMark mode={mode.id} size={26} weight={2.6} />
-        </span>
-
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className="truncate font-poster text-[19px] leading-none text-chalk">
-              {mode.title}
-            </span>
-            <span
-              className={[
-                'shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-black leading-[14px]',
-                done
-                  ? 'bg-gold text-gold-ink'
-                  : open
-                    ? 'bg-gold/15 text-gold-light ring-1 ring-inset ring-gold/30'
-                    : 'bg-night-3 text-chalk-dim',
-              ].join(' ')}
-            >
-              {statusChip(mode, open)}
-            </span>
-          </span>
-
-          <span className="mt-1 flex items-center gap-1.5">
-            {/* ★ שם הקוד. אותיות מרווחות וקטנות — הוא חותמת,
-                לא כותרת, ואסור לו להתחרות בשם המצב. */}
-            <span
-              className="shrink-0 font-poster text-[9px] tracking-[0.22em]"
-              style={{ color: 'var(--mode-accent-light)' }}
-            >
-              {t.codeName}
-            </span>
-            <span aria-hidden="true" className="text-[9px] text-chalk-dim">·</span>
-            {/* ★ הכיתוב נלקח מלוח הניהול אם הוגדר שם, ואחרת
-                ממה שהמסך קיבל. שינוי משפט שיווקי לא דורש פריסה. */}
-            <span className="truncate text-[12px] text-chalk-2">
-              {content(`mode.${mode.id}.tagline`) || mode.tagline}
-            </span>
-          </span>
-        </span>
-
-        {mode.points !== undefined ? (
-          <span className="shrink-0 text-center">
-            <span dir="ltr" className="num block text-xl leading-none text-gold-light">
-              {mode.points}
-            </span>
-            <span className="text-[9px] text-chalk-dim">נקודות</span>
-          </span>
-        ) : (
-          <Chevron />
-        )}
+        className="block px-2 py-[3px] text-center text-[11px] font-bold"
+        style={{ background: t.accent, color: NP.paper, letterSpacing: 2 }}
+      >
+        {spaced(mode.title)} · {spaced(t.codeName)}
       </span>
 
-      {/* פס תחתון — התקדמות בבנייה, מלא כשהוגש. בצבע המצב. */}
-      <span className="absolute inset-x-0 bottom-0 h-[3px] bg-black/50" aria-hidden="true">
-        <span
-          className="block h-full transition-[width] duration-300 ease-brand"
-          style={{
-            width: `${(done ? 1 : progress) * 100}%`,
-            background:
-              'linear-gradient(90deg, var(--mode-accent-deep), var(--mode-accent-light))',
-          }}
-        />
+      {/* ---- אפקט הרקע ---- */}
+      <span aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[.22]">
+        <svg viewBox="0 0 200 60" preserveAspectRatio="none" className="h-full w-full"
+             fill="none" stroke="currentColor" strokeWidth="1.2">
+          <rect x="4" y="4" width="192" height="52" />
+          <path d="M100 4 V56" />
+          <circle cx="100" cy="30" r="11" />
+          {five ? (
+            <>
+              <path d="M4 18 H22 V42 H4" /><path d="M196 18 H178 V42 H196" />
+              <g fill="currentColor" stroke="none">
+                <circle cx="26" cy="30" r="3.4" /><circle cx="66" cy="16" r="3.4" />
+                <circle cx="66" cy="44" r="3.4" /><circle cx="128" cy="30" r="3.4" />
+                <circle cx="168" cy="30" r="3.4" />
+              </g>
+            </>
+          ) : (
+            <>
+              <path d="M4 12 H30 V48 H4" /><path d="M196 12 H170 V48 H196" />
+              <path d="M4 21 H15 V39 H4" /><path d="M196 21 H185 V39 H196" />
+              <g fill="currentColor" stroke="none">
+                <circle cx="14" cy="30" r="3" />
+                <circle cx="46" cy="12" r="3" /><circle cx="46" cy="26" r="3" />
+                <circle cx="46" cy="40" r="3" /><circle cx="46" cy="52" r="3" />
+                <circle cx="86" cy="16" r="3" /><circle cx="86" cy="30" r="3" />
+                <circle cx="86" cy="44" r="3" />
+                <circle cx="140" cy="14" r="3" /><circle cx="140" cy="30" r="3" />
+                <circle cx="140" cy="46" r="3" />
+              </g>
+            </>
+          )}
+        </svg>
+      </span>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-[.16]"
+        style={{
+          backgroundImage: 'radial-gradient(currentColor .9px,transparent 1.1px)',
+          backgroundSize: '6px 6px',
+        }}
+      />
+      <span
+        aria-hidden="true"
+        className="num pointer-events-none absolute -bottom-2 select-none leading-none opacity-[.16]"
+        style={{ insetInlineStart: 8, fontSize: 54, letterSpacing: -2 }}
+      >
+        {five ? '5×5' : '11×11'}
+      </span>
+
+      {/* ---- גוף הכתבה ---- */}
+      <span className="relative z-[1] block px-2.5 py-2">
+        <span className="flex items-start gap-2">
+          <ModeMark mode={mode.id} size={22} weight={2.8} />
+          <span className="min-w-0 flex-1 text-[12.5px] leading-snug" style={{ color: NP.inkDim }}>
+            {content(`mode.${mode.id}.tagline`) || mode.tagline}
+          </span>
+        </span>
+
+        <span aria-hidden="true" className="mt-2 block"
+              style={{ borderTop: `1px dotted ${NP.rule}` }} />
+
+        <span className="mt-1.5 flex items-center justify-between gap-2">
+          <span className="text-[12px] font-bold" style={{ color: t.accentLight }}>
+            {statusLine(mode, open)}
+          </span>
+          <span
+            className="font-press shrink-0 px-4 py-1 text-[13.5px] font-bold"
+            style={{ background: t.accent, color: NP.paper }}
+          >
+            {done ? 'לצפייה ›' : open ? 'להמשיך ›' : 'נעול'}
+          </span>
+        </span>
       </span>
     </button>
   );
 }
 
-/** תג המצב. קצר בכוונה — הוא יושב ליד כותרת, לא לבד. */
-function statusChip(mode: LobbyMode, open: boolean): string {
-  if (mode.state === 'scored') return 'התוצאה מוכנה';
+/** שורת המצב. קצרה בכוונה — היא יושבת ליד כפתור, לא לבד. */
+function statusLine(mode: LobbyMode, open: boolean): string {
+  if (mode.state === 'scored' && mode.points !== undefined) {
+    return mode.rank
+      ? `הוגש · ${mode.points} נק׳ · מקום ${mode.rank}`
+      : `הוגש · ${mode.points} נק׳`;
+  }
   if (mode.state === 'submitted') return 'ההרכב נעול';
-  if (!open) return 'נעול';
-  if (mode.state === 'draft') return `${mode.filled}/${mode.size}`;
-  return 'חדש';
+  if (!open) return 'ההגשות סגורות';
+  if (mode.state === 'draft') return `בטיוטה · ${mode.filled}/${mode.size}`;
+  return 'טרם התחלת';
 }
 
 /* ================================================================== */
+/* עמודות וטבלאות                                                      */
+/* ================================================================== */
 
-function TileButton({
+function Column({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="px-2 py-2">
+      <h3 className="text-center text-[11px] font-bold tracking-[3px]" style={{ color: NP.gold }}>
+        {title}
+      </h3>
+      <ul className="pt-[3px]">{children}</ul>
+    </div>
+  );
+}
+
+/**
+ * ★ שורה עם מובילי נקודות.
+ *
+ * זו הצורה שבה עיתון מציג "תווית · ערך" מאז ומתמיד, והיא גם
+ * פשוט קריאה יותר מרווח ריק: העין נוסעת על הנקודות במקום
+ * לחפש את הערך בצד השני.
+ *
+ * ★ '—' ולא אפס. "0 נקודות" ו"עוד אין תוצאות" הם שני דברים
+ *   שונים, ומשתמש שרואה אפס אחרי שהגיש חושב שמשהו נשבר.
+ */
+function LeaderRow({ label, value }: { label: string; value: string }) {
+  return (
+    <li className="flex items-baseline gap-1.5 px-2 py-[3px] text-[12.5px]">
+      <span className="shrink-0" style={{ color: NP.inkDim }}>{label}</span>
+      <span className="press-lead" aria-hidden="true" />
+      <span className="num shrink-0 font-bold" style={{ color: NP.goldLight }}>{value}</span>
+    </li>
+  );
+}
+
+function SectionTile({
   label, hint, icon, onClick,
 }: { label: string; hint: string; icon: ReactNode; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="tap flex flex-col items-start gap-0.5 rounded-2xl bg-night-2 px-4 py-3.5
-                 text-start edge-gold transition-colors duration-200 ease-brand
-                 active:bg-night-3"
+      className="tap flex flex-col items-start gap-0.5 px-3 py-2.5 text-start
+                 transition-colors duration-200 ease-brand"
+      style={{ border: `1px solid ${NP.rule}`, background: NP.card }}
     >
-      <span aria-hidden className="text-gold">{icon}</span>
-      <span className="mt-1.5 text-sm font-black text-chalk">{label}</span>
-      <span className="text-[11px] text-chalk-dim">{hint}</span>
+      <span aria-hidden style={{ color: NP.gold }}>{icon}</span>
+      <span className="font-press mt-1 text-[14px] font-bold" style={{ color: NP.ink }}>{label}</span>
+      <span className="text-[11px]" style={{ color: NP.inkFaint }}>{hint}</span>
     </button>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* אייקונים — מצוירים, לא תווי יוניקוד.
-   גליף כמו ◆ נראה כמו שריד ולא כמו החלטה.                             */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
 
-/** לוח טקטיקה עם חמישה סימנים — ההד של הלוח שדוביד מחזיק בלוגו. */
+/** אותיות מרווחות. `letter-spacing` היה מרווח גם אחרי האות האחרונה. */
+function spaced(s: string): string {
+  return s.split('').join(' ');
+}
 
-/** מגרש מלא עם שלוש שורות — 11 נקודות בדיוק. */
-
-function Chevron() {
-  return (
-    // ב-RTL החץ מצביע שמאלה. `scale-x-[-1]` היה מסובב אותו לכיוון
-    // הלא־נכון בדסקטופ LTR — לכן הצורה עצמה כתובה לכיוון הנכון.
-    <svg viewBox="0 0 12 20" width="11" height="18" aria-hidden="true"
-         className="shrink-0 text-gold/60">
-      <path d="M9 2 3 10l6 8" fill="none" stroke="currentColor"
-            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+function announceStyle(tone: string): CSSProperties {
+  if (tone === 'alert') return { borderColor: '#C4342F', background: 'rgba(196,52,47,.12)', color: NP.redLight };
+  if (tone === 'warn') return { borderColor: '#D8B25C', background: 'rgba(216,178,92,.10)', color: NP.goldLight };
+  return { borderColor: NP.rule, background: NP.card, color: NP.inkDim };
 }
 
 function TileShades() {
@@ -629,9 +805,9 @@ function TileShades() {
 function TilePodium() {
   return (
     <svg viewBox="0 0 28 20" width="26" height="19" aria-hidden="true">
-      <rect x="10" y="2"  width="8" height="18" rx="1.5" fill="currentColor" />
-      <rect x="1"  y="8"  width="8" height="12" rx="1.5" fill="currentColor" opacity=".6" />
-      <rect x="19" y="12" width="8" height="8"  rx="1.5" fill="currentColor" opacity=".4" />
+      <rect x="10" y="2" width="8" height="18" rx="1.5" fill="currentColor" />
+      <rect x="1" y="8" width="8" height="12" rx="1.5" fill="currentColor" opacity=".6" />
+      <rect x="19" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".4" />
     </svg>
   );
 }

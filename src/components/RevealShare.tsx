@@ -118,7 +118,7 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
           <ModeMark mode={data.mode} size={22} weight={2.8} />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="font-poster text-[17px] leading-none text-chalk">ההרכב נעול</h2>
+          <h2 className="font-press text-[18px] font-black leading-none text-chalk">ההרכב נעול</h2>
           <p className="mt-1 truncate text-[11.5px] text-chalk-dim">
             {t.name} · {data.gameweekLabel}
             {data.deadlineLabel && ` · נעילה ${data.deadlineLabel}`}

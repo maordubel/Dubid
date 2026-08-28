@@ -145,7 +145,7 @@ export function Leaderboard({
   return (
     <div className="mx-auto max-w-3xl px-4 py-5">
       <header className="mb-4">
-        <h2 className="font-display text-xl font-black">דירוג חכמים</h2>
+        <h2 className="font-press text-xl font-black">דירוג חכמים</h2>
         <p className="text-xs text-chalk-dim">
           {GAMEWEEK.label} · {entries.length} הרכבים הוגשו
         </p>

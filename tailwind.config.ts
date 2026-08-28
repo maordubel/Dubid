@@ -58,6 +58,20 @@ export default {
         tartan:   { red: '#C8332F', green: '#2E7D4F' },
       },
       fontFamily: {
+        /*
+         * ★ ארבע משפחות, ולכל אחת תפקיד אחד.
+         *
+         *   press   — עיתון. כותרות, מאסטהד, שמות מצבים, כותרות
+         *             מדור. סריפי, וזה מה שהופך מסך לעמוד מודפס.
+         *   display — כותרות ממשק שאינן "עיתון": מודלים, גיליונות.
+         *   poster  — מספרים בלבד. אנטון, צר וכבד, כמו מספרי חולצה.
+         *   sans    — גוף הטקסט. נקרא היטב בגדלים קטנים.
+         *
+         * הגבול בין `press` ל-`display` אינו קפריזה: כותרת סריפית
+         * בתוך גיליון בחירת שחקן נראית כמו טעות, וכותרת סאנס
+         * בעמוד הראשי הורסת את כל האווירה.
+         */
+        press:   ['"Frank Ruhl Libre"', '"David Libre"', 'Georgia', 'serif'],
         display: ['"Narkiss Block"', 'Heebo', 'system-ui', 'sans-serif'],
         poster:  ['Anton', 'Heebo', 'system-ui', 'sans-serif'],
         sans:    ['"Almoni Neue"', 'Assistant', 'Heebo', 'system-ui', 'sans-serif'],

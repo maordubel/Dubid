@@ -163,7 +163,7 @@ export function AdminSquads() {
           {team && (
             <>
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="font-display text-base font-black text-chalk">{team.nameHe}</h3>
+                <h3 className="font-press text-base font-black text-chalk">{team.nameHe}</h3>
                 <button
                   onClick={() => setAdding((v) => !v)}
                   className="tap rounded-full bg-gradient-to-b from-gold-light to-gold px-3 py-1.5

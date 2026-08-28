@@ -9,7 +9,8 @@ import assert from 'node:assert/strict';
 import {
   GameweekStatus, canTransition, nextStatuses, dueStatus,
   isSubmissionOpen, msUntilDeadline, areResultsVisible, isVisibleToUsers,
-  countdown, daysLabel, type Gameweek,
+  countdown, daysLabel, deadlineView, TICK_FROM_MS, URGENT_FROM_MS,
+  type Gameweek,
 } from '../src/lib/gameweek.ts';
 
 const DEADLINE = '2026-08-29T18:00:00Z';
@@ -149,4 +150,61 @@ test('★ מפת המעברים ב-TS זהה לזו שב-SQL', async () => {
       assert.ok(line!.includes(`'${to}'`), `SQL: ${from} -> ${to} חסר`);
     }
   }
+});
+
+/* ================================================================== */
+/* איך מציגים את הזמן שנותר                                            */
+/* ================================================================== */
+
+/**
+ * ★ למה זה נבדק ולא "נראה בסדר".
+ *
+ * הסף הזה קובע מתי המוצר צועק. אם השעון רץ כל השבוע, הוא רעש;
+ * אם הוא לא רץ ביום האחרון, הדחיפות נעלמת. שתי התקלות שקטות
+ * לחלוטין — המסך תמיד מציג *משהו*.
+ */
+test('יותר מיממה: ימים, בלי שעון רץ', () => {
+  const v = deadlineView(50 * 3600_000);
+  assert.equal(v.mode, 'far');
+  assert.equal(v.value, 'בעוד יומיים');
+  assert.equal(v.ticking, false);
+});
+
+test('רגע לפני היממה עדיין ימים, ורגע אחרי — שעון', () => {
+  assert.equal(deadlineView(TICK_FROM_MS).mode, 'far');
+  assert.equal(deadlineView(TICK_FROM_MS - 1000).mode, 'today');
+});
+
+test('היממה האחרונה: שעון רץ בפורמט HH:MM:SS', () => {
+  const v = deadlineView(7 * 3600_000 + 42 * 60_000 + 15_000);
+  assert.equal(v.mode, 'today');
+  assert.equal(v.ticking, true);
+  assert.equal(v.value, '07:42:15');
+  assert.match(v.value, /^\d{2}:\d{2}:\d{2}$/);
+});
+
+test('השעה האחרונה: אותו שעון, מצב דחוף', () => {
+  assert.equal(deadlineView(URGENT_FROM_MS).mode, 'today');
+  assert.equal(deadlineView(URGENT_FROM_MS - 1000).mode, 'urgent');
+  assert.equal(deadlineView(38 * 60_000).value, '00:38:00');
+});
+
+test('אחרי הדדליין: אין שעון ואין ספירה', () => {
+  const v = deadlineView(0);
+  assert.equal(v.mode, 'closed');
+  assert.equal(v.ticking, false);
+  assert.equal(deadlineView(-5000).mode, 'closed');
+});
+
+test('כל מצב מחזיר תווית ומשפט — אין מסך חצי ריק', () => {
+  for (const ms of [-1, 0, 60_000, 3600_000, 25 * 3600_000, 400 * 3600_000]) {
+    const v = deadlineView(ms);
+    assert.ok(v.value.length > 0, `value ב-${ms}`);
+    assert.ok(v.flash.length > 0, `flash ב-${ms}`);
+    assert.ok(v.note.length > 0, `note ב-${ms}`);
+  }
+});
+
+test('יום אחד בדיוק אינו "בעוד 1 ימים"', () => {
+  assert.equal(deadlineView(30 * 3600_000).value, 'בעוד יום');
 });

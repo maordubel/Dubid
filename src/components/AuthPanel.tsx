@@ -113,7 +113,7 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
                         bg-gold/12 text-2xl ring-1 ring-inset ring-gold/30">
           ✉
         </div>
-        <h3 className="font-display text-base font-black text-chalk">שלחנו לך מייל</h3>
+        <h3 className="font-press text-base font-black text-chalk">שלחנו לך מייל</h3>
         <p className="mt-1.5 text-[12.5px] leading-snug text-chalk-2">
           לחצו על הקישור שנשלח ל<bdi dir="ltr" className="font-bold text-chalk">{sentTo}</bdi>{' '}
           כדי לאשר את החשבון. הקישור מחזיר בדיוק לכאן.

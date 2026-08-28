@@ -64,7 +64,7 @@ export function ScoreBreakdown({
       {/* ---- הכותרת: הציון, גדול ---- */}
       <header className="flex items-baseline justify-between gap-3 border-b border-gold/15
                          bg-night-3/50 px-4 py-3">
-        <h3 className="font-display text-sm font-black text-chalk-dim">פירוט הניקוד</h3>
+        <h3 className="font-press text-sm font-black text-chalk-dim">פירוט הניקוד</h3>
         <div className="num text-3xl font-black leading-none text-gold" dir="ltr">
           {score.totalPoints}
         </div>
