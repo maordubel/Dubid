@@ -783,6 +783,45 @@ export function offsidesCallbackUrl(): string {
   return `${OFFSIDES_PROJECT.url}/auth/v1/callback`;
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * ★★★ "אחרי גוגל זה שולח אותי ל-Vercel" ★★★
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * זו לא תקלה בקוד אלא שרשרת הפניות שקל לא לראות:
+ *
+ *   1. הדפדפן הולך לגוגל.
+ *   2. גוגל מפנה ל-**Supabase** (`/auth/v1/callback`).
+ *   3. Supabase מפנה ל-`redirectTo` שביקשנו —
+ *      **אבל רק אם הוא ברשימת ההיתר.**
+ *   4. אם הוא לא ברשימה, Supabase מתעלמת ממנו בשקט ומפנה
+ *      ל-**Site URL** של הפרויקט.
+ *
+ * ולכן, אם Site URL עדיין מצביע לכתובת ה-Vercel הזמנית, כל
+ * התחברות נוחתת שם — בלי שום שגיאה, כי מבחינת Supabase הכל
+ * עבד בדיוק כמתוכנן.
+ *
+ * ★★ ולמה זה גרוע יותר מ"נחתתי בכתובת הלא נכונה" ★★
+ *
+ * הסשן נשמר ב-`localStorage` של **המקור שאליו נחתת**. כלומר
+ * המשתמש מחובר ב-Vercel, וכשהוא חוזר לדומיין האמיתי הוא נראה
+ * מנותק — ומנסה להתחבר שוב, ושוב נוחת ב-Vercel.
+ *
+ * ההגנה: `redirectTo` הוא תמיד המקור הנוכחי (כדי שפיתוח מקומי
+ * ו-staging ימשיכו לעבוד), והפונקציה הזו נותנת ללוח הניהול את
+ * מה שצריך כדי לומר "אתה לא על הדומיין הנכון".
+ */
+export function isCanonicalOrigin(): boolean {
+  try {
+    return window.location.origin === DUBID_URL;
+  } catch {
+    return true;   // מחוץ לדפדפן אין מה לבדוק
+  }
+}
+
+/** הדומיין שהמוצר אמור לחיות בו. */
+export const CANONICAL_ORIGIN = DUBID_URL;
+
 /** סיסמה אופציונלית, אחרי שהמייל אומת. בלעדיה נכנסים בקוד למייל. */
 export async function upgradeSetPassword(password: string): Promise<void> {
   if (password.length < 6) throw new Error('PASSWORD_TOO_SHORT');
@@ -890,4 +929,63 @@ export const AUTH_ERROR_HE: Record<string, string> = {
 
 export function authMessageHe(code: string): string {
   return AUTH_ERROR_HE[code] ?? AUTH_ERROR_HE.AUTH_FAILED;
+}
+
+/* ================================================================== */
+/* פרופיל המאמן                                                        */
+/* ================================================================== */
+
+/**
+ * ★ מה שהמסד באמת יודע, ולא מה שנחמד להציג.
+ *
+ * שדות הניקוד הם `null` כשעוד לא נוקד מחזור — ולא אפס. אפס
+ * נראה כמו כישלון; ריק נראה כמו "עוד לא". במסך שכל תפקידו
+ * לגרום למישהו להרגיש שיש לו כאן משהו, ההבדל הזה הוא הכל.
+ */
+export interface CoachProfile {
+  displayName: string;
+  username: string | null;
+  avatar: string | null;
+  email: string | null;
+  isGuest: boolean;
+  referralCode: string | null;
+  memberSince: string;
+  played: number;
+  playedFive: number;
+  playedFull: number;
+  totalPoints: number | null;
+  bestPoints: number | null;
+  bestRank: number | null;
+  scored: number;
+  hasPass: boolean;
+  leagues: number;
+  history: Array<{
+    gw: string;
+    gwNumber: number;
+    gwLabel: string;
+    mode: 'five' | 'full';
+    teamName: string | null;
+    submitted: string;
+    points: number | null;
+    rank: number | null;
+  }>;
+}
+
+export async function myProfile(): Promise<CoachProfile | null> {
+  try {
+    const { data, error } = await supabase.rpc('my_profile');
+    if (error || !data) return null;
+    return data as CoachProfile;
+  } catch {
+    return null;
+  }
+}
+
+export async function setAvatar(avatar: string): Promise<void> {
+  const { error } = await supabase.rpc('set_avatar', { p_avatar: avatar });
+  if (error) throw new Error('AVATAR_FAILED');
+  if (current) {
+    current = { ...current, avatar };
+    emit();
+  }
 }

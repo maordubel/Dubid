@@ -37,6 +37,7 @@ const FILES = [
   ['18_hardening.sql',         '★ הקשחה — סגירת הגישה הישירה לטבלאות, RLS, קצב, ביקורת'],
   ['19_guest_pass.sql',        'כרטיס המנוי של האורח, לכידת לידים, ומשפך'],
   ['20_pass_sql_only.sql',     '★ כרטיס המנוי בלי Edge Functions — הכל ב-SQL'],
+  ['21_coach_profile.sql',     'פרופיל המאמן — היסטוריה, שיאים ואווטאר'],
 ];
 
 const bar = '=' .repeat(69);

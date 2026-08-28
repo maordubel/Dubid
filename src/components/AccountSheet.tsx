@@ -1,5 +1,5 @@
 /**
- * components/AccountSheet.tsx — החשבון שלי.
+ * components/AccountSheet.tsx — פרופיל המאמן.
  *
  * ★ שלושה דברים, ובכוונה לא יותר
  *
@@ -18,15 +18,14 @@
  */
 import { useEffect, useState } from 'react';
 import {
-  currentIdentity, redeemAccessCode, authMessageHe,
-  requestOffsidesCode, linkOffsidesAccount, setDisplayName, storedDisplayName,
-  signOut, type Identity,
+  currentIdentity, redeemAccessCode,
+  setDisplayName, storedDisplayName, myProfile, setAvatar, AVATAR_POOL,
+  signOut, type Identity, type CoachProfile,
 } from '../lib/identity.ts';
 import { AuthPanel } from './AuthPanel.tsx';
-import { OFFSIDES } from '../lib/growth.ts';
 import { LogoMark } from './Logo.tsx';
 
-type Tab = 'me' | 'move' | 'offsides';
+type Tab = 'me' | 'move';
 
 export function AccountSheet({
   onClose, onShowPass, hasPass = false,
@@ -49,15 +48,15 @@ export function AccountSheet({
     >
       <div
         role="dialog"
-        aria-label="החשבון שלי"
+        aria-label="פרופיל המאמן"
         onClick={(e) => e.stopPropagation()}
-        className="tex-wood max-h-[88dvh] w-full max-w-lg animate-slideUp overflow-y-auto
+        className="tex-wood max-h-[92dvh] w-full max-w-lg animate-slideUp overflow-y-auto
                    rounded-t-3xl border-t border-gold/25 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
       >
         <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gold/15
                         bg-night/85 px-4 py-3 backdrop-blur">
           <LogoMark size={28} />
-          <h2 className="flex-1 font-press text-lg font-black text-chalk">החשבון שלי</h2>
+          <h2 className="flex-1 font-press text-lg font-black text-chalk">פרופיל המאמן</h2>
           <button
             onClick={onClose}
             aria-label="סגירה"
@@ -72,7 +71,9 @@ export function AccountSheet({
                 התווית הישנה תיארה תרחיש; החדשה מתארת **חפץ
                 שיש לי**. משתמש שמחפש איך לא לאבד את החשבון לא
                 חושב "מכשיר חדש" — הוא חושב "איפה השמירה שלי". */}
-          {([['me', 'החשבון'], ['move', 'הכרטיס שלי'], ['offsides', OFFSIDES.nameHe]] as const)
+          {/* ★ שתי לשוניות, לא שלוש. ראו את ההערה על הסרת
+              לשונית אופסיידס בתחתית הקובץ. */}
+          {([['me', 'פרופיל המאמן'], ['move', 'הכרטיס שלי']] as const)
             .map(([id, label]) => (
               <button
                 key={id}
@@ -88,11 +89,10 @@ export function AccountSheet({
         </div>
 
         <div className="px-4 py-4">
-          {tab === 'me' && <MeTab identity={identity} />}
+          {tab === 'me' && <ProfileTab identity={identity} onShowPass={onShowPass} />}
           {tab === 'move' && (
             <MoveTab onDone={onClose} onShowPass={onShowPass} hasPass={hasPass} />
           )}
-          {tab === 'offsides' && <OffsidesTab onDone={onClose} />}
         </div>
       </div>
     </div>
@@ -101,22 +101,219 @@ export function AccountSheet({
 
 /* ================================================================== */
 
-function MeTab({ identity }: { identity: Identity | null }) {
+/* ================================================================== */
+/* פרופיל המאמן                                                        */
+/* ================================================================== */
+
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * ★★★ למה המסך הזה קיים ★★★
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * משתמש שנכנס עם גוגל ראה בדיוק את מה שראה קודם: אותו לובי,
+ * אותו שם. שום סימן שמשהו השתנה — ולכן ההתחברות הרגישה כמו
+ * טופס שמילא בשביל כלום.
+ *
+ * ★ וזו לא בעיה קוסמטית אלא בעיה של **תמורה**.
+ *
+ * אנחנו מבקשים מאדם לוותר על אנונימיות. אם מה שהוא מקבל בתמורה
+ * בלתי נראה, הבקשה הבאה שלנו תיענה בפחות נכונות — והוא צודק.
+ *
+ * הפרופיל הוא התמורה: מקום שבו **מצטבר** מה שעשית. ככל שיש בו
+ * יותר, כך פחות רוצים לאבד אותו — וזה מה שהופך חשבון מ"טופס"
+ * ל"דבר ששייך לי".
+ *
+ * ═══════════════════════════════════════════════════════════════
+ * ★ שלוש החלטות
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * **1. גם לאורח יש פרופיל.**
+ *    הוא לא מסך שנפתח אחרי הרשמה — הוא מסך שקיים תמיד, ומתמלא
+ *    ככל שמשחקים. אורח שרואה שכבר הצטברו לו שלושה מחזורים מבין
+ *    לבד מה הוא עומד לאבד. זה משכנע יותר מכל משפט שנכתוב.
+ *
+ * **2. אין מספרים מומצאים.**
+ *    מחזור שלא נוקד מציג "—" ולא 0. אפס נראה כמו כישלון; מקף
+ *    נראה כמו "עוד לא". במסך שכל תפקידו לגרום למישהו להרגיש
+ *    טוב עם מה שבנה, ההבדל הזה הוא הכל.
+ *
+ * **3. האווטאר נבחר, לא מוגרל.**
+ *    בחירה קטנה היא בעלות. מי שבחר את הפרצוף שלו התחיל להשקיע,
+ *    ומי שהשקיע נשאר.
+ */
+function ProfileTab({
+  identity, onShowPass,
+}: { identity: Identity | null; onShowPass?: () => void }) {
+  const [p, setP] = useState<CoachProfile | null>(null);
   const [name, setName] = useState(storedDisplayName());
   const [saved, setSaved] = useState(false);
+  const [pickAvatar, setPickAvatar] = useState(false);
   const guest = identity?.isGuest !== false;
+
+  useEffect(() => { void myProfile().then(setP); }, [identity?.id]);
+
+  const avatar = p?.avatar || identity?.avatar || '⚽';
 
   return (
     <div className="space-y-4">
+      {/* ═══════════ הכותרת — מי אתה ═══════════ */}
+      <section className="rounded-2xl bg-night-2 p-4 edge-gold">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setPickAvatar((v) => !v)}
+            aria-label="שינוי אווטאר"
+            className="tap grid size-16 shrink-0 place-items-center rounded-2xl bg-night
+                       text-3xl ring-1 ring-inset ring-gold/30"
+          >
+            {avatar}
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <h3 className="font-press truncate text-[19px] font-black leading-tight text-chalk">
+              {p?.displayName || name || 'מאמן'}
+            </h3>
+            {p?.username && (
+              <p className="truncate text-[12px] text-chalk-dim">
+                <bdi dir="ltr">@{p.username}</bdi>
+              </p>
+            )}
+            <p className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span
+                className={`rounded px-1.5 py-px text-[9.5px] font-black ${
+                  guest ? 'bg-chalk/10 text-chalk-dim' : 'bg-gold/20 text-gold'}`}
+              >
+                {guest ? 'אורח' : 'חשבון קבוע'}
+              </span>
+              {p?.hasPass && (
+                <span className="rounded bg-gold/12 px-1.5 py-px text-[9.5px] font-black text-gold">
+                  יש כרטיס
+                </span>
+              )}
+              {p && (
+                <span className="text-[10.5px] text-chalk-dim">
+                  מאמן מאז{' '}
+                  <span className="num">
+                    {new Date(p.memberSince).toLocaleDateString('he-IL', {
+                      month: '2-digit', year: 'numeric', timeZone: 'Asia/Jerusalem',
+                    })}
+                  </span>
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+
+        {pickAvatar && (
+          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-gold/12 pt-3">
+            {AVATAR_POOL.map((a) => (
+              <button
+                key={a}
+                onClick={() => {
+                  setPickAvatar(false);
+                  setP((x) => (x ? { ...x, avatar: a } : x));
+                  void setAvatar(a);
+                }}
+                className={`tap grid size-11 place-items-center rounded-xl text-xl
+                            ${a === avatar ? 'bg-gold/20 ring-1 ring-gold' : 'bg-night'}`}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ═══════════ מה עשית ═══════════ */}
       {/*
-        ★ הסדר כאן הוא ההצעה.
+        ★ ארבעה מספרים, ולא שמונה.
 
-        לאורח, הדבר הראשון שהוא רואה הוא ההרשמה — כי זה מה שהוא
-        בא לחפש אם הוא פתח את המסך הזה בכלל. למשתמש רשום, הדבר
-        הראשון הוא השם שלו, כי אין לו מה לעשות עם טופס הרשמה.
-
-        אותו מסך, שתי כוונות, בלי מסך נפרד לכל אחת.
+        פרופיל עמוס נקרא כדוח. ארבעה מספרים גדולים נקראים
+        כהישג — וזה מה שהמסך הזה אמור לעשות.
       */}
+      <section className="grid grid-cols-4 gap-2">
+        <Metric label="מחזורים" value={p?.played ?? 0} />
+        <Metric label="נקודות" value={p?.totalPoints ?? null} />
+        <Metric label="שיא" value={p?.bestPoints ?? null} />
+        <Metric label="מקום הכי טוב" value={p?.bestRank ?? null} prefix="#" />
+      </section>
+
+      {p && p.played === 0 && (
+        <p className="rounded-xl border border-gold/15 bg-night-2 px-3 py-3 text-center
+                      text-[12px] leading-snug text-chalk-dim">
+          עוד לא הגשת הרכב. ברגע שתגיש, המחזור יופיע כאן —
+          וההיסטוריה שלך מתחילה להצטבר.
+        </p>
+      )}
+
+      {/* ═══════════ ההיסטוריה ═══════════ */}
+      {p && p.history.length > 0 && (
+        <section className="overflow-hidden rounded-2xl border border-gold/15 bg-night-2">
+          <div className="flex items-baseline justify-between border-b border-gold/15 px-4 py-2.5">
+            <span className="text-[11px] font-black tracking-[2px] text-gold">
+              ההיסטוריה שלי
+            </span>
+            <span className="text-[10.5px] text-chalk-dim">
+              <span className="num">{p.played}</span> הגשות
+            </span>
+          </div>
+          <ul>
+            {p.history.map((h) => (
+              <li
+                key={`${h.gw}-${h.mode}`}
+                className="flex items-center gap-3 border-b border-gold/10 px-4 py-2.5 last:border-0"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-black text-chalk">
+                    {h.teamName || h.gwLabel}
+                  </span>
+                  <span className="block truncate text-[10.5px] text-chalk-dim">
+                    {h.gwLabel} · {h.mode === 'five' ? 'דוביד 5' : 'דוביד 11'}
+                    {h.rank && <> · מקום <span className="num">{h.rank}</span></>}
+                  </span>
+                </span>
+                {/* ★ מקף ולא אפס. מחזור שלא נוקד הוא "עוד לא",
+                    לא "נכשלת". */}
+                <span className="num shrink-0 text-[15px] text-gold-light">
+                  {h.points === null ? <span className="text-chalk-dim">—</span> : h.points}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* ═══════════ השם ═══════════ */}
+      <section className="rounded-2xl bg-night-2 p-4 edge-gold">
+        <h3 className="text-sm font-black text-chalk">שם המאמן</h3>
+        <p className="mt-1 text-[12px] leading-snug text-chalk-2">
+          זה מה שמופיע בטבלה ובכרטיס השיתוף.
+        </p>
+        <div className="mt-2.5 flex gap-2">
+          <input
+            value={name}
+            onChange={(e) => { setName(e.target.value); setSaved(false); }}
+            maxLength={20}
+            placeholder="איך יקראו לך בטבלה"
+            className="min-w-0 flex-1 rounded-xl border border-gold/25 bg-night px-3 py-2.5
+                       text-chalk outline-none focus:border-gold"
+          />
+          <button
+            onClick={() => {
+              void setDisplayName(name).then(() => {
+                setSaved(true);
+                void myProfile().then(setP);
+              });
+            }}
+            disabled={!name.trim()}
+            className="tap shrink-0 rounded-xl bg-gold px-4 text-[13px] font-black
+                       text-gold-ink disabled:opacity-40"
+          >
+            {saved ? 'נשמר ✓' : 'שמירה'}
+          </button>
+        </div>
+      </section>
+
+      {/* ═══════════ הרשמה — רק לאורח ═══════════ */}
       {guest && (
         <section>
           <div className="mb-2.5">
@@ -126,15 +323,18 @@ function MeTab({ identity }: { identity: Identity | null }) {
             {/*
               ★ הניסוח הזה עבר כמה גרסאות, וזו הנקודה.
 
-              "הירשם עכשיו" מוכר משהו. "אתה משחק כאורח — ההרכבים
-              שלך חיים בדפדפן הזה בלבד" מתאר מצב, ונותן למשתמש
-              להחליט בעצמו אם הוא מפריע לו. השנייה עובדת טוב יותר
-              כי היא נכונה.
+              "הירשם עכשיו" מוכר משהו. תיאור של מצב — "ההרכבים
+              שלך חיים בדפדפן הזה בלבד" — נותן למשתמש להחליט
+              בעצמו. השנייה עובדת טוב יותר כי היא נכונה.
+
+              ★★ ועכשיו יש לה גם עוגן: המספרים שמעל. אורח שרואה
+              שהצטברו לו ארבעה מחזורים מבין לבד מה הוא עומד
+              לאבד, וזה משכנע יותר מכל משפט.
             */}
             <p className="mt-1 text-[12.5px] leading-snug text-chalk-2">
-              עכשיו אתם משחקים כאורח, וזה בסדר גמור. רק שימו לב:
-              הזהות הזו חיה בדפדפן הזה בלבד. חשבון שומר את ההרכבים,
-              הדירוג וההיסטוריה גם אם תנקו נתונים או תחליפו מכשיר.
+              {p && p.played > 0
+                ? `כבר יש כאן ${p.played} הגשות שלך. הן חיות בדפדפן הזה בלבד — חשבון שומר אותן לתמיד.`
+                : 'עכשיו אתם משחקים כאורח, וזה בסדר גמור. רק שימו לב: הזהות הזו חיה בדפדפן הזה בלבד.'}
             </p>
           </div>
           <AuthPanel />
@@ -144,83 +344,58 @@ function MeTab({ identity }: { identity: Identity | null }) {
         </section>
       )}
 
-      <label className="block">
-        <span className="text-[11px] font-black uppercase tracking-[0.18em] text-chalk-dim">
-          השם שלי בדירוג
-        </span>
-        <input
-          value={name}
-          onChange={(e) => { setName(e.target.value); setSaved(false); }}
-          onBlur={() => { if (name.trim()) { void setDisplayName(name).then(() => setSaved(true)); } }}
-          placeholder="איך יקראו לי בטבלה"
-          className="mt-1.5 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5
-                     text-chalk outline-none focus:border-gold"
-        />
-        {saved && <span className="mt-1 block text-[11px] text-gold">נשמר</span>}
-      </label>
+      {/* ═══════════ פעולות ═══════════ */}
+      <section className="space-y-2">
+        {onShowPass && (
+          <button
+            onClick={onShowPass}
+            className="tap w-full rounded-xl border border-gold/25 py-2.5 text-[13px]
+                       font-bold text-gold-light"
+          >
+            {p?.hasPass ? 'הכרטיס שלי' : 'קבלת כרטיס מנוי'}
+          </button>
+        )}
 
-      <div className="rounded-2xl bg-night-2 p-4 edge-gold">
-        <div className="flex items-start gap-3">
-          {identity?.avatar && (
-            <span className="grid size-10 shrink-0 place-items-center rounded-full
-                             bg-night text-xl ring-1 ring-inset ring-gold/25">
-              {identity.avatar}
-            </span>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-chalk-dim">
-              סוג החשבון
-            </div>
-            <div className="mt-0.5 text-sm font-bold text-chalk">
-              {identity?.offsidesUserId
-                ? `מקושר ל${OFFSIDES.nameHe}`
-                : guest ? 'אורח — בלי הרשמה' : 'חשבון רשום'}
-            </div>
-            {identity?.username && (
-              <div className="mt-0.5 truncate text-[12px] text-chalk-2">
-                <bdi>{identity.username}</bdi>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <p className="mt-2.5 text-[12px] leading-snug text-chalk-2">
-          {identity?.online
-            ? 'ההרכבים והדירוג נשמרים בשרת, ולכן הם זהים בכל מכשיר שתיכנסו ממנו.'
-            : 'אין כרגע חיבור לשרת. המשחק עובד, אבל הנתונים לא מסונכרנים בין מכשירים.'}
-        </p>
-
-        {identity?.referralCode && !guest && (
-          <div className="mt-3 border-t border-gold/10 pt-3">
-            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-chalk-dim">
-              קוד ההפניה שלי
-            </div>
-            <div dir="ltr" className="num mt-0.5 text-lg text-gold-light">
-              {identity.referralCode}
+        {p?.referralCode && (
+          <div className="rounded-xl bg-night-2 px-3 py-2.5 edge-gold">
+            <div className="flex items-baseline gap-2">
+              <span className="flex-1 text-[11px] text-chalk-dim">קוד ההפניה שלי</span>
+              <span className="num text-[13px] font-black text-gold" dir="ltr">
+                {p.referralCode}
+              </span>
             </div>
           </div>
         )}
-      </div>
 
-      {!guest && (
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm('לצאת מהחשבון? תחזרו לשחק כאורח.')) {
-              void signOut().then(() => window.location.reload());
-            }
-          }}
-          className="tap w-full rounded-full border border-chalk/15 py-2.5 text-[12.5px]
-                     font-bold text-chalk-dim transition-colors active:bg-night-2"
-        >
-          יציאה מהחשבון
-        </button>
-      )}
+        {!guest && (
+          <button
+            onClick={() => { void signOut().then(() => window.location.reload()); }}
+            className="tap w-full rounded-xl border border-flare/30 py-2.5 text-[12.5px]
+                       font-bold text-flare"
+          >
+            יציאה מהחשבון
+          </button>
+        )}
+      </section>
     </div>
   );
 }
 
-/* ================================================================== */
+/** מספר גדול עם תווית קטנה. `null` = "עוד לא", ומוצג כמקף. */
+function Metric({
+  label, value, prefix = '',
+}: { label: string; value: number | null; prefix?: string }) {
+  return (
+    <div className="rounded-xl border border-gold/12 bg-night-2 px-1 py-2.5 text-center">
+      <div className="num text-[19px] leading-none text-gold">
+        {value === null || value === undefined
+          ? <span className="text-chalk-dim">—</span>
+          : `${prefix}${value}`}
+      </div>
+      <div className="mt-1 text-[9.5px] leading-tight text-chalk-dim">{label}</div>
+    </div>
+  );
+}
 
 function MoveTab({
   onDone, onShowPass, hasPass,
@@ -321,107 +496,26 @@ function MoveTab({
   );
 }
 
-function OffsidesTab({ onDone }: { onDone: () => void }) {
-  const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [stage, setStage] = useState<'email' | 'code'>('email');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const send = () => {
-    setBusy(true); setError(null);
-    void requestOffsidesCode(email)
-      .then(() => setStage('code'))
-      .catch(() => setError(
-        `לא נמצא חשבון ${OFFSIDES.nameHe} עם המייל הזה, או שהשליחה נכשלה.`))
-      .finally(() => setBusy(false));
-  };
-
-  const link = () => {
-    setBusy(true); setError(null);
-    void linkOffsidesAccount(email, otp)
-      .then(() => { window.location.reload(); onDone(); })
-      /* ★ הודעה שמבדילה בין "קוד שגוי" לבין "התכונה לא הופעלה".
-         הודעה אחת לשני מצבים שולחת את המשתמש לבדוק את המייל
-         שלו שוב ושוב על בעיה שהיא לא שלו. */
-      .catch((e: unknown) => setError(authMessageHe(
-        e instanceof Error ? e.message : '')))
-      .finally(() => setBusy(false));
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-2xl bg-night-2 p-4 edge-gold">
-        <h3 className="text-sm font-black text-chalk">
-          כבר יש לי חשבון {OFFSIDES.nameHe}
-        </h3>
-        {/*
-          ★ הניסוח כאן חשוב לא פחות מהקוד.
-          "אותו חשבון" הוא ההבטחה. אם המשתמש יחשוב שהוא נרשם
-          מחדש — הוא לא ילחץ.
-        */}
-        <p className="mt-1 text-[12px] leading-snug text-chalk-2">
-          אותו חשבון, בלי הרשמה מחדש. נשלח קוד למייל שרשום
-          ב{OFFSIDES.nameHe}, וזה כל מה שצריך.
-        </p>
-
-        {stage === 'email' ? (
-          <>
-            <input
-              type="email"
-              dir="ltr"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="mt-3 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5
-                         text-chalk outline-none focus:border-gold"
-            />
-            <button
-              onClick={send}
-              disabled={busy || !email.includes('@')}
-              className="tap mt-3 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
-                         py-2.5 font-poster text-gold-ink disabled:opacity-40"
-            >
-              {busy ? 'שולח…' : 'שליחת קוד'}
-            </button>
-          </>
-        ) : (
-          <>
-            <input
-              dir="ltr"
-              inputMode="numeric"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-              placeholder="000000"
-              maxLength={14}
-              className="num mt-3 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5
-                         text-center text-xl tracking-[0.3em] text-chalk outline-none
-                         focus:border-gold"
-            />
-            <button
-              onClick={link}
-              disabled={busy || otp.length < 6}
-              className="tap mt-3 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
-                         py-2.5 font-poster text-gold-ink disabled:opacity-40"
-            >
-              {busy ? 'מקשר…' : 'קישור החשבון'}
-            </button>
-            <button
-              onClick={() => { setStage('email'); setOtp(''); }}
-              className="mt-2 w-full text-center text-[11px] text-chalk-dim underline underline-offset-2"
-            >
-              מייל אחר
-            </button>
-          </>
-        )}
-      </div>
-
-      {error && (
-        <p role="alert" className="rounded-xl border border-flare/40 bg-flare/10 px-3 py-2
-                                   text-center text-[12px] font-bold text-flare">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * ★★★ כאן ישבה לשונית "אופסיידס", והיא הוסרה ★★★
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * היא נועדה לענות על "כבר יש לי חשבון באופסיידס, אל תבקשו ממני
+ * להירשם מחדש". היא עשתה את זה דרך קוד למייל, וזה נשבר פעמיים:
+ *
+ *  · תבנית המייל של Supabase שולחת **קישור בלבד** כברירת מחדל,
+ *    ולכן הקוד שהמסך ביקש פשוט לא היה במייל.
+ *  · והקישור שכן הגיע הפנה ל**אופסיידס**, לא לדוביד — כלומר
+ *    המשתמש נחת במוצר השני ולא קיבל כלום כאן.
+ *
+ * ★ ומה שחשוב מזה: היא כבר לא נחוצה.
+ *
+ * מרגע ששני המוצרים חולקים **OAuth client אחד** בגוגל, אותו
+ * אדם נכנס לשניהם באותו חשבון גוגל, עם אותו מסך הסכמה, בלי
+ * להישאל פעמיים ובלי סבב מייל בכלל. אותו מייל בשני הצדדים —
+ * וזה בדיוק מה שהלשונית ניסתה להשיג, רק בשלושה מסכים יותר.
+ *
+ * הכלל: תכונה שנפתרה בדרך פשוטה יותר לא נשארת "ליתר ביטחון".
+ * לשונית שבורה שמבטיחה משהו שלא קורה גרועה מהיעדרה.
+ */

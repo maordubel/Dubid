@@ -37,7 +37,9 @@ import {
   type AdminAd, type AdStats, type LeadRow, type Funnel, type DailyRow,
 } from '../lib/store.ts';
 import { adIssues, BRANDS, BRAND_IDS, type HouseAd } from '../lib/houseAds.ts';
-import { googleCallbackUrl, offsidesCallbackUrl } from '../lib/identity.ts';
+import {
+  googleCallbackUrl, offsidesCallbackUrl, isCanonicalOrigin, CANONICAL_ORIGIN,
+} from '../lib/identity.ts';
 import type { Placement } from '../lib/growth.ts';
 import { BrandWord, HouseAdPreview } from './HouseAds.tsx';
 import { ruleOverrides, currentGameweekCode, liveDataVersion } from '../lib/liveData.ts';
@@ -2120,22 +2122,61 @@ export function AdminConnections() {
     },
     {
       label: 'Supabase · Site URL',
-      value: origin,
+      /* ★ הדומיין הקבוע, ולא `origin`.
+         זו הנקודה שבה כתובת Vercel זמנית נתקעת לנצח: מי שמדביק
+         כאן את מה שהיה פתוח אצלו באותו רגע, שולח לשם את **כל**
+         ההתחברויות של כולם. */
+      value: CANONICAL_ORIGIN,
       where: 'Supabase (דוביד) → Authentication → URL Configuration',
-      why: 'לאן Supabase מחזירה את המשתמש אחרי שגוגל אישרה.',
+      why: 'ברירת המחדל להחזרה. אם כאן יושבת כתובת Vercel — כל התחברות נוחתת שם.',
       must: true,
     },
     {
       label: 'Supabase · Redirect URL',
-      value: `${origin}/**`,
+      value: `${CANONICAL_ORIGIN}/**`,
       where: 'אותו מסך, ברשימת Redirect URLs',
-      why: 'בלי זה ההחזרה נחסמת גם כשגוגל אישרה.',
+      why: 'בלי זה Supabase מתעלמת מהבקשה שלנו ונופלת חזרה ל-Site URL.',
       must: true,
+    },
+    {
+      label: 'Supabase · Redirect URL · תצוגות Vercel',
+      value: 'https://*.vercel.app/**',
+      where: 'אותו מסך, שורה נוספת ברשימת Redirect URLs',
+      why: 'רק אם אתה בודק גם בכתובות התצוגה המקדימה של Vercel. אחרת מיותר.',
+      must: false,
     },
   ];
 
   return (
     <div className="space-y-4">
+      {/*
+        ★★ האזהרה שעונה על "למה זה שולח אותי ל-Vercel" ★★
+
+        אם הלוח נפתח מכתובת שאינה הדומיין הקבוע, אז כל התחברות
+        שתתחיל מכאן תיגמר כאן — והסשן יישמר ב-localStorage של
+        **הכתובת הזו**. המשתמש יחזור לדומיין האמיתי, ייראה
+        מנותק, וינסה שוב.
+
+        זו אבחנה שקשה מאוד לעשות בעין, וקלה לעשות בשורת קוד.
+      */}
+      {!isCanonicalOrigin() && (
+        <div className="rounded-2xl border border-flare/40 bg-flare/10 p-4">
+          <p className="text-[12.5px] font-black text-flare">
+            אתה לא על הדומיין הקבוע
+          </p>
+          <p className="mt-1.5 text-[11.5px] leading-snug text-chalk-2">
+            הלוח נפתח מ־<bdi dir="ltr" className="font-bold">{origin}</bdi>,
+            והדומיין של המוצר הוא{' '}
+            <bdi dir="ltr" className="font-bold">{CANONICAL_ORIGIN}</bdi>.
+          </p>
+          <p className="mt-1.5 text-[11.5px] leading-snug text-chalk-2">
+            התחברות שתתחיל כאן תישמר <b>כאן</b> — וכשתחזור לדומיין
+            האמיתי תיראה מנותק. לבדיקות התחברות תמיד לפתוח את
+            הדומיין הקבוע.
+          </p>
+        </div>
+      )}
+
       <Card
         title="חיבור גוגל"
         hint="להעתיק כל מחרוזת למקום שכתוב לידה. שתי כתובות ההחזרה הן חובה — אחת לכל מוצר."
@@ -2211,6 +2252,40 @@ export function AdminConnections() {
             ל־<b>DubelTeam</b> ולהעלות לוגו.
           </p>
         </div>
+      </Card>
+
+      {/* ★ שרשרת ההפניות, כי בלי לראות אותה השגיאה נראית אקראית. */}
+      <Card
+        title="לאן ההתחברות באמת הולכת"
+        hint="ארבעה צעדים. מי שלא רואה אותם מחפש את הבאג במקום הלא נכון."
+      >
+        <ol className="space-y-2 text-[12px] leading-snug text-chalk-2">
+          <li className="flex gap-2">
+            <span className="num shrink-0 text-gold">1.</span>
+            <span>הדפדפן הולך לגוגל.</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="num shrink-0 text-gold">2.</span>
+            <span>גוגל מפנה ל-<b className="text-chalk">Supabase</b>, לא לאתר.
+              (כאן נופל <span className="num">redirect_uri_mismatch</span>.)</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="num shrink-0 text-gold">3.</span>
+            <span>Supabase מפנה לכתובת שביקשנו — <b>אם היא ברשימת
+              ההיתר</b>.</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="num shrink-0 text-flare">4.</span>
+            <span>אם היא לא ברשימה, Supabase מתעלמת <b>בשקט</b> ומפנה
+              ל-<b className="text-chalk">Site URL</b>.</span>
+          </li>
+        </ol>
+        <p className="mt-2.5 rounded-lg border border-armband/30 bg-armband/10 px-2.5 py-2
+                      text-[11.5px] leading-snug text-chalk-2">
+          לכן «אחרי גוגל זה שולח אותי ל-Vercel» פירושו כמעט תמיד:
+          ב-Site URL יושבת כתובת Vercel. אין שגיאה, כי מבחינת
+          Supabase הכל עבד בדיוק כמתוכנן.
+        </p>
       </Card>
 
       <Card

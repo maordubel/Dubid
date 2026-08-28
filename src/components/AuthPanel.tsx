@@ -30,9 +30,10 @@
  * מאשר שיהיה כפתור ששקר.
  */
 import { useEffect, useState } from 'react';
+import { OFFSIDES } from '../lib/growth.ts';
 import {
   signUpWithEmail, signInWithEmail, signInWithGoogle,
-  upgradeStart, upgradeVerify, upgradeWithGoogle,
+  upgradeStart, upgradeVerify, upgradeWithGoogle, refreshIdentity,
   currentIdentity, suggestUsername, referralFromUrl, authMessageHe,
 } from '../lib/identity.ts';
 
@@ -151,47 +152,96 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
     return (
       <div className="rounded-2xl bg-night-2 p-5 edge-gold">
         <h3 className="text-center font-press text-base font-black text-chalk">
-          הקלידו את הקוד מהמייל
+          שלחנו לך מייל
         </h3>
         <p className="mt-1.5 text-center text-[12.5px] leading-snug text-chalk-2">
-          שלחנו קוד ל<bdi dir="ltr" className="font-bold text-chalk">{otpTo}</bdi>.
+          ל־<bdi dir="ltr" className="font-bold text-chalk">{otpTo}</bdi>
         </p>
 
-        <input
-          value={otp}
-          onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          dir="ltr"
-          maxLength={8}
-          placeholder="000000"
-          className="num mt-3 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5
-                     text-center text-xl tracking-[0.3em] text-chalk outline-none focus:border-gold"
-        />
+        {/*
+          ═══════════════════════════════════════════════════════
+          ★★★ שתי דרכים, כי במייל יש רק אחת מהן ★★★
+          ═══════════════════════════════════════════════════════
+
+          תבנית המייל של Supabase, כברירת מחדל, מכילה **רק
+          קישור**. קוד בן שש ספרות מופיע רק אם מוסיפים ידנית
+          `{{ .Token }}` לתבנית.
+
+          מסך שכתוב בו "הקלידו את הקוד" מול תבנית ברירת מחדל
+          שולח את המשתמש לחפש משהו שלא קיים במייל. הוא יחפש,
+          לא ימצא, ויסיק שהוא עשה משהו לא נכון.
+
+          לכן הקישור הוא הדרך **הראשית** — הוא תמיד שם — והקוד
+          הוא האפשרות המשנית.
+        */}
+        <ol className="mt-4 space-y-2 text-[12.5px] leading-snug text-chalk-2">
+          <li className="flex gap-2">
+            <span className="num shrink-0 text-gold">1.</span>
+            <span>לפתוח את המייל וללחוץ על הקישור שבו.</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="num shrink-0 text-gold">2.</span>
+            <span>לחזור לכאן וללחוץ על הכפתור.</span>
+          </li>
+        </ol>
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true); setError(null);
+            void refreshIdentity()
+              .then((id) => {
+                if (id && !id.isGuest) { onDone?.(); return; }
+                setError('עוד לא ראינו את האישור. אם לחצתם על הקישור — נסו שוב בעוד רגע.');
+              })
+              .finally(() => setBusy(false));
+          }}
+          className="tap mt-4 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
+                     py-2.5 font-poster text-gold-ink disabled:opacity-40"
+        >
+          {busy ? 'בודק…' : 'לחצתי על הקישור'}
+        </button>
+
+        {/* ---- הדרך המשנית ---- */}
+        <details className="mt-3">
+          <summary className="cursor-pointer text-center text-[11.5px] text-chalk-dim
+                              underline underline-offset-2">
+            יש לי קוד, או שאני מעדיף להדביק את הקישור
+          </summary>
+
+          <input
+            value={otp}
+            onChange={(e) => setOtp(e.target.value)}
+            dir="ltr"
+            placeholder="000000  או  הדבקת הקישור מהמייל"
+            className="mt-2 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5
+                       text-center text-[13px] text-chalk outline-none focus:border-gold"
+          />
+          <button
+            type="button"
+            disabled={busy || otp.trim().length < 6}
+            onClick={() => {
+              setBusy(true); setError(null);
+              void upgradeVerify(otpTo, otp)
+                .then(() => onDone?.())
+                .catch((e: unknown) =>
+                  setError(authMessageHe(e instanceof Error ? e.message : '')))
+                .finally(() => setBusy(false));
+            }}
+            className="tap mt-2 w-full rounded-full border border-gold/35 py-2
+                       text-[13px] font-bold text-gold-light disabled:opacity-40"
+          >
+            {busy ? 'מאמת…' : 'אימות'}
+          </button>
+        </details>
 
         {error && (
-          <p role="alert" className="mt-2 rounded-xl border border-flare/40 bg-flare/10 px-3 py-2
+          <p role="alert" className="mt-3 rounded-xl border border-flare/40 bg-flare/10 px-3 py-2
                                      text-center text-[12px] font-bold text-flare">
             {error}
           </p>
         )}
-
-        <button
-          type="button"
-          disabled={busy || otp.length < 6}
-          onClick={() => {
-            setBusy(true); setError(null);
-            void upgradeVerify(otpTo, otp)
-              .then(() => onDone?.())
-              .catch((e: unknown) =>
-                setError(authMessageHe(e instanceof Error ? e.message : '')))
-              .finally(() => setBusy(false));
-          }}
-          className="tap mt-3 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
-                     py-2.5 font-poster text-gold-ink disabled:opacity-40"
-        >
-          {busy ? 'מאמת…' : 'שמירת החשבון'}
-        </button>
 
         {/* ★ המשפט הזה מונע נטישה, והוא גם נכון.
             השדרוג לא נוגע בהרכבים — זה בדיוק ההבדל בין
@@ -269,6 +319,22 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
             <span aria-hidden>✉</span>{' '}
             {isGuest && mode === 'signup' ? 'שמירה עם אימייל' : 'המשך עם אימייל'}
           </button>
+
+          {/*
+            ★ שורה אחת שמחליפה לשונית שלמה.
+
+            הייתה כאן לשונית "אופסיידס" שביקשה מייל, שלחה קוד,
+            ואימתה מול הפרויקט השני — שלושה מסכים ושני מקומות
+            שאפשר להיתקע בהם.
+
+            מרגע ששני המוצרים חולקים OAuth client אחד, התשובה
+            האמיתית היא משפט: זה אותו כפתור. משתמש שיודע את זה
+            לא צריך שום מסך נוסף.
+          */}
+          <p className="pt-0.5 text-center text-[11px] leading-snug text-chalk-dim">
+            יש לכם כבר חשבון ב{OFFSIDES.nameHe}? היכנסו עם אותו חשבון
+            גוגל — זו אותה זהות.
+          </p>
         </>
       ) : (
         <form onSubmit={submit} className="space-y-2.5">
