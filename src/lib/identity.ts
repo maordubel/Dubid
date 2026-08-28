@@ -55,6 +55,9 @@
  * אמיתית היא הבטחה שהמוצר לא יכול לקיים.
  */
 import { supabase, offsidesAuthClient } from './supabase.ts';
+/* ★ כתובת אחת לכל המוצר. קבוע שני היה נשאר מאחור ביום שהדומיין
+   ישתנה, וכל הכרטיסים שכבר שמורים אצל משתמשים היו מצביעים לשם. */
+import { DUBID_URL } from './growth.ts';
 
 export interface Identity {
   /** מזהה ה-auth. זה ה-userId שכל שאר המוצר מכיר. */
@@ -290,6 +293,119 @@ export async function redeemAccessCode(code: string): Promise<Identity> {
 }
 
 /* ================================================================== */
+/* כרטיס המנוי — המפתח הקבוע של האורח                                  */
+/* ================================================================== */
+
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * ★★★ למה זה קיים בנפרד מ-`issueAccessCode` ★★★
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * שתי משימות שנשמעות זהות ואינן:
+ *
+ *   קוד העברה  "תעביר אותי עכשיו לטלפון שבידי"
+ *              → קצר, חד־פעמי, שעה. הקיים, ונשאר.
+ *
+ *   מפתח כניסה "זה הכרטיס שלי, אני שומר אותו"
+ *              → ארוך, חוזר, קבוע.
+ *
+ * ★ מפתח שפג אחרי שעה בתוך תמונה שמורה אינו מפתח.
+ *   המוצר מבקש מהמשתמש לשמור צילום מסך ולשלוח אותו לעצמו
+ *   בוואטסאפ. אם הקוד מת אחרי שעה, התמונה הזו היא צילום של
+ *   דלת נעולה — והמשתמש יגלה את זה ברגע הכי גרוע: כשהוא
+ *   מחליף טלפון וכבר אין לו את הישן.
+ *
+ * ★★ אין "הצג לי את המפתח הקיים" ★★
+ *
+ * במסד יושב רק ה-hash. זו החלטה ולא מגבלה: מי שמשיג גישה
+ * לטבלה לא יכול להתחזות לאיש. לכן בקשה שנייה **מנפיקה מפתח
+ * חדש ומבטלת את הקודם** — וזו גם ההתנהגות הנכונה, כי מי
+ * שמבקש את הכרטיס שוב בדרך כלל איבד אותו.
+ *
+ * המסך מזהיר על זה מראש דרך `passState()`.
+ */
+export interface GuestPass {
+  /** המפתח כפי שנשלח לשרת. בלי מקפים. */
+  code: string;
+  /** `AB34-CD67-KM` — כפי שמוצג ומודפס. */
+  pretty: string;
+  displayName: string | null;
+  issuedAt: string;
+}
+
+export async function issueGuestPass(): Promise<GuestPass> {
+  const { data, error } = await supabase.functions.invoke<GuestPass>('access-code', {
+    body: { action: 'pass' },
+  });
+  if (error || !data?.code) throw new Error('PASS_ISSUE_FAILED');
+  return data;
+}
+
+export interface PassState {
+  has: boolean;
+  createdAt?: string;
+  lastUsedAt?: string | null;
+  uses?: number;
+}
+
+/**
+ * האם כבר יש מפתח, ומתי שימש.
+ *
+ * ★ לא מחזיר את המפתח עצמו — ראו למעלה. הוא קיים כדי שהמסך
+ *   יוכל להגיד "כבר יש לך כרטיס" במקום להנפיק חדש בשקט
+ *   ולהרוג את זה ששמור בגלריה.
+ */
+export async function passState(): Promise<PassState> {
+  try {
+    const { data, error } = await supabase.rpc('my_pass_state');
+    if (error || !data) return { has: false };
+    return data as PassState;
+  } catch {
+    return { has: false };
+  }
+}
+
+/**
+ * הקישור שנכנס לתוך ה-QR ולתוך הודעת הוואטסאפ.
+ *
+ * ★★ המפתח יושב ב-**fragment** (`#k=`) ולא ב-query (`?k=`) ★★
+ *
+ * זה לא סגנון. fragment לא נשלח לשרת: הוא לא מופיע בלוגים של
+ * ה-CDN, לא ב-`Referer` כשהמשתמש לוחץ משם על קישור חיצוני,
+ * ולא בכל שכבת ניטור שיושבת בדרך.
+ *
+ * המשתמש שולח את הקישור הזה לעצמו בוואטסאפ. ההבדל בין `?`
+ * ל-`#` הוא ההבדל בין מפתח שעובר בשרתים לבין מפתח שנשאר
+ * בין המכשיר שלו לבין הדפדפן שלו.
+ */
+export function passLink(code: string, base = DUBID_URL): string {
+  return `${base}/#k=${encodeURIComponent(code.replace(/-/g, ''))}`;
+}
+
+/**
+ * קורא מפתח מהכתובת ומנקה אותה מיד.
+ *
+ * ★ הניקוי חיוני: בלעדיו המפתח נשאר בשורת הכתובת, נכנס
+ *   להיסטוריית הדפדפן, ומופיע בצילום מסך של המסך הראשי.
+ */
+export function passFromUrl(): string | null {
+  try {
+    const m = /[#&]k=([A-Za-z0-9%-]+)/.exec(window.location.hash);
+    if (!m) return null;
+
+    const code = decodeURIComponent(m[1]).toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    const clean = window.location.hash.replace(/[#&]k=[A-Za-z0-9%-]+/, '');
+    window.history.replaceState(null, '',
+      window.location.pathname + window.location.search + (clean === '#' ? '' : clean));
+
+    return code.length >= 6 ? code : null;
+  } catch {
+    return null;
+  }
+}
+
+/* ================================================================== */
 /* קישור חשבון אופסיידס                                                */
 /* ================================================================== */
 
@@ -491,6 +607,110 @@ export async function signUpWithEmail(
   }
 
   return { needsEmailConfirmation: true };
+}
+
+/* ================================================================== */
+/* הפיכת אורח לחשבון קבוע                                              */
+/* ================================================================== */
+
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * ★★★ הבאג שהיה כאן, והוא הגרוע ביותר במוצר ★★★
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * המסלול היחיד להירשם היה `signUpWithEmail`, שקורא ל-
+ * `supabase.auth.signUp()`.
+ *
+ * כשהסשן הנוכחי הוא **אנונימי**, `signUp` לא משדרג אותו. הוא
+ * יוצר משתמש **חדש לגמרי**, עם `auth.uid()` חדש.
+ *
+ * המשמעות: אורח שבנה הרכב, נעל אותו, קיבל דירוג — ואז לחץ
+ * "שמור את החשבון שלי" — קיבל חשבון ריק. ההרכבים, שם הקבוצה,
+ * הדירוג וההיסטוריה נשארו תלויים על משתמש שאין לו יותר דרך
+ * להתחבר אליו.
+ *
+ * זה הרס בדיוק את מה שההרשמה הבטיחה להגן עליו, וזה קרה בשקט:
+ * שום שגיאה, שום אזהרה. המשתמש פשוט ראה טבלה ריקה והסיק
+ * שהמערכת מחקה לו הכל.
+ *
+ * ═══════════════════════════════════════════════════════════════
+ * ★ מה נכון: `updateUser`, לא `signUp`
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * `updateUser({ email })` על סשן אנונימי **משדרג את אותו
+ * משתמש** — אותו `uid`, אותה היסטוריה, אותו הכל. Supabase
+ * שולחת קוד אימות לכתובת, והמשתמש מקליד אותו.
+ *
+ * ⚠ תלות בהגדרות הפרויקט: Authentication → "Manual linking"
+ *   חייב להיות מופעל. בלעדיו הקריאה נדחית.
+ *   (מתועד ב-README של הסבב.)
+ *
+ * ★ סיסמה — רק **אחרי** אימות המייל.
+ *   זו דרישה של Supabase ולא בחירה שלנו, והיא גם הגיונית:
+ *   סיסמה על כתובת לא מאומתת היא חשבון שאי אפשר לשחזר.
+ */
+export async function upgradeStart(email: string): Promise<void> {
+  const clean = email.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new Error('EMAIL_INVALID');
+
+  const { error } = await supabase.auth.updateUser(
+    { email: clean },
+    { emailRedirectTo: window.location.origin },
+  );
+  if (error) throw new Error(mapAuthError(error.message));
+}
+
+/**
+ * מסיים את השדרוג עם הקוד שהגיע למייל.
+ *
+ * ★ `type: 'email_change'` ולא `'email'`.
+ *   `'email'` הוא אימות של הרשמה חדשה. כאן מדובר בשינוי
+ *   כתובת על משתמש קיים, וזה סוג אחר של אסימון — טעות כאן
+ *   מחזירה "Token has expired or is invalid" על קוד תקין
+ *   לחלוטין, וזו שעה שאי אפשר להחזיר.
+ */
+export async function upgradeVerify(email: string, token: string): Promise<Identity> {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: email.trim().toLowerCase(),
+    token: token.trim(),
+    type: 'email_change',
+  });
+  if (error || !data.user) throw new Error(mapAuthError(error?.message ?? ''));
+
+  await supabase.rpc('ensure_profile', { p_display_name: null });
+  current = await fromSession(data.user.id);
+  emit();
+  return current;
+}
+
+/** סיסמה אופציונלית, אחרי שהמייל אומת. בלעדיה נכנסים בקוד למייל. */
+export async function upgradeSetPassword(password: string): Promise<void> {
+  if (password.length < 6) throw new Error('PASSWORD_TOO_SHORT');
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw new Error(mapAuthError(error.message));
+  if (current) {
+    current = await fromSession(current.id);
+    emit();
+  }
+}
+
+/**
+ * גוגל — כקישור זהות, לא כהתחברות חדשה.
+ *
+ * ★ `linkIdentity` ולא `signInWithOAuth`.
+ *
+ * אותו באג בדיוק כמו למעלה: `signInWithOAuth` על סשן אנונימי
+ * מחליף את המשתמש. `linkIdentity` **מוסיף** את גוגל למשתמש
+ * הקיים ומשאיר את ה-uid — כלומר את ההרכבים ואת הדירוג.
+ *
+ * ⚠ גם זה דורש "Manual linking" מופעל בפרויקט.
+ */
+export async function upgradeWithGoogle(): Promise<void> {
+  const { error } = await supabase.auth.linkIdentity({
+    provider: 'google',
+    options: { redirectTo: window.location.origin },
+  });
+  if (error) throw new Error(mapAuthError(error.message));
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<Identity> {

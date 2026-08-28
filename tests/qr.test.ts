@@ -78,6 +78,11 @@ const URLS = [
   'https://dubid.dubelteam.com',
   'https://dubid.dubelteam.com/c/AB12CD',
   'https://dubid.dubelteam.com/gw/7/u/8f2c1a9e?ref=story',
+  /* ★★ הקישור של כרטיס המנוי — המחרוזת האמיתית שנכנסת ל-QR.
+     המפתח יושב ב-fragment, והקישור הזה הוא הארוך ביותר שהמוצר
+     מקודד בפועל. ברמת תיקון 'Q' הוא כבר לא נכנס לגרסאות
+     הקטנות, וכישלון קידוד היה משאיר כרטיס יפה בלי מה לסרוק. */
+  'https://dubid.dubelteam.com/#k=K7M49XQ2BD',
   'דוביד',                                   // UTF-8 רב-בייטי
 ];
 

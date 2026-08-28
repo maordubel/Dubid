@@ -28,7 +28,14 @@ import { LogoMark } from './Logo.tsx';
 
 type Tab = 'me' | 'move' | 'offsides';
 
-export function AccountSheet({ onClose }: { onClose: () => void }) {
+export function AccountSheet({
+  onClose, onShowPass, hasPass = false,
+}: {
+  onClose: () => void;
+  /** פותח את כרטיס המנוי. מנפיק מפתח חדש — ראו `PassSheet`. */
+  onShowPass?: () => void;
+  hasPass?: boolean;
+}) {
   const [tab, setTab] = useState<Tab>('me');
   const [identity, setIdentity] = useState<Identity | null>(currentIdentity());
 
@@ -61,7 +68,11 @@ export function AccountSheet({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="mx-4 mt-3 flex gap-1 rounded-full bg-night-2 p-1 edge-gold">
-          {([['me', 'החשבון'], ['move', 'מכשיר חדש'], ['offsides', OFFSIDES.nameHe]] as const)
+          {/* ★ "הכרטיס שלי" ולא "מכשיר חדש".
+                התווית הישנה תיארה תרחיש; החדשה מתארת **חפץ
+                שיש לי**. משתמש שמחפש איך לא לאבד את החשבון לא
+                חושב "מכשיר חדש" — הוא חושב "איפה השמירה שלי". */}
+          {([['me', 'החשבון'], ['move', 'הכרטיס שלי'], ['offsides', OFFSIDES.nameHe]] as const)
             .map(([id, label]) => (
               <button
                 key={id}
@@ -78,7 +89,9 @@ export function AccountSheet({ onClose }: { onClose: () => void }) {
 
         <div className="px-4 py-4">
           {tab === 'me' && <MeTab identity={identity} />}
-          {tab === 'move' && <MoveTab onDone={onClose} />}
+          {tab === 'move' && (
+            <MoveTab onDone={onClose} onShowPass={onShowPass} hasPass={hasPass} />
+          )}
           {tab === 'offsides' && <OffsidesTab onDone={onClose} />}
         </div>
       </div>
@@ -209,7 +222,9 @@ function MeTab({ identity }: { identity: Identity | null }) {
 
 /* ================================================================== */
 
-function MoveTab({ onDone }: { onDone: () => void }) {
+function MoveTab({
+  onDone, onShowPass, hasPass,
+}: { onDone: () => void; onShowPass?: () => void; hasPass?: boolean }) {
   const [code, setCode] = useState<string | null>(null);
   const [expires, setExpires] = useState<string | null>(null);
   const [input, setInput] = useState('');
@@ -234,11 +249,59 @@ function MoveTab({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="space-y-5">
+      {/*
+        ═══════════════════════════════════════════════════════
+        ★★ כרטיס המנוי ראשון, וקוד ההעברה אחריו ★★
+        ═══════════════════════════════════════════════════════
+
+        שתי היכולות נראות דומות ופותרות שתי בעיות שונות:
+
+          כרטיס   "אני רוצה לא לאבד את החשבון." — קבוע, נשמר
+                  כתמונה, עובד תמיד. זה מה שרוב האנשים מחפשים
+                  כשהם פותחים את המסך הזה.
+
+          קוד     "יש לי עכשיו שני מכשירים ביד." — חד־פעמי,
+                  שעה. מקרה נדיר יותר, וגם מיידי יותר.
+
+        הכרטיס למעלה כי הוא התשובה לשאלה השכיחה. סדר הפוך היה
+        אומר לרוב המשתמשים "הפתרון שלך הוא קוד שפג בעוד שעה",
+        וזו תשובה שגויה שנראית נכונה.
+      */}
+      {onShowPass && (
+        <section className="rounded-2xl bg-night-2 p-4 edge-gold">
+          <h3 className="text-sm font-black text-chalk">כרטיס המנוי שלי</h3>
+          <p className="mt-1 text-[12px] leading-snug text-chalk-2">
+            תמונה עם מפתח קבוע ו-QR. שומרים אותה בגלריה או שולחים
+            לעצמכם בוואטסאפ, ונכנסים איתה מכל מכשיר — בלי סיסמה.
+          </p>
+
+          {hasPass && (
+            /* ★ אזהרה אחת, ורק כשהיא רלוונטית.
+               הנפקה מבטלת את הקודם, וזה בדיוק מה שהופך כרטיס
+               ששמור אצל המשתמש בגלריה ללא תקף. עדיף שידע
+               לפני ולא אחרי. */
+            <p className="mt-2 rounded-lg border border-armband/30 bg-armband/10 px-2.5 py-2
+                          text-[11.5px] leading-snug text-armband">
+              כבר יש לכם כרטיס. הנפקת חדש תבטל את הישן — אם שמרתם
+              אותו, הוא יפסיק לעבוד.
+            </p>
+          )}
+
+          <button
+            onClick={onShowPass}
+            className="tap mt-3 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
+                       py-2.5 font-poster text-gold-ink"
+          >
+            {hasPass ? 'הנפקת כרטיס חדש' : 'קבלת הכרטיס שלי'}
+          </button>
+        </section>
+      )}
+
       <section className="rounded-2xl bg-night-2 p-4 edge-gold">
-        <h3 className="text-sm font-black text-chalk">להמשיך במכשיר אחר</h3>
+        <h3 className="text-sm font-black text-chalk">קוד מהיר למכשיר שלידי</h3>
         <p className="mt-1 text-[12px] leading-snug text-chalk-2">
-          הנפיקו קוד כאן, והקלידו אותו במכשיר החדש. הקוד תקף לשעה
-          ולשימוש אחד בלבד.
+          למקרה שהמכשיר השני כבר ביד. הקוד תקף לשעה ולשימוש אחד —
+          לשמירה לטווח ארוך השתמשו בכרטיס למעלה.
         </p>
 
         {code ? (
@@ -269,21 +332,21 @@ function MoveTab({ onDone }: { onDone: () => void }) {
       <section className="rounded-2xl bg-night-2 p-4 edge-gold">
         <h3 className="text-sm font-black text-chalk">יש לי קוד</h3>
         <p className="mt-1 text-[12px] leading-snug text-chalk-2">
-          הקלידו את הקוד שהנפקתם במכשיר הקודם. ההרכבים והדירוג
-          שלכם יעברו לכאן.
+          קוד מהיר או מפתח מהכרטיס — שניהם עובדים כאן. ההרכבים
+          והדירוג שלכם יעברו למכשיר הזה.
         </p>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value.toUpperCase())}
-          placeholder="XXXXXX"
+          placeholder="XXXXXX או XXXX-XXXX-XX"
           dir="ltr"
-          maxLength={8}
+          maxLength={14}
           className="num mt-3 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5
                      text-center text-xl tracking-[0.3em] text-chalk outline-none focus:border-gold"
         />
         <button
           onClick={redeem}
-          disabled={busy || input.trim().length < 6}
+          disabled={busy || input.replace(/[^A-Za-z0-9]/g, '').length < 6}
           className="tap mt-3 w-full rounded-full border border-gold/35 py-2.5
                      font-poster text-gold-light disabled:opacity-40"
         >
@@ -371,7 +434,7 @@ function OffsidesTab({ onDone }: { onDone: () => void }) {
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
               placeholder="000000"
-              maxLength={8}
+              maxLength={14}
               className="num mt-3 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5
                          text-center text-xl tracking-[0.3em] text-chalk outline-none
                          focus:border-gold"

@@ -1422,3 +1422,44 @@ export async function adminAdStats(days = 30): Promise<AdStats> {
   if (error) throw new Error(errorCode(error));
   return (data ?? { days, impressions: 0, clicks: 0, byPlacement: [] }) as AdStats;
 }
+
+/* ------------------------------------------------------------------ */
+/* לידים ומשפך                                                         */
+/* ------------------------------------------------------------------ */
+
+export interface LeadRow {
+  email: string;
+  consent: boolean;
+  source: string;
+  gw: string | null;
+  name: string;
+  isGuest: boolean;
+  entries: number;
+  at: string;
+}
+
+export async function adminLeads(limit = 200): Promise<LeadRow[]> {
+  const { data, error } = await supabase.rpc('admin_leads', { p_limit: limit });
+  if (error) throw new Error(errorCode(error));
+  return (Array.isArray(data) ? data : []) as LeadRow[];
+}
+
+export interface Funnel {
+  users: number;
+  guests: number;
+  registered: number;
+  played: number;
+  withPass: number;
+  passUsed: number;
+  leads: number;
+  leadsOptIn: number;
+}
+
+export async function adminFunnel(): Promise<Funnel> {
+  const { data, error } = await supabase.rpc('admin_funnel');
+  if (error) throw new Error(errorCode(error));
+  return (data ?? {
+    users: 0, guests: 0, registered: 0, played: 0,
+    withPass: 0, passUsed: 0, leads: 0, leadsOptIn: 0,
+  }) as Funnel;
+}

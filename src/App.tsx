@@ -29,7 +29,17 @@ import { Leaderboard } from './components/Leaderboard.tsx';
 import { AdminPanel } from './components/AdminPanel.tsx';
 import { AccountSheet } from './components/AccountSheet.tsx';
 import { RegisterNudge, readDismissed } from './components/RegisterNudge.tsx';
-import { shouldNudge } from './lib/nudge.ts';
+import { shouldNudge, shouldOfferPass, PASS_OFFERED_KEY } from './lib/nudge.ts';
+import { PassSheet } from './components/PassSheet.tsx';
+import {
+  issueGuestPass, passState, passLink, passFromUrl, redeemAccessCode,
+} from './lib/identity.ts';
+import { type PassCardData } from './lib/passCard.ts';
+
+/** האם כבר הצענו את הכרטיס במכשיר הזה. */
+function passOfferedBefore(): boolean {
+  try { return localStorage.getItem(PASS_OFFERED_KEY) === '1'; } catch { return false; }
+}
 import { LockedLineup } from './components/LockedLineup.tsx';
 import { Splash } from './components/Splash.tsx';
 import { RevealShare } from './components/RevealShare.tsx';
@@ -624,6 +634,85 @@ function MainApp() {
    * למחזור" — כלומר מענישה אותו בדיוק על הפעולה שרצינו.
    */
   const [revealBack, setRevealBack] = useState<string | null>(null);
+
+  /**
+   * ★ כרטיס המנוי. `null` = לא מוצג.
+   *
+   * הוא לא נשמר בשום מקום ולא חוזר מעצמו אחרי הפעם הראשונה —
+   * ראו `shouldOfferPass`. אחר כך הוא זמין תמיד מ"החשבון שלי".
+   */
+  const [pass, setPass] = useState<PassCardData | null>(null);
+  const [passBusy, setPassBusy] = useState(false);
+  const [hasPass, setHasPass] = useState<boolean | null>(null);
+
+  /**
+   * בונה את הכרטיס. מנפיק מפתח חדש בשרת ומרכיב את מה שמצויר.
+   *
+   * ★ המפתח מונפק **בלחיצה** ולא בטעינת המסך.
+   *   הנפקה מבטלת את המפתח הקודם (מפתח פעיל אחד למשתמש), ולכן
+   *   הנפקה אוטומטית בכל כניסה הייתה הורגת בשקט את הכרטיס
+   *   ששמור אצל המשתמש בגלריה.
+   */
+  const openPass = (source: 'submit' | 'account' | 'nudge') => {
+    if (passBusy) return;
+    setPassBusy(true);
+    void issueGuestPass()
+      .then((p) => {
+        const entry = entryFive ?? entryFull;
+        setPass({
+          pretty: p.pretty,
+          link: passLink(p.code),
+          userName: p.displayName || displayName || 'מאמן',
+          teamName: entry?.teamName ?? null,
+          issuedLabel: `הונפק ${new Date().toLocaleDateString('he-IL', {
+            day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Jerusalem',
+          })}`,
+          urlLabel: 'DUBID.DUBELTEAM.COM',
+        });
+        setHasPass(true);
+        setPassSource(source);
+        try { localStorage.setItem(PASS_OFFERED_KEY, '1'); } catch { /* מצב פרטי */ }
+      })
+      .catch(() => {
+        /* ★ כישלון כאן לא מקפיץ שגיאה על מסך שהמשתמש לא ביקש.
+           אם ההנפקה נכשלה מיד אחרי הגשה, הוא פשוט לא רואה את
+           ההצעה — וההרכב שלו נשמר בדיוק כמו קודם. */
+      })
+      .finally(() => setPassBusy(false));
+  };
+
+  const [passSource, setPassSource] = useState<'submit' | 'account' | 'nudge'>('submit');
+
+  /*
+   * ★★ קישור חזרה: `#k=` בכתובת ★★
+   *
+   * זה מה שהופך את התמונה ששמורה בגלריה לכניסה בלחיצה אחת.
+   * המשתמש סורק את ה-QR, הדפדפן נפתח, והמפתח נפדה לפני
+   * שהוא רואה מסך אחד.
+   *
+   * ★ רץ פעם אחת בלבד (`[]`), ו-`passFromUrl` מנקה את הכתובת
+   *   מיד. בלי הניקוי המפתח היה נשאר בשורת הכתובת ובהיסטוריה.
+   */
+  useEffect(() => {
+    const key = passFromUrl();
+    if (!key) return;
+    void redeemAccessCode(key)
+      .then(() => window.location.reload())
+      .catch(() => {
+        window.alert('המפתח לא תקף. אפשר להנפיק חדש מהמכשיר שבו אתם מחוברים.');
+      });
+  }, []);
+
+  /*
+   * ★ האם כבר יש מפתח — נבדק פעם אחת, ורק לאורחים.
+   *   משתמש רשום נכנס עם המייל שלו; שאלה על מפתח היא בשבילו
+   *   רעש על בעיה שאין לו.
+   */
+  useEffect(() => {
+    if (identity?.isGuest === false) { setHasPass(false); return; }
+    if (!identity) return;
+    void passState().then((st) => setHasPass(st.has));
+  }, [identity?.id, identity?.isGuest]);
   const [showAccount, setShowAccount] = useState(false);
 
   const goToMode = (m: Mode) => {
@@ -853,13 +942,49 @@ function MainApp() {
     >
       <ConnectionStrip />
       {screens[tab]}
-      {showAccount && <AccountSheet onClose={() => setShowAccount(false)} />}
+      {showAccount && (
+        <AccountSheet
+          onClose={() => setShowAccount(false)}
+          onShowPass={() => { setShowAccount(false); openPass('account'); }}
+          hasPass={hasPass === true}
+        />
+      )}
+      {pass && (
+        <PassSheet
+          data={pass}
+          source={passSource}
+          gameweekCode={gwCode()}
+          onClose={() => setPass(null)}
+        />
+      )}
       {reveal && (
         <RevealShare
           data={reveal}
           onClose={() => {
             setReveal(null);
             if (revealBack && revealBack !== tab) setTab(revealBack);
+
+            /*
+             * ★★ הרגע. ★★
+             *
+             * המשתמש בדיוק נעל הרכב וסגר את כרטיס השיתוף. יש לו
+             * עכשיו משהו שהוא בנה, והוא עוד לא עשה כלום כדי
+             * להגן עליו — וזו בדיוק הסיבה שההצעה באה **עכשיו**
+             * ולא בכניסה לאתר.
+             *
+             * `revealBack === 'card'` = הכרטיס נפתח מיד אחרי
+             * הגשה, ולא מכפתור השיתוף במסך ההרכב. פתיחה ידנית
+             * אינה הרגע הזה, ולא מזמינה שום דבר.
+             */
+            if (revealBack === 'card'
+                && shouldOfferPass({
+                  isGuest: identity?.isGuest !== false,
+                  hasSubmitted: true,
+                  offeredBefore: passOfferedBefore(),
+                  hasPass: hasPass === true,
+                })) {
+              openPass('submit');
+            }
             setRevealBack(null);
           }}
         />

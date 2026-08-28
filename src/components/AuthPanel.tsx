@@ -32,7 +32,8 @@
 import { useEffect, useState } from 'react';
 import {
   signUpWithEmail, signInWithEmail, signInWithGoogle,
-  suggestUsername, referralFromUrl, authMessageHe,
+  upgradeStart, upgradeVerify, upgradeWithGoogle,
+  currentIdentity, suggestUsername, referralFromUrl, authMessageHe,
 } from '../lib/identity.ts';
 
 type Mode = 'signup' | 'signin';
@@ -49,6 +50,30 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
+
+  /*
+   * ═══════════════════════════════════════════════════════════
+   * ★★★ אורח משדרג, הוא לא נרשם מחדש ★★★
+   * ═══════════════════════════════════════════════════════════
+   *
+   * ההבדל הזה הוא הבאג החמור ביותר שהיה במוצר.
+   *
+   * `signUp()` על סשן אנונימי **יוצר משתמש חדש** עם uid חדש.
+   * כלומר אורח שבנה הרכב, נעל אותו, וקיבל דירוג — ואז לחץ
+   * "שמור את החשבון שלי" — קיבל חשבון ריק, וההיסטוריה שלו
+   * נשארה תלויה על משתמש שאי אפשר להתחבר אליו יותר.
+   *
+   * זה הרס בדיוק את מה שההרשמה הבטיחה להגן עליו, ובשקט: בלי
+   * שגיאה ובלי אזהרה. המשתמש פשוט ראה טבלה ריקה.
+   *
+   * לכן: אורח → `upgradeStart` + `upgradeVerify` (אותו uid).
+   *      מי שכבר רשום ורק מתחבר מחדש → `signIn` כרגיל.
+   */
+  const isGuest = currentIdentity()?.isGuest !== false;
+
+  /** שלב אימות הקוד בשדרוג. `null` = עוד לא נשלח. */
+  const [otpTo, setOtpTo] = useState<string | null>(null);
+  const [otp, setOtp] = useState('');
 
   /**
    * ★ `?ref=CODE` ממלא את קוד ההפניה **וגם** מכריח מצב הרשמה.
@@ -74,7 +99,10 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
   const google = () => {
     setError(null);
     setBusy(true);
-    void signInWithGoogle()
+    /* ★ `linkIdentity` לאורח, `signInWithOAuth` למי שמתחבר מחדש.
+       אותו כפתור, שתי פעולות שונות לגמרי — ראו ההסבר למעלה. */
+    const run = isGuest && mode === 'signup' ? upgradeWithGoogle : signInWithGoogle;
+    void run()
       .catch((e: unknown) => setError(authMessageHe(e instanceof Error ? e.message : '')))
       .finally(() => setBusy(false));
   };
@@ -87,7 +115,11 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
 
     void (async () => {
       try {
-        if (mode === 'signup') {
+        if (mode === 'signup' && isGuest) {
+          /* שדרוג: אותו משתמש, אותה היסטוריה. הקוד מגיע למייל. */
+          await upgradeStart(email);
+          setOtpTo(email.trim().toLowerCase());
+        } else if (mode === 'signup') {
           const res = await signUpWithEmail({
             email, password, username, referralCode: ref,
           });
@@ -104,6 +136,81 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
       }
     })();
   };
+
+  /* ---- שדרוג: הקוד שהגיע למייל ---- */
+  /*
+   * ★ קוד, ולא רק קישור.
+   *
+   * Supabase שולחת גם קישור וגם קוד. הקישור פותח **לשונית
+   * חדשה**, ובלשונית חדשה הסשן האנונימי הוא לא בהכרח אותו סשן —
+   * ובמובייל זה בכלל דפדפן אחר לפעמים. קוד שמוקלד כאן, בלשונית
+   * שבה המשתמש כבר יושב, הוא הדרך היחידה שמובטח שהיא משדרגת
+   * את החשבון הנכון.
+   */
+  if (otpTo) {
+    return (
+      <div className="rounded-2xl bg-night-2 p-5 edge-gold">
+        <h3 className="text-center font-press text-base font-black text-chalk">
+          הקלידו את הקוד מהמייל
+        </h3>
+        <p className="mt-1.5 text-center text-[12.5px] leading-snug text-chalk-2">
+          שלחנו קוד ל<bdi dir="ltr" className="font-bold text-chalk">{otpTo}</bdi>.
+        </p>
+
+        <input
+          value={otp}
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          dir="ltr"
+          maxLength={8}
+          placeholder="000000"
+          className="num mt-3 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5
+                     text-center text-xl tracking-[0.3em] text-chalk outline-none focus:border-gold"
+        />
+
+        {error && (
+          <p role="alert" className="mt-2 rounded-xl border border-flare/40 bg-flare/10 px-3 py-2
+                                     text-center text-[12px] font-bold text-flare">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="button"
+          disabled={busy || otp.length < 6}
+          onClick={() => {
+            setBusy(true); setError(null);
+            void upgradeVerify(otpTo, otp)
+              .then(() => onDone?.())
+              .catch((e: unknown) =>
+                setError(authMessageHe(e instanceof Error ? e.message : '')))
+              .finally(() => setBusy(false));
+          }}
+          className="tap mt-3 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
+                     py-2.5 font-poster text-gold-ink disabled:opacity-40"
+        >
+          {busy ? 'מאמת…' : 'שמירת החשבון'}
+        </button>
+
+        {/* ★ המשפט הזה מונע נטישה, והוא גם נכון.
+            השדרוג לא נוגע בהרכבים — זה בדיוק ההבדל בין
+            `updateUser` לבין `signUp`. */}
+        <p className="mt-3 rounded-xl bg-night px-3 py-2 text-center text-[11.5px] text-chalk-dim">
+          ההרכבים, שם הקבוצה והדירוג שלך נשארים בדיוק כמו שהם.
+          החשבון רק מקבל מייל.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => { setOtpTo(null); setOtp(''); setError(null); }}
+          className="mt-2 w-full text-center text-[11.5px] text-chalk-dim underline underline-offset-2"
+        >
+          לשנות כתובת
+        </button>
+      </div>
+    );
+  }
 
   /* ---- אחרי הרשמה שדורשת אימות ---- */
   if (sentTo) {
@@ -142,7 +249,8 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
                        duration-200 ease-brand active:scale-[.99] disabled:opacity-50"
           >
             <GoogleG />
-            {busy ? 'רגע…' : 'המשך עם גוגל'}
+            {busy ? 'רגע…'
+              : isGuest && mode === 'signup' ? 'שמירה עם גוגל' : 'המשך עם גוגל'}
           </button>
 
           <div className="flex items-center gap-3 py-0.5">
@@ -158,7 +266,8 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
                        border border-gold/30 px-4 py-3 font-black text-gold-light
                        transition-colors duration-200 ease-brand active:bg-gold/10"
           >
-            <span aria-hidden>✉</span> המשך עם אימייל
+            <span aria-hidden>✉</span>{' '}
+            {isGuest && mode === 'signup' ? 'שמירה עם אימייל' : 'המשך עם אימייל'}
           </button>
         </>
       ) : (
@@ -171,7 +280,7 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
             → חזרה
           </button>
 
-          {mode === 'signup' && (
+          {mode === 'signup' && !isGuest && (
             <>
               <Field label="שם משתמש">
                 <div className="flex gap-2">
@@ -219,18 +328,28 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
             />
           </Field>
 
-          <Field label="סיסמה">
-            <input
-              type="password"
-              dir="ltr"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="שישה תווים לפחות"
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-              required
-              className={inputCls}
-            />
-          </Field>
+          {/*
+            ★ אורח שמשדרג לא מקליד סיסמה, וזו לא בחירה שלנו:
+            Supabase לא מאפשרת לקבוע סיסמה לפני שהמייל אומת.
+
+            וזה גם עדיף. שדה אחד במקום ארבעה, והכניסה בפעם הבאה
+            היא קוד למייל — מה שרוב האנשים ממילא מעדיפים על
+            סיסמה שהם ישכחו.
+          */}
+          {!(mode === 'signup' && isGuest) && (
+            <Field label="סיסמה">
+              <input
+                type="password"
+                dir="ltr"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="שישה תווים לפחות"
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                required
+                className={inputCls}
+              />
+            </Field>
+          )}
 
           {error && (
             <p role="alert" className="rounded-xl border border-flare/40 bg-flare/10 px-3 py-2
@@ -239,13 +358,20 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
             </p>
           )}
 
+          {/* ★ הכפתור לא דורש סיסמה במסלול השדרוג — שם אין שדה
+              סיסמה בכלל, ותנאי `!password` היה נועל אותו לנצח. */}
           <button
             type="submit"
-            disabled={busy || !email || !password}
+            disabled={busy || !email || (!password && !(mode === 'signup' && isGuest))}
             className="tap w-full rounded-full bg-gradient-to-b from-gold-light to-gold
                        py-3 font-poster text-gold-ink disabled:opacity-40"
           >
-            {busy ? '…' : mode === 'signup' ? 'יצירת חשבון' : 'התחברות'}
+            {busy ? '…'
+              : mode === 'signin' ? 'התחברות'
+                /* ★ "שמירת החשבון" ולא "יצירת חשבון".
+                   האורח לא יוצר שום דבר — יש לו כבר חשבון, עם
+                   הרכב ודירוג. הוא רק מוסיף לו דרך להיכנס. */
+                : isGuest ? 'שמירת החשבון שלי' : 'יצירת חשבון'}
           </button>
 
           <button
@@ -253,7 +379,7 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
             onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setError(null); }}
             className="w-full text-center text-[11.5px] text-chalk-dim underline underline-offset-2"
           >
-            {mode === 'signup' ? 'כבר יש לי חשבון' : 'אין לי חשבון — הרשמה'}
+            {mode === 'signup' ? 'כבר יש לי חשבון' : 'לשמור את החשבון הנוכחי'}
           </button>
         </form>
       )}

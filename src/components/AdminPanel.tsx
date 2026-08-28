@@ -27,7 +27,7 @@ import type { PlayerPerformance, Position, TeamOutcome } from '../lib/scoring/ty
 import { AdminSquads } from './AdminSquads.tsx';
 import {
   AdminGameweeks, AdminRules, AdminContent, AdminAnalytics, AdminActivity,
-  AdminBots, AdminAds,
+  AdminBots, AdminAds, AdminFunnel,
 } from './AdminConsole.tsx';
 import { LogoMark } from './Logo.tsx';
 import { resolveGate, type AdminGate } from '../lib/adminGate.ts';
@@ -97,7 +97,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
    */
   const [section, setSection] = useState<
     'results' | 'gameweeks' | 'gameweek' | 'squads' | 'rules' | 'content'
-    | 'activity' | 'bots' | 'ads' | 'stats'
+    | 'activity' | 'bots' | 'ads' | 'funnel' | 'stats'
   >('results');
 
   useEffect(() => subscribeToStore(() => forceTick((n) => n + 1)), []);
@@ -230,7 +230,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
               בכפליים בלוח ניהול: מי שמחפש בו משהו כבר יודע מה
               הוא רוצה, והוא מחפש **שם** ולא מגלה בגלילה. */}
           {([['results', 'תוצאות'], ['gameweeks', 'מחזורים'], ['activity', 'פעילות'],
-             ['bots', 'בוטים'], ['ads', 'פרסום'],
+             ['bots', 'בוטים'], ['ads', 'פרסום'], ['funnel', 'משפך'],
              ['gameweek', 'המחזור'], ['squads', 'סגלים'], ['rules', 'חוקים'],
              ['content', 'תוכן'], ['stats', 'ניתוח']] as const)
             .map(([id, label]) => (
@@ -253,6 +253,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
         {section === 'activity' && <AdminActivity />}
         {section === 'bots' && <AdminBots />}
         {section === 'ads' && <AdminAds />}
+        {section === 'funnel' && <AdminFunnel />}
         {section === 'gameweek' && <AdminGameweek />}
         {section === 'rules' && <AdminRules />}
         {section === 'content' && <AdminContent />}

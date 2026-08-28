@@ -29,11 +29,12 @@ import {
   adminAnalytics, adminDataQuality, adminAudit,
   adminAddBots, adminRemoveBots, adminActivity, adminActivityStats,
   adminAds, adminUpsertAd, adminSetAdEnabled, adminDeleteAd, adminAdStats,
+  adminLeads, adminFunnel,
   errorMessageHe,
   type GameweekRow, type ImportReport, type ContentRow,
   type BotResult, type ActivityRow, type ActivityStats,
   type Analytics, type DataIssue, type AuditRow,
-  type AdminAd, type AdStats,
+  type AdminAd, type AdStats, type LeadRow, type Funnel,
 } from '../lib/store.ts';
 import { adIssues, BRANDS, BRAND_IDS, type HouseAd } from '../lib/houseAds.ts';
 import type { Placement } from '../lib/growth.ts';
@@ -1811,5 +1812,139 @@ function AdEditor({
         </div>
       </div>
     </Card>
+  );
+}
+
+/* ================================================================== */
+/* 10 · המשפך והלידים                                                  */
+/* ================================================================== */
+
+/**
+ * ★★ מה המסך הזה עונה עליו, ומה הוא מסרב לענות ★★
+ *
+ * שאלה אחת: **איפה אנשים נעצרים.**
+ *
+ * נכנסו → שיחקו → שמרו כרטיס → השאירו מייל → נרשמו. חמישה
+ * מספרים, וכל מעבר ביניהם הוא מקום שאפשר לתקן. מספר שישי לא
+ * מוסיף תובנה — הוא מוסיף עוד דבר להסתכל עליו במקום להחליט.
+ *
+ * ★ מה שאין כאן בכוונה: שיוך אישי.
+ *   אין "מי המשתמש שנטש", אין מסע לקוח, אין טיימליין אישי. אנחנו
+ *   סופרים מעברים, לא עוקבים אחרי אנשים — וההבדל הזה הוא מה
+ *   שמאפשר לומר למשתמש בפנים ישרות שהוא לא על החכה.
+ */
+export function AdminFunnel() {
+  const [f, setF] = useState<Funnel | null>(null);
+  const [rows, setRows] = useState<LeadRow[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = () => {
+    Promise.all([adminFunnel(), adminLeads(200)])
+      .then(([a, b]) => { setF(a); setRows(b); setErr(null); })
+      .catch((e: unknown) =>
+        setErr(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')));
+  };
+
+  useEffect(load, []);
+
+  const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)}%` : '—');
+
+  return (
+    <div className="space-y-4">
+      <Card title="המשפך" hint="איפה אנשים נעצרים. כל שלב הוא אחוז מהשלב שלפניו.">
+        {err && <Note msg={err} bad />}
+        {f && (
+          <>
+            <ul className="space-y-1.5">
+              <Step label="נכנסו" n={f.users} of={f.users} pct={pct} first />
+              <Step label="שיחקו — הגישו הרכב" n={f.played} of={f.users} pct={pct} />
+              <Step label="שמרו כרטיס מנוי" n={f.withPass} of={f.played} pct={pct} />
+              <Step label="השאירו מייל" n={f.leads} of={f.played} pct={pct} />
+              <Step label="הפכו לחשבון קבוע" n={f.registered} of={f.played} pct={pct} />
+            </ul>
+
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <Stat label="אורחים" value={f.guests} />
+              <Stat label="כרטיסים ששימשו" value={f.passUsed} />
+              <Stat label="אישרו תזכורות" value={f.leadsOptIn} />
+            </div>
+
+            {/* ★ המספר היחיד שמעניין באמת בשלב הזה.
+                כרטיס שאיש לא השתמש בו הוא כרטיס שלא הוכיח את
+                עצמו — או שאף אחד לא איבד מכשיר, או שהכרטיס לא
+                עובד. שתי מסקנות שונות מאוד מאותו מספר. */}
+            {f.withPass > 0 && f.passUsed === 0 && (
+              <p className="mt-3 rounded-xl border border-armband/30 bg-armband/10 px-3 py-2
+                            text-[11.5px] leading-snug text-armband">
+                הונפקו <span className="num">{f.withPass}</span> כרטיסים ואף אחד עוד לא
+                שימש. זה תקין בשבועות הראשונים — כרטיס נועד לרגע שבו מחליפים מכשיר.
+              </p>
+            )}
+          </>
+        )}
+        <button onClick={load} className={`${ghost} mt-3`}>רענון</button>
+      </Card>
+
+      <Card
+        title="לידים"
+        hint="רק מה שאנשים הקלידו והגישו בעצמם. «תזכורות» = אישרו במפורש."
+      >
+        {rows === null ? (
+          <p className="text-[12px] text-chalk-dim">טוען…</p>
+        ) : rows.length === 0 ? (
+          <p className="text-[12px] leading-snug text-chalk-dim">
+            אין עדיין לידים. השדה מופיע בכרטיס המנוי, אחרי ההגשה הראשונה.
+          </p>
+        ) : (
+          <ul className="space-y-1">
+            {rows.map((r) => (
+              <li key={r.email + r.at}
+                  className="flex items-baseline gap-2 border-b border-gold/10 py-1.5 last:border-0">
+                <span className="min-w-0 flex-1">
+                  <bdi dir="ltr" className="block truncate text-[12.5px] text-chalk">
+                    {r.email}
+                  </bdi>
+                  <span className="text-[10.5px] text-chalk-dim">
+                    {r.name} · {r.source}
+                    {r.entries > 0 && <> · <span className="num">{r.entries}</span> הגשות</>}
+                    {!r.isGuest && ' · רשום'}
+                  </span>
+                </span>
+                {r.consent && (
+                  <span className="shrink-0 rounded bg-gold/15 px-1.5 py-px text-[9.5px]
+                                   font-black text-gold">
+                    תזכורות
+                  </span>
+                )}
+                <span className="num shrink-0 text-[10.5px] text-chalk-dim">
+                  {r.at.slice(5, 10)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function Step({
+  label, n, of, pct, first = false,
+}: {
+  label: string; n: number; of: number;
+  pct: (a: number, b: number) => string; first?: boolean;
+}) {
+  const share = of > 0 ? Math.min(100, Math.round((n / of) * 100)) : 0;
+  return (
+    <li>
+      <div className="flex items-baseline gap-2">
+        <span className="flex-1 text-[12.5px] text-chalk">{label}</span>
+        <span className="num text-[13px] text-gold">{n}</span>
+        {!first && <span className="num w-10 text-end text-[11px] text-chalk-dim">{pct(n, of)}</span>}
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-night">
+        <div className="h-full rounded-full bg-gold/70" style={{ width: `${share}%` }} />
+      </div>
+    </li>
   );
 }

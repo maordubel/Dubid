@@ -32,9 +32,23 @@
 import { adminClient, mintSession, CORS, json } from '../_common/session.ts';
 
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+/** קוד העברה: "תעביר אותי עכשיו לטלפון". קצר, חד־פעמי, שעה. */
 const CODE_LEN = 6;
-const TTL_MS = 60 * 60 * 1000;      // שעה
-const MAX_ATTEMPTS = 8;
+const TTL_MS = 60 * 60 * 1000;
+
+/**
+ * ★★ מפתח הכניסה — למה הוא ארוך יותר ★★
+ *
+ * שישה תווים מאלפבית של 32 הם 30 ביט. זה בסדר גמור לקוד שחי
+ * שעה, וזה לא מספיק לקוד ששוכב בגלריה של המשתמש לנצח.
+ *
+ * עשרה תווים הם 50 ביט. יחד עם המכסה שכבר קיימת במסד
+ * (`code_attempt_ok`, עשרה ניסיונות לרבע שעה לכל מנחש), ניחוש
+ * הוא לא תרחיש. מה שמגן כאן הוא **האורך כפול המכסה**, ולא אחד
+ * מהם לבדו.
+ */
+const PASS_LEN = 10;
 
 async function sha256Hex(text: string): Promise<string> {
   const bytes = new TextEncoder().encode(text);
@@ -42,12 +56,20 @@ async function sha256Hex(text: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-function newCode(): string {
+function newCode(len = CODE_LEN): string {
   // `crypto.getRandomValues` ולא `Math.random`: קוד שאפשר לנחש
   // מהזמן שבו הונפק אינו קוד.
-  const buf = new Uint32Array(CODE_LEN);
+  //
+  // ★ 32 מחלק את 2³² בדיוק, ולכן `% 32` אינו מטה את ההתפלגות.
+  //   אלפבית באורך אחר היה דורש דחיית ערכים, ולא רק מודולו.
+  const buf = new Uint32Array(len);
   crypto.getRandomValues(buf);
   return [...buf].map((n) => ALPHABET[n % ALPHABET.length]).join('');
+}
+
+/** `AB34-CD67-KM` — מקובץ, כי מפתח בן עשרה תווים ברצף לא נקרא. */
+function pretty(code: string): string {
+  return code.replace(/(.{4})(.{4})(.*)/, '$1-$2-$3').replace(/-$/, '');
 }
 
 Deno.serve(async (req) => {
@@ -81,10 +103,65 @@ Deno.serve(async (req) => {
       return json({ code, expiresAt });
     }
 
+    /* ---------------- מפתח הכניסה הקבוע ---------------- */
+    /*
+     * ★ אידמפוטנטי: מי שכבר יש לו מפתח מקבל אותו... ולא.
+     *
+     * וזו נקודה שחשוב לומר בפירוש: **אי אפשר להחזיר מפתח קיים.**
+     * במסד יושב רק ה-hash שלו, וזו ההחלטה הנכונה — מי שמשיג
+     * גישה לטבלה לא יכול להתחזות לאיש.
+     *
+     * המשמעות המעשית: "הצג לי את הכרטיס שלי שוב" חייב להנפיק
+     * מפתח **חדש** ולבטל את הישן. וזה גם ההתנהגות הנכונה: אם
+     * המשתמש מבקש את הכרטיס שוב, בדרך כלל הסיבה היא שהוא איבד
+     * את הקודם.
+     *
+     * מה שכן מוחזר בלי הנפקה מחדש הוא **המצב** (`my_pass_state`)
+     * — מתי הונפק וכמה פעמים שימש. זה מספיק כדי שהמסך יידע
+     * להגיד "כבר יש לך כרטיס" בלי לזרוק את הקיים.
+     */
+    if (body.action === 'pass') {
+      const jwt = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
+      if (!jwt) return json({ error: 'AUTH_REQUIRED' }, 401);
+
+      const { data: who, error: whoErr } = await admin.auth.getUser(jwt);
+      if (whoErr || !who?.user) return json({ error: 'AUTH_REQUIRED' }, 401);
+
+      const code = newCode(PASS_LEN);
+      const hash = await sha256Hex(code);
+
+      /* ★ ביטול הישן לפני הכנסת החדש, ולא אחריו.
+         יש אינדקס ייחודי על "מפתח פעיל אחד למשתמש"; הסדר ההפוך
+         היה נכשל על עצמו. */
+      await admin.schema('game').from('access_codes')
+        .update({ revoked_at: new Date().toISOString() })
+        .eq('user_id', who.user.id).eq('kind', 'pass').is('revoked_at', null);
+
+      const { error } = await admin.schema('game').from('access_codes').insert({
+        code_hash: hash, user_id: who.user.id, kind: 'pass', expires_at: null,
+      });
+      if (error) return json({ error: 'PASS_FAILED', detail: error.message }, 500);
+
+      const { data: profile } = await admin.schema('game').from('users')
+        .select('display_name').eq('id', who.user.id).maybeSingle();
+
+      return json({
+        code,
+        pretty: pretty(code),
+        displayName: profile?.display_name ?? null,
+        issuedAt: new Date().toISOString(),
+      });
+    }
+
     /* ---------------- פדיון ---------------- */
     if (body.action === 'redeem') {
+      /* ★ המקפים שהמשתמש רואה בכרטיס נשלפים כאן.
+         הוא מקליד "AB34-CD67-KM" כי ככה זה כתוב אצלו; הנרמול
+         חייב לקבל את זה, אחרת המפתח שאנחנו הדפסנו לו לא עובד. */
       const code = String(body.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-      if (code.length !== CODE_LEN) return json({ error: 'INVALID_CODE' }, 400);
+      if (code.length !== CODE_LEN && code.length !== PASS_LEN) {
+        return json({ error: 'INVALID_CODE' }, 400);
+      }
 
       /*
        * ★★★ הבאג שהיה כאן ★★★
@@ -111,41 +188,71 @@ Deno.serve(async (req) => {
 
       const hash = await sha256Hex(code);
       const { data: row } = await admin.schema('game').from('access_codes')
-        .select('user_id, expires_at, redeemed_at, attempts')
+        .select('user_id, kind, expires_at, redeemed_at, revoked_at, uses')
         .eq('code_hash', hash)
         .maybeSingle();
 
       if (!row) return json({ error: 'INVALID_CODE' }, 404);
-      if (row.redeemed_at) return json({ error: 'CODE_USED' }, 410);
-      if (new Date(row.expires_at).getTime() < Date.now()) {
-        return json({ error: 'CODE_EXPIRED' }, 410);
-      }
-      if ((row.attempts ?? 0) >= MAX_ATTEMPTS) return json({ error: 'TOO_MANY_ATTEMPTS' }, 429);
+      if (row.revoked_at) return json({ error: 'CODE_REVOKED' }, 410);
 
       /*
-       * ★ הסימון "נפדה" קורה **לפני** יצירת הסשן, והוא מותנה.
+       * ═══════════════════════════════════════════════════════
+       * ★★ שני סוגים, ורק אחד מהם נשרף בשימוש ★★
+       * ═══════════════════════════════════════════════════════
        *
-       * הסדר ההפוך (מנפיקים ואז מסמנים) הוא בדיקה-ואז-כתיבה: שתי
-       * בקשות שמגיעות באותה מילישנייה שתיהן רואות `redeemed_at`
-       * ריק, ושתיהן מקבלות סשן — כלומר קוד חד־פעמי שנפדה פעמיים.
+       *   transfer — "תעביר אותי עכשיו לטלפון". חד־פעמי, שעה.
+       *   pass     — הכרטיס שהמשתמש שמר בגלריה. חוזר, קבוע.
        *
-       * `.is('redeemed_at', null)` הופך את זה לפעולה אטומית: רק
-       * מי שהעדכון שלו החזיר שורה ממשיך.
+       * ★ למה מפתח חוזר הוא **חובה** ולא נוחות
+       *
+       * המוצר מבקש מהמשתמש לשמור תמונה עם המפתח ולשלוח אותה
+       * לעצמו. מפתח שנשרף בשימוש הראשון הופך את התמונה הזו
+       * לחסרת ערך בדיוק אחרי הפעם הראשונה — והמשתמש יגלה את זה
+       * ברגע הגרוע ביותר: כשהוא מחליף טלפון בפעם השנייה.
+       *
+       * מה שמחליף את החד־פעמיות בתור ההגנה: אורך (50 ביט)
+       * ומכסת ניחושים למנחש. ראו את ההערה על `PASS_LEN`.
        */
-      const { data: claimed } = await admin.schema('game').from('access_codes')
-        .update({ redeemed_at: new Date().toISOString() })
-        .eq('code_hash', hash)
-        .is('redeemed_at', null)
-        .select('user_id');
+      if (row.kind === 'pass') {
+        await admin.schema('game').from('access_codes')
+          .update({ uses: (row.uses ?? 0) + 1, last_used_at: new Date().toISOString() })
+          .eq('code_hash', hash);
+      } else {
+        if (row.redeemed_at) return json({ error: 'CODE_USED' }, 410);
+        if (!row.expires_at || new Date(row.expires_at).getTime() < Date.now()) {
+          return json({ error: 'CODE_EXPIRED' }, 410);
+        }
 
-      if (!claimed || claimed.length === 0) return json({ error: 'CODE_USED' }, 410);
+        /*
+         * ★ הסימון "נפדה" קורה **לפני** יצירת הסשן, והוא מותנה.
+         *
+         * הסדר ההפוך (מנפיקים ואז מסמנים) הוא בדיקה-ואז-כתיבה:
+         * שתי בקשות שמגיעות באותה מילישנייה שתיהן רואות
+         * `redeemed_at` ריק, ושתיהן מקבלות סשן — כלומר קוד
+         * חד־פעמי שנפדה פעמיים.
+         *
+         * `.is('redeemed_at', null)` הופך את זה לאטומי.
+         */
+        const { data: claimed } = await admin.schema('game').from('access_codes')
+          .update({ redeemed_at: new Date().toISOString(), uses: (row.uses ?? 0) + 1,
+                    last_used_at: new Date().toISOString() })
+          .eq('code_hash', hash)
+          .is('redeemed_at', null)
+          .select('user_id');
+
+        if (!claimed || claimed.length === 0) return json({ error: 'CODE_USED' }, 410);
+      }
 
       const session = await mintSession(admin, row.user_id);
 
       const { data: profile } = await admin.schema('game').from('users')
         .select('display_name').eq('id', row.user_id).maybeSingle();
 
-      return json({ ...session, display_name: profile?.display_name ?? null });
+      return json({
+        ...session,
+        display_name: profile?.display_name ?? null,
+        kind: row.kind ?? 'transfer',
+      });
     }
 
     return json({ error: 'UNKNOWN_ACTION' }, 400);
