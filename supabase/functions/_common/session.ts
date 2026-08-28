@@ -76,11 +76,27 @@ export async function mintSession(admin: SupabaseClient, userId: string): Promis
   };
 }
 
-/** CORS — הפונקציות נקראות מהדפדפן. */
+/**
+ * CORS — הפונקציות נקראות מהדפדפן.
+ *
+ * ★★ ברירת המחדל היא הדומיין שלנו, ולא `*` ★★
+ *
+ * הקובץ הזה משרת את `access-code` ואת `link-offsides` — שתי
+ * הפונקציות שמנפיקות **סשן**. `*` כברירת מחדל אומר שאם
+ * `APP_ORIGIN` לא הוגדר בפרויקט (וזה בדיוק מה שקורה בהתקנה
+ * חדשה, בשקט), כל אתר בעולם יכול להריץ פדיון קודים מהדפדפן של
+ * המשתמש שלנו.
+ *
+ * ברירת מחדל בטוחה עדיפה על הגדרה נכונה שתלויה בכך שמישהו
+ * זכר לבצע אותה.
+ */
 export const CORS: Record<string, string> = {
-  'Access-Control-Allow-Origin': Deno.env.get('APP_ORIGIN') ?? '*',
+  'Access-Control-Allow-Origin': Deno.env.get('APP_ORIGIN') ?? 'https://dubid.dubelteam.com',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  /* ★ בלי זה, שרת מטמון בדרך יכול להגיש תשובה עם כותרת מקור
+     של בקשה קודמת ממקור אחר. */
+  Vary: 'Origin',
 };
 
 export function json(body: unknown, status = 200): Response {

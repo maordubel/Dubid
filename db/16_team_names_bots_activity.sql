@@ -629,6 +629,14 @@ BEGIN
                                            || ' ביטל הרכב'
                     WHEN 'signup'     THEN COALESCE(NULLIF(btrim(u.display_name),''),'אורח')
                                            || ' נרשם'
+                    -- ★ פעולות ניהול מופיעות באותו יומן ולא ביומן שני.
+                    --   "מי שינה את המודעה" ו"מי הגיש הרכב" הן שתי
+                    --   שאלות על אותו ציר זמן; שני יומנים נפרדים היו
+                    --   מחייבים להצליב אותם ידנית בכל בירור.
+                    WHEN 'ad_upsert'  THEN 'מודעה נשמרה'
+                    WHEN 'ad_on'      THEN 'מודעה הודלקה'
+                    WHEN 'ad_off'     THEN 'מודעה כובתה'
+                    WHEN 'ad_delete'  THEN 'מודעה נמחקה'
                     ELSE COALESCE(NULLIF(btrim(u.display_name),''),'אורח') || ' · ' || l.action
                   END
                   || CASE WHEN l.mode = 'five' THEN ' · דוביד 5'

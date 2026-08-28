@@ -8,6 +8,7 @@
  * שיוזן API אמיתי, השכבה היחידה שמוחלפת היא זו שממלאת את הטפסים.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { IS_PRODUCTION_DATA, PROJECT_ENV, PROJECT_ENV_HE } from '../lib/supabase.ts';
 
 import { TEAMS, TEAM_BY_ID, PLAYERS_BY_TEAM } from '../data/squads.ts';
 import { FIXTURES, GAMEWEEK, fixtureLabel, kickoffTimeLabel } from '../data/fixtures.ts';
@@ -26,6 +27,7 @@ import type { PlayerPerformance, Position, TeamOutcome } from '../lib/scoring/ty
 import { AdminSquads } from './AdminSquads.tsx';
 import {
   AdminGameweeks, AdminRules, AdminContent, AdminAnalytics, AdminActivity,
+  AdminBots, AdminAds,
 } from './AdminConsole.tsx';
 import { LogoMark } from './Logo.tsx';
 import { resolveGate, type AdminGate } from '../lib/adminGate.ts';
@@ -95,7 +97,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
    */
   const [section, setSection] = useState<
     'results' | 'gameweeks' | 'gameweek' | 'squads' | 'rules' | 'content'
-    | 'activity' | 'stats'
+    | 'activity' | 'bots' | 'ads' | 'stats'
   >('results');
 
   useEffect(() => subscribeToStore(() => forceTick((n) => n + 1)), []);
@@ -183,6 +185,34 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
         </div>
       </header>
 
+      {/*
+        ★★ הפס שאומר לאיזה מסד הלוח הזה מחובר ★★
+
+        לוח הניהול נראה זהה לחלוטין מול ייצור ומול בדיקות. זה
+        המסך היחיד במוצר שאפשר למחוק ממנו מחזור, לשנות חוקי
+        ניקוד ולהוסיף בוטים — כלומר המסך היחיד שבו "לא ידעתי
+        שזה החי" הוא נזק אמיתי.
+
+        ★ הפס אדום רק בייצור, ולא תמיד.
+          אזהרה שמופיעה בכל מצב מפסיקה להיקרא תוך יומיים. כאן
+          הצבע **הוא** המידע: ירוק = אפשר לשחק, אדום = זה החי.
+      */}
+      <div
+        className="px-4 pt-3"
+        style={{ direction: 'rtl' }}
+      >
+        <p
+          className={`rounded-lg px-3 py-1.5 text-center text-[11.5px] font-black ${
+            IS_PRODUCTION_DATA
+              ? 'bg-flare/15 text-flare ring-1 ring-inset ring-flare/40'
+              : 'bg-gold/10 text-chalk-dim'}`}
+        >
+          {IS_PRODUCTION_DATA ? '⚠ ' : ''}
+          מחובר ל־{PROJECT_ENV_HE[PROJECT_ENV]}
+          {IS_PRODUCTION_DATA && ' — כל שינוי כאן נראה למשתמשים מיד'}
+        </p>
+      </div>
+
       <div className="mx-auto max-w-3xl px-4 py-5">
         {/* ★ גלילה אופקית: שבע לשוניות לא נכנסות לרוחב טלפון,
             והצטמצמות הייתה הופכת כל תווית לשתי אותיות. */}
@@ -191,7 +221,16 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
           {/* ★ "פעילות" יושבת שלישית ולא אחרונה: זו הלשונית
               שנפתחת הכי הרבה אחרי תוצאות — היא עונה על "מה
               קורה עכשיו", וזו השאלה שפותחים בשבילה את הלוח. */}
+          {/* ★★ "בוטים" ו"פרסום" הן לשוניות משלהן, ולא כרטיסים
+              בתוך לשונית אחרת. ★★
+
+              הבוטים ישבו בתחתית מסך "פעילות", ולכן — כפי שהתברר
+              — הם פשוט לא נמצאו. תכונה שקיימת ואי אפשר למצוא
+              אותה שווה בדיוק כמו תכונה שלא נבנתה, וזה נכון
+              בכפליים בלוח ניהול: מי שמחפש בו משהו כבר יודע מה
+              הוא רוצה, והוא מחפש **שם** ולא מגלה בגלילה. */}
           {([['results', 'תוצאות'], ['gameweeks', 'מחזורים'], ['activity', 'פעילות'],
+             ['bots', 'בוטים'], ['ads', 'פרסום'],
              ['gameweek', 'המחזור'], ['squads', 'סגלים'], ['rules', 'חוקים'],
              ['content', 'תוכן'], ['stats', 'ניתוח']] as const)
             .map(([id, label]) => (
@@ -212,6 +251,8 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
         {section === 'squads' && <AdminSquads />}
         {section === 'gameweeks' && <AdminGameweeks />}
         {section === 'activity' && <AdminActivity />}
+        {section === 'bots' && <AdminBots />}
+        {section === 'ads' && <AdminAds />}
         {section === 'gameweek' && <AdminGameweek />}
         {section === 'rules' && <AdminRules />}
         {section === 'content' && <AdminContent />}

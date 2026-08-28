@@ -41,6 +41,8 @@
  */
 import type { Lineup, PlayerPerformance, TeamOutcome } from './scoring/types.ts';
 import { supabase } from './supabase.ts';
+import { hydrateAds } from './adsStore.ts';
+import type { HouseAd } from './houseAds.ts';
 import { ensureIdentity, currentIdentity } from './identity.ts';
 import { refreshLiveData } from './liveData.ts';
 
@@ -1349,4 +1351,74 @@ export async function adminActivityStats(gameweekId?: string): Promise<ActivityS
   return (data ?? {
     total: 0, humans: 0, bots: 0, withdraw: 0, today: 0, five: 0, full: 0, byHour: [],
   }) as ActivityStats;
+}
+
+/* ------------------------------------------------------------------ */
+/* פרסום פנימי — ניהול                                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * מודעה כפי שהאדמין רואה אותה: כולל מכובות, כולל מחוץ לחלון,
+ * וכולל המספרים.
+ *
+ * ★ שדות המדידה נפרדים מ-`HouseAd` בכוונה: הקומפוננטה שמציגה
+ *   מודעה למשתמש לא צריכה לדעת שקיימים בכלל קליקים, ואסור לה
+ *   לקבל אותם בטעות דרך אותו טיפוס.
+ */
+export interface AdminAd extends HouseAd {
+  impressions: number;
+  clicks: number;
+}
+
+export async function adminAds(): Promise<AdminAd[]> {
+  const { data, error } = await supabase.rpc('admin_ads');
+  if (error) throw new Error(errorCode(error));
+  return (Array.isArray(data) ? data : []) as AdminAd[];
+}
+
+export async function adminUpsertAd(ad: HouseAd): Promise<void> {
+  const { error } = await supabase.rpc('admin_upsert_ad', {
+    p_id: ad.id,
+    p_brand: ad.brand,
+    p_headline: ad.headline,
+    p_body: ad.body,
+    p_cta: ad.cta,
+    p_url: ad.url,
+    p_weight: ad.weight,
+    p_enabled: ad.enabled,
+    p_placements: ad.placements,
+    p_starts_at: ad.startsAt,
+    p_ends_at: ad.endsAt,
+  });
+  if (error) throw new Error(errorCode(error));
+  /* ★ המודעות נטענות מחדש מיד, כדי שהאדמין יראה את השינוי
+     במסך הרגיל ולא רק בטופס שלו. */
+  await hydrateAds();
+}
+
+export async function adminSetAdEnabled(id: string, enabled: boolean): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_ad_enabled', {
+    p_id: id, p_enabled: enabled,
+  });
+  if (error) throw new Error(errorCode(error));
+  await hydrateAds();
+}
+
+export async function adminDeleteAd(id: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_delete_ad', { p_id: id });
+  if (error) throw new Error(errorCode(error));
+  await hydrateAds();
+}
+
+export interface AdStats {
+  days: number;
+  impressions: number;
+  clicks: number;
+  byPlacement: Array<{ placement: string; impressions: number; clicks: number }>;
+}
+
+export async function adminAdStats(days = 30): Promise<AdStats> {
+  const { data, error } = await supabase.rpc('admin_ad_stats', { p_days: days });
+  if (error) throw new Error(errorCode(error));
+  return (data ?? { days, impressions: 0, clicks: 0, byPlacement: [] }) as AdStats;
 }

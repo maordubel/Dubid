@@ -20,6 +20,7 @@ import { ShadesDivider } from './components/Shades.tsx';
 import { usePromo } from './state/usePromo.ts';
 import { DUBID_URL, type GrowthContext } from './lib/growth.ts';
 import { OffsidesHero, OffsidesInline, OffsidesRail } from './components/OffsidesAds.tsx';
+import { HouseBanner, HouseStrip } from './components/HouseAds.tsx';
 import { GameweekStatus, type Gameweek } from './lib/gameweek.ts';
 import { serverNow } from './lib/serverTime.ts';
 import { SquadPicker, type PoolPlayer, type TeamMeta } from './components/SquadPicker.tsx';
@@ -614,6 +615,15 @@ function MainApp() {
    * שיתוף שרודף הורג את המוצר, לא את השיתוף.
    */
   const [reveal, setReveal] = useState<RevealCardData | null>(null);
+  /**
+   * ★ לאן חוזרים כשסוגרים את כרטיס השיתוף.
+   *
+   * מיד אחרי ההגשה — למסך הכרטיס, כי זה ההמשך הטבעי של הזרימה.
+   * אבל מאז שאפשר לפתוח את הכרטיס **גם** ממסך ההרכב הנעול, אותה
+   * שורה הייתה זורקת את מי שרק רצה לשתף אל מסך "עוד אין תוצאות
+   * למחזור" — כלומר מענישה אותו בדיוק על הפעולה שרצינו.
+   */
+  const [revealBack, setRevealBack] = useState<string | null>(null);
   const [showAccount, setShowAccount] = useState(false);
 
   const goToMode = (m: Mode) => {
@@ -695,6 +705,12 @@ function MainApp() {
               }
             } : undefined}
             onViewCard={hasRealResults ? () => setTab('card') : undefined}
+            /* ★ אותו כרטיס בדיוק שקפץ אחרי ההגשה, לפי דרישה.
+               `buildReveal` מקבל את ההגשה השמורה, ולכן הכרטיס
+               תמיד מציג את מה שבאמת נעול — ולא טיוטה שנערכה
+               מאז במסך אחר. */
+            onShare={() => { setRevealBack('lineup'); setReveal(buildReveal(entry)); }}
+            mode={entry.mode}
           />
         ) : (
           <div className="relative flex min-h-0 flex-1 flex-col">
@@ -741,6 +757,7 @@ function MainApp() {
                  שעל המסך. השרת הוא זה שקובע מה נשמר בפועל —
                  ואם הוא חתך משהו, הכרטיס צריך להראות את מה
                  שנשמר, לא את מה שביקשנו. */
+              setRevealBack('card');
               setReveal(buildReveal(saved));
             }}
             mode={mode}
@@ -840,7 +857,11 @@ function MainApp() {
       {reveal && (
         <RevealShare
           data={reveal}
-          onClose={() => { setReveal(null); setTab('card'); }}
+          onClose={() => {
+            setReveal(null);
+            if (revealBack && revealBack !== tab) setTab(revealBack);
+            setRevealBack(null);
+          }}
         />
       )}
     </AppShell>
@@ -1271,6 +1292,12 @@ function CardScreen({
           gameweekNumber={GAMEWEEK.number}
           className="mt-3 text-center"
         />
+
+        {/* ★ אחרי הכרזה של אופסיידס — רצועה של המוצר השני.
+            שתי יחידות באותו מסך הן בדרך כלל טעות; כאן הן
+            **שני מוצרים שונים**, והמסך הזה הוא היחיד שבו
+            למשתמש אין שום משימה פתוחה. */}
+        <HouseBanner placement="card" gameweekNumber={GAMEWEEK.number} className="mt-4" />
       </div>
     );
   }
@@ -1515,6 +1542,11 @@ export function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet
           לא מחליט כלום, ואין לו רגש. באנר כאן היה מוקפץ; משפט
           שממשיך את מה שהוא כבר קורא הוא פשוט מידע נוסף. */}
       <OffsidesInline placement="rules" gameweekNumber={GAMEWEEK.number} className="px-1" />
+
+      {/* ★ מסך החוקים הוא הרגע הכי קר במוצר — המשתמש קורא ולא
+          מחליט כלום. לכן שורה, לא רצועה: היחידה הכי צנועה שיש,
+          במקום שבו אין שום רגש לרכוב עליו. */}
+      <HouseStrip placement="rules" gameweekNumber={GAMEWEEK.number} className="mt-3" />
 
       <OffsidesRail placement="rules" gameweekNumber={GAMEWEEK.number} className="mt-4" />
 

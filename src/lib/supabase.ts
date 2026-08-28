@@ -68,8 +68,21 @@ const DEFAULTS = {
   },
 } as const;
 
+/**
+ * ★ `import.meta.env` לא קיים מחוץ ל-Vite.
+ *
+ * הבדיקות רצות ב-`node --experimental-strip-types`, בלי bundler.
+ * גישה ישירה ל-`import.meta.env.X` שם זורקת, וכל קובץ שמייבא
+ * את המודול הזה — כולל `store.ts` — נופל בטעינה. הבדיקה שנפלה
+ * על זה (`purge.test.ts`) לא בודקת Supabase בכלל; היא רק ייבאה
+ * את `store`.
+ *
+ * `?? {}` הוא כל התיקון: מחוץ ל-Vite פשוט אין משתני סביבה,
+ * ונופלים לברירות המחדל.
+ */
 function env(name: string): string | undefined {
-  const v = (import.meta.env as Record<string, string | undefined>)[name];
+  const bag = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
+  const v = bag[name];
   return v && v.length > 0 ? v : undefined;
 }
 
@@ -81,6 +94,49 @@ export const DUBID_PROJECT = {
 export const OFFSIDES_PROJECT = {
   url: env('VITE_OFFSIDES_SUPABASE_URL') ?? DEFAULTS.offsides.url,
   key: env('VITE_OFFSIDES_PUBLISHABLE_KEY') ?? DEFAULTS.offsides.key,
+};
+
+/* ------------------------------------------------------------------ */
+/* איזו סביבה זו בעצם                                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * ★★ הבעיה האמיתית בהיעדר staging ★★
+ *
+ * המפתחות כאן הם publishable ולכן אין כאן דליפת סוד. אבל יש
+ * כאן משהו גרוע יותר, ושקט יותר: **`npm run dev` אחרי `clone`
+ * כותב לדאטה של הייצור.** מפתח שבודק הגשה, מוחק מחזור או מריץ
+ * בוטים עושה את זה על המשחק החי, ואין שום דבר במסך שאומר לו.
+ *
+ * זה לא נפתר בהסתרת מפתחות. זה נפתר בכך שהסביבה תהיה **גלויה**:
+ * אם מישהו עומד לגעת בייצור, שיראה את זה.
+ *
+ * ★ למה זה נגזר מהכתובת ולא רק ממשתנה סביבה
+ *
+ * משתנה סביבה שלא הוגדר הוא בדיוק המצב שבו הטעות קורית. גזירה
+ * מהכתובת עובדת גם כשאיש לא הגדיר כלום — וזו הנקודה.
+ */
+export type ProjectEnv = 'production' | 'staging' | 'local';
+
+export const PROJECT_ENV: ProjectEnv = (() => {
+  const explicit = env('VITE_SUPABASE_ENV');
+  if (explicit === 'production' || explicit === 'staging' || explicit === 'local') {
+    return explicit;
+  }
+  if (/localhost|127\.0\.0\.1/.test(DUBID_PROJECT.url)) return 'local';
+  /* כתובת שאינה של פרויקט הייצור המוכר = לא ייצור. ברירת המחדל
+     הזהירה כאן היא **staging**: להכריז בטעות "ייצור" על סביבת
+     בדיקה מרעיש לחינם, ולהפך מסוכן. */
+  return DUBID_PROJECT.url === DEFAULTS.dubid.url ? 'production' : 'staging';
+})();
+
+/** `true` = כל כתיבה כאן נוגעת במשחק החי של המשתמשים. */
+export const IS_PRODUCTION_DATA = PROJECT_ENV === 'production';
+
+export const PROJECT_ENV_HE: Record<ProjectEnv, string> = {
+  production: 'ייצור · דאטה חיה',
+  staging: 'בדיקות',
+  local: 'מקומי',
 };
 
 /* ------------------------------------------------------------------ */
@@ -165,6 +221,9 @@ export const offsidesAuthClient: SupabaseClient = createClient(
  * המשתמש. באג שקט שהורס נעילה.
  */
 export async function fetchServerTime(): Promise<number> {
+  // ★ `db.schema = 'game'` חל גם על RPC. `server_now` המקורית
+  //   יושבת ב-`public`, ולכן קריאה כאן הייתה מחזירה 404 בשקט
+  //   וההיסט היה נשאר 0 לנצח. `db/09` §3b מוסיפה עטיפה ב-`game`.
   const { data, error } = await supabase.rpc('server_now');
   if (error || data == null) throw error ?? new Error('no server time');
   return Number(data);

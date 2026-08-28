@@ -6496,6 +6496,14 @@ BEGIN
                                            || ' ביטל הרכב'
                     WHEN 'signup'     THEN COALESCE(NULLIF(btrim(u.display_name),''),'אורח')
                                            || ' נרשם'
+                    -- ★ פעולות ניהול מופיעות באותו יומן ולא ביומן שני.
+                    --   "מי שינה את המודעה" ו"מי הגיש הרכב" הן שתי
+                    --   שאלות על אותו ציר זמן; שני יומנים נפרדים היו
+                    --   מחייבים להצליב אותם ידנית בכל בירור.
+                    WHEN 'ad_upsert'  THEN 'מודעה נשמרה'
+                    WHEN 'ad_on'      THEN 'מודעה הודלקה'
+                    WHEN 'ad_off'     THEN 'מודעה כובתה'
+                    WHEN 'ad_delete'  THEN 'מודעה נמחקה'
                     ELSE COALESCE(NULLIF(btrim(u.display_name),''),'אורח') || ' · ' || l.action
                   END
                   || CASE WHEN l.mode = 'five' THEN ' · דוביד 5'
@@ -6567,6 +6575,890 @@ GRANT EXECUTE ON FUNCTION game.admin_activity_stats(TEXT) TO authenticated;
 GRANT SELECT ON game.activity_log TO authenticated;
 
 UPDATE game.data_revision SET revision = revision + 1, scope = 'migration-16' WHERE id = 1;
+
+
+-- =====================================================================
+-- ▼▼▼  17_house_ads.sql  —  פרסום פנימי — מודעות, מדידה ולוח ניהול
+-- =====================================================================
+
+-- =====================================================================
+--  Dubid · מיגרציה 17 — פרסום פנימי (House Ads)
+-- =====================================================================
+--
+--  לחברה שלושה מוצרים על אותו דומיין: דוביד, טייק מי אאוט
+--  ואופסיידס. המשתמש שנמצא באחד מהם הוא הקהל הכי זול והכי חם
+--  שיש לשניים האחרים — אין עלות רכישה, והאמון כבר קיים.
+--
+--  המיגרציה הזו נותנת לאדמין שליטה מלאה על מה מוצג, איפה, מתי,
+--  ובאיזה משקל — בלי לגעת בקוד.
+--
+--  ★★ העיקרון: המסד הוא override, לא מקור ★★
+--
+--  ברירות המחדל חיות בקוד (`lib/houseAds.ts`). טבלה ריקה =
+--  בדיוק המוצר של היום. זו אותה החלטה כמו ב-`content` וב-
+--  `scoring_rules`, ומאותה סיבה: מיגרציה שלא רצה, או מחיקה
+--  בטעות, לא יכולה להשאיר מסך ריק.
+--
+--  אידמפוטנטי. אפשר להריץ שוב.
+-- =====================================================================
+
+SET search_path = game, core, public;
+
+-- ---------------------------------------------------------------------
+-- §1 · הטבלה
+-- ---------------------------------------------------------------------
+--
+--  ★ `id` הוא TEXT ולא UUID.
+--
+--  המזהה נשמר באנליטיקס ומופיע בכתובת שאליה המשתמש לוחץ
+--  (`?v=tmo-landed`). מזהה קריא הופך דוח קליקים למשהו שאפשר
+--  להסתכל עליו בלי טבלת תרגום. הוא גם מה שמאפשר ל-DEFAULT_ADS
+--  שבקוד ולשורות שבמסד לחלוק את אותם מזהים.
+-- ---------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS game.house_ads (
+  id           TEXT PRIMARY KEY,
+  brand        TEXT NOT NULL CHECK (brand IN ('takemeout', 'offsides')),
+  enabled      BOOLEAN NOT NULL DEFAULT TRUE,
+  weight       SMALLINT NOT NULL DEFAULT 5 CHECK (weight BETWEEN 1 AND 10),
+  headline     TEXT NOT NULL CHECK (length(headline) BETWEEN 1 AND 60),
+  body         TEXT NOT NULL DEFAULT '' CHECK (length(body) <= 120),
+  cta          TEXT NOT NULL DEFAULT 'להעיף מבט' CHECK (length(cta) BETWEEN 1 AND 24),
+  url          TEXT NOT NULL CHECK (url ~ '^https://'),
+  -- מערך ריק = בכל המסכים. זה הרוב, ולכן זו ברירת המחדל.
+  placements   TEXT[] NOT NULL DEFAULT '{}',
+  starts_at    TIMESTAMPTZ,
+  ends_at      TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- ★ חלון הפוך נחסם במסד ולא רק בטופס.
+  --   קמפיין עם תאריכים הפוכים פשוט לא היה מוצג לעולם, וזה
+  --   סוג התקלה שמתגלה חודשיים אחרי שהקמפיין "רץ".
+  CONSTRAINT house_ads_window CHECK (ends_at IS NULL OR starts_at IS NULL OR ends_at > starts_at)
+);
+
+COMMENT ON TABLE game.house_ads IS
+  'פרסום פנימי בין מוצרי דובל טים. ריק = ברירות המחדל שבקוד.';
+
+ALTER TABLE game.house_ads ENABLE ROW LEVEL SECURITY;
+
+-- ★ אין POLICY בכלל, בכוונה.
+--   הגישה עוברת רק דרך הפונקציות שלמטה (SECURITY DEFINER).
+--   טבלה עם RLS ובלי מדיניות היא סגורה לחלוטין לכל תפקיד שאינו
+--   הבעלים — וזה בדיוק מה שאנחנו רוצים: קריאה מסוננת דרך
+--   `house_ads()`, כתיבה רק דרך `admin_*`.
+
+-- ---------------------------------------------------------------------
+-- §2 · יומן החשיפות והקליקים
+-- ---------------------------------------------------------------------
+--
+--  ★ למה טבלת אירועים ולא שני מונים על השורה.
+--
+--  מונה עונה על "כמה". טבלה עונה גם על "איפה", "מתי" ו"באיזה
+--  מחזור" — ובלי הפילוח הזה אי אפשר לדעת אם מודעה עובדת בכל
+--  מקום או רק בטבלת הדירוג. ההפרש בעלות זניח; ההפרש במידע הוא
+--  ההבדל בין דוח לבין מספר.
+--
+--  ★ בלי מזהה משתמש. בכוונה.
+--
+--  אנחנו סופרים חשיפות וקליקים, לא אנשים. שמירת `user_id` כאן
+--  הייתה הופכת יומן פרסום ליומן מעקב אחרי אנשים, ובשביל שום
+--  שאלה שאנחנו באמת שואלים.
+-- ---------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS game.ad_events (
+  id         BIGSERIAL PRIMARY KEY,
+  ad_id      TEXT NOT NULL,
+  placement  TEXT NOT NULL,
+  event      TEXT NOT NULL CHECK (event IN ('impression', 'click')),
+  at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE game.ad_events ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS ad_events_ad_at_idx ON game.ad_events (ad_id, at DESC);
+CREATE INDEX IF NOT EXISTS ad_events_at_idx    ON game.ad_events (at DESC);
+
+-- ---------------------------------------------------------------------
+-- §3 · קריאה ציבורית
+-- ---------------------------------------------------------------------
+--
+--  ★ הסינון קורה **בשרת**.
+--
+--  מודעה מכובה או מודעה שחלון התצוגה שלה נגמר לא נשלחת לדפדפן
+--  בכלל. סינון בקליינט היה אומר שכל קמפיין עתידי — כולל
+--  הכותרות שלו — יושב ב-JSON שכל אחד יכול לפתוח.
+-- ---------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION game.house_ads()
+RETURNS JSONB
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = game, public
+AS $$
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+           'id',         a.id,
+           'brand',      a.brand,
+           'enabled',    a.enabled,
+           'weight',     a.weight,
+           'headline',   a.headline,
+           'body',       a.body,
+           'cta',        a.cta,
+           'url',        a.url,
+           'placements', to_jsonb(a.placements),
+           'startsAt',   a.starts_at,
+           'endsAt',     a.ends_at
+         ) ORDER BY a.id), '[]'::jsonb)
+  FROM game.house_ads a
+  WHERE a.enabled
+    AND (a.starts_at IS NULL OR a.starts_at <= now())
+    AND (a.ends_at   IS NULL OR a.ends_at   >  now());
+$$;
+
+GRANT EXECUTE ON FUNCTION game.house_ads() TO anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- §4 · מדידה
+-- ---------------------------------------------------------------------
+--
+--  ★★ תקרה לכל מודעה בכל דקה — ולמה היא חייבת להיות כאן ★★
+--
+--  זו פונקציה שכל אנונימי יכול לקרוא לה. בלי תקרה, לולאה של
+--  שלוש שורות ממלאת את הטבלה במיליוני שורות תוך דקות: גם חשבון
+--  ענן שמתנפח, וגם — הגרוע יותר — דוח קליקים שמשקר, ולכן
+--  החלטות שיווקיות שמתקבלות על סמך רעש.
+--
+--  התקרה היא **לכל מודעה ולכל דקה**, לא גלובלית: מודעה אחת
+--  שמוצפת לא משתיקה את המדידה של השאר.
+-- ---------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION game.ad_event(
+  p_ad_id TEXT, p_placement TEXT, p_event TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, public
+AS $$
+DECLARE
+  v_recent INT;
+  -- 600 חשיפות לדקה למודעה זה הרבה מעל כל תנועה אמיתית שתהיה
+  -- לנו, וזה עדיין חוסם הצפה בשלושה סדרי גודל.
+  c_cap CONSTANT INT := 600;
+BEGIN
+  IF p_event NOT IN ('impression', 'click') THEN RETURN; END IF;
+  IF p_ad_id IS NULL OR length(p_ad_id) > 64 THEN RETURN; END IF;
+
+  SELECT count(*) INTO v_recent
+  FROM game.ad_events
+  WHERE ad_id = p_ad_id AND at > now() - INTERVAL '1 minute';
+
+  IF v_recent >= c_cap THEN RETURN; END IF;
+
+  INSERT INTO game.ad_events (ad_id, placement, event)
+  VALUES (p_ad_id, COALESCE(NULLIF(left(p_placement, 32), ''), 'unknown'), p_event);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.ad_event(TEXT, TEXT, TEXT) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- §5 · ניהול
+-- ---------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION game.admin_ads()
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = game, public
+AS $$
+DECLARE v JSONB;
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
+
+  -- ★ האדמין רואה גם מכובות וגם כאלה שמחוץ לחלון — אחרת אי
+  --   אפשר להדליק מודעה שכבויה, וזו הפעולה הכי שכיחה כאן.
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+           'id',         a.id,
+           'brand',      a.brand,
+           'enabled',    a.enabled,
+           'weight',     a.weight,
+           'headline',   a.headline,
+           'body',       a.body,
+           'cta',        a.cta,
+           'url',        a.url,
+           'placements', to_jsonb(a.placements),
+           'startsAt',   a.starts_at,
+           'endsAt',     a.ends_at,
+           'impressions', COALESCE(s.impressions, 0),
+           'clicks',      COALESCE(s.clicks, 0)
+         ) ORDER BY a.brand, a.id), '[]'::jsonb)
+  INTO v
+  FROM game.house_ads a
+  LEFT JOIN (
+    SELECT ad_id,
+           count(*) FILTER (WHERE event = 'impression') AS impressions,
+           count(*) FILTER (WHERE event = 'click')      AS clicks
+    FROM game.ad_events
+    GROUP BY ad_id
+  ) s ON s.ad_id = a.id;
+
+  RETURN v;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.admin_ads() TO authenticated;
+
+CREATE OR REPLACE FUNCTION game.admin_upsert_ad(
+  p_id TEXT, p_brand TEXT, p_headline TEXT, p_body TEXT, p_cta TEXT,
+  p_url TEXT, p_weight INT DEFAULT 5, p_enabled BOOLEAN DEFAULT TRUE,
+  p_placements TEXT[] DEFAULT '{}', p_starts_at TIMESTAMPTZ DEFAULT NULL,
+  p_ends_at TIMESTAMPTZ DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, public
+AS $$
+DECLARE v_id TEXT;
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
+
+  -- ★ מזהה נורמלי, ולא מה שהוקלד.
+  --   הוא מופיע בכתובת URL ובדוחות. רווח או עברית בתוך
+  --   `?v=` הופכים כל דוח לבלגן של תווים מקודדים.
+  -- ★★ `lower` **לפני** ה-regex, ולא אחריו. ★★
+  --
+  --   הסדר ההפוך נראה זהה והוא באג: המחלקה `[^a-z0-9-]` לא
+  --   כוללת אותיות גדולות, ולכן היא מחליפה אותן במקף. "Test Ad"
+  --   הפך ל-"est-d" — מזהה קצוץ, בלי שום שגיאה, שנכנס לכתובת
+  --   ולדוחות ונשאר שם.
+  v_id := regexp_replace(lower(COALESCE(NULLIF(trim(p_id), ''), gen_random_uuid()::TEXT)),
+                         '[^a-z0-9-]+', '-', 'g');
+  v_id := left(trim(BOTH '-' FROM v_id), 40);
+  IF v_id = '' THEN RAISE EXCEPTION 'BAD_AD_ID'; END IF;
+
+  INSERT INTO game.house_ads
+    (id, brand, enabled, weight, headline, body, cta, url, placements, starts_at, ends_at)
+  VALUES
+    (v_id, p_brand, COALESCE(p_enabled, TRUE), COALESCE(p_weight, 5),
+     trim(p_headline), COALESCE(trim(p_body), ''), COALESCE(NULLIF(trim(p_cta), ''), 'להעיף מבט'),
+     trim(p_url), COALESCE(p_placements, '{}'), p_starts_at, p_ends_at)
+  ON CONFLICT (id) DO UPDATE SET
+    brand      = EXCLUDED.brand,
+    enabled    = EXCLUDED.enabled,
+    weight     = EXCLUDED.weight,
+    headline   = EXCLUDED.headline,
+    body       = EXCLUDED.body,
+    cta        = EXCLUDED.cta,
+    url        = EXCLUDED.url,
+    placements = EXCLUDED.placements,
+    starts_at  = EXCLUDED.starts_at,
+    ends_at    = EXCLUDED.ends_at,
+    updated_at = now();
+
+  PERFORM game.log_activity(auth.uid(), 'ad_upsert', NULL, NULL, v_id);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.admin_upsert_ad(
+  TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INT, BOOLEAN, TEXT[], TIMESTAMPTZ, TIMESTAMPTZ
+) TO authenticated;
+
+CREATE OR REPLACE FUNCTION game.admin_set_ad_enabled(p_id TEXT, p_enabled BOOLEAN)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, public
+AS $$
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
+  UPDATE game.house_ads SET enabled = p_enabled, updated_at = now() WHERE id = p_id;
+  PERFORM game.log_activity(
+    auth.uid(), CASE WHEN p_enabled THEN 'ad_on' ELSE 'ad_off' END, NULL, NULL, p_id);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.admin_set_ad_enabled(TEXT, BOOLEAN) TO authenticated;
+
+CREATE OR REPLACE FUNCTION game.admin_delete_ad(p_id TEXT)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, public
+AS $$
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
+
+  DELETE FROM game.house_ads WHERE id = p_id;
+
+  -- ★ האירועים **לא** נמחקים.
+  --   דוח של רבעון שעבר לא אמור להשתנות כי מודעה נמחקה היום.
+  --   מחיקה שמשכתבת היסטוריה היא מחיקה שאי אפשר לסמוך על
+  --   המספרים שאחריה.
+  PERFORM game.log_activity(auth.uid(), 'ad_delete', NULL, NULL, p_id);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.admin_delete_ad(TEXT) TO authenticated;
+
+-- ---------------------------------------------------------------------
+-- §6 · דוח ביצועים
+-- ---------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION game.admin_ad_stats(p_days INT DEFAULT 30)
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = game, public
+AS $$
+DECLARE v JSONB; v_since TIMESTAMPTZ;
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
+  v_since := now() - (GREATEST(1, LEAST(365, COALESCE(p_days, 30))) || ' days')::INTERVAL;
+
+  SELECT jsonb_build_object(
+    'days', GREATEST(1, LEAST(365, COALESCE(p_days, 30))),
+    'impressions', COALESCE(count(*) FILTER (WHERE event = 'impression'), 0),
+    'clicks',      COALESCE(count(*) FILTER (WHERE event = 'click'), 0),
+    'byPlacement', COALESCE((
+      SELECT jsonb_agg(x ORDER BY x->>'placement')
+      FROM (
+        SELECT jsonb_build_object(
+                 'placement', placement,
+                 'impressions', count(*) FILTER (WHERE event = 'impression'),
+                 'clicks',      count(*) FILTER (WHERE event = 'click')
+               ) AS x
+        FROM game.ad_events WHERE at >= v_since
+        GROUP BY placement
+      ) t), '[]'::jsonb)
+  ) INTO v
+  FROM game.ad_events WHERE at >= v_since;
+
+  RETURN v;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.admin_ad_stats(INT) TO authenticated;
+
+-- ---------------------------------------------------------------------
+-- §7 · זרעים
+-- ---------------------------------------------------------------------
+--
+--  ★ `ON CONFLICT DO NOTHING`, ולא `DO UPDATE`.
+--
+--  אם האדמין ערך את הכותרת של מודעת ברירת המחדל, הרצה חוזרת של
+--  המיגרציה **לא** תדרוס אותה. מיגרציה אידמפוטנטית שמשחזרת
+--  טקסט שיווקי היא מיגרציה שמוחקת עבודה.
+-- ---------------------------------------------------------------------
+
+INSERT INTO game.house_ads (id, brand, weight, headline, body, cta, url) VALUES
+  ('tmo-landed', 'takemeout', 5,
+   'נחתתם בעיר זרה. עכשיו מה?',
+   'מה לראות, מה לאכול ומה לדלג עליו — בעיר שאתם לא מכירים.',
+   'לבחור עיר', 'https://takemeout.dubelteam.com'),
+  ('tmo-locals', 'takemeout', 4,
+   'התייר רואה חמישה מקומות. המקומי יודע חמישים',
+   'אתונה, ברלין, פריז, סופיה — הרשימה שהמקומיים היו נותנים.',
+   'לפתוח את הרשימה', 'https://takemeout.dubelteam.com'),
+  ('ofs-live', 'offsides', 5,
+   'כאן מחכים שבוע. שם — תשעים דקות',
+   'אותם משחקים, ניחושים בזמן אמת, זירות מול החברים שלכם.',
+   'להיכנס לזירה', 'https://offsides.dubelteam.com'),
+  ('ofs-account', 'offsides', 4,
+   'אותו חשבון. בלי הרשמה מחדש',
+   'המוצר השני שלנו, על אותם משחקים — נכנסים ומתחילים.',
+   'להעיף מבט', 'https://offsides.dubelteam.com')
+ON CONFLICT (id) DO NOTHING;
+
+-- ---------------------------------------------------------------------
+-- §8 · מונה הגרסה
+-- ---------------------------------------------------------------------
+--  כל שאר המסכים כבר מקשיבים לו; מודעה חדשה מגיעה לכל המכשירים
+--  באותו מנגנון בדיוק, בלי ערוץ שני.
+-- ---------------------------------------------------------------------
+
+UPDATE game.data_revision
+   SET revision = revision + 1, scope = 'migration-17', updated_at = now()
+ WHERE id = 1;
+
+
+-- =====================================================================
+-- ▼▼▼  18_hardening.sql  —  ★ הקשחה — סגירת הגישה הישירה לטבלאות, RLS, קצב, ביקורת
+-- =====================================================================
+
+-- =====================================================================
+--  Dubid · מיגרציה 18 — הקשחה (PHASE 2)
+-- =====================================================================
+--
+--  ═══════════════════════════════════════════════════════════════
+--  ★★★ החור שהמיגרציה הזו סוגרת ★★★
+--  ═══════════════════════════════════════════════════════════════
+--
+--  `db/07` מריצה, לכל אחת מהסכימות `core` ו-`game`:
+--
+--      GRANT ALL ON ALL TABLES ... TO anon, authenticated;
+--      ALTER DEFAULT PRIVILEGES ... GRANT ALL ON TABLES
+--                                   TO anon, authenticated;
+--
+--  `db/09` שוללת אחר כך `INSERT, UPDATE, DELETE` — אבל **רק על
+--  הטבלאות שקיימות באותו רגע**. השורה השנייה, `ALTER DEFAULT
+--  PRIVILEGES`, ממשיכה לחיות: כל טבלה שנוצרת אחר כך נולדת עם
+--  `GRANT ALL` לאנונימי.
+--
+--  התוצאה בפועל, במסד שרץ היום:
+--
+--    · `game.scoring_overrides` — **כל אנונימי יכול לשכתב את
+--      חוקי הניקוד של המשחק**, ישירות דרך PostgREST, בלי לעבור
+--      דרך `admin_set_rule` ובלי לעבור את `is_admin()`.
+--    · `game.mode_config`      — התקציב וגודל ההרכב, שמהם
+--      `submit_entry` קורא. כלומר גם בדיקת התקציב בשרת שווה
+--      בדיוק כמו הטבלה שהיא קוראת ממנה.
+--    · `game.activity_log`     — יומן שאפשר למחוק ולזייף.
+--    · `game.scoring_history`  — שובל הביקורת של שינויי הניקוד.
+--
+--  זה מבטל את כל שכבת ההגנה של 37 פונקציות `admin_*` שכל אחת
+--  מהן בודקת `is_admin()` בשורה הראשונה. השער נעול והקיר פתוח.
+--
+--  ═══════════════════════════════════════════════════════════════
+--  ★ העמדה החדשה: הכל עובר דרך פונקציות
+--  ═══════════════════════════════════════════════════════════════
+--
+--  הקליינט לא קורא **אף טבלה** ישירות — אימתנו: אין ולו קריאת
+--  `.from()` אחת בכל `src/`. הכל עובר דרך RPC-ים של
+--  `SECURITY DEFINER`, שכל אחד מהם מחליט בעצמו מה לחשוף.
+--
+--  לכן העמדה הנכונה היא הפוכה מזו של `db/07`: **אפס גישה ישירה
+--  לטבלאות**, והפונקציות הן הממשק היחיד. זה גם מה שהופך את
+--  הבדיקה "האם X חשוף" לשאלה עם תשובה אחת במקום 40.
+--
+--  אידמפוטנטי. אפשר להריץ שוב.
+-- =====================================================================
+
+SET search_path = game, core, public;
+
+-- ---------------------------------------------------------------------
+-- §1 · ביטול ברירות המחדל שממשיכות להעניק הרשאות
+-- ---------------------------------------------------------------------
+--
+--  ★ זה השלב שבלעדיו כל השאר זמני.
+--
+--  בלי ביטול `ALTER DEFAULT PRIVILEGES`, כל טבלה שתיווצר
+--  במיגרציה 19 ואילך תיוולד שוב פתוחה — והתיקון הזה היה נכון
+--  ליום אחד.
+-- ---------------------------------------------------------------------
+
+DO $$
+DECLARE s TEXT;
+BEGIN
+  FOREACH s IN ARRAY ARRAY['core', 'game'] LOOP
+    EXECUTE format(
+      'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA %I
+         REVOKE ALL ON TABLES FROM anon, authenticated', s);
+    EXECUTE format(
+      'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA %I
+         REVOKE ALL ON SEQUENCES FROM anon, authenticated', s);
+
+    -- ★ ROUTINES נשארות: זו בדיוק הדרך שבה הקליינט **כן** אמור
+    --   לעבוד. פונקציה בלי GRANT EXECUTE אינה קיימת עבורו.
+  END LOOP;
+END $$;
+
+-- ---------------------------------------------------------------------
+-- §2 · שלילת גישה ישירה לטבלאות — הפעם על מה שקיים באמת
+-- ---------------------------------------------------------------------
+
+DO $$
+BEGIN
+  -- כתיבה: לאף אחד, בשום טבלה, בשתי הסכימות.
+  REVOKE INSERT, UPDATE, DELETE, TRUNCATE
+    ON ALL TABLES IN SCHEMA game FROM anon, authenticated;
+  REVOKE INSERT, UPDATE, DELETE, TRUNCATE
+    ON ALL TABLES IN SCHEMA core FROM anon, authenticated;
+
+  -- ★ גם קריאה. ראו את ההסבר בראש הקובץ: אין `.from()` בקליינט,
+  --   ולכן `SELECT` ישיר הוא לא "נוחות" אלא רק משטח תקיפה.
+  --
+  --   מה שכן נשאר קריא נקבע מיד אחר כך, במפורש, טבלה-טבלה.
+  REVOKE SELECT ON ALL TABLES IN SCHEMA game FROM anon, authenticated;
+  REVOKE SELECT ON ALL TABLES IN SCHEMA core FROM anon, authenticated;
+END $$;
+
+-- ---------------------------------------------------------------------
+-- §3 · RLS על כל טבלה בשתי הסכימות
+-- ---------------------------------------------------------------------
+--
+--  ★ חגורה **וגם** כתפיות, ובכוונה.
+--
+--  §2 כבר שלל את ההרשאות, ובלי הרשאה אין גישה גם בלי RLS. אז
+--  למה בכל זאת RLS על הכל?
+--
+--  כי `GRANT` הוא פעולה חד־פעמית ו-RLS הוא מאפיין של הטבלה. אם
+--  מישהו יריץ בעתיד `GRANT SELECT` בשביל דיבוג ויישכח — RLS
+--  היא מה שיעמוד שם. הגנה בשכבה אחת היא הגנה שנשענת על כך
+--  שאף אחד לא יטעה פעם אחת.
+-- ---------------------------------------------------------------------
+
+DO $$
+DECLARE r RECORD; n INT := 0;
+BEGIN
+  FOR r IN
+    SELECT c.relname, n2.nspname
+    FROM pg_class c
+    JOIN pg_namespace n2 ON n2.oid = c.relnamespace
+    WHERE n2.nspname IN ('game', 'core')
+      AND c.relkind = 'r'
+      AND NOT c.relrowsecurity
+  LOOP
+    EXECUTE format('ALTER TABLE %I.%I ENABLE ROW LEVEL SECURITY', r.nspname, r.relname);
+    n := n + 1;
+  END LOOP;
+  IF n > 0 THEN RAISE NOTICE 'RLS הופעלה על % טבלאות', n; END IF;
+END $$;
+
+-- ---------------------------------------------------------------------
+-- §4 · טבלת גרסאות מיגרציה
+-- ---------------------------------------------------------------------
+--
+--  ★ מה זה פותר, ומה זה **לא** פותר.
+--
+--  פותר: "מה רץ על המסד הזה?" — שאלה שעד עכשיו לא הייתה לה
+--  תשובה, והדרך היחידה לענות עליה הייתה לחפש טבלה ולנחש.
+--
+--  לא פותר: זו לא מערכת מיגרציות. הקבצים נשארים אידמפוטנטיים
+--  ונשארים ניתנים להרצה חוזרת — וזו תכונה, לא חוב: מסד שנתקע
+--  באמצע נפתר בהרצה נוספת ולא בשחזור מגיבוי.
+-- ---------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS game.schema_migrations (
+  version    TEXT PRIMARY KEY,
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  note       TEXT
+);
+
+ALTER TABLE game.schema_migrations ENABLE ROW LEVEL SECURITY;
+
+INSERT INTO game.schema_migrations (version, note) VALUES
+  ('01', 'ליבה'),                      ('02', 'קפטן וניקוד'),
+  ('03', 'סגלים'),                     ('04', 'לוג ודירוג'),
+  ('05', 'נעילה'),                     ('06', 'זירות'),
+  ('07', 'הרשאות'),                    ('09', 'הגשות ותוצאות'),
+  ('10', 'חשבונות'),                   ('11', 'זירות בשרת'),
+  ('12', 'כניסת אדמין'),               ('13', 'דאטה חיה'),
+  ('14', 'לוח ניהול'),                 ('15', 'שמות קבוצות'),
+  ('16', 'בוטים ויומן'),               ('17', 'פרסום פנימי'),
+  ('18', 'הקשחה')
+ON CONFLICT (version) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION game.admin_schema_state()
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = game, public
+AS $$
+DECLARE v JSONB;
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
+  SELECT jsonb_agg(jsonb_build_object(
+           'version', version, 'note', note,
+           'appliedAt', to_char(applied_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+         ORDER BY version)
+    INTO v FROM game.schema_migrations;
+  RETURN COALESCE(v, '[]'::jsonb);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.admin_schema_state() TO authenticated;
+
+-- ---------------------------------------------------------------------
+-- §5 · הגבלת קצב לנקודות הקצה שאפשר למנות עליהן
+-- ---------------------------------------------------------------------
+--
+--  ★★ מה באמת אפשר למנות כאן ★★
+--
+--  שתי פונקציות אנונימיות הן **אורקל**: הן עונות כן/לא על ניחוש,
+--  ולכן אפשר להריץ עליהן רשימה.
+--
+--    · `league_by_code` — קוד זירה בן שש. מי שמונה אותו נכנס
+--      לזירות פרטיות של אנשים אחרים.
+--    · `username_available` — מגלה אילו שמות משתמש תפוסים,
+--      כלומר מי רשום במערכת.
+--
+--  ★ למה טבלה ולא משתנה בזיכרון: PostgREST רץ בכמה תהליכים,
+--    ומונה בזיכרון היה נספר בנפרד בכל אחד מהם.
+-- ---------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS game.probe_attempts (
+  bucket   TEXT NOT NULL,
+  actor    TEXT NOT NULL,
+  at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE game.probe_attempts ENABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS probe_attempts_idx ON game.probe_attempts (bucket, actor, at DESC);
+
+/**
+ * מחזירה TRUE אם מותר להמשיך, ורושמת את הניסיון.
+ *
+ * ★ הזהות היא `auth.uid()` כשיש, ואחרת "אנונימי כללי".
+ *   `signInAnonymously` נותן uid חדש בחינם, ולכן uid לבדו אינו
+ *   מפתח מספיק — הדלי הכללי הוא מה שתופס תוקף שממחזר סשנים.
+ *   הוא רחב יותר בכוונה: הוא לא אמור להפריע לשימוש אמיתי.
+ */
+CREATE OR REPLACE FUNCTION game.rate_ok(
+  p_bucket TEXT, p_limit INT, p_window INTERVAL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, public
+AS $$
+DECLARE v_actor TEXT; v_n INT;
+BEGIN
+  v_actor := COALESCE(auth.uid()::TEXT, 'anon');
+
+  DELETE FROM game.probe_attempts WHERE at < now() - INTERVAL '1 hour';
+
+  SELECT count(*) INTO v_n
+  FROM game.probe_attempts
+  WHERE bucket = p_bucket AND actor = v_actor AND at > now() - p_window;
+
+  INSERT INTO game.probe_attempts (bucket, actor) VALUES (p_bucket, v_actor);
+
+  RETURN v_n < p_limit;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION game.rate_ok(TEXT, INT, INTERVAL) TO anon, authenticated;
+
+/**
+ * ★ שתי הפונקציות נכתבות מחדש כאן, ולא במקום שבו הן נולדו.
+ *
+ * שתיהן היו `LANGUAGE sql STABLE`, ופונקציה STABLE אינה יכולה
+ * לקרוא ל-`rate_ok` — שכותבת. שינוי במקום המקורי היה מפזר את
+ * ההקשחה על פני שלושה קבצים; כאן היא נקראת ברצף אחד.
+ *
+ * ★★ ההתנהגות תחת חסימה: תשובה "שלילית", לא שגיאה. ★★
+ *
+ * `league_by_code` מחזירה NULL — בדיוק כמו קוד שלא קיים.
+ * `username_available` מחזירה FALSE — בדיוק כמו שם תפוס.
+ *
+ * זו לא עצלנות אלא ההחלטה הנכונה: הודעת "יותר מדי ניסיונות"
+ * מאשרת לתוקף שהוא מתקרב למשהו ומאפשרת לו לכייל קצב. תשובה
+ * שנראית כמו "לא מצאתי" לא מלמדת אותו כלום.
+ *
+ * המחיר: משתמש אמיתי שיקליד שישים קודים בדקה יקבל "לא נמצא"
+ * על קוד תקין. זה תרחיש שלא קורה — ובכל מקרה עדיף על אורקל
+ * פתוח.
+ */
+CREATE OR REPLACE FUNCTION game.league_by_code(p_code TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, public AS $$
+DECLARE v JSONB;
+BEGIN
+  -- 30 ניחושים בדקה. הצטרפות אמיתית היא קוד אחד או שניים.
+  IF NOT game.rate_ok('league_code', 30, INTERVAL '1 minute') THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT jsonb_build_object(
+    'name',       l.name,
+    'mode',       l.mode,
+    'kind',       l.kind,
+    'status',     l.status,
+    'members',    (SELECT count(*) FROM game.league_members WHERE league_id = l.id),
+    'maxMembers', l.max_members
+  ) INTO v
+  FROM game.leagues l
+  WHERE l.code = upper(btrim(p_code));
+
+  RETURN v;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION game.league_by_code(TEXT) TO anon, authenticated;
+
+/**
+ * ★★ ניסיונות פדיון של קוד גישה ★★
+ *
+ * הבאג: ב-`access-code` הוגדר `MAX_ATTEMPTS = 8`, השדה `attempts`
+ * נקרא — ו**מעולם לא הוגדל**. כלומר לא הייתה שום הגנה על פדיון.
+ *
+ * ★ ולמה מונה על השורה לא היה עוזר גם אילו כן היה מוגדל.
+ *
+ * קוד שגוי לא מתאים לאף שורה. אין מה להגדיל. תוקף שמנחש קודים
+ * בני שש (≈30 ביט) לא נוגע באף שורה קיימת עד שהוא פוגע —
+ * והמונה "לכל קוד" סופר בדיוק את מי שכבר הצליח.
+ *
+ * לכן המונה חייב להיות על **המנחש** ולא על הקוד, והזהות שלו
+ * מגיעה מפונקציית הקצה (גיבוב של כתובת ה-IP). היא רצה
+ * ב-service_role, ולכן היא זו שמעבירה את הזהות — אין דרך
+ * לזייף אותה מהדפדפן.
+ */
+CREATE OR REPLACE FUNCTION game.code_attempt_ok(p_actor TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, public
+AS $$
+DECLARE v_n INT; v_actor TEXT;
+BEGIN
+  v_actor := left(COALESCE(NULLIF(btrim(p_actor), ''), 'unknown'), 64);
+
+  DELETE FROM game.probe_attempts WHERE at < now() - INTERVAL '1 hour';
+
+  SELECT count(*) INTO v_n
+  FROM game.probe_attempts
+  WHERE bucket = 'access_code' AND actor = v_actor AND at > now() - INTERVAL '15 minutes';
+
+  INSERT INTO game.probe_attempts (bucket, actor) VALUES ('access_code', v_actor);
+
+  -- ★ עשרה ברבע שעה. שחזור חשבון אמיתי הוא ניסיון אחד או שניים;
+  --   מי שמנסה עשרה בהצלחה נמוכה כזו אינו מקליד מהזיכרון.
+  RETURN v_n < 10;
+END;
+$$;
+
+-- ★ רק service_role. הדפדפן לא יכול לקרוא לזה, ולכן גם לא יכול
+--   לשרוף לעצמו את המכסה או לזייף זהות של מישהו אחר.
+REVOKE ALL ON FUNCTION game.code_attempt_ok(TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION game.code_attempt_ok(TEXT) TO service_role;
+
+CREATE OR REPLACE FUNCTION game.username_available(p_username TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, public AS $$
+BEGIN
+  -- ★ הבדיקות הזולות **לפני** מונה הקצב.
+  --   טופס הרשמה בודק זמינות בכל הקלדה. אילו כל תו היה נספר,
+  --   משתמש אמיתי אחד היה נחסם תוך חצי דקה של הקלדה.
+  IF btrim(COALESCE(p_username, '')) = '' THEN RETURN FALSE; END IF;
+  IF length(btrim(p_username)) < 3 THEN RETURN FALSE; END IF;
+
+  IF NOT game.rate_ok('username', 120, INTERVAL '1 minute') THEN
+    RETURN FALSE;
+  END IF;
+
+  RETURN NOT EXISTS (
+    SELECT 1 FROM game.users WHERE username = btrim(p_username)::CITEXT
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION game.username_available(TEXT) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- §6 · שובל ביקורת לפעולות שחסרו בו
+-- ---------------------------------------------------------------------
+--
+--  ★ הפעולה שהכי חשוב לתעד היא זו שהכי קל להכחיש.
+--
+--  `admin_upsert_player_stat` כותבת את הדקות, השערים והבישולים
+--  שמהם נגזר **כל** הניקוד של כולם. היא הייתה הפעולה היחידה
+--  במוצר שמשנה תוצאות ולא משאירה שורה בשום יומן. אם מישהו
+--  יטען שהניקוד שלו שונה בדיעבד, עד עכשיו לא הייתה דרך לענות.
+-- ---------------------------------------------------------------------
+
+/**
+ * ★★ הרישום נעשה בטריגר על הטבלה, ולא בתוך הפונקציות ★★
+ *
+ * הדרך המתבקשת הייתה להוסיף `INSERT INTO audit_logs` לתוך
+ * `admin_upsert_player_stat`, `admin_set_rule`, `admin_clear_rule`,
+ * `admin_delete_content` ו-`admin_resync_deadline` — חמישה
+ * עריכות בשלושה קבצים.
+ *
+ * טריגר על הטבלה עדיף משלוש סיבות:
+ *
+ *   · הוא תופס **כל** נתיב כתיבה, כולל UPDATE ידני מה-SQL
+ *     Editor — וזה בדיוק הנתיב שהכי חשוב לתעד.
+ *   · הוא לא יכול להישכח בפונקציה הבאה שתיכתב.
+ *   · הוא לא נוגע בקוד שכבר עובד ונבדק.
+ */
+CREATE OR REPLACE FUNCTION game.audit_row()
+RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, public
+AS $$
+BEGIN
+  -- ★ כישלון ברישום לא מבטל את הפעולה. אדמין שלא יכול לפרסם
+  --   תוצאות כי היומן נכשל הוא תקלה גרועה יותר משורה חסרה.
+  BEGIN
+    INSERT INTO game.audit_logs (actor, entity, entity_id, action, old_value, new_value)
+    VALUES (
+      COALESCE(auth.uid()::TEXT, 'system'),
+      TG_TABLE_NAME,
+      CASE
+        WHEN TG_OP = 'DELETE' THEN COALESCE(to_jsonb(OLD)->>'id', to_jsonb(OLD)->>'key')
+        ELSE COALESCE(to_jsonb(NEW)->>'id', to_jsonb(NEW)->>'key')
+      END,
+      lower(TG_OP),
+      CASE WHEN TG_OP = 'INSERT' THEN NULL ELSE to_jsonb(OLD) END,
+      CASE WHEN TG_OP = 'DELETE' THEN NULL ELSE to_jsonb(NEW) END
+    );
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+
+/**
+ * הטבלאות שכל שינוי בהן חייב להשאיר עקבות.
+ *
+ * ★ הרשימה קצרה בכוונה: הן הטבלאות שמשנות **תוצאה או חוק**.
+ *   טריגר על כל טבלה היה מייצר יומן שאי אפשר לקרוא, וזה בדיוק
+ *   כמו לא לתעד בכלל.
+ */
+DO $$
+DECLARE t TEXT; sch TEXT; tbl TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'core.player_match_stats',   -- הדקות והשערים שמהם נגזר כל הניקוד
+    'core.weekly_matches',       -- תוצאות המשחקים
+    'game.scoring_overrides',    -- חוקי הניקוד החיים
+    'game.gameweeks'             -- דדליינים וסטטוס
+  ] LOOP
+    sch := split_part(t, '.', 1);
+    tbl := split_part(t, '.', 2);
+
+    IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = sch AND c.relname = tbl) THEN
+      EXECUTE format('DROP TRIGGER IF EXISTS audit_%s ON %I.%I', tbl, sch, tbl);
+      EXECUTE format(
+        'CREATE TRIGGER audit_%s AFTER INSERT OR UPDATE OR DELETE ON %I.%I
+           FOR EACH ROW EXECUTE FUNCTION game.audit_row()', tbl, sch, tbl);
+    END IF;
+  END LOOP;
+END $$;
+
+-- ---------------------------------------------------------------------
+-- §7 · אימות
+-- ---------------------------------------------------------------------
+--
+--  ★ הבדיקה רצה כאן, בסוף המיגרציה, ולא רק בחבילת הבדיקות.
+--
+--  מי שמריץ את הקובץ הזה ב-SQL Editor של פרודקשן לא מריץ אחר
+--  כך `db/tests`. הוא צריך לראות במו עיניו שהחור נסגר — ולכן
+--  ההודעה הזו היא חלק מהמיגרציה.
+-- ---------------------------------------------------------------------
+
+DO $$
+DECLARE v_open INT; v_norls INT;
+BEGIN
+  SELECT count(*) INTO v_open
+  FROM information_schema.role_table_grants
+  WHERE table_schema IN ('game', 'core')
+    AND grantee IN ('anon', 'authenticated')
+    AND privilege_type IN ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE');
+
+  SELECT count(*) INTO v_norls
+  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname IN ('game', 'core') AND c.relkind = 'r' AND NOT c.relrowsecurity;
+
+  IF v_open > 0 THEN
+    RAISE EXCEPTION 'הקשחה נכשלה: עדיין % הרשאות כתיבה ישירות', v_open;
+  END IF;
+  IF v_norls > 0 THEN
+    RAISE EXCEPTION 'הקשחה נכשלה: % טבלאות בלי RLS', v_norls;
+  END IF;
+
+  RAISE NOTICE '✓ הקשחה: אפס כתיבה ישירה, אפס טבלאות בלי RLS';
+END $$;
+
+UPDATE game.data_revision
+   SET revision = revision + 1, scope = 'migration-18', updated_at = now()
+ WHERE id = 1;
 
 
 -- =====================================================================

@@ -34,7 +34,8 @@ import { useEffect, useRef, useState } from 'react';
 
 import { renderRevealCard, type RevealCardData } from '../lib/revealCard.ts';
 import { CARD_W, CARD_H } from '../lib/shareCard.ts';
-import { canvasToBlob, shareCardImage, shareToWhatsApp, downloadBlob } from '../lib/share.ts';
+import { canvasToBlob, shareCardImage, shareToWhatsApp, downloadBlob,
+         copyToClipboard } from '../lib/share.ts';
 import { modeTheme, modeVars } from '../lib/modeTheme.ts';
 import { ModeMark } from './ModeMark.tsx';
 import { text as content } from '../lib/content.ts';
@@ -74,6 +75,7 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
   const [blob, setBlob] = useState<Blob | null>(null);
   const [failed, setFailed] = useState(false);
   const [sent, setSent] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -182,11 +184,28 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
           שיתוף לסטורי
         </button>
 
+        {/*
+          ★ שלוש דרכים, ולא שתיים.
+
+          "העתקת קישור" היא הדרך היחידה שעובדת כשהחבר לא בוואטסאפ,
+          כשהתמונה כבדה מדי לרשת חלשה, וכשרוצים להדביק בקבוצה
+          בטלגרם או באינסטגרם. היא גם היחידה שלא תלויה ב-`blob`
+          — ולכן היא זמינה מיד, לפני שהכרטיס סיים להיווצר.
+        */}
         <div className="mt-2.5 flex items-center justify-center gap-2">
           <SmallAction
             label="וואטסאפ"
             disabled={!blob}
             onClick={() => { if (blob) { shareToWhatsApp(text, data.url, blob); setSent(true); } }}
+          />
+          <span aria-hidden="true" className="text-[10px] text-chalk-dim">·</span>
+          <SmallAction
+            label={copied ? 'הקישור הועתק' : 'העתקת קישור'}
+            onClick={() => {
+              void copyToClipboard(`${text}\n${data.url}`).then((ok) => {
+                if (ok) { setCopied(true); setSent(true); window.setTimeout(() => setCopied(false), 2200); }
+              });
+            }}
           />
           <span aria-hidden="true" className="text-[10px] text-chalk-dim">·</span>
           <SmallAction

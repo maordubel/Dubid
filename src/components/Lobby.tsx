@@ -41,6 +41,7 @@ import { AuthChip } from './AuthChip.tsx';
 import { TeamTag } from './TeamTag.tsx';
 import type { Identity } from '../lib/identity.ts';
 import { OffsidesBanner } from './OffsidesBanner.tsx';
+import { HouseBanner } from './HouseAds.tsx';
 import { DubelCredit } from './DubelCredit.tsx';
 import type { Promo } from '../lib/growth.ts';
 import {
@@ -261,6 +262,16 @@ export function Lobby({
                        onClick={onLeagues} icon={<TileShades />} />
           <SectionTile label="הדירוג" hint="מי מוביל"
                        onClick={onLeaderboard} icon={<TilePodium />} />
+        </div>
+
+        {/* ═══════════ גם שלנו ═══════════
+            ★ הרצועה יושבת **אחרי** המדורים ולפני בית הדפוס, ולא
+            בין שתי תיבות המשחק. הלובי הוא מסך של החלטה אחת —
+            איזה משחק לפתוח — וכל דבר שנכנס באמצע ההחלטה הזו
+            מוריד את שיעור ההתחלה. אחרי שהמשתמש כבר סרק את מה
+            שהוא בא בשבילו, רצועה אחת היא סקרנות ולא הפרעה. */}
+        <div className="relative z-[2] px-3 pt-3">
+          <HouseBanner placement="lobby" gameweekNumber={gameweekNumber} />
         </div>
 
         {promo && (

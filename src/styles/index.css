@@ -376,6 +376,18 @@
     to   { opacity: 1; transform: scale(1); }
   }
 
+  /* ★ ההחלפה ברצועת הפרסום הפנימי.
+     הצלבה בלבד — בלי הזזה, בלי שינוי גובה. יחידה שקופצת
+     גונבת תשומת לב פעם אחת ואז מאומנת להתעלמות לתמיד. */
+  @keyframes housefade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-\[housefade_\.5s_ease-out\] { animation: none; }
+  }
+
   /* ★ מי שביקש פחות תנועה מקבל את הלוגו, מיד ובשלמותו.
      "בלי אנימציה" אף פעם לא אומר "בלי תוכן". */
   @media (prefers-reduced-motion: reduce) {

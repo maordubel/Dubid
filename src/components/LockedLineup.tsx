@@ -33,14 +33,18 @@
  * "קופץ" ברגע שהתוצאות נכנסות; הוא רק מתמלא במשמעות.
  */
 import { Pitch } from './Pitch.tsx';
-import { OffsidesInline } from './OffsidesAds.tsx';
+import { HouseStrip } from './HouseAds.tsx';
 import { TeamCrest } from './TeamCrest.tsx';
+import { Footballer } from './Footballer.tsx';
+import { PRESS } from '../lib/pressPalette.ts';
+import { modeTheme } from '../lib/modeTheme.ts';
+import type { ModeId } from '../lib/modeTheme.ts';
 import type { PoolPlayer, TeamMeta } from './SquadPicker.tsx';
 import type { Lineup, LineupScore, LineupSlot, Position } from '../lib/scoring/types.ts';
 
 export function LockedLineup({
   lineup, pool, teams, score, gameweekLabel, submittedAt, onUnlock, onViewCard,
-  gameweekNumber = 0,
+  onShare, mode = 'full', gameweekNumber = 0,
 }: {
   lineup: Lineup;
   pool: PoolPlayer[];
@@ -52,6 +56,17 @@ export function LockedLineup({
   /** מוצג רק כשמותר לבטל הגשה — כלומר לפני שהתוצאות פורסמו. */
   onUnlock?: () => void;
   onViewCard?: () => void;
+  /**
+   * ★ פותח מחדש את כרטיס "ההרכב השבועי".
+   *
+   * הכרטיס הופיע פעם אחת, מיד אחרי ההגשה, ואז נעלם לנצח. מי
+   * שסגר אותו כדי לבדוק משהו — או שפשוט חזר למחרת — לא יכול
+   * היה לשתף את ההרכב שלו יותר. השיתוף הוא הערוץ הזול ביותר
+   * שיש למוצר, והוא היה בן־חלוף.
+   */
+  onShare?: () => void;
+  /** קובע את צבע המסגרת של המגרש — בדיוק כמו במסך הבחירה. */
+  mode?: ModeId;
   /** מספר המחזור — לשיוך המקור בקישור לאופסיידס. */
   gameweekNumber?: number;
 }) {
@@ -68,6 +83,7 @@ export function LockedLineup({
 
   const captain = lineup.slots.find((s) => s.isCaptain);
   const captainName = captain ? poolById.get(captain.playerId)?.nameShort : undefined;
+  const theme = modeTheme(mode);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -102,10 +118,17 @@ export function LockedLineup({
 
       {/* ── המגרש — כל מה שנשאר, ובלי גלילה ── */}
       <div className="grid min-h-0 flex-1 place-items-center px-2 py-1">
+        {/* ★★ אותו מגרש בדיוק כמו במסך הבחירה ★★
+
+            `accent` + `frameColor={PRESS.paper}` הם מה שהופך את
+            הדשא ל"מודפס על דף". בלעדיהם המגרש כאן היה מלבן ירוק
+            עם טבעת אפורה — כלומר אותו הרכב, בשני עולמות ויזואליים
+            שונים, לפני ואחרי ההגשה. */}
         <Pitch
           formation={lineup.formation}
           fit="height"
-          className="ring-1 ring-inset ring-chalk/15"
+          accent={theme.accent}
+          frameColor={PRESS.paper}
           renderSlot={(slotNo) => {
             const slot = lineup.slots.find((x) => x.slotNo === slotNo);
             if (!slot?.playerId) return null;
@@ -124,6 +147,32 @@ export function LockedLineup({
       {/* ── CTA — אותו סרגל תחתון של מסך הבחירה ── */}
       <div className="shrink-0 border-t border-gold/15 bg-night/95 px-4
                       pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2.5 backdrop-blur">
+        {/*
+          ★★ שורת השיתוף — קבועה, בכל שלושת המצבים ★★
+
+          קודם השיתוף היה אירוע חד־פעמי: כרטיס שקפץ מיד אחרי
+          ההגשה ונעלם. מי שסגר אותו — סגר אותו לתמיד.
+
+          זה בזבוז של הערוץ הזול ביותר שיש למוצר. ההרכב הוא
+          הדבר היחיד כאן שמישהו רוצה **להראות**, והרגע שבו הוא
+          רוצה להראות אותו הוא לא בהכרח השנייה שאחרי ההגשה — הוא
+          כשחבר שואל, כששולחים לקבוצה, כשהמחזור מתקרב.
+
+          זו לא כרזה ולא באנר: שורה אחת של פעולה, באותו גובה של
+          כפתור משני, מעל ה-CTA הראשי ולא במקומו.
+        */}
+        {onShare && (
+          <button
+            onClick={onShare}
+            className="tap mb-2 flex h-11 w-full items-center justify-center gap-2
+                       rounded-full border border-gold/35 text-[13px] font-bold text-gold-light
+                       transition-colors duration-200 ease-brand active:bg-gold/10"
+          >
+            <ShareIcon />
+            שיתוף ההרכב — סטורי, וואטסאפ או קישור
+          </button>
+        )}
+
         {score && onViewCard ? (
           <button
             onClick={onViewCard}
@@ -152,21 +201,18 @@ export function LockedLineup({
             </button>
           </>
         ) : (
-          <>
-            <p className="py-1 text-center text-xs text-chalk-dim">
-              הניקוד יופיע כאן ברגע שהמחזור יסתיים ויפורסם.
-            </p>
-            {/* ★ המסך היחיד שבו למשתמש **אין מה לעשות**.
-                ההרכב נעול, התוצאות לא פורסמו, והוא ממתין. משפט
-                אחד שמציע לו משהו לעשות עד השריקה הוא שירות, לא
-                הפרעה — ולכן הוא כאן ורק כאן. */}
-            <OffsidesInline
-              placement="locked"
-              gameweekNumber={gameweekNumber}
-              className="mt-1 text-center"
-            />
-          </>
+          <p className="py-1 text-center text-xs text-chalk-dim">
+            הניקוד יופיע כאן ברגע שהמחזור יסתיים ויפורסם.
+          </p>
         )}
+
+        {/* ★ המסך היחיד שבו למשתמש **אין מה לעשות** עד שבת.
+            רצועה אחת, אמביינטית, בלי לקטוע כלום. */}
+        <HouseStrip
+          placement="locked"
+          gameweekNumber={gameweekNumber}
+          className="mt-2"
+        />
       </div>
     </div>
   );
@@ -215,41 +261,76 @@ function LockedSlotCard({
 
   return (
     <div className="flex w-full flex-col items-center gap-1">
-      <span className="relative grid w-[62%] max-w-[42px] place-items-center">
-        <span className="w-full drop-shadow-[0_2px_5px_rgba(0,0,0,.6)]">
+      {/*
+        ★★ הדמות המצוירת, בדיוק כמו במסך הבחירה ובכרטיס ★★
+
+        כאן ישב קודם סמל המועדון לבדו על לוחית לבנה. אותו הרכב
+        נראה כך כמו קבוצת לוגואים ולפני ההגשה כמו קבוצת שחקנים —
+        וההבדל הזה נקרא כאילו משהו נלקח ברגע הנעילה.
+
+        ההבדל היחיד שנשאר בין המסכים הוא שכאן אין כפתורים.
+      */}
+      <span className="relative grid w-[86%] max-w-[62px] place-items-center">
+        <Footballer
+          teamId={slot.teamId}
+          position={slot.position}
+          shirt={player.shirt ?? null}
+          captain={cap}
+          vice={vice}
+        />
+        <span
+          className="absolute bottom-[14%] grid size-[36%] max-w-[20px] place-items-center
+                     rounded-full"
+          style={{ insetInlineEnd: '0%', background: PRESS.card, boxShadow: `0 0 0 1.4px ${PRESS.ink}` }}
+        >
           <TeamCrest teamId={slot.teamId} short={team?.short} size="fluid" />
         </span>
 
-        {cap && (
-          <span className="absolute -top-1 -end-1.5 rounded bg-armband px-1 text-[8px]
-                           font-black leading-[1.5] text-night shadow">
-            C
-          </span>
-        )}
-        {vice && !cap && (
-          <span className="absolute -top-1 -end-1.5 rounded bg-tekhelet px-1 text-[8px]
-                           font-black leading-[1.5] text-white shadow">
-            V
+        {/* ★ הנקודות יושבות על הדמות, במקום שבו המחיר יושב במסך
+            הבחירה. אותה פינה בדיוק — ולכן הכרטיס לא משנה גובה
+            כשהתוצאות נכנסות, והמגרש לא מתכווץ. */}
+        {points !== undefined && (
+          <span
+            className="num absolute bottom-[14%] rounded-[2px] px-[3px] text-[8.5px]
+                       font-black leading-[1.5]"
+            dir="ltr"
+            style={{ insetInlineStart: '0%', background: PRESS.ink, color: PRESS.mark }}
+          >
+            {points}
           </span>
         )}
       </span>
 
-      <bdi className="w-full truncate rounded-md bg-chalk px-1 py-px text-center text-[9.5px]
-                      font-black leading-[1.4] text-night shadow-sm">
+      {/* לוחית שם — נייר עם קו מתאר, כמו כותרת קטנה בעיתון */}
+      <bdi
+        className="w-full truncate rounded-[2px] px-1 py-px text-center text-[9.5px]
+                   font-black leading-[1.4]"
+        style={{ background: PRESS.paper, color: PRESS.ink, boxShadow: `0 0 0 1.4px ${PRESS.ink}` }}
+      >
         {player.nameShort}
       </bdi>
 
-      {/* לפני הפרסום: הקבוצה. אחרי: הנקודות. אותה משבצת — ההרכב
-          לא זז כשהתוצאות נכנסות. */}
-      <span className={[
-        'w-full truncate rounded px-1 text-center text-[8.5px] font-black leading-[1.5]',
-        points !== undefined ? 'bg-gold/20 text-gold-light' : 'bg-night/65 text-chalk-dim',
-      ].join(' ')}>
-        {points !== undefined
-          ? <span className="num" dir="ltr">{points}</span>
-          : team?.short}
+      {/* השורה השלישית נשארת הקבוצה — תמיד. הנקודות עברו לדמות,
+          ולכן אין יותר משבצת שמחליפה משמעות באמצע המחזור. */}
+      <span
+        className="w-full truncate rounded-[2px] px-1 text-center text-[8.5px]
+                   font-black leading-[1.5]"
+        style={{ background: 'rgba(239,243,230,.72)', color: PRESS.onGrass }}
+      >
+        {team?.short}
       </span>
     </div>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true">
+      <path d="M8 10.5V2.6M8 2.6 5.4 5.2M8 2.6l2.6 2.6" stroke="currentColor"
+            strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3.2 8.6v4.2c0 .6.5 1 1 1h7.6c.6 0 1-.4 1-1V8.6" stroke="currentColor"
+            strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
   );
 }
 

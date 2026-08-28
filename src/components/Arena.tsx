@@ -39,6 +39,7 @@ import type { RuleSet } from '../lib/scoring/rules.ts';
 import { GAMEWEEK } from '../data/fixtures.ts';
 import { Table, type Column } from './Table.tsx';
 import { OffsidesInline } from './OffsidesAds.tsx';
+import { HouseBanner } from './HouseAds.tsx';
 import { ShadesDivider } from './Shades.tsx';
 
 const MODE_LABEL: Record<'full' | 'five', string> = { full: 'דוביד 11', five: 'דוביד 5' };
@@ -134,6 +135,8 @@ function ArenaEmpty({ userId, displayName }: { userId: string; displayName: stri
         gameweekNumber={GAMEWEEK.number}
         className="mt-5"
       />
+
+      <HouseBanner placement="arena" gameweekNumber={GAMEWEEK.number} className="mt-4" />
     </div>
   );
 }

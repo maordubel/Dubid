@@ -86,6 +86,29 @@ Deno.serve(async (req) => {
       const code = String(body.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
       if (code.length !== CODE_LEN) return json({ error: 'INVALID_CODE' }, 400);
 
+      /*
+       * ★★★ הבאג שהיה כאן ★★★
+       *
+       * `MAX_ATTEMPTS = 8` היה מוגדר, השדה `attempts` נקרא — ולא
+       * הוגדל אף פעם. כלומר לא הייתה שום הגנה על הפדיון.
+       *
+       * ★ ומונה על השורה לא היה פותר את זה גם אילו כן היה מוגדל.
+       *
+       * קוד שגוי לא מתאים לאף שורה, ולכן אין מה להגדיל. תוקף
+       * שמנחש קודים בני שש (≈30 ביט) מול חלון חי של שעה לא נוגע
+       * באף שורה קיימת עד הרגע שבו הוא פוגע — והמונה "לכל קוד"
+       * סופר בדיוק את מי שכבר הצליח.
+       *
+       * לכן המונה יושב על **המנחש**, לא על הקוד.
+       */
+      const actor = await sha256Hex(
+        (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown',
+      );
+      const { data: allowed } = await admin.schema('game')
+        .rpc('code_attempt_ok', { p_actor: actor.slice(0, 32) });
+
+      if (allowed === false) return json({ error: 'TOO_MANY_ATTEMPTS' }, 429);
+
       const hash = await sha256Hex(code);
       const { data: row } = await admin.schema('game').from('access_codes')
         .select('user_id, expires_at, redeemed_at, attempts')
@@ -99,11 +122,25 @@ Deno.serve(async (req) => {
       }
       if ((row.attempts ?? 0) >= MAX_ATTEMPTS) return json({ error: 'TOO_MANY_ATTEMPTS' }, 429);
 
-      const session = await mintSession(admin, row.user_id);
-
-      await admin.schema('game').from('access_codes')
+      /*
+       * ★ הסימון "נפדה" קורה **לפני** יצירת הסשן, והוא מותנה.
+       *
+       * הסדר ההפוך (מנפיקים ואז מסמנים) הוא בדיקה-ואז-כתיבה: שתי
+       * בקשות שמגיעות באותה מילישנייה שתיהן רואות `redeemed_at`
+       * ריק, ושתיהן מקבלות סשן — כלומר קוד חד־פעמי שנפדה פעמיים.
+       *
+       * `.is('redeemed_at', null)` הופך את זה לפעולה אטומית: רק
+       * מי שהעדכון שלו החזיר שורה ממשיך.
+       */
+      const { data: claimed } = await admin.schema('game').from('access_codes')
         .update({ redeemed_at: new Date().toISOString() })
-        .eq('code_hash', hash);
+        .eq('code_hash', hash)
+        .is('redeemed_at', null)
+        .select('user_id');
+
+      if (!claimed || claimed.length === 0) return json({ error: 'CODE_USED' }, 410);
+
+      const session = await mintSession(admin, row.user_id);
 
       const { data: profile } = await admin.schema('game').from('users')
         .select('display_name').eq('id', row.user_id).maybeSingle();

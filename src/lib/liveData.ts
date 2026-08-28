@@ -49,6 +49,7 @@ import {
 } from '../data/squads.ts';
 import { applyLiveFixtures, GAMEWEEK, type LiveFixturePayload } from '../data/fixtures.ts';
 import { hydrateContent } from './content.ts';
+import { hydrateAds } from './adsStore.ts';
 import type { Position } from './scoring/types.ts';
 
 /* ================================================================== */
@@ -315,6 +316,10 @@ export function hydrateLiveData(force = false): Promise<void> {
         supabase.rpc('squads'),
         supabase.rpc('scoring_rules'),
         hydrateContent(),
+        /* ★ הפרסום הפנימי נטען יחד עם כל השאר ולא בבקשה נפרדת.
+           קריאה חמישית טורית הייתה מוסיפה הלוך-ושוב למסך הראשון
+           בשביל רצועה שיושבת מתחת לקפל. */
+        hydrateAds(),
       ]);
 
       /* ★ חוקי הניקוד לא מפילים כלום אם הם נכשלו: מפה ריקה

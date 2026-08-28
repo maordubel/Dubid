@@ -28,11 +28,16 @@ import {
   adminContentList, adminSetContent, adminDeleteContent,
   adminAnalytics, adminDataQuality, adminAudit,
   adminAddBots, adminRemoveBots, adminActivity, adminActivityStats,
+  adminAds, adminUpsertAd, adminSetAdEnabled, adminDeleteAd, adminAdStats,
   errorMessageHe,
   type GameweekRow, type ImportReport, type ContentRow,
   type BotResult, type ActivityRow, type ActivityStats,
   type Analytics, type DataIssue, type AuditRow,
+  type AdminAd, type AdStats,
 } from '../lib/store.ts';
+import { adIssues, BRANDS, BRAND_IDS, type HouseAd } from '../lib/houseAds.ts';
+import type { Placement } from '../lib/growth.ts';
+import { BrandWord, HouseAdPreview } from './HouseAds.tsx';
 import { ruleOverrides, currentGameweekCode, liveDataVersion } from '../lib/liveData.ts';
 import { RULE_KEYS, readRule } from '../lib/ruleOverrides.ts';
 import { CONTENT_KEYS } from '../lib/content.ts';
@@ -1221,7 +1226,6 @@ export function AdminActivity() {
         <ActivityLog rows={rows} />
       </Card>
 
-      <AdminBots act={act} />
     </div>
   );
 }
@@ -1342,7 +1346,12 @@ export function HourChart({ data }: { data: Array<{ hour: number; n: number }> }
  * ★ והם משחקים לפי אותם חוקים: שחקן אחד מכל קבוצה, גודל הרכב,
  *   ותקציב בדוביד 5. בוט פטור מהתקציב היה מנצח בגלל שהוא בוט.
  */
-function AdminBots({ act }: { act: ReturnType<typeof useAction> }) {
+export function AdminBots({ act: outer }: { act?: ReturnType<typeof useAction> }) {
+  /* ★ הקומפוננטה מחזיקה `useAction` משלה כשלא קיבלה אחת.
+     היא הייתה תלויה בזו של מסך הפעילות, ולכן לא הייתה יכולה
+     לעמוד בפני עצמה — וזו בדיוק הסיבה שהיא הייתה קבורה שם. */
+  const own = useAction();
+  const act = outer ?? own;
   const [mode, setMode] = useState<'five' | 'full'>('five');
   const [count, setCount] = useState(8);
   const [report, setReport] = useState<BotResult | null>(null);
@@ -1350,8 +1359,8 @@ function AdminBots({ act }: { act: ReturnType<typeof useAction> }) {
 
   return (
     <Card
-      title="בוטים"
-      hint="משתתפים שהמערכת מייצרת כדי שהמחזור לא ייראה ריק. הם מסומנים בטבלה, ומשחקים לפי אותם חוקים."
+      title="הוספת בוטים למחזור"
+      hint="בוט מגיש הרכב בדיוק כמו משתתף רגיל: שם מאמן, שם קבוצה, שחקן אחד מכל קבוצה, ותקציב בדוביד 5. הוא מסומן בתג «בוט» בכל מקום שבו הוא מופיע."
     >
       <div className="flex flex-wrap items-center gap-2">
         <select
@@ -1420,6 +1429,387 @@ function AdminBots({ act }: { act: ReturnType<typeof useAction> }) {
           </ul>
         </div>
       )}
+    </Card>
+  );
+}
+
+/* ================================================================== */
+/* 9 · פרסום פנימי                                                     */
+/* ================================================================== */
+
+/**
+ * ★★ למה זה מסך ניהול ולא קבוע בקוד ★★
+ *
+ * מודעה היא **החלטה שיווקית**, ולהחלטה שיווקית יש קצב אחר מאשר
+ * לקוד. ניסוח שלא עובד צריך להיות ניתן להחלפה בשתי דקות, לא
+ * בפריסה. קמפיין לחג צריך להיכבות מעצמו בליל שבת, לא כשמישהו
+ * נזכר ביום שלישי.
+ *
+ * לכן כל מה שכאן: מותג, ניסוח, משקל, מסכים, וחלון תאריכים.
+ * ולכן גם המספרים — חשיפות וקליקים לצד כל מודעה. בלעדיהם
+ * "איזה ניסוח עובד" הוא ויכוח, ואיתם הוא שאלה עם תשובה.
+ *
+ * ★ הכפתור הכי חשוב כאן הוא **המתג**, לא "שמור".
+ *   הדבר שקורה הכי הרבה בלוח פרסום הוא כיבוי מהיר של משהו
+ *   שנראה לא טוב. הוא לא מסתתר בתוך טופס עריכה.
+ */
+export function AdminAds() {
+  const [rows, setRows] = useState<AdminAd[] | null>(null);
+  const [stats, setStats] = useState<AdStats | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [editing, setEditing] = useState<HouseAd | null>(null);
+  const act = useAction();
+
+  const load = () => {
+    Promise.all([adminAds(), adminAdStats(30)])
+      .then(([a, s]) => { setRows(a); setStats(s); setErr(null); })
+      .catch((e: unknown) =>
+        setErr(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')));
+  };
+
+  useEffect(load, [act.done]);
+
+  return (
+    <div className="space-y-4">
+      <Card
+        title="פרסום פנימי"
+        hint="מודעות בין המוצרים של דובל טים. מוצגות ברצועה מתחלפת בתוך האפליקציה — לובי, דירוג, הרכב נעול, כרטיס, זירה וחוקים."
+      >
+        {stats && (
+          <div className="mb-3 grid grid-cols-3 gap-2">
+            <Stat label="חשיפות · 30 יום" value={stats.impressions} />
+            <Stat label="קליקים" value={stats.clicks} />
+            <Stat
+              label="שיעור הקלקה"
+              value={stats.impressions > 0
+                ? `${((stats.clicks / stats.impressions) * 100).toFixed(1)}%`
+                : '—'}
+            />
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <button className={`${primary} py-2`} onClick={() => setEditing(blankAd())}>
+            מודעה חדשה
+          </button>
+          <button className={ghost} onClick={load}>רענון</button>
+        </div>
+
+        <Note msg={act.msg} bad={act.bad} />
+        {err && <Note msg={err} bad />}
+      </Card>
+
+      {editing && (
+        <AdEditor
+          ad={editing}
+          onCancel={() => setEditing(null)}
+          onSave={(next) => {
+            act.run(async () => {
+              await adminUpsertAd(next);
+              setEditing(null);
+              return 'המודעה נשמרה';
+            });
+          }}
+          busy={act.busy}
+        />
+      )}
+
+      <Card title="המודעות" hint="הסדר בתצוגה נקבע לפי משקל, לא לפי הרשימה הזו.">
+        {rows === null ? (
+          <p className="text-[12px] text-chalk-dim">טוען…</p>
+        ) : rows.length === 0 ? (
+          /* ★ ריק כאן **אינו** ריק במסך.
+             בלי שורות במסד האפליקציה מציגה את ברירות המחדל
+             שבקוד. אם לא נאמר את זה כאן, האדמין יחשוב שהפרסום
+             כבוי — ויתחיל לחפש תקלה שלא קיימת. */
+          <p className="text-[12px] leading-snug text-chalk-dim">
+            אין מודעות במסד. האפליקציה מציגה כרגע את ארבע מודעות ברירת
+            המחדל שבקוד. הרצה של <span className="num">db/17</span> מזריעה אותן לכאן.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {rows.map((r) => (
+              <li
+                key={r.id}
+                className="rounded-xl border border-gold/12 bg-night p-3"
+              >
+                <div className="flex items-start gap-2">
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5">
+                      <BrandWord brand={r.brand} size={11} />
+                      <span className="num text-[10px] text-chalk-dim">×{r.weight}</span>
+                      {!r.enabled && (
+                        <span className="rounded bg-flare/15 px-1.5 text-[9.5px] font-black text-flare">
+                          כבוי
+                        </span>
+                      )}
+                      {r.placements.length > 0 && (
+                        <span className="truncate text-[9.5px] text-chalk-dim">
+                          {r.placements.join(' · ')}
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[13px] font-black text-chalk">
+                      {r.headline}
+                    </span>
+                    <span className="mt-0.5 block text-[10.5px] text-chalk-dim">
+                      <span className="num">{r.impressions}</span> חשיפות ·{' '}
+                      <span className="num">{r.clicks}</span> קליקים
+                      {r.impressions > 0 && (
+                        <> · <span className="num">
+                          {((r.clicks / r.impressions) * 100).toFixed(1)}%
+                        </span></>
+                      )}
+                      {(r.startsAt || r.endsAt) && (
+                        <> · חלון: {r.startsAt?.slice(0, 10) ?? '—'} → {r.endsAt?.slice(0, 10) ?? '—'}</>
+                      )}
+                    </span>
+                  </span>
+
+                  <span className="flex shrink-0 flex-col gap-1">
+                    <button
+                      disabled={act.busy}
+                      className={ghost}
+                      onClick={() => act.run(async () => {
+                        await adminSetAdEnabled(r.id, !r.enabled);
+                        return r.enabled ? 'המודעה כובתה' : 'המודעה הודלקה';
+                      })}
+                    >
+                      {r.enabled ? 'כיבוי' : 'הדלקה'}
+                    </button>
+                    <button
+                      disabled={act.busy}
+                      className={ghost}
+                      onClick={() => setEditing({ ...r })}
+                    >
+                      עריכה
+                    </button>
+                    <button
+                      disabled={act.busy}
+                      className={ghost}
+                      onClick={() => act.run(async () => {
+                        await adminDeleteAd(r.id);
+                        return 'המודעה נמחקה';
+                      })}
+                    >
+                      מחיקה
+                    </button>
+                  </span>
+                </div>
+
+                <div className="mt-2">
+                  <HouseAdPreview ad={r} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {stats && stats.byPlacement.length > 0 && (
+        <Card title="לפי מסך" hint="איפה המודעות באמת נלחצות.">
+          <ul className="space-y-1">
+            {stats.byPlacement.map((p) => (
+              <li key={p.placement}
+                  className="flex items-baseline gap-2 border-b border-gold/10 py-1.5 last:border-0">
+                <span className="flex-1 text-[12px] text-chalk">{PLACEMENT_HE[p.placement] ?? p.placement}</span>
+                <span className="num text-[11px] text-chalk-dim">{p.impressions}</span>
+                <span className="num w-10 text-end text-[11px] text-gold">{p.clicks}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+const PLACEMENT_HE: Record<string, string> = {
+  lobby: 'לובי', locked: 'הרכב נעול', result: 'תוצאה', card: 'כרטיס',
+  leaderboard: 'דירוג', rules: 'חוקים', arena: 'זירה', unknown: 'לא ידוע',
+};
+
+const ALL_PLACEMENTS: Placement[] =
+  ['lobby', 'locked', 'result', 'card', 'leaderboard', 'rules', 'arena'];
+
+function blankAd(): HouseAd {
+  return {
+    id: '', brand: 'takemeout', enabled: true, weight: 5,
+    headline: '', body: '', cta: 'להעיף מבט',
+    url: BRANDS.takemeout.url, placements: [], startsAt: null, endsAt: null,
+  };
+}
+
+function Stat({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-xl border border-gold/12 bg-night px-2 py-2 text-center">
+      <div className="num text-[17px] leading-none text-gold">{value}</div>
+      <div className="mt-1 text-[9.5px] leading-tight text-chalk-dim">{label}</div>
+    </div>
+  );
+}
+
+/**
+ * טופס העריכה.
+ *
+ * ★ התצוגה המקדימה מעל השדות ולא מתחתם.
+ *   מי שמקליד כותרת רוצה לראות איך היא נראית **בזמן** שהוא
+ *   מקליד. מתחת לטופס היא נמצאת מחוץ למסך ברוב המכשירים,
+ *   וכאילו לא קיימת.
+ */
+function AdEditor({
+  ad, onSave, onCancel, busy,
+}: {
+  ad: HouseAd;
+  onSave: (ad: HouseAd) => void;
+  onCancel: () => void;
+  busy: boolean;
+}) {
+  const [d, setD] = useState<HouseAd>(ad);
+  const issues = adIssues(d);
+  const set = <K extends keyof HouseAd>(k: K, v: HouseAd[K]) =>
+    setD((x) => ({ ...x, [k]: v }));
+
+  return (
+    <Card title={ad.id ? `עריכה · ${ad.id}` : 'מודעה חדשה'}
+          hint="הכותרת היא מה שנקרא. הגוף הוא מה שמסביר. שניהם נחתכים אם הם ארוכים מדי — לכן המונים.">
+      <div className="mb-3">
+        <HouseAdPreview ad={d} />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          {(BRAND_IDS).map((b) => (
+            <button
+              key={b}
+              onClick={() => setD((x) => ({
+                ...x, brand: b,
+                /* ★ הכתובת עוברת עם המותג — אבל רק אם היא לא
+                   שונתה ידנית. אחרת החלפת מותג הייתה מוחקת קישור
+                   קמפיין שמישהו הדביק. */
+                url: x.url === BRANDS[x.brand].url ? BRANDS[b].url : x.url,
+              }))}
+              className={`tap flex-1 rounded-lg border px-3 py-2 text-[12px] font-black ${
+                d.brand === b ? 'border-gold text-gold' : 'border-gold/20 text-chalk-dim'}`}
+            >
+              {BRANDS[b].name}
+            </button>
+          ))}
+        </div>
+
+        <label className="block">
+          <span className="text-[11px] text-chalk-dim">
+            כותרת <span className="num">{d.headline.length}/60</span>
+          </span>
+          <input className={input} value={d.headline} maxLength={60} disabled={busy}
+                 onChange={(e) => set('headline', e.target.value)} />
+        </label>
+
+        <label className="block">
+          <span className="text-[11px] text-chalk-dim">
+            גוף <span className="num">{d.body.length}/120</span>
+          </span>
+          <input className={input} value={d.body} maxLength={120} disabled={busy}
+                 onChange={(e) => set('body', e.target.value)} />
+        </label>
+
+        <div className="flex gap-2">
+          <label className="min-w-0 flex-1">
+            <span className="text-[11px] text-chalk-dim">קריאה לפעולה</span>
+            <input className={input} value={d.cta} maxLength={24} disabled={busy}
+                   onChange={(e) => set('cta', e.target.value)} />
+          </label>
+          <label className="w-24 shrink-0">
+            <span className="text-[11px] text-chalk-dim">משקל 1–10</span>
+            <input type="number" min={1} max={10} className={`num ${input}`}
+                   value={d.weight} disabled={busy}
+                   onChange={(e) => set('weight',
+                     Math.max(1, Math.min(10, Number(e.target.value) || 1)))} />
+          </label>
+        </div>
+
+        <label className="block">
+          <span className="text-[11px] text-chalk-dim">קישור</span>
+          <input className={input} dir="ltr" value={d.url} disabled={busy}
+                 onChange={(e) => set('url', e.target.value)} />
+        </label>
+
+        <label className="block">
+          <span className="text-[11px] text-chalk-dim">
+            מזהה (באנליטיקס ובכתובת). ריק = נוצר אוטומטית
+          </span>
+          <input className={input} dir="ltr" value={d.id} disabled={busy || !!ad.id}
+                 onChange={(e) => set('id', e.target.value)} />
+        </label>
+
+        {/* ★ "בכל המסכים" הוא מצב מפורש ולא רשימה מלאה.
+            רשימה עם כל שבעת המסכים מסומנים נראית זהה למצב
+            "בכל מקום", אבל היא לא: מסך חדש שייווסף בעתיד לא
+            ייכלל בה, והמודעה תיעלם ממנו בשקט. */}
+        <div>
+          <span className="text-[11px] text-chalk-dim">מסכים</span>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            <button
+              onClick={() => set('placements', [])}
+              className={`tap rounded-lg border px-2.5 py-1.5 text-[11px] font-bold ${
+                d.placements.length === 0
+                  ? 'border-gold text-gold' : 'border-gold/20 text-chalk-dim'}`}
+            >
+              בכל המסכים
+            </button>
+            {ALL_PLACEMENTS.map((p) => {
+              const on = d.placements.includes(p);
+              return (
+                <button
+                  key={p}
+                  onClick={() => set('placements',
+                    on ? d.placements.filter((x) => x !== p) : [...d.placements, p])}
+                  className={`tap rounded-lg border px-2.5 py-1.5 text-[11px] font-bold ${
+                    on ? 'border-gold text-gold' : 'border-gold/20 text-chalk-dim'}`}
+                >
+                  {PLACEMENT_HE[p]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <label className="min-w-0 flex-1">
+            <span className="text-[11px] text-chalk-dim">מתאריך</span>
+            <input type="date" className={input} disabled={busy}
+                   value={d.startsAt?.slice(0, 10) ?? ''}
+                   onChange={(e) => set('startsAt',
+                     e.target.value ? new Date(`${e.target.value}T00:00:00`).toISOString() : null)} />
+          </label>
+          <label className="min-w-0 flex-1">
+            <span className="text-[11px] text-chalk-dim">עד תאריך</span>
+            <input type="date" className={input} disabled={busy}
+                   value={d.endsAt?.slice(0, 10) ?? ''}
+                   onChange={(e) => set('endsAt',
+                     e.target.value ? new Date(`${e.target.value}T23:59:59`).toISOString() : null)} />
+          </label>
+        </div>
+
+        {issues.length > 0 && (
+          <ul className="rounded-xl border border-flare/30 bg-flare/5 p-2.5">
+            {issues.map((i) => (
+              <li key={i} className="text-[11.5px] text-flare">· {i}</li>
+            ))}
+          </ul>
+        )}
+
+        <div className="flex gap-2 pt-1">
+          <button
+            className={`${primary} py-2`}
+            disabled={busy || issues.length > 0}
+            onClick={() => onSave(d)}
+          >
+            {busy ? 'שומר…' : 'שמירה'}
+          </button>
+          <button className={ghost} disabled={busy} onClick={onCancel}>ביטול</button>
+        </div>
+      </div>
     </Card>
   );
 }
