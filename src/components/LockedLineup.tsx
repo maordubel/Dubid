@@ -44,13 +44,19 @@ import type { Lineup, LineupScore, LineupSlot, Position } from '../lib/scoring/t
 
 export function LockedLineup({
   lineup, pool, teams, score, gameweekLabel, submittedAt, onUnlock, onViewCard,
-  onShare, mode = 'full', gameweekNumber = 0,
+  onShare, mode = 'full', gameweekNumber = 0, live = false,
 }: {
   lineup: Lineup;
   pool: PoolPlayer[];
   teams: TeamMeta[];
-  /** מוגדר רק אחרי שהאדמין פרסם תוצאות למחזור. */
+  /**
+   * ★ מוגדר ברגע שיש ניקוד להראות — כלומר גם **במהלך** המחזור,
+   *   לא רק אחרי הפרסום. זה השינוי שהופך את המגרש הנעול ממסך
+   *   שאין בו כלום עד יום ראשון למסך שחוזרים אליו בשבת בערב.
+   */
   score?: LineupScore;
+  /** הניקוד עדיין זז. משנה תגית אחת, לא את הפריסה. */
+  live?: boolean;
   gameweekLabel: string;
   submittedAt: string;
   /** מוצג רק כשמותר לבטל הגשה — כלומר לפני שהתוצאות פורסמו. */
@@ -95,6 +101,10 @@ export function LockedLineup({
         <Chip tone="lock">
           <LockIcon /> נעול
         </Chip>
+        {/* ★ תגית "חי" — רק כשהמספרים באמת זזים.
+            היא לא מוצגת לפני שיש ניקוד ולא אחרי שהמחזור נסגר,
+            כי תגית שדולקת תמיד מפסיקה להיות סימן. */}
+        {live && score && <LiveChip />}
         <Chip>{gameweekLabel}</Chip>
         {captainName && (
           <Chip tone="captain">
@@ -138,6 +148,7 @@ export function LockedLineup({
                 player={poolById.get(slot.playerId)}
                 team={teamById.get(slot.teamId)}
                 points={pointsByPlayer.get(slot.playerId)}
+                live={live}
               />
             );
           }}
@@ -180,7 +191,7 @@ export function LockedLineup({
                        font-poster text-xl text-gold-ink transition-transform
                        duration-200 ease-brand active:scale-[.98]"
           >
-            לצפייה בכרטיס המלא
+            {live ? 'הניקוד שלי — חי' : 'לצפייה בכרטיס המלא'}
           </button>
         ) : onUnlock ? (
           <>
@@ -202,7 +213,10 @@ export function LockedLineup({
           </>
         ) : (
           <p className="py-1 text-center text-xs text-chalk-dim">
-            הניקוד יופיע כאן ברגע שהמחזור יסתיים ויפורסם.
+            {/* ★ ההבטחה הישנה הייתה "בסיום המחזור". היא כבר לא
+                נכונה: הניקוד נכנס עם כל משחק שנגמר, וההבטחה
+                צריכה להגיד את זה — אחרת אף אחד לא יחזור לבדוק. */}
+            הניקוד נכנס עם כל משחק ומתעדכן כאן מעצמו.
           </p>
         )}
 
@@ -219,6 +233,31 @@ export function LockedLineup({
 }
 
 /* ================================================================== */
+
+/**
+ * ★ תגית "חי".
+ *
+ * נקודה אחת שנושמת, ומילה אחת. לא אנימציה גדולה ולא צבע נוסף
+ * לפלטה — הצהוב כאן הוא `PRESS.mark`, אותו צהוב של המספרים על
+ * המגרש, ולכן העין קושרת בין התגית לבין מה שהיא מדברת עליו.
+ */
+function LiveChip() {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1
+                 text-[11px] font-black ring-1 ring-inset"
+      style={{ background: 'rgba(245,197,24,.14)', color: PRESS.mark,
+               boxShadow: 'inset 0 0 0 1px rgba(245,197,24,.38)' }}
+    >
+      <span
+        aria-hidden="true"
+        className="inline-block size-[7px] animate-pulse rounded-full"
+        style={{ background: PRESS.mark }}
+      />
+      חי
+    </span>
+  );
+}
 
 function Chip({
   children, tone = 'plain',
@@ -246,13 +285,15 @@ function Chip({
  *   מהכרטיס, לוחית שם, ושורה שלישית. אם אחד מהם ישתנה — צריך
  *   לשנות גם את השני, אחרת שני המסכים יתחילו להיפרד שוב.
  */
-function LockedSlotCard({
-  slot, player, team, points,
+export function LockedSlotCard({
+  slot, player, team, points, live = false,
 }: {
   slot: LineupSlot;
   player?: PoolPlayer;
   team?: TeamMeta;
   points?: number;
+  /** צובע את תג הנקודות בצהוב הסימון כשהמספר עדיין יכול לזוז. */
+  live?: boolean;
 }) {
   if (!player) return null;
 
@@ -291,10 +332,14 @@ function LockedSlotCard({
             כשהתוצאות נכנסות, והמגרש לא מתכווץ. */}
         {points !== undefined && (
           <span
-            className="num absolute bottom-[14%] rounded-[2px] px-[3px] text-[8.5px]
+            className="num absolute bottom-[14%] rounded-[2px] px-[3px] text-[9.5px]
                        font-black leading-[1.5]"
             dir="ltr"
-            style={{ insetInlineStart: '0%', background: PRESS.ink, color: PRESS.mark }}
+            title={live ? 'ניקוד חי — עוד יכול לזוז' : 'ניקוד סופי'}
+            style={live
+              ? { insetInlineStart: '0%', background: PRESS.mark, color: PRESS.ink,
+                  boxShadow: `0 0 0 1.2px ${PRESS.ink}` }
+              : { insetInlineStart: '0%', background: PRESS.ink, color: PRESS.mark }}
           >
             {points}
           </span>

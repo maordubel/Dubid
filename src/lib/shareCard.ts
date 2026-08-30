@@ -21,6 +21,7 @@
  * fetch, אין state, ואפשר להריץ אותה גם ב-OffscreenCanvas בתוך worker.
  */
 import { encodeQr, drawQrToCanvas } from './qr.ts';
+import { PRESS } from './pressPalette.ts';
 import type { Position } from './scoring/types.ts';
 
 export const CARD_W = 1080;
@@ -86,6 +87,15 @@ export interface ShareCardData {
    *   תמונות. ברירת המחדל 3 שומרת על כרטיסים קיימים.
    */
   captainMultiplier?: number;
+  /**
+   * ★ הניקוד עדיין יכול לזוז — המחזור נעול אבל לא נסגר.
+   *
+   * מוסיף חותמת "לא סופי" על הכרטיס. תמונה שנשלחה לוואטסאפ
+   * אינה יכולה לתקן את עצמה, ולכן היא חייבת לומר את זה בעצמה.
+   */
+  live?: boolean;
+  /** 'דוביד 11' / 'דוביד 5'. שני המצבים הם אותו מוצר, ולא אותו משחק. */
+  modeLabel?: string;
 }
 
 /* =================================================================== */
@@ -196,231 +206,520 @@ export function drawSeal(ctx: CanvasRenderingContext2D, cx: number, cy: number, 
 }
 
 /* =================================================================== */
-/* הכרטיס                                                              */
+/* הכרטיס — עמוד התוצאות                                                */
 /* =================================================================== */
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * ★★ למה הכרטיס הזה נכתב מחדש ★★
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * `revealCard.ts` — הכרטיס שלפני המחזור — הוא **גזיר עיתון**:
+ * נייר מצהיב, פס כותרת אדום, מגרש מודפס בנקודות, מסגרת כפולה.
+ * זה המיתוג של דוביד, וזה מה שגורם לאנשים לא לגלול הלאה.
+ *
+ * הכרטיס שאחרי המחזור — זה שנכנס לסטורי ביום ראשון בבוקר — נשאר
+ * בשפה הישנה: רקע שחור, זהב, פינות מעוגלות. כלומר **המוצר נראה
+ * כמו שני מוצרים**, ודווקא בכרטיס שנשלח לחברים.
+ *
+ * ═══════════════════════════════════════════════════════════════
+ * ★ למה טבלת דירוגים ולא מגרש
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * זו לא התפשרות — זו הצורה הנכונה. עיתון ספורט מדפיס **הרכב על
+ * מגרש לפני המשחק**, ו**טבלת ציונים אחרי המשחק**. שני הכרטיסים
+ * חולקים את אותו נייר, אותה מסגרת, אותו מאסטהד ואותו פס אדום,
+ * ונבדלים בדיוק בהבדל שקורא לו אוהד כדורגל מצפה:
+ *
+ *      לפני  →  איפה כולם עומדים
+ *      אחרי  →  כמה כל אחד קיבל
+ *
+ * בונוס מעשי: אין כאן שכפול של קוד המגרש והדמויות המצוירות.
+ * מגרש שני שמצויר בשני מקומות הוא מגרש שיום אחד ייראה אחרת.
+ *
+ * ═══════════════════════════════════════════════════════════════
+ * ★ החותמת "לא סופי"
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * מרגע שהניקוד חי, אפשר לשתף כרטיס באמצע המחזור. תמונה בלי
+ * סימון הייתה מציגה מספר זמני כאילו הוא סופי — ומי שקיבל אותה
+ * בוואטסאפ לא יכול לדעת. חותמת אדומה מוטה, כמו "טיוטה" על
+ * מסמך, פותרת את זה בשורה אחת ולא מקלקלת את הכרטיס.
+ */
 
-export function drawShareCard(ctx: CanvasRenderingContext2D, d: ShareCardData): void {
+export function drawShareCard(
+  ctx: CanvasRenderingContext2D,
+  d: ShareCardData,
+  logo?: CanvasImageSource | null,
+): void {
   ctx.save();
   ctx.direction = 'rtl';
   ctx.textBaseline = 'alphabetic';
   ctx.clearRect(0, 0, CARD_W, CARD_H);
 
-  ctx.fillStyle = PALETTE.night;
-  ctx.fillRect(0, 0, CARD_W, CARD_H);
-
-  drawHeader(ctx, d);
-  drawScore(ctx, d);
+  drawPaper(ctx);
+  drawMasthead(ctx, d, logo);
+  drawScoreBlock(ctx, d);
   drawBreakdown(ctx, d);
-  drawLineup(ctx, d);
-  drawFooter(ctx, d);
+  const table = drawRatings(ctx, d);
+  drawCoach(ctx, d, table.bottom + 40);
+  drawStub(ctx, d);
+  if (d.live) drawProvisionalStamp(ctx);
 
   ctx.restore();
 }
 
-/* ---------------- כותרת ---------------- */
-function drawHeader(ctx: CanvasRenderingContext2D, d: ShareCardData) {
-  const H = 356;
-  ctx.fillStyle = PALETTE.toto;
-  ctx.fillRect(0, 0, CARD_W, H);
-  // הדפוס מתעבה כלפי מטה — מעבר מודפס בין הכתום לדיו, לא קו חד
-  halftone(ctx, 0, H - 84, CARD_W, 84, PALETTE.night, 17, 'denserDown', 0.8);
+/* ---------------- 1 · הנייר ---------------- */
+/** זהה ל-`revealCard`, ובכוונה: אותו נייר, אותה מסגרת כפולה. */
+function drawPaper(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = PRESS.paper;
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
 
-  drawSeal(ctx, 892, 152, 190);
+  const wash = ctx.createLinearGradient(0, 0, CARD_W, CARD_H);
+  wash.addColorStop(0, '#00000000');
+  wash.addColorStop(1, '#8a6a3a18');
+  ctx.fillStyle = wash;
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
 
-  // המילה "דוביד" עם המישרג — הטעות המכוונת שהיא חלק מהמותג
-  ctx.textAlign = 'right';
-  ctx.font = `900 132px ${F_DISPLAY}`;
-  ctx.fillStyle = PALETTE.tekhelet;
-  ctx.fillText('דוביד', 764, 172);
-  ctx.fillStyle = PALETTE.night;
-  ctx.fillText('דוביד', 758, 166);
+  grain(ctx, 0, 0, CARD_W, CARD_H, '#7d6a4a', 0.16);
 
-  ctx.font = `700 40px ${F_UI}`;
-  ctx.fillStyle = 'rgba(18,17,16,.72)';
-  ctx.fillText(`${d.gameweekLabel} · ${d.leagueLabel ?? 'ליגת העל'}`, 758, 228);
-
-  ctx.font = `700 34px ${F_UI}`;
-  ctx.fillStyle = PALETTE.night;
-  ctx.fillText(`ההרכב של ${d.userName}`, 758, 276);
+  ctx.strokeStyle = PRESS.ink;
+  ctx.lineWidth = 7;
+  ctx.strokeRect(32, 32, CARD_W - 64, CARD_H - 64);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(50, 50, CARD_W - 100, CARD_H - 100);
 }
 
-/* ---------------- הציון ---------------- */
-function drawScore(ctx: CanvasRenderingContext2D, d: ShareCardData) {
-  const cx = CARD_W / 2;
+/* ---------------- 2 · המאסטהד ---------------- */
+function drawMasthead(
+  ctx: CanvasRenderingContext2D, d: ShareCardData, logo?: CanvasImageSource | null,
+) {
+  if (logo) {
+    ctx.drawImage(logo, CARD_W / 2 - 108, 74, 216, 216);
+  } else {
+    /* ★ בלי לוגו — לא משאירים חור. שם המוצר, בקו הדיו. */
+    ctx.textAlign = 'center';
+    ctx.fillStyle = PRESS.ink;
+    ctx.font = `900 116px ${F_DISPLAY}`;
+    ctx.fillText('דוביד', CARD_W / 2, 232);
+  }
 
   ctx.textAlign = 'center';
-  ctx.font = `${'400'} 300px ${F_POSTER}`;
-  ctx.direction = 'ltr';
+  ctx.fillStyle = PRESS.ink;
+  ctx.font = `400 26px ${F_POSTER}`;
+  withSpacing(ctx, '2px', () => {
+    ctx.fillText(spaced(d.urlLabel ?? 'DUBID.DUBELTEAM.COM'), CARD_W / 2, 322);
+  });
 
-  // זוהר מאחורי המספר
-  const glow = ctx.createRadialGradient(cx, 600, 20, cx, 600, 400);
-  glow.addColorStop(0, 'rgba(255,91,20,.30)');
-  glow.addColorStop(1, 'rgba(255,91,20,0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(cx - 420, 380, 840, 440);
+  perforation(ctx, 364);
 
+  /* ── פס הכותרת האדום ── */
+  const bx = 60, by = 396, bw = CARD_W - 120, bh = 100;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(bx - 5, by - 5, bw + 10, bh + 10);
+  ctx.fillStyle = PRESS.red;
+  ctx.fillRect(bx, by, bw, bh);
+  dots(ctx, bx, by, bw, bh, PRESS.redDeep, 7, 1.3, 0.3);
+  ctx.strokeStyle = PRESS.ink;
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(bx, by, bw, bh);
+
+  ctx.fillStyle = PRESS.ink;
+  ctx.font = `900 70px ${F_DISPLAY}`;
+  withSpacing(ctx, '6px', () => {
+    ctx.fillText('תוצאות המחזור', CARD_W / 2, by + 71);
+  });
+
+  ctx.font = `700 31px ${F_UI}`;
+  ctx.fillStyle = PRESS.ink;
+  ctx.fillText(
+    clip(ctx,
+      [d.modeLabel, d.gameweekLabel, d.leagueLabel ?? 'ליגת העל']
+        .filter(Boolean).join('  ·  '),
+      bw - 40),
+    CARD_W / 2, by + bh + 40,
+  );
+}
+
+/* ---------------- 3 · המספר ---------------- */
+/**
+ * ★ המספר הוא הכותרת, ולכן הוא מודפס ולא זוהר.
+ *
+ * בגרסה הקודמת ישב מאחוריו `radialGradient` כתום. זוהר הוא
+ * אפקט של מסך; על נייר הוא נראה כמו כתם. מה שנשאר במקומו הוא
+ * **אי־התאמת לוחות הדפוס** — אותה שפה בדיוק כמו הכותרות בלובי.
+ */
+function drawScoreBlock(ctx: CanvasRenderingContext2D, d: ShareCardData) {
+  const cx = CARD_W / 2;
   const label = formatPoints(d.totalPoints);
-  ctx.fillStyle = PALETTE.totoDeep;
-  ctx.fillText(label, cx + 7, 707);
-  ctx.fillStyle = PALETTE.toto;
-  ctx.fillText(label, cx, 700);
+
+  ctx.textAlign = 'center';
+  ctx.direction = 'ltr';
+  ctx.font = `400 240px ${F_POSTER}`;
+
+  /* מישרג: אדום מצד אחד, כחלחל מהשני. 3 פיקסלים בגודל הזה. */
+  ctx.fillStyle = 'rgba(217,59,59,.55)';
+  ctx.fillText(label, cx + 3, 745);
+  ctx.fillStyle = 'rgba(80,150,190,.30)';
+  ctx.fillText(label, cx - 3, 745);
+  ctx.fillStyle = PRESS.ink;
+  ctx.fillText(label, cx, 742);
   ctx.direction = 'rtl';
 
-  ctx.font = `900 52px ${F_DISPLAY}`;
-  ctx.fillStyle = PALETTE.chalk;
-  ctx.fillText('נקודות במחזור', cx, 772);
+  ctx.font = `900 42px ${F_DISPLAY}`;
+  ctx.fillStyle = PRESS.ink;
+  withSpacing(ctx, '4px', () => ctx.fillText('נקודות במחזור', cx, 794));
 
+  /* ── חותמת המקום ──
+     מוטה, כמו חותמת שהוטבעה על הנייר. ישרה היא רכיב ממשק. */
   if (d.rank && d.totalPlayers) {
-    const text = `מקום ${d.rank} מתוך ${d.totalPlayers}`;
-    ctx.font = `700 38px ${F_UI}`;
-    const w = ctx.measureText(text).width + 76;
-    ctx.fillStyle = d.rank <= 3 ? PALETTE.armband : PALETTE.night3;
-    roundRect(ctx, cx - w / 2, 806, w, 74, 37);
-    ctx.fill();
-    ctx.fillStyle = d.rank <= 3 ? PALETTE.night : PALETTE.chalk;
-    ctx.fillText(text, cx, 855);
+    const w = 430, h = 84, y = 822;
+    ctx.save();
+    ctx.translate(cx, y + h / 2);
+    ctx.rotate((-1.6 * Math.PI) / 180);
+
+    const top3 = d.rank <= 3;
+    ctx.strokeStyle = top3 ? PRESS.red : PRESS.ink;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(-w / 2, -h / 2, w, h);
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(-w / 2 + 7, -h / 2 + 7, w - 14, h - 14);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = top3 ? PRESS.red : PRESS.ink;
+    ctx.font = `900 40px ${F_DISPLAY}`;
+    ctx.fillText(`מקום ${d.rank} מתוך ${d.totalPlayers}`, 0, 14);
+    ctx.restore();
   }
 }
 
-/* ---------------- פירוק הניקוד ---------------- */
+/* ---------------- 4 · פירוק הניקוד ---------------- */
 function fmtMultiplier(n: number | undefined): string {
   const m = typeof n === 'number' && n > 0 ? n : 3;
   return Number.isInteger(m) ? String(m) : m.toFixed(1);
 }
 
+/**
+ * ארבע תיבות מקרא, כמו מסגרת נתונים בשולי כתבה.
+ * נייר־תיבה (`PRESS.card`) על נייר, וקו דיו סביב. בלי פינות
+ * מעוגלות: דפוס לא מעגל פינות.
+ */
 function drawBreakdown(ctx: CanvasRenderingContext2D, d: ShareCardData) {
-  const items: Array<[string, number, string]> = [
-    ['אישי', d.breakdown.personal, PALETTE.chalk],
-    ['תוצאה', d.breakdown.result, PALETTE.tekhelet],
-    [`קפטן ×${fmtMultiplier(d.captainMultiplier)}`, d.breakdown.captain, PALETTE.armband],
-    ['וירטואלי', d.breakdown.virtual, PALETTE.toto],
+  const items: Array<[string, number]> = [
+    ['אישי', d.breakdown.personal],
+    ['תוצאה', d.breakdown.result],
+    [`קפטן ×${fmtMultiplier(d.captainMultiplier)}`, d.breakdown.captain],
+    ['וירטואלי', d.breakdown.virtual],
   ];
-  const gap = 18;
-  const total = CARD_W - 120;
+  const gap = 14;
+  const total = CARD_W - 128;
   const w = (total - gap * 3) / 4;
-  const y = 916;
+  const y = 926, h = 116;
 
-  items.forEach(([label, value, color], i) => {
-    // RTL: הפריט הראשון בימין
-    const x = CARD_W - 60 - w - i * (w + gap);
-    ctx.fillStyle = PALETTE.night2;
-    roundRect(ctx, x, y, w, 132, 22); ctx.fill();
-    ctx.strokeStyle = PALETTE.night3; ctx.lineWidth = 2;
-    roundRect(ctx, x, y, w, 132, 22); ctx.stroke();
+  items.forEach(([label, value], i) => {
+    // RTL: הפריט הראשון בימין.
+    const x = CARD_W - 64 - w - i * (w + gap);
+
+    ctx.fillStyle = PRESS.card;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = PRESS.ink;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
 
     ctx.textAlign = 'center';
     ctx.direction = 'ltr';
-    ctx.font = `400 52px ${F_POSTER}`;
-    ctx.fillStyle = color;
-    ctx.fillText(formatPoints(value), x + w / 2, y + 74);
+    ctx.font = `400 50px ${F_POSTER}`;
+    ctx.fillStyle = PRESS.ink;
+    ctx.fillText(formatPoints(value), x + w / 2, y + 66);
     ctx.direction = 'rtl';
-    ctx.font = `700 25px ${F_UI}`;
-    ctx.fillStyle = PALETTE.chalkDim;
-    ctx.fillText(label, x + w / 2, y + 110);
+
+    ctx.font = `700 23px ${F_UI}`;
+    ctx.fillStyle = 'rgba(18,16,14,.62)';
+    ctx.fillText(clip(ctx, label, w - 14), x + w / 2, y + 100);
   });
 }
 
-/* ---------------- ההרכב ---------------- */
+/* ---------------- 5 · טבלת הציונים ---------------- */
 const ROW_ORDER: Position[] = ['GK', 'DEF', 'MID', 'FWD'];
 
-function drawLineup(ctx: CanvasRenderingContext2D, d: ShareCardData) {
-  const mult = fmtMultiplier(d.captainMultiplier);
-  const x = 60, y = 1068, w = CARD_W - 120, h = 512;
-  turf(ctx, x, y, w, h);
+const POS_HE: Record<Position, string> = {
+  GK: 'שוער', DEF: 'הגנה', MID: 'קישור', FWD: 'חלוץ',
+};
 
-  const rows = ROW_ORDER
-    .map((pos) => d.lineup.filter((p) => p.position === pos))
-    .filter((r) => r.length > 0);
-
-  const pad = 46;
-  const rowH = (h - pad * 2) / Math.max(rows.length, 1);
-  const chipH = 94;
-  rows.forEach((row, ri) => {
-    const cy = y + pad + rowH * ri + rowH / 2;
-    const chipW = Math.min(148, (w - 72) / row.length - 12);
-    const totalW = row.length * chipW + (row.length - 1) * 12;
-    let cursor = x + (w + totalW) / 2;      // RTL: מתחילים מימין
-
-    for (const p of row) {
-      cursor -= chipW;
-      drawPlayerChip(ctx, cursor, cy - chipH / 2, chipW, chipH, p, mult);
-      cursor -= 12;
-    }
+/**
+ * ★ טבלה בשתי עמודות, ובכוונה.
+ *
+ * אחת־עשרה שורות ברוחב מלא הן עמוד ריק משני צדדיו. שתי עמודות
+ * הן בדיוק הצורה שבה עיתון מדפיס ציוני שחקנים — וזה גם מה
+ * שמאפשר לכרטיס להחזיק 11 שחקנים בלי להתכווץ לטקסט זעיר.
+ *
+ * דוביד 5 מקבל אותה טבלה עם חמש שורות. היא לא "נראית חסרה":
+ * העמודה השנייה פשוט לא נפתחת.
+ */
+function drawRatings(ctx: CanvasRenderingContext2D, d: ShareCardData): { bottom: number } {
+  const players = [...d.lineup].sort((a, b) => {
+    const pa = ROW_ORDER.indexOf(a.position);
+    const pb = ROW_ORDER.indexOf(b.position);
+    // עמדה, ואז ניקוד יורד, ואז שם — מיון יציב לחלוטין.
+    return pa - pb || b.points - a.points || a.name.localeCompare(b.name, 'he');
   });
+
+  const x = 64, y = 1094, w = CARD_W - 128;
+  const twoCols = players.length > 6;
+  const colGap = 22;
+  const colW = twoCols ? (w - colGap) / 2 : w;
+  const rowH = 56;
+  const perCol = twoCols ? Math.ceil(players.length / 2) : players.length;
+  const bodyH = perCol * rowH;
+
+  /* כותרת הטבלה — פס דיו דק עם שתי מילים. */
+  ctx.fillStyle = PRESS.ink;
+  ctx.fillRect(x, y - 44, w, 34);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = PRESS.paper;
+  ctx.font = `700 22px ${F_UI}`;
+  withSpacing(ctx, '3px', () => ctx.fillText('הציונים', x + w - 12, y - 20));
+  ctx.textAlign = 'left';
+  ctx.font = `700 20px ${F_UI}`;
+  ctx.fillText('POINTS', x + 12, y - 20);
+
+  players.forEach((p, i) => {
+    const col = twoCols && i >= perCol ? 1 : 0;
+    const row = twoCols ? i % perCol : i;
+    // RTL: העמודה הראשונה בימין.
+    const cx = col === 0 ? x + w - colW : x;
+    const cy = y + row * rowH;
+    drawRatingRow(ctx, cx, cy, colW, rowH, p);
+  });
+
+  return { bottom: y + bodyH };
 }
 
-function drawPlayerChip(ctx: CanvasRenderingContext2D, x: number, y: number,
-                        w: number, h: number, p: ShareLineupEntry, mult: string) {
+function drawRatingRow(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  p: ShareLineupEntry,
+) {
   const cap = !!p.isCaptain;
-  ctx.fillStyle = cap ? PALETTE.armband : PALETTE.chalk;
-  roundRect(ctx, x, y, w, h, 18); ctx.fill();
 
+  /* פס הקפטן — אדום מלא. ההחלטה היחידה שמכפילה היא גם
+     ההחלטה היחידה שמקבלת צבע. */
   if (cap) {
-    ctx.strokeStyle = PALETTE.night; ctx.lineWidth = 5;
-    roundRect(ctx, x - 5, y - 5, w + 10, h + 10, 22); ctx.stroke();
+    ctx.fillStyle = PRESS.red;
+    ctx.fillRect(x, y + 4, w, h - 10);
+    dots(ctx, x, y + 4, w, h - 10, PRESS.redDeep, 6, 1.1, 0.26);
+  } else {
+    // פסי זברה עדינים — נייר תיבה על נייר.
+    ctx.fillStyle = 'rgba(246,243,234,.55)';
+    ctx.fillRect(x, y + 4, w, h - 10);
   }
+  ctx.strokeStyle = PRESS.ink;
+  ctx.lineWidth = cap ? 2.4 : 1.2;
+  ctx.strokeRect(x, y + 4, w, h - 10);
+
+  const ink = cap ? PRESS.ink : PRESS.ink;
+  const dim = cap ? 'rgba(18,16,14,.72)' : 'rgba(18,16,14,.55)';
+
+  /* תג העמדה — ריבוע קטן בקצה. */
+  ctx.textAlign = 'center';
+  ctx.font = `700 17px ${F_UI}`;
+  ctx.fillStyle = dim;
+  ctx.fillText(POS_HE[p.position], x + w - 34, y + 36);
+
+  /* השם. */
+  ctx.textAlign = 'right';
+  ctx.font = `700 27px ${F_UI}`;
+  ctx.fillStyle = ink;
+  const nameMax = w - 190;
+  ctx.fillText(clip(ctx, p.name, nameMax), x + w - 66, y + 33);
+
+  /* הקבוצה, שורה שנייה קטנה. */
+  ctx.font = `700 18px ${F_UI}`;
+  ctx.fillStyle = dim;
+  ctx.fillText(clip(ctx, p.teamShort, nameMax), x + w - 66, y + 52);
+
+  /* הניקוד, בקצה השני. */
+  ctx.textAlign = 'left';
+  ctx.direction = 'ltr';
+  ctx.font = `400 40px ${F_POSTER}`;
+  ctx.fillStyle = ink;
+  ctx.fillText(formatPoints(p.points), x + 14, y + 44);
+  ctx.direction = 'rtl';
+}
+
+/* ---------------- 6 · שם המאמן ---------------- */
+/**
+ * ★ קו חתימה, כמו בכרטיס שלפני המחזור.
+ *   הכרטיס שייך למישהו — ובלי השורה הזו הוא סתם דף תוצאות.
+ */
+function drawCoach(ctx: CanvasRenderingContext2D, d: ShareCardData, y: number) {
+  ctx.textAlign = 'center';
+
+  ctx.strokeStyle = PRESS.ink;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(CARD_W / 2 - 240, y);
+  ctx.lineTo(CARD_W / 2 + 240, y);
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(18,16,14,.6)';
+  ctx.font = `700 20px ${F_UI}`;
+  withSpacing(ctx, '2px', () => ctx.fillText(spaced('המאמן'), CARD_W / 2, y + 28));
+
+  ctx.fillStyle = PRESS.ink;
+  ctx.font = `900 44px ${F_DISPLAY}`;
+  ctx.fillText(clip(ctx, d.userName, CARD_W - 220), CARD_W / 2, y + 74);
+}
+
+/* ---------------- 7 · הספח ---------------- */
+/**
+ * ★ הספח התחתון — QR, שורת הזמנה, ורצועת הכתובת.
+ *
+ * הקריאה לפעולה היא **שאלה** ולא הכרזה: "תשחק מולי במחזור
+ * הבא". הכרטיס נשלח לקבוצת וואטסאפ, וההזמנה היא כל הסיבה
+ * שהוא נשלח.
+ */
+function drawStub(ctx: CanvasRenderingContext2D, d: ShareCardData) {
+  const y = 1602;
+  perforation(ctx, y - 36);
+
+  const qr = encodeQr(d.url, 'H');
+  const qrSize = 178;
+  const qrX = CARD_W - 84 - qrSize;
+  drawQrToCanvas(ctx, qr, qrX, y, qrSize, {
+    dark: PRESS.ink, light: PRESS.card, margin: 2,
+  });
+  ctx.strokeStyle = PRESS.ink;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(qrX, y, qrSize, qrSize);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = PRESS.ink;
+  ctx.font = `900 44px ${F_DISPLAY}`;
+  ctx.fillText('תשחק מולי במחזור הבא', qrX - 34, y + 54);
+
+  ctx.font = `700 27px ${F_UI}`;
+  ctx.fillStyle = 'rgba(18,16,14,.66)';
+  ctx.fillText(`סרוק, בחר ${d.lineup.length} שחקנים —`, qrX - 34, y + 100);
+  ctx.fillText('אחד מכל קבוצה. זהו הכלל.', qrX - 34, y + 138);
+
+  /* רצועת הכתובת — אדומה, כמו המאסטהד. */
+  const barY = CARD_H - 112, barH = 62;
+  ctx.fillStyle = PRESS.red;
+  ctx.fillRect(50, barY, CARD_W - 100, barH);
+  dots(ctx, 50, barY, CARD_W - 100, barH, PRESS.redDeep, 7, 1.3, 0.28);
+  ctx.strokeStyle = PRESS.ink;
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(50, barY, CARD_W - 100, barH);
 
   ctx.textAlign = 'center';
   ctx.direction = 'ltr';
   ctx.font = `400 42px ${F_POSTER}`;
-  ctx.fillStyle = PALETTE.night;
-  ctx.fillText(formatPoints(p.points), x + w / 2, y + 46);
+  ctx.fillStyle = PRESS.ink;
+  ctx.fillText(d.urlLabel ?? 'DUBID.DUBELTEAM.COM', CARD_W / 2, barY + 45);
   ctx.direction = 'rtl';
-
-  ctx.font = `700 23px ${F_UI}`;
-  ctx.fillStyle = 'rgba(18,17,16,.78)';
-  ctx.fillText(clip(ctx, p.name, w - 18), x + w / 2, y + 72);
-
-  ctx.font = `700 18px ${F_UI}`;
-  ctx.fillStyle = 'rgba(18,17,16,.5)';
-  ctx.fillText(p.teamShort, x + w / 2, y + 90);
-
-  if (cap) {
-    ctx.fillStyle = PALETTE.night;
-    roundRect(ctx, x + w - 46, y - 16, 52, 32, 10); ctx.fill();
-    ctx.fillStyle = PALETTE.armband;
-    ctx.font = `400 22px ${F_POSTER}`;
-    ctx.direction = 'ltr';
-    ctx.fillText(`x${mult}`, x + w - 20, y + 7);
-    ctx.direction = 'rtl';
-  }
 }
 
-/* ---------------- QR ותחתית ---------------- */
-function drawFooter(ctx: CanvasRenderingContext2D, d: ShareCardData) {
-  const y = 1602;
+/* ---------------- 8 · "לא סופי" ---------------- */
+function drawProvisionalStamp(ctx: CanvasRenderingContext2D) {
+  /* ★ פינה, ולא אלכסון על הכרטיס.
+     חותמת שחוצה את המספר הופכת את הכרטיס לבלתי קריא — ואז
+     אף אחד לא משתף אותו, וגם הסימון עצמו הולך לאיבוד. */
+  const w = 300, h = 76;
+  ctx.save();
+  ctx.translate(238, 196);
+  ctx.rotate((-7 * Math.PI) / 180);
+  ctx.globalAlpha = 0.92;
 
-  // ECC גבוה כי במרכז ה-QR יושב הסימן
-  const qr = encodeQr(d.url, 'H');
-  const qrSize = 186;
-  const qrX = CARD_W - 60 - qrSize;
-  drawQrToCanvas(ctx, qr, qrX, y, qrSize, {
-    dark: PALETTE.night, light: PALETTE.chalk, margin: 2, logoHole: 0.26,
-  });
-  drawSeal(ctx, qrX + qrSize / 2, y + qrSize / 2, qrSize * 0.235);
-
-  ctx.textAlign = 'right';
-  ctx.font = `900 46px ${F_DISPLAY}`;
-  ctx.fillStyle = PALETTE.chalk;
-  ctx.fillText('תשחק מולי במחזור הבא', qrX - 44, y + 58);
-
-  ctx.font = `700 29px ${F_UI}`;
-  ctx.fillStyle = PALETTE.chalkDim;
-  ctx.fillText(`סרוק, בחר ${d.lineup.length} שחקנים —`, qrX - 44, y + 106);
-  ctx.fillText('אחד מכל קבוצה. זהו הכלל.', qrX - 44, y + 146);
-
-  // רצועת הכתובת
-  const barY = CARD_H - 118;
-  ctx.fillStyle = PALETTE.toto;
-  ctx.fillRect(0, barY, CARD_W, 118);
-  halftone(ctx, 0, barY, CARD_W, 40, PALETTE.night, 14, 'denserUp', 0.55);
+  ctx.fillStyle = PRESS.card;
+  ctx.fillRect(-w / 2, -h / 2, w, h);
+  ctx.strokeStyle = PRESS.red;
+  ctx.lineWidth = 5;
+  ctx.strokeRect(-w / 2, -h / 2, w, h);
+  ctx.lineWidth = 1.8;
+  ctx.strokeRect(-w / 2 + 8, -h / 2 + 8, w - 16, h - 16);
 
   ctx.textAlign = 'center';
-  ctx.direction = 'ltr';
-  ctx.font = `400 56px ${F_POSTER}`;
-  ctx.fillStyle = PALETTE.night;
-  ctx.fillText(d.urlLabel ?? 'DUBID.DUBELTEAM.COM', CARD_W / 2, barY + 80);
-  ctx.direction = 'rtl';
+  ctx.fillStyle = PRESS.red;
+  ctx.font = `900 29px ${F_DISPLAY}`;
+  withSpacing(ctx, '2px', () => ctx.fillText('לא סופי', 0, -2));
+  ctx.font = `700 18px ${F_UI}`;
+  ctx.fillText('המחזור עדיין חי', 0, 24);
+
+  ctx.restore();
+}
+
+/* =================================================================== */
+/* עזרי הדפוס — משותפים לכל כרטיס על נייר                               */
+/* =================================================================== */
+
+/** גרעיני הנייר. רעש עדין, אחרת הנייר נראה כמו מלבן בז׳. */
+export function grain(
+  ctx: CanvasRenderingContext2D, x: number, y: number,
+  w: number, h: number, color: string, alpha: number,
+) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  /* צעד 3 ולא 1: מיליון נקודות הן שנייה שלמה של רינדור, ובעין
+     ההבדל אפסי. */
+  for (let i = 0; i < w * h * 0.0016; i++) {
+    const px = x + Math.random() * w;
+    const py = y + Math.random() * h;
+    ctx.fillRect(px, py, 1.2, 1.2);
+  }
+  ctx.restore();
+}
+
+/** נקודות הדפוס בתוך שטח צבעוני. */
+export function dots(
+  ctx: CanvasRenderingContext2D, x: number, y: number,
+  w: number, h: number, color: string, step: number, r: number, alpha: number,
+) {
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  for (let row = 0; row < h; row += step) {
+    for (let col = 0; col < w; col += step) {
+      ctx.beginPath();
+      ctx.arc(x + col + ((row / step) % 2 ? step / 2 : 0), y + row, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/** קו ניקוב — מה שהופך דף לשני חלקים שאפשר לתלוש. */
+export function perforation(ctx: CanvasRenderingContext2D, y: number) {
+  ctx.save();
+  ctx.strokeStyle = PRESS.ink;
+  ctx.globalAlpha = 0.55;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([9, 11]);
+  ctx.beginPath();
+  ctx.moveTo(72, y);
+  ctx.lineTo(CARD_W - 72, y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+/**
+ * `letterSpacing` על הקנבס, עם נפילה חיננית.
+ * ★ Safari הוסיף אותו מאוחר. בלי ה-try הכרטיס כולו היה נכשל
+ *   בגלל מרווח אותיות.
+ */
+export function withSpacing(ctx: CanvasRenderingContext2D, value: string, draw: () => void) {
+  const c = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+  const prev = c.letterSpacing;
+  try { c.letterSpacing = value; } catch { /* דפדפן ישן */ }
+  draw();
+  try { if (prev !== undefined) c.letterSpacing = prev; } catch { /* noop */ }
+}
+
+/** אותיות מרווחות — גיבוי ל-`letterSpacing` בדפדפן ישן. */
+export function spaced(s: string): string {
+  return s.split('').join(' ');
 }
 
 /* ---------------- עזרים ---------------- */
@@ -443,6 +742,32 @@ export function clip(ctx: CanvasRenderingContext2D, text: string, maxWidth: numb
  * מייצר קנבס מוכן לשיתוף.
  * scale=1 -> 1080×1920 (מספיק לכל הרשתות). scale=2 להדפסה.
  */
+/**
+ * ★ הלוגו נטען פעם אחת לכל חיי העמוד.
+ *
+ * מטמון משלו ולא ייבוא מ-`revealCard.ts`: השניים כבר קשורים
+ * בכיוון אחד (revealCard מייבא מכאן), וייבוא הפוך היה סוגר
+ * מעגל. `null` הוא תוצאה תקפה — הכרטיס מדפיס את שם המוצר
+ * במקום, ושיתוף שנכשל גרוע מלוגו חסר.
+ */
+let logoPromise: Promise<HTMLImageElement | null> | null = null;
+
+const LOGO_SRC = '/brand/dubid-logo-ink.png';
+
+function loadLogo(): Promise<HTMLImageElement | null> {
+  if (logoPromise) return logoPromise;
+  if (typeof Image === 'undefined') return Promise.resolve(null);
+
+  logoPromise = new Promise<HTMLImageElement | null>((resolve) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = LOGO_SRC;
+  });
+  return logoPromise;
+}
+
 export async function renderShareCard(
   data: ShareCardData,
   opts: { scale?: number; canvas?: HTMLCanvasElement } = {},
@@ -456,10 +781,11 @@ export async function renderShareCard(
 
   // קריטי: בלי זה הפונטים עלולים לא להיות טעונים והכרטיס ייצא ב-fallback
   if (typeof document !== 'undefined' && 'fonts' in document) {
-    await (document as any).fonts.ready;
+    await (document as { fonts?: { ready?: Promise<unknown> } }).fonts?.ready;
   }
+  const logo = await loadLogo();
 
   ctx.scale(scale, scale);
-  drawShareCard(ctx, data);
+  drawShareCard(ctx, data, logo);
   return canvas;
 }

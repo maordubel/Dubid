@@ -70,6 +70,7 @@ import { myLeagues } from './lib/leagueStore.ts';
 import {
   getResults, saveEntry, listEntries, findMyEntry, deleteEntry, subscribeToStore,
   hydrate, startRealtime, storeStatus, errorMessageHe, getGameweekState,
+  scoringVisible, scoringIsLive,
   type LineupEntry,
 } from './lib/store.ts';
 import {
@@ -464,7 +465,19 @@ function MainApp() {
      לפניו. קודם הן היו אחריו — ו-`const` ב-TDZ הפיל את הרינדור
      הראשון ב-ReferenceError, כלומר מסך לבן. אל תזיזו את הבלוק הזה
      מתחת ל-`growthCtx`. */
-  const hasRealResults = results.published && Object.keys(results.performances).length > 0;
+  /* ★★ שלושה מצבים, לא שניים ★★
+
+     `hasRealResults` שאל עד עכשיו `results.published` — כלומר
+     "האם האדמין לחץ פרסום". התוצאה: מחזור שנפרס על ארבעה ימים
+     הראה **אפס** מרגע הנעילה ועד יום ראשון, גם כשמשחק שלם כבר
+     הסתיים והניקוד ישב במסד.
+
+     `scoringVisible` שואל את השאלה הנכונה — "האם יש מספרים שמותר
+     להראות" — והיא נכונה גם כשהמחזור חי וגם כשהוא נסגר.
+     `liveScoring` הוא ההבדל: המספרים על המסך עדיין יכולים לזוז,
+     ולכן כל מסך שמציג אותם אומר את זה. */
+  const hasRealResults = scoringVisible(results);
+  const liveScoring = scoringIsLive(results);
 
   // ★ שכבת ה"נעילה": יש הגשה רשמית או שאין. כל עוד אין, המסך עורך את
   // הטיוטה. ברגע שיש — SquadPicker לא מוצג יותר, LockedLineup כן.
@@ -511,6 +524,7 @@ function MainApp() {
     const scored = e && hasRealResults;
     return {
       id: m,
+      live: liveScoring,
       title: m === 'five' ? 'דוביד 5' : 'דוביד 11',
       tagline: m === 'five' ? 'בחרו 5. נצחו את כולם.' : 'בנו הרכב. שלטו בליגה.',
       state: scored ? 'scored' : e ? 'submitted' : filled > 0 ? 'draft' : 'empty',
@@ -574,6 +588,10 @@ function MainApp() {
   const entry = entryByMode[mode];
 
   const statusByMode: Record<Mode, GameStatus> = {
+    /* ★ `finished` נשמר לסיום אמיתי בלבד.
+       במהלך המחזור החי ההרכב עדיין `locked` — "המחזור בעיצומו"
+       ולא "הסתיים". הניקוד מוצג בכל זאת, כי `hasRealResults`
+       כבר לא קשור לשאלה הזו. */
     full: computeGameStatus({
       hasSubmission: !!entryFull, resultsPublished: results.published,
       filled: luFull.filled, isComplete: luFull.isComplete,
@@ -828,6 +846,7 @@ function MainApp() {
                 });
               }
             } : undefined}
+            live={liveScoring}
             onViewCard={hasRealResults ? () => setTab('card') : undefined}
             /* ★ אותו כרטיס בדיוק שקפץ אחרי ההגשה, לפי דרישה.
                `buildReveal` מקבל את ההגשה השמורה, ולכן הכרטיס
@@ -913,7 +932,9 @@ function MainApp() {
         origin={SITE_URL}
       />
     ),
-    leaderboard: <Leaderboard rulesByMode={rulesByMode} userId={userId} />,
+    leaderboard: (
+      <Leaderboard rulesByMode={rulesByMode} userId={userId} pool={pool} teams={teams} />
+    ),
     rules: <RulesScreen rulesByMode={rulesByMode} />,
   };
 
@@ -1354,7 +1375,11 @@ function CardScreen({
 }) {
   const [showDemo, setShowDemo] = useState(false);
   const results = getResults(gwCode());
-  const hasRealResults = results.published && Object.keys(results.performances).length > 0;
+  /* ★ אותו שינוי כמו בשאר המוצר: הכרטיס נפתח כשיש מספרים,
+     לא כשהאדמין לחץ פרסום. `live` נוסע איתו כדי שהכרטיס
+     יגיד "חי" ולא יתחזה לתוצאה סופית. */
+  const hasRealResults = scoringVisible(results);
+  const liveScoring = scoringIsLive(results);
 
   const data: ShareCardData | null = useMemo(() => {
     if (!ready) return null;
@@ -1416,6 +1441,8 @@ function CardScreen({
         virtual: score.virtualPoints,
       },
       captainMultiplier: rules.captain.multiplier,
+      modeLabel: entry ? modeTheme(entry.mode).name : undefined,
+      live: hasRealResults && liveScoring,
       url: `${SITE_URL}/`,
       urlLabel: 'DUBID.DUBELTEAM.COM',
       lineup: score.players.map((p) => ({
@@ -1426,7 +1453,7 @@ function CardScreen({
         isCaptain: p.isCaptain,
       })),
     };
-  }, [ready, showDemo, hasRealResults, results, lineup, pool, teams, rules, entry]);
+  }, [ready, showDemo, hasRealResults, liveScoring, results, lineup, pool, teams, rules, entry]);
 
   if (data) {
     return (

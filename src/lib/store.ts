@@ -106,8 +106,52 @@ export interface GameweekResults {
   performances: Record<string, PlayerPerformance>;
   outcomes: Record<string, TeamOutcome>;
   fixtureScores: Record<string, FixtureScore>;
+  /**
+   * ★ סופי. האדמין לחץ "סיום מחזור".
+   *
+   * נשאר בדיוק כפי שהיה — כל מסך שקורא אותו לא צריך להשתנות.
+   * מה שהוא **לא** אומר יותר: "מותר להראות מספרים". לזה יש
+   * עכשיו `live`.
+   */
   published: boolean;
-  updatedAt: string;
+  /**
+   * ★ חי. ההרכבים נעולים והמחזור עוד לא נסגר.
+   *
+   * זה הדגל שפותח את הניקוד באמצע השבוע. הוא נגזר בשרת
+   * מאותו תנאי שנועל את ההגשות (`now() >= lock_at`), ולכן
+   * הוא לא תלוי בכך שמישהו יזכור ללחוץ "נעילה".
+   */
+  live: boolean;
+  /** מספר המשחקים במחזור, ומתוכם כמה כבר הסתיימו. */
+  fixturesTotal: number;
+  fixturesFinal: number;
+  /** הסטטוס כלשונו בשרת — לתצוגת ניהול. */
+  status?: string;
+  /**
+   * ★ מתי באמת נכנס עדכון אחרון, ולא "עכשיו".
+   *
+   * ריק כשעוד לא נכנסה שום סטטיסטיקה למחזור. מסך שמציג
+   * "עודכן לפני רגע" כשלא קרה כלום הוא מסך שמלמדים לא
+   * להאמין לו.
+   */
+  updatedAt: string | null;
+}
+
+/**
+ * ★ מתי מותר להראות מספרים.
+ *
+ * מקום אחד לשאלה הזו. קודם כל מסך שאל `results.published`
+ * בעצמו — ולכן הוספת מצב שלישי הייתה דורשת לתקן שבעה מסכים
+ * ולשכוח אחד.
+ */
+export function scoringVisible(results: GameweekResults): boolean {
+  return (results.published || results.live)
+      && Object.keys(results.performances).length > 0;
+}
+
+/** ★ המספרים על המסך עדיין יכולים לזוז. */
+export function scoringIsLive(results: GameweekResults): boolean {
+  return !results.published && results.live;
 }
 
 export interface GameweekState {
@@ -117,6 +161,13 @@ export interface GameweekState {
   lockAt: string;
   firstKickoffAt: string;
   entrants: number;
+  /** ★ שדות ההתקדמות מ-`db/24`. אופציונליים — מסד ישן לא מחזיר אותם. */
+  locked?: boolean;
+  published?: boolean;
+  fixturesTotal?: number;
+  fixturesFinal?: number;
+  fixturesLive?: number;
+  lastEventAt?: string | null;
 }
 
 /* ================================================================== */
@@ -210,7 +261,32 @@ function emptyResults(gameweekId: string): GameweekResults {
     outcomes: {},
     fixtureScores: {},
     published: false,
-    updatedAt: new Date(0).toISOString(),
+    live: false,
+    fixturesTotal: 0,
+    fixturesFinal: 0,
+    updatedAt: null,
+  };
+}
+
+/**
+ * ★ נרמול התשובה מהשרת.
+ *
+ * מסד שעוד לא קיבל את `db/24` מחזיר מפתחות ישנים בלבד. בלי
+ * ברירות המחדל האלה `results.live` היה `undefined`, שהוא
+ * falsy — כלומר המוצר היה מתנהג בדיוק כמו קודם במקום להישבר.
+ * זו התנהגות מכוונת: מיגרציה שלא רצה עדיין לא מפילה מסך.
+ */
+function normalizeResults(raw: unknown, gameweekId: string): GameweekResults {
+  const r = (raw ?? {}) as Partial<GameweekResults>;
+  return {
+    ...emptyResults(gameweekId),
+    ...r,
+    gameweekId,
+    published: r.published === true,
+    live: r.live === true,
+    fixturesTotal: Number(r.fixturesTotal ?? 0),
+    fixturesFinal: Number(r.fixturesFinal ?? 0),
+    updatedAt: r.updatedAt ?? null,
   };
 }
 
@@ -250,7 +326,7 @@ export function hydrate(gameweekId: string, force = false): Promise<void> {
       }
 
       snapshot.entries = (entriesRes.data ?? []) as LineupEntry[];
-      const r = (resultsRes.data ?? emptyResults(gameweekId)) as GameweekResults;
+      const r = normalizeResults(resultsRes.data, gameweekId);
       snapshot.results = { ...snapshot.results, [gameweekId]: r };
       snapshot.gameweek = (stateRes.data ?? null) as GameweekState | null;
       snapshot.live = true;
@@ -288,8 +364,17 @@ export function refresh(): Promise<void> {
  * חלקי הוא מקור לחוסר עקביות שקשה לאתר.
  */
 export function startRealtime(gameweekId: string): () => void {
+  /* ★ הוספה: `game.data_revision`.
+     שלוש ההאזנות המקוריות נשארות — הן עובדות ברגע שהטבלאות
+     בפרסום. `data_revision` הוא **הערוץ שתמיד עובד**: `db/13`
+     כבר הוסיף אותו לפרסום ונתן לו מדיניות SELECT, ו-`db/24`
+     חיבר אליו גם את `core.player_match_stats` ואת
+     `game.user_lineups`. כלומר: כל עדכון תוצאה במהלך המחזור
+     מעלה מונה אחד, וכל מכשיר פתוח מרענן — פעם אחת. */
   const channel = supabase
     .channel('dubid-live')
+    .on('postgres_changes', { event: '*', schema: 'game', table: 'data_revision' },
+        () => { void hydrate(gameweekId, true); })
     .on('postgres_changes', { event: '*', schema: 'game', table: 'user_lineups' },
         () => { void hydrate(gameweekId, true); })
     .on('postgres_changes', { event: '*', schema: 'game', table: 'gameweeks' },
@@ -298,7 +383,67 @@ export function startRealtime(gameweekId: string): () => void {
         () => { void hydrate(gameweekId, true); })
     .subscribe();
 
-  return () => { void supabase.removeChannel(channel); };
+  const stopPoll = startLivePolling(gameweekId);
+
+  return () => {
+    stopPoll();
+    void supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * ★ רשת הביטחון: סקר תקופתי, רק כשהמחזור חי וכשהטאב פתוח.
+ *
+ * Realtime הוא WebSocket. הוא נופל — רשת סלולרית שמתחלפת,
+ * טאב שהיה ברקע חצי שעה, פרוקסי שסוגר חיבורים. משתמש שיושב
+ * מול הטבלה בשבת בערב ורואה מספר קפוא לא יודע שהחיבור נפל;
+ * הוא יודע שהמוצר שבור.
+ *
+ * שלושה כללים ששומרים על זה זול:
+ *
+ *   1. **רק כשחי.** מחזור פתוח או מפורסם — אין מה לסקור.
+ *   2. **רק כשרואים.** טאב מוסתר לא מבקש כלום.
+ *   3. **רענון מיידי בחזרה לפוקוס.** זה הרגע שבו המשתמש
+ *      באמת מסתכל, וזה גם הרגע שבו הפער הכי גדול.
+ *
+ * 45 שניות: מספיק צפוף כדי שגול יגיע בזמן שמסתכלים, ורחוק
+ * מספיק כדי שלא יעלה יותר משלוש שאילתות זולות בדקה.
+ */
+const LIVE_POLL_MS = 45_000;
+
+function startLivePolling(gameweekId: string): () => void {
+  let timer: ReturnType<typeof setInterval> | null = null;
+
+  const shouldPoll = () => {
+    const r = snapshot.results[gameweekId];
+    return !!r && r.live && !r.published;
+  };
+
+  const tick = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    if (!shouldPoll()) return;
+    void hydrate(gameweekId, true);
+  };
+
+  const onVisible = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') tick();
+  };
+
+  try {
+    timer = setInterval(tick, LIVE_POLL_MS);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+  } catch {
+    /* SSR / לא בדפדפן */
+  }
+
+  return () => {
+    if (timer) clearInterval(timer);
+    try {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    } catch { /* noop */ }
+  };
 }
 
 /**
@@ -1093,6 +1238,51 @@ export interface GameweekRow {
   fixtures: number;
   entries: number;
   published: boolean;
+  /** ★ מ-`db/24`. אופציונליים כדי שמסד ישן לא יפיל את המסך. */
+  locked?: boolean;
+  fixturesFinal?: number;
+  fixturesLive?: number;
+  lastEventAt?: string | null;
+}
+
+/** התקדמות המחזור — מה שכפתור "סיום מחזור" חייב להראות לידו. */
+export interface GameweekProgress {
+  code: string;
+  status: string;
+  locked: boolean;
+  published: boolean;
+  fixturesTotal: number;
+  fixturesFinal: number;
+  fixturesLive: number;
+  scoredPlayers: number;
+  entries: number;
+  lastEventAt: string | null;
+}
+
+export async function gameweekProgress(gameweekId: string): Promise<GameweekProgress> {
+  const { data, error } = await supabase.rpc('gameweek_progress', { p_gw_code: gameweekId });
+  if (error) throw new Error(errorCode(error));
+  return data as GameweekProgress;
+}
+
+/**
+ * ★ סיום מחזור.
+ *
+ * זו לא פונקציה חדשה בשרת — היא `admin_set_published`, אותו
+ * נתיב כתיבה יחיד שקיים מ-`db/09`. השם כאן הוא של הפעולה
+ * במוצר ("סיום מחזור"), לא של השדה במסד ("published"), כי
+ * זה מה שהאדמין חושב שהוא עושה.
+ *
+ * ⚠ הפיכה: `reopenGameweek` מחזירה את המחזור למצב חי. הפעולה
+ *   נרשמת ביומן. טעות בהזנת תוצאה היא תרחיש ודאי, ומצב שאי
+ *   אפשר לצאת ממנו הופך טעות קטנה לאסון.
+ */
+export async function finishGameweek(gameweekId: string): Promise<void> {
+  await setPublished(gameweekId, true);
+}
+
+export async function reopenGameweek(gameweekId: string): Promise<void> {
+  await setPublished(gameweekId, false);
 }
 
 export async function gameweeksList(): Promise<GameweekRow[]> {

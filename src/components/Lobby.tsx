@@ -61,6 +61,13 @@ export interface LobbyMode {
   tagline: string;
   /** מצב ההרכב של המשתמש במצב הזה. */
   state: 'empty' | 'draft' | 'submitted' | 'scored';
+  /**
+   * ★ הניקוד שמוצג עדיין יכול לזוז.
+   *
+   * ההבדל בין "45 נק׳" ל-"45 נק׳ · חי" הוא ההבדל בין מספר
+   * שנראה סופי ומתברר כלא, לבין מספר שהמשתמש חוזר לבדוק.
+   */
+  live?: boolean;
   /** נקודות המחזור, אם כבר נוקד. */
   points?: number;
   /** מקום בדירוג, אם כבר נוקד. */
@@ -725,9 +732,10 @@ function ModeArticle({
 /** שורת המצב. קצרה בכוונה — היא יושבת ליד כפתור, לא לבד. */
 function statusLine(mode: LobbyMode, open: boolean): string {
   if (mode.state === 'scored' && mode.points !== undefined) {
+    const tail = mode.live ? ' · חי' : '';
     return mode.rank
-      ? `הוגש · ${mode.points} נק׳ · מקום ${mode.rank}`
-      : `הוגש · ${mode.points} נק׳`;
+      ? `הוגש · ${mode.points} נק׳ · מקום ${mode.rank}${tail}`
+      : `הוגש · ${mode.points} נק׳${tail}`;
   }
   if (mode.state === 'submitted') return 'ההרכב נעול';
   if (!open) return 'ההגשות סגורות';

@@ -33,7 +33,8 @@ import {
   createLeague, joinByCode, listMembers, myLeagues,
   hydrateLeagues, leagueMessageHe,
 } from '../lib/leagueStore.ts';
-import { listEntries, getResults, subscribeToStore } from '../lib/store.ts';
+import { listEntries, getResults, subscribeToStore,
+         scoringVisible, scoringIsLive } from '../lib/store.ts';
 import { scoreLineup } from '../lib/scoring/engine.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import { GAMEWEEK } from '../data/fixtures.ts';
@@ -329,7 +330,10 @@ function ArenaTable({
    * הגשה, אותו מנוע, אותו מספר.
    */
   const history: MemberGameweek[] = useMemo(() => {
-    if (!results.published) return [];
+    /* ★ אותו מעבר כמו בדירוג הכללי: הטבלה נפתחת כשיש מספרים,
+       ולא כשהאדמין לחץ "סיום מחזור". ליגה פרטית שנשארת ריקה
+       כל סוף השבוע היא הליגה שהחברים מפסיקים לפתוח. */
+    if (!scoringVisible(results)) return [];
     const memberIds = new Set(members.map((m) => m.userId));
     return listEntries(GAMEWEEK.id, league.mode as 'full' | 'five')
       .filter((e) => memberIds.has(e.userId))
@@ -404,11 +408,15 @@ function ArenaTable({
         />
       </div>
 
-      {!results.published && (
+      {!scoringVisible(results) ? (
         <p className="mt-2.5 text-center text-[11.5px] text-chalk-dim">
           המחזור עוד לא נוקד. עד אז כולם באותו מקום.
         </p>
-      )}
+      ) : scoringIsLive(results) ? (
+        <p className="mt-2.5 text-center text-[11.5px] text-chalk-dim">
+          הטבלה חיה — היא זזה עם כל משחק עד סיום המחזור.
+        </p>
+      ) : null}
     </>
   );
 }

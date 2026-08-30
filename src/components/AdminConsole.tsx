@@ -30,6 +30,7 @@ import {
   adminAddBots, adminRemoveBots, adminActivity, adminActivityStats,
   adminAds, adminUpsertAd, adminSetAdEnabled, adminDeleteAd, adminAdStats,
   adminLeads, adminFunnel, adminDaily, adminLeadsCsv,
+  finishGameweek, reopenGameweek,
   errorMessageHe,
   type GameweekRow, type ImportReport, type ContentRow,
   type BotResult, type ActivityRow, type ActivityStats,
@@ -152,6 +153,11 @@ export function AdminGameweeks() {
 
   return (
     <div className="space-y-4">
+      {/* ★ הכרטיס הראשון בלשונית, ובכוונה.
+          במהלך המחזור זו הפעולה היחידה שהאדמין באמת צריך —
+          "סיום מחזור". היא לא צריכה להיות מוסתרת בתוך רשימה
+          של כל המחזורים מאז אוגוסט. */}
+      <LiveGameweekCard rows={rows} act={act} />
       <NewGameweek next={next} act={act} />
       <ImportFixtures rows={rows} act={act} />
 
@@ -186,11 +192,38 @@ export function AdminGameweeks() {
 
               <p className="mt-1 text-[11px] text-chalk-dim">
                 <span className="num">{g.fixtures}</span> משחקים ·{' '}
+                {/* ★ כמה כבר הסתיימו. זה המספר שקובע אם מותר
+                    לסגור מחזור, ולכן הוא חייב להיות ליד השורה
+                    ולא במסך אחר. */}
+                <span className="num">{g.fixturesFinal ?? 0}</span> הסתיימו ·{' '}
                 <span className="num">{g.entries}</span> הגשות ·{' '}
                 נעילה <span className="num">{fmt(g.lockAt)}</span>
               </p>
 
               <div className="mt-2 flex flex-wrap gap-1.5">
+                {/* ★ סיום / פתיחה מחדש — גם מהרשימה, כדי שמחזור
+                    ישן שתוקן לא יחייב לעבור לכרטיס אחר. */}
+                {g.locked && !g.published && (
+                  <button
+                    disabled={act.busy}
+                    className={ghost}
+                    onClick={() => confirmFinish(g, act)}
+                  >
+                    סיום מחזור
+                  </button>
+                )}
+                {g.published && (
+                  <button
+                    disabled={act.busy}
+                    className={ghost}
+                    onClick={() => act.run(async () => {
+                      await reopenGameweek(g.code);
+                      return `${g.label} חזר למצב חי. הניקוד מתעדכן שוב, והדירוג עדיין מוצג.`;
+                    })}
+                  >
+                    פתיחה מחדש
+                  </button>
+                )}
                 {!g.isCurrent && (
                   <button
                     disabled={act.busy}
@@ -230,6 +263,186 @@ export function AdminGameweeks() {
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+
+/**
+ * ★★ "סיום מחזור" ★★
+ *
+ * ═══════════════════════════════════════════════════════════════
+ * מה הכפתור הזה עושה, ומה הוא **לא** עושה
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * הוא לא "מפרסם תוצאות". התוצאות כבר מפורסמות — מרגע הנעילה
+ * הניקוד זורם למסכים עם כל משחק שנגמר, והטבלה זזה. מה שהכפתור
+ * עושה הוא **לקבע**: מכאן והלאה המספר סופי, הכרטיסים סופיים,
+ * וההגשות עוברות ל-`scored`.
+ *
+ * ═══════════════════════════════════════════════════════════════
+ * למה לא לסגור אוטומטית כשהמשחק האחרון נגמר
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * כי "נגמר" הוא קביעה של ספק הדאטה, והוא טועה: משחק שנדחה,
+ * שורת סטטיסטיקה שמגיעה באיחור, תיקון של שופט. סגירה אוטומטית
+ * הייתה מקבעת ניקוד שגוי בדיוק ברגע שאין יותר מה לעשות איתו.
+ *
+ * לכן: המערכת מציגה את המספרים, **בן אדם** לוחץ.
+ *
+ * ═══════════════════════════════════════════════════════════════
+ * ולמה יש "פתיחה מחדש"
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * טעות בהזנת תוצאה היא תרחיש ודאי. "אי אפשר לחזור" הופך טעות
+ * קטנה לאסון. הפעולה נרשמת ביומן (`admin_set_published`), ולכן
+ * היא הפיכה **ומעוקבת** — לא הפיכה ושקופה.
+ */
+function LiveGameweekCard({
+  rows, act,
+}: { rows: GameweekRow[] | null; act: ReturnType<typeof useAction> }) {
+  /* המחזור שמעניין הוא הפעיל. אם אין מסומן — האחרון שננעל. */
+  const gw = useMemo(() => {
+    if (!rows?.length) return null;
+    return rows.find((r) => r.isCurrent)
+        ?? [...rows].sort((a, b) => b.number - a.number)[0]
+        ?? null;
+  }, [rows]);
+
+  if (!gw) return null;
+
+  const total = gw.fixtures;
+  const done = gw.fixturesFinal ?? 0;
+  const allDone = total > 0 && done >= total;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  /* לפני הנעילה אין מה לסיים — ואין מה להראות מלבד המצב. */
+  if (!gw.locked) {
+    return (
+      <Card
+        title="המחזור החי"
+        hint="מרגע הנעילה הניקוד מתעדכן מעצמו בכל המסכים, והכפתור לסיום מופיע כאן."
+      >
+        <p className="text-[12.5px] text-chalk-2">
+          <span className="font-black text-chalk">{gw.label}</span> עדיין פתוח להגשות.
+          הנעילה ב-<span className="num">{fmt(gw.lockAt)}</span>.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card
+      title={gw.published ? 'המחזור נסגר' : 'המחזור החי'}
+      hint={gw.published
+        ? 'הניקוד מקובע. אפשר לפתוח מחדש אם התגלתה טעות — הפעולה נרשמת ביומן.'
+        : 'הניקוד כבר על המסכים ומתעדכן עם כל משחק. "סיום מחזור" מקבע אותו.'}
+    >
+      <div className="flex flex-wrap items-baseline gap-2">
+        <span className="font-poster text-[16px] text-chalk">{gw.label}</span>
+        <span className="rounded-full bg-night-3 px-2 py-0.5 text-[10px] text-chalk-2">
+          {gw.status}
+        </span>
+        {!gw.published && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/12 px-2 py-0.5
+                           text-[10px] font-black text-gold-light">
+            <span aria-hidden="true"
+                  className="inline-block size-[6px] animate-pulse rounded-full bg-gold-light" />
+            חי
+          </span>
+        )}
+        {gw.published && (
+          <span className="rounded-full bg-gold px-2 py-0.5 text-[10px] font-black text-gold-ink">
+            סופי
+          </span>
+        )}
+      </div>
+
+      {/* ★ פס ההתקדמות. הוא לא קישוט: הוא הנתון שקובע אם מותר
+          ללחוץ, ולכן הוא צמוד לכפתור ולא במסך אחר. */}
+      <div className="mt-2.5">
+        <div className="flex items-baseline justify-between text-[11.5px] text-chalk-dim">
+          <span>
+            <span className="num text-chalk">{done}</span>
+            <span className="num">/{total}</span> משחקים הסתיימו
+          </span>
+          <span>
+            {gw.lastEventAt
+              ? <>עדכון אחרון <span className="num">{fmtShort(gw.lastEventAt)}</span></>
+              : 'טרם נכנסו תוצאות'}
+          </span>
+        </div>
+        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-night-3">
+          <div
+            className="h-full rounded-full bg-gradient-to-l from-gold-light to-gold
+                       transition-[width] duration-500 ease-brand"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
+      <p className="mt-2 text-[11.5px] leading-snug text-chalk-dim">
+        <span className="num">{gw.entries}</span> הגשות במחזור.{' '}
+        {gw.published
+          ? 'הדירוג מוצג כסופי.'
+          : allDone
+            ? 'כל המשחקים הסתיימו — אפשר לסגור.'
+            : 'עדיין רצים משחקים. סגירה עכשיו תקבע ניקוד חלקי.'}
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {!gw.published ? (
+          <button
+            disabled={act.busy}
+            className={`${primary} h-10`}
+            onClick={() => confirmFinish(gw, act)}
+          >
+            סיום מחזור
+          </button>
+        ) : (
+          <button
+            disabled={act.busy}
+            className={`${ghost} h-10`}
+            onClick={() => act.run(async () => {
+              await reopenGameweek(gw.code);
+              return `${gw.label} חזר למצב חי. הניקוד מתעדכן שוב.`;
+            })}
+          >
+            פתיחה מחדש לתיקון
+          </button>
+        )}
+      </div>
+
+      <Note msg={act.msg} bad={act.bad} />
+    </Card>
+  );
+}
+
+/**
+ * ★ האזהרה היחידה שמותר להציג כאן — וגם היא רק כשהיא נכונה.
+ *
+ * `confirm` על כל לחיצה הוא רעש שמלמדים ללחוץ "אישור" בלי
+ * לקרוא. לכן: כשכל המשחקים הסתיימו הסגירה עוברת בלי שאלה,
+ * וכשלא — השאלה **אומרת את המספר**.
+ */
+function confirmFinish(gw: GameweekRow, act: ReturnType<typeof useAction>) {
+  const total = gw.fixtures;
+  const done = gw.fixturesFinal ?? 0;
+
+  if (total > 0 && done < total) {
+    const ok = window.confirm(
+      `רק ${done} מתוך ${total} המשחקים ב${gw.label} הסתיימו.\n\n` +
+      'סיום עכשיו יקבע את הניקוד כפי שהוא. אפשר לפתוח מחדש, אבל ' +
+      'המשתמשים כבר יראו תוצאה שמוצגת כסופית.\n\nלסיים בכל זאת?',
+    );
+    if (!ok) return;
+  }
+
+  act.run(async () => {
+    await finishGameweek(gw.code);
+    return `${gw.label} נסגר. הניקוד מקובע ו-${gw.entries} ההגשות עברו ל"נוקד".`;
+  });
+}
+
+/* ------------------------------------------------------------------ */
 
 function NewGameweek({ next, act }: { next: number; act: ReturnType<typeof useAction> }) {
   const [number, setNumber] = useState(next);
