@@ -29,10 +29,7 @@ import { TEAM_BY_ID } from '../data/squads.ts';
 import { OffsidesInline, OffsidesRail } from './OffsidesAds.tsx';
 import { HouseBanner } from './HouseAds.tsx';
 import { GAMEWEEK } from '../data/fixtures.ts';
-import { listEntries, getResults, subscribeToStore, scoringVisible, scoringIsLive,
-         type LineupEntry } from '../lib/store.ts';
-import { RivalLineup } from './RivalLineup.tsx';
-import type { PoolPlayer, TeamMeta } from './SquadPicker.tsx';
+import { listEntries, getResults, subscribeToStore, type LineupEntry } from '../lib/store.ts';
 import type { LineupScore } from '../lib/scoring/types.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import { Table, type Column } from './Table.tsx';
@@ -56,59 +53,28 @@ const TIEBREAK_LABEL: Record<TieBreakStage, string> = {
 type Row = LeaderboardRow<LineupEntry>;
 
 export function Leaderboard({
-  rulesByMode, userId, pool = [], teams = [],
+  rulesByMode, userId,
 }: {
   rulesByMode: Record<'full' | 'five', RuleSet>;
   /** מי אני — כדי להדגיש ולעגן את השורה שלי. */
   userId?: string;
-  /**
-   * ★ הסגל והקבוצות — כדי שאפשר יהיה לפתוח הרכב של יריב.
-   *
-   * מגיעים מ-`App` ולא נבנים כאן: הם כבר קיימים שם, ובנייה שנייה
-   * שלהם הייתה מפה חדשה של 350 שחקנים בכל רינדור של הטבלה.
-   * ברירת מחדל ריקה שומרת על תאימות לקורא שעדיין לא מעביר אותם.
-   */
-  pool?: PoolPlayer[];
-  teams?: TeamMeta[];
 }) {
   const [, tick] = useState(0);
   useEffect(() => subscribeToStore(() => tick((n) => n + 1)), []);
   const [mode, setMode] = useState<'full' | 'five'>('five');
-  /** ההרכב שנפתח לצפייה. `null` = הטבלה. */
-  const [openEntryId, setOpenEntryId] = useState<string | null>(null);
 
   const entries = listEntries(GAMEWEEK.id, mode);
   const results = getResults(GAMEWEEK.id);
   const rules = rulesByMode[mode];
 
-  /* ★★ השינוי המרכזי במסך הזה ★★
-
-     הטבלה נבנתה עד עכשיו רק כש-`results.published`. כלומר: מרגע
-     הנעילה ועד שהאדמין לחץ "סיום מחזור" — ארבעה ימים — היא הייתה
-     ריקה, גם כשמשחקים שלמים כבר הסתיימו.
-
-     `scoringVisible` פותח אותה ברגע שיש מספרים. `live` אומר
-     שהמספרים עוד יכולים לזוז, וזה נאמר במפורש בפס שמעל הטבלה —
-     דירוג שנראה סופי ומשתנה אחר כך הוא דירוג ששורף אמון. */
-  const visible = scoringVisible(results);
-  const live = scoringIsLive(results);
-
   const rows = useMemo<Row[]>(
-    () => (visible
+    () => (results.published
       ? buildLeaderboard({
           entries, performances: results.performances, outcomes: results.outcomes, rules, userId,
         })
       : []),
-    [visible, entries, results, rules, userId],
+    [entries, results, rules, userId],
   );
-
-  /* ★ ההרכב הפתוח נגזר מהמזהה ולא נשמר כאובייקט.
-     אילו שמרנו את השורה עצמה, רענון חי (וזה קורה כל 45 שניות)
-     היה משאיר על המסך ניקוד מלפני שתי דקות בזמן שהטבלה מאחוריו
-     כבר זזה. */
-  const openRow = openEntryId ? rows.find((r) => r.entry.id === openEntryId) ?? null : null;
-  const myRow = rows.find((r) => r.isMe) ?? null;
-  const canOpen = (r: Row) => !r.entry.hidden && r.entry.lineup.slots.length > 0;
 
   const me = rows.find((r) => r.isMe);
   // ★ אם אני מחוץ ל-20 הראשונים, אני עדיין רואה את עצמי — מעוגן בנפרד.
@@ -225,12 +191,7 @@ export function Leaderboard({
         })}
       </div>
 
-      {/* ★ פס "חי" — מעל הטבלה, ורק כשהיא באמת זזה. */}
-      {visible && live && <LiveBar updatedAt={results.updatedAt}
-                                   done={results.fixturesFinal}
-                                   total={results.fixturesTotal} />}
-
-      {!visible ? (
+      {!results.published ? (
         /*
          * ★★ מה שהיה כאן, ולמה זה פגע ★★
          *
@@ -249,12 +210,15 @@ export function Leaderboard({
         <>
           {/* ★ הכרטיס שלי — לפני הטבלה, תמיד נראה */}
           {me && (
-            <div className="mb-3 flex items-center gap-3 rounded-2xl border border-gold/40
-                            bg-gold/10 px-4 py-3">
+            /* ★ תיבה ממוסגרת בקו כפול — הצורה של הודעה חשובה
+               בעמוד מודפס. הכרטיס המעוגל הקודם היה שריד השפה
+               הישנה, יושב בדיוק מתחת לכותרת עיתון. */
+            <div className="mb-3 flex items-center gap-3 px-4 py-3"
+                 style={{ border: `3px double ${NP.ruleStrong}`, background: 'rgba(216,178,92,.07)' }}>
               <RankBadge rank={me.rank} tied={me.tied} />
               <div className="min-w-0 flex-1">
                 <div className="text-[11px] font-black uppercase tracking-wide text-gold">
-                  {live ? 'התוצאה שלך · חי' : 'התוצאה שלך'}
+                  התוצאה שלך
                 </div>
                 <div className="truncate text-sm font-bold text-chalk">
                   ניצחת {beatPercent(me.rank, rows.length)}% מהשחקנים
@@ -271,8 +235,7 @@ export function Leaderboard({
             rows={top}
             rowKey={(r) => r.entry.id}
             highlight={(r) => r.isMe}
-            onRowClick={(r) => { if (canOpen(r)) setOpenEntryId(r.entry.id); }}
-            caption={`${MODE_LABEL[mode]} · ${rows.length} משתתפים · הקישו על שורה לראות את ההרכב`}
+            caption={`${MODE_LABEL[mode]} · ${rows.length} משתתפים`}
             empty={`עדיין אין הרכבים מוגשים ב"${MODE_LABEL[mode]}".`}
           />
 
@@ -287,29 +250,11 @@ export function Leaderboard({
                 rows={[meOutsideTop]}
                 rowKey={(r) => r.entry.id}
                 highlight={() => true}
-                onRowClick={(r) => { if (canOpen(r)) setOpenEntryId(r.entry.id); }}
               />
             </>
           )}
         </>
       )}
-      {/* ★ ההרכב של מי שנלחץ. מסך מלא ולא מודל קטן: מגרש בתוך
-          חלון של 300 פיקסלים אינו מגרש. */}
-      {openRow && (
-        <RivalLineup
-          entry={openRow.entry}
-          score={openRow.score}
-          rank={openRow.rank}
-          live={live}
-          mine={myRow && myRow.entry.id !== openRow.entry.id ? myRow.entry : undefined}
-          mineScore={myRow && myRow.entry.id !== openRow.entry.id ? myRow.score : undefined}
-          pool={pool}
-          teams={teams}
-          mode={mode}
-          onClose={() => setOpenEntryId(null)}
-        />
-      )}
-
       {/* ★ הטבלה היא המסך שנקרא הכי לאט — המשתמש מחפש את עצמו
           ברשימה. רצועה מלאה כאן נקראת, ולכן היא כאן ולא שורה. */}
       <HouseBanner
@@ -339,77 +284,6 @@ export function Leaderboard({
  * מהשרת (`game.users.is_bot`), והמסך רק מציג אותו. הסתרה כאן
  * הייתה הופכת כלי לגיטימי להטעיה.
  */
-/**
- * פס ה"חי".
- *
- * ★ שלוש עובדות ולא אחת
- *
- * "חי" לבד הוא הבטחה בלי כיסוי. מה שהופך אותו לאמין הוא מה
- * שלידו: כמה משחקים כבר נגמרו מתוך כמה, ומתי היה העדכון האחרון.
- * משתמש שרואה "3 מתוך 7 · עודכן לפני 4 דקות" יודע בדיוק כמה
- * מהתמונה בידו — ולכן הוא גם יודע מתי כדאי לו לחזור.
- *
- * ★ `updatedAt` יכול להיות ריק, ואז לא ממציאים זמן. "טרם נכנסו
- *   תוצאות" הוא מידע; "עודכן לפני 0 דקות" הוא שקר קטן שמלמד
- *   לא להאמין לשורה.
- */
-function LiveBar({
-  updatedAt, done, total,
-}: { updatedAt: string | null; done: number; total: number }) {
-  const [, tick] = useState(0);
-  // דקה. הפס מדבר בדקות, ולכן אין טעם לרנדר אותו כל שנייה.
-  useEffect(() => {
-    const t = setInterval(() => tick((n) => n + 1), 60_000);
-    return () => clearInterval(t);
-  }, []);
-
-  return (
-    <div
-      role="status"
-      className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2"
-      style={{ border: `1px solid ${NP.rule}`, background: NP.card }}
-    >
-      <span className="inline-flex items-center gap-1.5 text-[11.5px] font-black"
-            style={{ color: NP.goldLight }}>
-        <span aria-hidden="true"
-              className="inline-block size-[7px] animate-pulse rounded-full"
-              style={{ background: NP.goldLight }} />
-        המחזור חי
-      </span>
-
-      <span className="text-[11.5px]" style={{ color: NP.inkDim }}>
-        · הדירוג מתעדכן מעצמו עם כל משחק
-      </span>
-
-      {total > 0 && (
-        <span className="text-[11.5px]" style={{ color: NP.inkFaint }}>
-          · <span className="num">{done}</span>/<span className="num">{total}</span> משחקים הסתיימו
-        </span>
-      )}
-
-      <span className="ms-auto text-[11px]" style={{ color: NP.inkFaint }}>
-        {updatedAt ? `עודכן ${sinceLabel(updatedAt)}` : 'טרם נכנסו תוצאות'}
-      </span>
-    </div>
-  );
-}
-
-/** "לפני 4 דקות" / "לפני שעתיים". בלי ספריית תאריכים. */
-function sinceLabel(iso: string): string {
-  const ms = Date.now() - Date.parse(iso);
-  if (!Number.isFinite(ms) || ms < 0) return 'עכשיו';
-  const min = Math.floor(ms / 60_000);
-  if (min < 1) return 'עכשיו';
-  if (min === 1) return 'לפני דקה';
-  if (min < 60) return `לפני ${min} דקות`;
-  const h = Math.floor(min / 60);
-  if (h === 1) return 'לפני שעה';
-  if (h === 2) return 'לפני שעתיים';
-  if (h < 24) return `לפני ${h} שעות`;
-  const d = Math.floor(h / 24);
-  return d === 1 ? 'אתמול' : `לפני ${d} ימים`;
-}
-
 function BotTag() {
   return (
     <span className="ms-1.5 rounded px-1.5 py-px text-[9.5px] font-black"
@@ -432,10 +306,13 @@ export function ParticipantList({
   entries, userId, mode,
 }: { entries: LineupEntry[]; userId?: string; mode: 'full' | 'five' }) {
   if (entries.length === 0) {
+    /* ★ אותה שפה כמו שאר העמוד: תיבה מרובעת בקו העימוד, לא
+       כרטיס אפליקציה מעוגל מתחת לכותרת עיתון. */
     return (
-      <div className="rounded-2xl border border-gold/15 bg-night-2 px-4 py-8 text-center">
-        <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-gold" />
-        <p className="font-bold text-chalk">אף אחד עוד לא הגיש</p>
+      <div className="px-4 py-8 text-center"
+           style={{ border: `1px solid ${NP.rule}`, background: NP.card }}>
+        <div className="mx-auto mb-3 h-1 w-12" style={{ background: NP.gold }} />
+        <p className="font-press font-black text-chalk">אף אחד עוד לא הגיש</p>
         <p className="mt-1 text-sm text-chalk-dim">
           תהיה הראשון ב{MODE_LABEL[mode]} — השם שלך יופיע כאן מיד.
         </p>
@@ -444,15 +321,14 @@ export function ParticipantList({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gold/15 bg-night-2">
-      <div className="flex items-baseline justify-between border-b border-gold/15 px-4 py-2.5">
-        <span className="text-[11px] font-black tracking-[2px] text-gold">
+    <div className="overflow-hidden" style={{ border: `1px solid ${NP.rule}`, background: NP.card }}>
+      <div className="flex items-baseline justify-between px-4 py-2.5"
+           style={{ borderBottom: `1px solid ${NP.rule}` }}>
+        <span className="text-[11px] font-black tracking-[2px]" style={{ color: NP.gold }}>
           כבר בפנים
         </span>
         <span className="text-[11px] text-chalk-dim">
-          {/* ★ ההבטחה הישנה ("עם פרסום התוצאות") שלחה אנשים
-              לחכות ליום ראשון. הדירוג נפתח בנעילה. */}
-          הדירוג נפתח עם נעילת ההרכבים
+          הדירוג ייפתח עם פרסום התוצאות
         </span>
       </div>
       <ul>

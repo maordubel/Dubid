@@ -13,6 +13,7 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { BottomNav, SideRail, NAV_HEIGHT_PX, type NavItem } from './BottomNav.tsx';
 import { LogoMark } from './Logo.tsx';
+import { MISREGISTER } from '../lib/pressPalette.ts';
 
 export interface AppShellProps {
   items: NavItem[];
@@ -109,7 +110,14 @@ export function AppHeader({
     >
       <LogoMark size={30} className="opacity-90" />
       <div className="min-w-0 flex-1">
-        <h1 className="truncate font-press text-xl font-black leading-tight text-chalk">
+        {/* ★ אי-התאמת לוחות הדפוס — אותו פרט בדיוק כמו בכותרות
+            הלובי והדירוג. בלעדיו הכותרת של המסכים הפנימיים היא
+            הסריפית היחידה במוצר שלא "הודפסה", וזה נקרא, גם אם
+            אף אחד לא יודע להגיד למה. */}
+        <h1
+          className="truncate font-press text-xl font-black leading-tight text-chalk"
+          style={{ textShadow: MISREGISTER }}
+        >
           {title}
         </h1>
         {subtitle ? <div className="text-xs text-chalk-dim">{subtitle}</div> : null}

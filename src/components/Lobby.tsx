@@ -61,13 +61,6 @@ export interface LobbyMode {
   tagline: string;
   /** מצב ההרכב של המשתמש במצב הזה. */
   state: 'empty' | 'draft' | 'submitted' | 'scored';
-  /**
-   * ★ הניקוד שמוצג עדיין יכול לזוז.
-   *
-   * ההבדל בין "45 נק׳" ל-"45 נק׳ · חי" הוא ההבדל בין מספר
-   * שנראה סופי ומתברר כלא, לבין מספר שהמשתמש חוזר לבדוק.
-   */
-  live?: boolean;
   /** נקודות המחזור, אם כבר נוקד. */
   points?: number;
   /** מקום בדירוג, אם כבר נוקד. */
@@ -430,7 +423,7 @@ function Headline({
       <span
         className="inline-block px-2.5 py-[2px] text-[11px] font-bold tracking-[1.5px]"
         style={{
-          background: urgent || closed ? NP.red : NP.red,
+          background: NP.red,
           color: '#fff',
           transform: 'rotate(-1.2deg)',
         }}
@@ -637,7 +630,8 @@ function ModeArticle({
       onClick={onPlay}
       aria-label={`${mode.title} — ${mode.tagline}`}
       className="tap relative block w-full overflow-hidden text-start
-                 transition-transform duration-200 ease-brand active:scale-[.995]"
+                 transition-transform duration-200 ease-brand active:scale-[.995]
+                 lg:hover:-translate-y-px"
       style={{ border: `3px double ${t.accent}99`, background: NP.card, color: t.accent }}
     >
       {/* פס הכותרת */}
@@ -732,10 +726,9 @@ function ModeArticle({
 /** שורת המצב. קצרה בכוונה — היא יושבת ליד כפתור, לא לבד. */
 function statusLine(mode: LobbyMode, open: boolean): string {
   if (mode.state === 'scored' && mode.points !== undefined) {
-    const tail = mode.live ? ' · חי' : '';
     return mode.rank
-      ? `הוגש · ${mode.points} נק׳ · מקום ${mode.rank}${tail}`
-      : `הוגש · ${mode.points} נק׳${tail}`;
+      ? `הוגש · ${mode.points} נק׳ · מקום ${mode.rank}`
+      : `הוגש · ${mode.points} נק׳`;
   }
   if (mode.state === 'submitted') return 'ההרכב נעול';
   if (!open) return 'ההגשות סגורות';
@@ -784,13 +777,23 @@ function SectionTile({
   return (
     <button
       onClick={onClick}
-      className="tap flex flex-col items-start gap-0.5 px-3 py-2.5 text-start
-                 transition-colors duration-200 ease-brand"
+      className="tap relative flex flex-col items-start gap-0.5 px-3 py-2.5 text-start
+                 transition-transform duration-200 ease-brand active:scale-[.985]"
       style={{ border: `1px solid ${NP.rule}`, background: NP.card }}
     >
       <span aria-hidden style={{ color: NP.gold }}>{icon}</span>
       <span className="font-press mt-1 text-[14px] font-bold" style={{ color: NP.ink }}>{label}</span>
       <span className="text-[11px]" style={{ color: NP.inkFaint }}>{hint}</span>
+      {/* ★ חץ בפינה — הרמז היחיד שזה שער ולא תיבת מידע.
+          שתי הכתבות מעליו כבר מלמדות שחץ זהוב פירושו "כניסה";
+          כאן הוא רק ממשיך את אותו כלל. */}
+      <span
+        aria-hidden="true"
+        className="absolute bottom-2 text-[13px] leading-none"
+        style={{ insetInlineEnd: 10, color: NP.goldDeep }}
+      >
+        ‹
+      </span>
     </button>
   );
 }

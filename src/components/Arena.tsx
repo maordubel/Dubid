@@ -33,8 +33,7 @@ import {
   createLeague, joinByCode, listMembers, myLeagues,
   hydrateLeagues, leagueMessageHe,
 } from '../lib/leagueStore.ts';
-import { listEntries, getResults, subscribeToStore,
-         scoringVisible, scoringIsLive } from '../lib/store.ts';
+import { listEntries, getResults, subscribeToStore } from '../lib/store.ts';
 import { scoreLineup } from '../lib/scoring/engine.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import { GAMEWEEK } from '../data/fixtures.ts';
@@ -42,6 +41,7 @@ import { Table, type Column } from './Table.tsx';
 import { OffsidesInline } from './OffsidesAds.tsx';
 import { HouseBanner } from './HouseAds.tsx';
 import { ShadesDivider } from './Shades.tsx';
+import { NIGHT_PRESS as NP, MISREGISTER } from '../lib/pressPalette.ts';
 
 const MODE_LABEL: Record<'full' | 'five', string> = { full: 'דוביד 11', five: 'דוביד 5' };
 
@@ -70,6 +70,7 @@ export function Arena({ userId, displayName, rulesByMode, origin }: ArenaProps) 
 
   return (
     <div className="mx-auto max-w-lg px-4 pb-8 pt-3 lg:max-w-3xl">
+      <ArenaMasthead folio={`${leagues.length} ${leagues.length === 1 ? 'זירה' : 'זירות'}`} />
       {leagues.length > 1 && (
         <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1">
           {leagues.map((l) => (
@@ -104,21 +105,61 @@ export function Arena({ userId, displayName, rulesByMode, origin }: ArenaProps) 
 }
 
 /* ================================================================== */
+/* כותרת המדור                                                         */
+/* ================================================================== */
+
+/**
+ * ★ אותה כותרת מדור כמו בדירוג ובחוקים: קו כפול, סריף, פוליו.
+ *
+ * הזירה הייתה המסך המרכזי היחיד שנפתח בלי כותרת עיתון — ישר
+ * לתוך כרטיסים. שלוש שורות של דיו הן מה שהופך אותו מעוד מסך
+ * ל"מדור" של אותו עמוד ספורט שהמשתמש הגיע ממנו.
+ */
+function ArenaMasthead({ folio }: { folio: string }) {
+  return (
+    <header className="mb-3">
+      <div aria-hidden="true"
+           style={{ borderTop: `3px solid ${NP.ruleStrong}`, borderBottom: `1px solid ${NP.rule}`, height: 4 }} />
+      <div className="flex items-baseline justify-between gap-3 py-2">
+        {/* "זירת החברים" ולא "הזירה" — הכותרת של המעטפת כבר אומרת
+            "הזירה", וכותרת עיתון שחוזרת עליה מילה במילה נראית
+            כמו תקלה. שם המדור אומר את הדבר שחשוב: מול מי. */}
+        <h2 className="font-press text-[26px] font-black leading-none"
+            style={{ color: NP.ink, textShadow: MISREGISTER }}>
+          זירת החברים
+        </h2>
+        <span className="press-folio">{folio}</span>
+      </div>
+      <div aria-hidden="true" style={{ borderTop: `1px solid ${NP.rule}` }} />
+    </header>
+  );
+}
+
+/* ================================================================== */
 /* מצב ריק                                                             */
 /* ================================================================== */
 
 function ArenaEmpty({ userId, displayName }: { userId: string; displayName: string }) {
   return (
-    <div className="mx-auto max-w-lg px-4 pb-8 pt-6 lg:max-w-3xl">
-      <div className="rounded-3xl border border-gold/15 bg-night-2 p-6 text-center">
-        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-night">
+    <div className="mx-auto max-w-lg px-4 pb-8 pt-3 lg:max-w-3xl">
+      <ArenaMasthead folio="ליגות פרטיות" />
+      {/* ★ תיבת פתיחה בשפת העיתון — קו כפול, לא כרטיס מעוגל.
+          היא יושבת ישירות מתחת לכותרת המדור, ושתי שפות צמודות
+          זו לזו הן בדיוק מה שהוסר מכל שאר המסכים. */}
+      <div className="p-6 text-center"
+           style={{ border: `3px double ${NP.rule}`, background: NP.card }}>
+        <div className="mx-auto grid size-14 place-items-center"
+             style={{ border: `1px solid ${NP.rule}` }}>
           <svg viewBox="0 0 28 20" width="26" height="19" aria-hidden="true" className="text-gold">
             <rect x="10" y="2" width="8" height="18" rx="1.5" fill="currentColor" />
             <rect x="1" y="8" width="8" height="12" rx="1.5" fill="currentColor" opacity=".6" />
             <rect x="19" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".4" />
           </svg>
         </div>
-        <h2 className="mt-3 font-press text-xl font-black text-chalk">זירה</h2>
+        <h2 className="mt-3 font-press text-xl font-black text-chalk"
+            style={{ textShadow: MISREGISTER }}>
+          זירה
+        </h2>
         <p className="mx-auto mt-1.5 max-w-xs text-[13px] leading-snug text-chalk-2">
           טבלה פרטית מול החברים. אותו ניקוד, אותם שוברי שוויון —
           רק שכאן אתה יודע בדיוק את מי ניצחת.
@@ -330,10 +371,7 @@ function ArenaTable({
    * הגשה, אותו מנוע, אותו מספר.
    */
   const history: MemberGameweek[] = useMemo(() => {
-    /* ★ אותו מעבר כמו בדירוג הכללי: הטבלה נפתחת כשיש מספרים,
-       ולא כשהאדמין לחץ "סיום מחזור". ליגה פרטית שנשארת ריקה
-       כל סוף השבוע היא הליגה שהחברים מפסיקים לפתוח. */
-    if (!scoringVisible(results)) return [];
+    if (!results.published) return [];
     const memberIds = new Set(members.map((m) => m.userId));
     return listEntries(GAMEWEEK.id, league.mode as 'full' | 'five')
       .filter((e) => memberIds.has(e.userId))
@@ -408,15 +446,11 @@ function ArenaTable({
         />
       </div>
 
-      {!scoringVisible(results) ? (
+      {!results.published && (
         <p className="mt-2.5 text-center text-[11.5px] text-chalk-dim">
           המחזור עוד לא נוקד. עד אז כולם באותו מקום.
         </p>
-      ) : scoringIsLive(results) ? (
-        <p className="mt-2.5 text-center text-[11.5px] text-chalk-dim">
-          הטבלה חיה — היא זזה עם כל משחק עד סיום המחזור.
-        </p>
-      ) : null}
+      )}
     </>
   );
 }
