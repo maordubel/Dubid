@@ -19,7 +19,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const FILES = [
   ['01_schema.sql',            'ליבה — ליגות, קבוצות, שחקנים, מחזורים'],
   ['02_dubid_captain.sql',     'קפטן וסגן + פונקציות ניקוד'],
-  ['03_seed_squads.sql',       '14 קבוצות · 351 שחקנים · מחירים'],
+  ['03_seed_squads.sql',       '14 קבוצות · סגלי 2026/27 · מחירים'],
   ['04_ranking_and_events.sql','לוג אירועים, דירוג, יומן ביקורת'],
   ['05_gameweek_lock.sql',     'נעילה סמכותית + שעון שרת'],
   ['06_private_leagues.sql',   'טבלאות הזירות'],
@@ -41,6 +41,7 @@ const FILES = [
   ['22_account_status.sql',    '★ "התחברתי ולא קרה כלום" — זיהוי נכון של חשבון מחובר'],
   ['23_merge_on_signin.sql',   '★ "החשבון כבר קיים" — נכנסים, ואז גוררים את מה שנבנה'],
   ['24_live_gameweek.sql',     '★ המחזור חי — ניקוד זורם בין הנעילה ל"סיום מחזור"'],
+  ['25_gameweek_4.sql',        '★ מחזור 4 — שבעה משחקים, 13–15/09, פתוח למשחק'],
 ];
 
 const bar = '=' .repeat(69);
@@ -68,7 +69,7 @@ let out = `-- ${bar}
 --  ═══════════════════════════════════════════════════════════════
 --
 --    SELECT * FROM game.v_health;
---      → teams 14 · players 351 · matches 7 · id_mappings 366
+--      → teams 14 · matches 14 · players/id_mappings לפי scripts/squads.report.md
 --
 --    SELECT * FROM game.v_arena_health;
 --      → players_without_price = 0

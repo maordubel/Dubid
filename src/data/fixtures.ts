@@ -47,14 +47,14 @@ export interface Fixture {
  *   במקום. כל מי שמייבא `GAMEWEEK` ממשיך להצביע על אותו אובייקט.
  */
 export const GAMEWEEK = {
-  id: 'gw-2',
-  number: 2,
-  label: 'מחזור 2',
+  id: 'gw-4',
+  number: 4,
+  label: 'מחזור 4',
   seasonLabel: 'ליגת העל 2026/27',
 };
 
 /**
- * ★ הזרע — מחזור 2 כפי שהוא במסד.
+ * ★ הזרע — מחזור 4 כפי שהוא במסד.
  *
  * ★ למה זה עדיין כאן אחרי שהשרת הוא מקור האמת
  *
@@ -68,16 +68,17 @@ export const GAMEWEEK = {
  *   דרך בדיוק (`game.admin_resync_deadline`).
  */
 export const FIXTURES: Fixture[] = [
-  // שבת 29/08
-  { id: 'gw2-1', homeTeamId: 'T8',  awayTeamId: 'T12', kickoff: '2026-08-29T20:00:00+03:00', dayLabel: 'שבת',   timeConfirmed: true },
-  { id: 'gw2-2', homeTeamId: 'T5',  awayTeamId: 'T7',  kickoff: '2026-08-29T20:00:00+03:00', dayLabel: 'שבת',   timeConfirmed: true },
-  { id: 'gw2-3', homeTeamId: 'T13', awayTeamId: 'T1',  kickoff: '2026-08-29T20:00:00+03:00', dayLabel: 'שבת',   timeConfirmed: true },
-  { id: 'gw2-4', homeTeamId: 'T14', awayTeamId: 'T2',  kickoff: '2026-08-29T20:00:00+03:00', dayLabel: 'שבת',   timeConfirmed: true },
-  { id: 'gw2-5', homeTeamId: 'T10', awayTeamId: 'T11', kickoff: '2026-08-29T20:00:00+03:00', dayLabel: 'שבת',   timeConfirmed: true },
-  // ראשון 30/08
-  { id: 'gw2-6', homeTeamId: 'T9',  awayTeamId: 'T6',  kickoff: '2026-08-30T20:00:00+03:00', dayLabel: 'ראשון', timeConfirmed: true },
-  // שני 31/08
-  { id: 'gw2-7', homeTeamId: 'T3',  awayTeamId: 'T4',  kickoff: '2026-08-31T20:00:00+03:00', dayLabel: 'שני',   timeConfirmed: true },
+  // ראשון 13/09 — המחזור נפתח בראשון ולא בשבת: 12/09 הוא ראש השנה.
+  { id: 'gw4-1', homeTeamId: 'T14', awayTeamId: 'T1',  kickoff: '2026-09-13T20:30:00+03:00', dayLabel: 'ראשון', timeConfirmed: true },
+  // שני 14/09
+  { id: 'gw4-2', homeTeamId: 'T13', awayTeamId: 'T7',  kickoff: '2026-09-14T19:30:00+03:00', dayLabel: 'שני',   timeConfirmed: true },
+  { id: 'gw4-3', homeTeamId: 'T9',  awayTeamId: 'T8',  kickoff: '2026-09-14T19:30:00+03:00', dayLabel: 'שני',   timeConfirmed: true },
+  { id: 'gw4-4', homeTeamId: 'T10', awayTeamId: 'T4',  kickoff: '2026-09-14T20:00:00+03:00', dayLabel: 'שני',   timeConfirmed: true },
+  // ★ דרבי תל אביב הראשון של העונה · בלומפילד
+  { id: 'gw4-5', homeTeamId: 'T3',  awayTeamId: 'T6',  kickoff: '2026-09-14T20:30:00+03:00', dayLabel: 'שני',   timeConfirmed: true },
+  // שלישי 15/09
+  { id: 'gw4-6', homeTeamId: 'T11', awayTeamId: 'T2',  kickoff: '2026-09-15T19:30:00+03:00', dayLabel: 'שלישי', timeConfirmed: true },
+  { id: 'gw4-7', homeTeamId: 'T5',  awayTeamId: 'T12', kickoff: '2026-09-15T20:00:00+03:00', dayLabel: 'שלישי', timeConfirmed: true },
 ];
 
 /** מפה: מזהה קבוצה → היריבה שלה במחזור הנוכחי (או null אם אין לה משחק). */

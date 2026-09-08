@@ -24,6 +24,16 @@
  * את זה בזמן layout — כולל בסיבוב מסך ובשינוי גודל חלון.
  */
 import type { CSSProperties, ReactNode } from 'react';
+
+/**
+ * סגנון React פלוס שני משתני ה-CSS שהמגרש מזין ל-stylesheet.
+ * ★ `CSSProperties` אינו מכיר `--*`, ולכן בלי ההרחבה הזו כל
+ *   `tsc --noEmit` נכשל על הקובץ.
+ */
+type PitchStyle = CSSProperties & {
+  '--max-row': string;
+  '--vcap': string;
+};
 import {
   GUTTER_PX, MAX_CARD, MIN_CARD,
   layoutFormation, ratioForFormation, verticalCap, type SlotPosition,
@@ -101,6 +111,15 @@ export function Pitch({
     );
   }
 
+  /* ★ `--max-row` ו-`--vcap` הם משתני CSS, ו-`CSSProperties`
+     של React לא מכיר אותם. ההמרה הישנה ל-`CSSProperties` נדחתה
+     על ידי TypeScript (TS2352) כי שני הטיפוסים לא חופפים —
+     כלומר הקובץ הזה נכשל בכל `tsc --noEmit`, וכל שגיאת טיפוס
+     אמיתית שנוספה אחריו הייתה נבלעת ברעש.
+
+     טיפוס מורחב אומר את מה שבאמת קורה כאן: סגנון React ועוד
+     שני משתני CSS. אין `any`, אין `unknown`, והמאפיינים
+     ממשיכים להיבדק. */
   const style = (
     fit === 'height'
       ? {
@@ -124,7 +143,7 @@ export function Pitch({
             ? { boxShadow: `0 0 0 5px ${frameColor}, 0 12px 34px -16px rgba(0,0,0,.85)` }
             : null),
         }
-  ) as CSSProperties;
+  ) as PitchStyle;
 
   // ★ הביטוי היחיד שקובע גודל כרטיס — ותאום מדויק של `cardWidth()`.
   //   שני חסמים, בדיוק כמו בפונקציה: משבצת אופקית, ומרווח אנכי.

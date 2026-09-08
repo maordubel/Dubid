@@ -149,7 +149,14 @@ export const PROJECT_ENV_HE: Record<ProjectEnv, string> = {
  * לא מטעמי בידוד — מטעמי כוונה. שאילתה בלי `.schema()` צריכה
  * לפגוע בטבלאות המשחק, ולא בכל מה שמישהו יצור ב-`public` מחר.
  */
-export const supabase: SupabaseClient = createClient(DUBID_PROJECT.url, DUBID_PROJECT.key, {
+/* ★ `SupabaseClient<any, 'game'>` ולא `SupabaseClient` סתם.
+ *
+ *   ברירת המחדל של הטיפוס היא סכימת `public`, ו-`createClient`
+ *   עם `db.schema = 'game'` מחזיר לקוח שהסכימה שלו `'game'`.
+ *   ההשמה לטיפוס הרחב נדחתה (TS2322) — כלומר הקובץ הזה נכשל
+ *   בכל `tsc --noEmit`, ושגיאות טיפוס אמיתיות אחריו נבלעו. */
+export const supabase: SupabaseClient<any, 'game'> = createClient(
+  DUBID_PROJECT.url, DUBID_PROJECT.key, {
   db: { schema: 'game' },
   auth: {
     persistSession: true,
@@ -158,7 +165,7 @@ export const supabase: SupabaseClient = createClient(DUBID_PROJECT.url, DUBID_PR
     storageKey: 'dubid.auth.v1',
   },
   global: { headers: { 'x-client-info': 'dubid-web' } },
-});
+  });
 
 /** תמיד מוגדר עכשיו. נשמר כדי שקוד קיים שבודק את הדגל לא יישבר. */
 export const isSupabaseConfigured = true;

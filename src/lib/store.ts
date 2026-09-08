@@ -44,7 +44,8 @@ import { supabase } from './supabase.ts';
 import { hydrateAds } from './adsStore.ts';
 import type { HouseAd } from './houseAds.ts';
 import { ensureIdentity, currentIdentity } from './identity.ts';
-import { refreshLiveData } from './liveData.ts';
+import { refreshLiveData, currentGameweekCode } from './liveData.ts';
+import { GAMEWEEK } from '../data/fixtures.ts';
 
 /* ★★ אין כאן יותר מפתחות `localStorage`. ★★
  *
@@ -1083,10 +1084,22 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
     });
   }
 
+  /* ★ הבדיקות נשאלות על המחזור **הנוכחי** ולא על 'gw-2'.
+   *
+   *   שלוש הבדיקות למטה היו מקודדות על 'gw-2'. ברגע שהמחזור
+   *   הפעיל התקדם, שלושתן נצבעו אדום על מסד תקין לגמרי — ובדיקת
+   *   הסכימה שנופלת גם קוטעת את שאר השרשרת. כלומר האדמין היה
+   *   רואה "המסד שבור" בדיוק כשהכול עובד.
+   *
+   *   `currentGameweekCode()` ריק עד הטעינה הראשונה, ולכן הזרע
+   *   של `GAMEWEEK` הוא הגיבוי — אותו דפוס בדיוק כמו בכל שאר
+   *   הקוראים. */
+  const probeGw = currentGameweekCode() || GAMEWEEK.id;
+
   /* 2 — הסכימה חשופה + המיגרציות רצו */
   let schemaOk = false;
   try {
-    const { data, error } = await supabase.rpc('gameweek_state', { p_gw_code: 'gw-2' });
+    const { data, error } = await supabase.rpc('gameweek_state', { p_gw_code: probeGw });
     if (error) throw error;
     schemaOk = !!data;
     out.push({
@@ -1095,7 +1108,7 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
       ok: schemaOk,
       detail: schemaOk
         ? `מחזור ${(data as { number?: number }).number ?? '?'} נמצא`
-        : 'המחזור gw-2 לא נמצא',
+        : `המחזור ${probeGw} לא נמצא`,
       fix: schemaOk ? undefined : 'להריץ db/09 ו-db/11, ואז לבדוק Exposed schemas',
     });
   } catch (err) {
@@ -1150,7 +1163,7 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
   /* ★ 2c — טיוטות. בלי זה, בניית הרכב לא נשמרת בין מכשירים
      והמשתמש מגלה את זה רק כשהוא פותח את הטלפון. */
   try {
-    const { error } = await supabase.rpc('my_drafts', { p_gw_code: 'gw-2' });
+    const { error } = await supabase.rpc('my_drafts', { p_gw_code: probeGw });
     if (error) throw error;
     out.push({
       id: 'drafts', label: 'טיוטות בשרת', ok: true,
@@ -1166,7 +1179,7 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
 
   /* 3 — סגלים ומחירים */
   try {
-    const { data, error } = await supabase.rpc('results', { p_gw_code: 'gw-2' });
+    const { data, error } = await supabase.rpc('results', { p_gw_code: probeGw });
     if (error) throw error;
     out.push({
       id: 'squads', label: 'תוצאות ונתוני מחזור', ok: true,

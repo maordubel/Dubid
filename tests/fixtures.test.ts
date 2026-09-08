@@ -25,29 +25,49 @@ test('כל השעות אושרו', () => {
 });
 
 test('★ השעה מוצגת בשעון ישראל ולא בשעון המכשיר', () => {
-  // הבאג: בלי timeZone, משחק ב-20:00 הוצג כ-17:00 על מכשיר ב-UTC.
+  /* הבאג: בלי timeZone, משחק ב-20:00 הוצג כ-17:00 על מכשיר ב-UTC.
+   *
+   * ★ הבדיקה נגזרת מהמחרוזת ולא מוקלדת על שעה אחת.
+   *
+   *   קודם היא השוותה כל משחק ל-'20:00' — מה שהיה נכון כל עוד
+   *   כל המחזור נבעט באותה שעה. מחזור 4 נבעט ב-19:30, 20:00
+   *   ו-20:30, ולכן הבדיקה נפלה על **נתון תקין**. בדיקה
+   *   שנשברת ממחזור חדש היא בדיקה שמישהו יכבה.
+   *
+   *   מה שנבדק הוא האינווריאנטה עצמה: התווית שווה לשעה שכתובה
+   *   ב-ISO, שנושא את ההסטה של ישראל — ולכן זהה בכל מכשיר. */
   for (const f of FIXTURES) {
-    assert.equal(kickoffTimeLabel(f.kickoff), '20:00', f.id);
+    const hhmm = f.kickoff.slice(11, 16);
+    assert.equal(kickoffTimeLabel(f.kickoff), hhmm, f.id);
   }
-  assert.equal(kickoffDateLabel(FIXTURES[0].kickoff), '29.08');
+  assert.equal(kickoffDateLabel(FIXTURES[0].kickoff), '13.09');
 });
 
 test('★ הדדליין הוא הפתיחה המוקדמת ביותר, לא המאוחרת', () => {
   // אחרת מי שמחכה לראשון בוחר אחרי שראה חמישה משחקים.
   const earliest = FIXTURES.map((f) => Date.parse(f.kickoff)).sort((a, b) => a - b)[0];
   assert.equal(Date.parse(GAMEWEEK_DEADLINE), earliest);
-  assert.equal(kickoffTimeLabel(GAMEWEEK_DEADLINE), '20:00');
-  assert.equal(kickoffDateLabel(GAMEWEEK_DEADLINE), '29.08', 'הדדליין בשבת');
+  assert.equal(kickoffTimeLabel(GAMEWEEK_DEADLINE), '20:30');
+  assert.equal(kickoffDateLabel(GAMEWEEK_DEADLINE), '13.09', 'הדדליין בראשון');
 });
 
-test('המחזור מסומן כמחזור 2', () => {
-  assert.equal(GAMEWEEK.number, 2);
-  assert.equal(GAMEWEEK.id, 'gw-2');
+test('המחזור מסומן כמחזור 4', () => {
+  assert.equal(GAMEWEEK.number, 4);
+  assert.equal(GAMEWEEK.id, 'gw-4');
 });
 
 test('משחקים פרושים על שלושה ימים', () => {
-  assert.deepEqual([...new Set(FIXTURES.map((f) => f.dayLabel))], ['שבת', 'ראשון', 'שני']);
-  assert.equal(FIXTURES.filter((f) => f.dayLabel === 'שבת').length, 5);
+  /* ★ ראשון–שלישי ולא שבת–שני: 12/09/2026 הוא ראש השנה.
+     ולכן `dayLabel` נגזר מהתאריך ולא מוקלד — מחזור שנדחה
+     בגלל חג היה מציג "שבת" ליד משחק שמשוחק בשלישי. */
+  assert.deepEqual([...new Set(FIXTURES.map((f) => f.dayLabel))], ['ראשון', 'שני', 'שלישי']);
+  assert.equal(FIXTURES.filter((f) => f.dayLabel === 'שני').length, 4);
+});
+
+test('★ הדרבי התל אביבי נמצא בלוח', () => {
+  const derby = FIXTURES.find((f) => f.homeTeamId === 'T3' && f.awayTeamId === 'T6');
+  assert.ok(derby, 'מכבי ת״א – הפועל ת״א');
+  assert.equal(kickoffTimeLabel(derby.kickoff), '20:30');
 });
 
 /* ================================================================== */

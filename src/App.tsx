@@ -432,9 +432,23 @@ function MainApp() {
 
   const lobbyGameweek: Gameweek = useMemo(() => {
     const deadlineAt = gwState?.lockAt ?? GAMEWEEK_DEADLINE;
-    const serverLocked = gwState
-      ? ['locked', 'live', 'settled'].includes(gwState.status)
-      : false;
+    /* ★ הרשימה נגזרת מ"מה עוד פתוח", ולא מונה מצבים נעולים.
+     *
+     *   קודם היא הייתה `['locked','live','settled']`. שתי תקלות
+     *   בתוכה:
+     *
+     *    · `'settled'` הוא ערך מת. `db/05_gameweek_lock.sql`
+     *      החליף אותו ב-`'published'` ואף שורה במסד לא נושאת
+     *      אותו יותר — כלומר תנאי שלא מתקיים לעולם.
+     *    · `'scoring'` ו-`'archived'` **חסרו**. מחזור באחד מהם
+     *      הוצג בלובי כפתוח, עם שעון שרץ — והשרת דחה כל הגשה
+     *      (`submit_entry` מקבל רק `open`/`draft`). זה בדיוק
+     *      המסך שגורם למשתמש לחשוב שהמוצר שבור.
+     *
+     *   רשימת הפתוחים קצרה, סופית, ונשברת רק אם באמת נוסף מצב
+     *   חדש — ואז ברירת המחדל הבטוחה היא "נעול". */
+    const OPEN_STATUSES = ['draft', 'open'];
+    const serverLocked = gwState ? !OPEN_STATUSES.includes(gwState.status) : false;
     return {
       id: gwCode(),
       number: gwState?.number ?? GAMEWEEK.number ?? 1,

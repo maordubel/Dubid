@@ -4,8 +4,9 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
-import { LEAGUE, TEAMS, PLAYERS, TEAM_BY_ID, shortName,
+import { LEAGUE, TEAMS, PLAYERS, TEAM_BY_ID, shortName, PLAYERS_BY_TEAM,
          LEAGUE_TEAM_COUNT_REAL } from '../src/data/squads.ts';
 import { resolveRules, IL_PREMIER } from '../src/lib/scoring/rules.ts';
 import { checkLeagueCapacity } from '../src/lib/scoring/validate.ts';
@@ -180,4 +181,58 @@ test('הרכב ריק לא עובר ולידציה (משבצות ריקות אי
   const issues = validateLineup(empty, r.rules);
   assert.ok(issues.length > 0);
   assert.ok(issues.some((i) => i.code === 'lineup_size'));
+});
+
+/* ================================================================== */
+/* סגלים אחרי עדכון מחזורים 1–3 — מה שנשבר בפועל                       */
+/* ================================================================== */
+
+test('★ אין שחקן שרשום בשתי קבוצות', () => {
+  /* הבאג האמיתי שנתפס: יונס מלדה, עומר אבוהב, עדן שמיר ואריאל
+     מנדי הופיעו כל אחד בשני סגלים בבת אחת — כי מעבר קבוצה נכנס
+     כשורה חדשה בלי שהישנה נסגרה. במסך זה נראה כמו שני שחקנים
+     שונים, וב"שחקן אחד מכל קבוצה" זו פרצה: אותו אדם ממלא שתי
+     משבצות. */
+  const seen = new Map<string, string>();
+  const clashes: string[] = [];
+  for (const p of PLAYERS) {
+    const prev = seen.get(p.nameHe);
+    if (prev && prev !== p.teamId) clashes.push(`${p.nameHe}: ${prev} + ${p.teamId}`);
+    seen.set(p.nameHe, p.teamId);
+  }
+  /* שני שחקנים שונים עם אותו שם הם מצב חוקי (נועם כהן בהפועל
+     חיפה ובהפועל פ"ת). לכן הרשימה הזו היא היוצאים מן הכלל
+     המאושרים — וכל שם חדש שנכנס אליה חייב הצדקה. */
+  const KNOWN_NAMESAKES = ['נועם כהן'];
+  const unexpected = clashes.filter((c) => !KNOWN_NAMESAKES.some((n) => c.startsWith(`${n}:`)));
+  assert.deepEqual(unexpected, [], `שחקן בשתי קבוצות:\n${unexpected.join('\n')}`);
+});
+
+test('★ שחקן שעזב אינו ניתן לבחירה', () => {
+  /* `game.squads()` מסנן `status <> 'left'`. אם הקליינט היה
+     כולל אותם, המסך היה מציע שחקן שהשרת דוחה בהגשה. */
+  const source = JSON.parse(
+    readFileSync(new URL('../scripts/squads.source.json', import.meta.url), 'utf8'),
+  ) as { teams: { players: { id: number; status?: string }[] }[] };
+  const left = source.teams.flatMap((t) => t.players.filter((p) => p.status === 'left'));
+  assert.ok(left.length > 0, 'הקובץ אמור לסמן שחקנים שעזבו');
+  const pickable = new Set(PLAYERS.map((p) => p.id));
+  for (const p of left) assert.ok(!pickable.has(`P${p.id}`), `P${p.id} עזב אך ניתן לבחירה`);
+});
+
+test('★ מספר חולצה ייחודי בתוך הקבוצה', () => {
+  /* שני שחקנים עם אותו מספר בכרטיסים סמוכים = משתמש שבוחר
+     את מי שלא התכוון אליו. */
+  for (const { team, players } of PLAYERS_BY_TEAM) {
+    const nums = players.map((p) => p.shirt).filter((n): n is number => n != null);
+    assert.equal(new Set(nums).size, nums.length, `${team.nameHe}: מספר חולצה כפול`);
+  }
+});
+
+test('★ אין תווים זרים בתוך שם עברי', () => {
+  /* נתפס בפועל: "יון ניקולאescu", "קארים קิมבדי", "ציפיקה סонגה".
+     שם כזה לא נמצא בשום חיפוש ולא מתאים לשום ספק דאטה. */
+  const FOREIGN = /[A-Za-zЀ-ӿ؀-ۿ฀-๿]/;
+  const bad = PLAYERS.filter((p) => FOREIGN.test(p.nameHe)).map((p) => `${p.id} ${p.nameHe}`);
+  assert.deepEqual(bad, []);
 });

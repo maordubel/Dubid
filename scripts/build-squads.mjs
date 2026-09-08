@@ -120,8 +120,19 @@ const teams = src.teams.map((t) => ({
   stadium: t.stadium ?? null,
 }));
 
+/* ★ שחקן שעזב לא נכתב לקובץ הקליינט.
+ *
+ *   זה בדיוק מה שהשרת עושה: `game.squads()` מסנן
+ *   `sq.status <> 'left'`. אילו הקליינט היה כולל אותו, המסך היה
+ *   מציע שחקן שהשרת ידחה בהגשה — כלומר משתמש שבוחר, לוחץ "הגש",
+ *   ומקבל שגיאה בלי להבין למה. הוא נשאר ב-squads.source.json
+ *   כתיעוד, ובמסד כשורת סגל סגורה (`valid_to`), ולכן ניקוד
+ *   היסטורי שכבר נרשם על שמו לא הולך לאיבוד. */
+const LEFT = new Set(['left']);
+const departed = src.teams.flatMap((t) => t.players.filter((p) => LEFT.has(p.status)));
+
 const players = src.teams.flatMap((t) =>
-  t.players.map((p) => ({
+  t.players.filter((p) => !LEFT.has(p.status)).map((p) => ({
     id: `P${p.id}`,
     externalId: String(p.id),
     teamId: `T${t.team_id}`,
@@ -345,20 +356,61 @@ BEGIN
       --      db/03_seed_squads.sql, בזמן שהקובץ הזה **מייצר** אותו.
       --      ההרצה הבאה של הסקריפט החזירה את הבאג. לכן הוא חי
       --      כאן עכשיו, במחולל, ולא בתוצר.
+      -- ★ הסטטוס מגיע מהקובץ ולא מוקלד 'active'.
+      --
+      --   קודם כל הרצה של הסיד "החייתה" כל שחקן: מי שסומן שעזב
+      --   חזר להיות פעיל, וחזר להופיע במסך הבחירה. שחקן שעזב
+      --   נשאר בטבלה עם \`valid_to\`, כדי שניקוד היסטורי על שמו
+      --   לא ילך לאיבוד — אבל \`game.squads()\` כבר לא מחזיר אותו.
       INSERT INTO core.squads (season_id, team_id, player_id, shirt_number, position,
-                               fantasy_price, valid_from)
+                               fantasy_price, valid_from, status, valid_to)
       VALUES (v_season, v_team, v_player, (p->>'number')::smallint, v_pos,
-              NULLIF(p->>'price', '')::NUMERIC, DATE '2026-08-01')
+              NULLIF(p->>'price', '')::NUMERIC, DATE '2026-08-01',
+              COALESCE(NULLIF(p->>'status', ''), 'active'),
+              CASE WHEN p->>'status' = 'left' THEN CURRENT_DATE END)
       ON CONFLICT (season_id, team_id, player_id, valid_from)
       DO UPDATE SET shirt_number  = EXCLUDED.shirt_number,
                     position      = EXCLUDED.position,
                     -- מחיר שנקבע ידנית באדמין מנצח את הסיד.
                     fantasy_price = COALESCE(core.squads.fantasy_price,
                                              EXCLUDED.fantasy_price),
-                    status        = 'active',
-                    valid_to      = NULL;
+                    status        = EXCLUDED.status,
+                    valid_to      = EXCLUDED.valid_to;
     END LOOP;
   END LOOP;
+
+  ------------------------------------------- שורת סגל שנשארה פתוחה
+  -- ★ הבאג שהשלב הזה סוגר: שחקן שעבר קבוצה נשאר בשתיהן.
+  --
+  --   ה-UPSERT למעלה נעול על (עונה, קבוצה, שחקן). מעבר קבוצה
+  --   מייצר שורה **חדשה** במועדון החדש — והשורה במועדון הקודם
+  --   נשארת \`valid_to IS NULL\`. התוצאה: אותו שחקן מופיע בשני
+  --   סגלים, \`game.squads()\` מחזיר אותו פעמיים, והאילוץ
+  --   "שחקן אחד מכל קבוצה" נשבר בלי שאף אחד רואה.
+  --
+  --   ⚠ נסגרות **רק** שורות של שחקן שהקובץ ממקם בקבוצה אחרת.
+  --     שחקן שאדמין הוסיף ידנית ואינו בקובץ לא נוגעים בו —
+  --     אחרת כל הרצת סיד הייתה מוחקת עבודת אדמין.
+  WITH wanted AS (
+    SELECT xt.entity_id AS team_id, xp.entity_id AS player_id
+      FROM jsonb_array_elements(payload->'teams') tt
+      CROSS JOIN LATERAL jsonb_array_elements(tt->'players') pp
+      JOIN core.external_refs xt ON xt.provider = 'manual_json'
+                                AND xt.entity_type = 'team'
+                                AND xt.external_id = tt->>'team_id'
+      JOIN core.external_refs xp ON xp.provider = 'manual_json'
+                                AND xp.entity_type = 'player'
+                                AND xp.external_id = pp->>'id'
+  )
+  UPDATE core.squads sq
+     SET valid_to = CURRENT_DATE,
+         status   = 'left'
+   WHERE sq.season_id = v_season
+     AND sq.valid_to IS NULL
+     AND EXISTS     (SELECT 1 FROM wanted w WHERE w.player_id = sq.player_id)
+     AND NOT EXISTS (SELECT 1 FROM wanted w
+                      WHERE w.player_id = sq.player_id
+                        AND w.team_id   = sq.team_id);
 
   RAISE NOTICE 'סיד הושלם: % קבוצות, % שחקנים',
     jsonb_array_length(payload->'teams'),
@@ -423,6 +475,14 @@ ${[...new Set(players.map((p) => p.price))].sort((a, b) => b - a).map((v) => `| 
 ## ${issues.length} ממצאים
 
 ${issues.map((i) => `- ${i}`).join('\n') || '- אין'}
+
+## ${departed.length} שחקנים שסומנו כעזבו
+
+לא נמחקו — הם נשארים בקובץ ובמסד כשורת סגל סגורה, כדי שניקוד היסטורי
+על שמם לא ילך לאיבוד. הם **אינם** נכתבים ל-\`src/data/squads.ts\` ואינם
+חוזרים מ-\`game.squads()\`, ולכן אי אפשר לבחור אותם.
+
+${departed.map((p) => `- ${p.name_he}`).join('\n') || '- אין'}
 
 ## קבוצות בקובץ
 
