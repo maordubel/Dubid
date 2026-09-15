@@ -40,8 +40,11 @@ function pgBuilder(result: unknown) {
   };
 }
 
+/** נשמר כדי שאפשר יהיה לבדוק איך הלקוח הוגדר. */
+let lastClientOptions: any = null;
+
 function stubSupabase(onRpc?: (fn: string) => void) {
-  return () => ({
+  return (_url?: string, _key?: string, options?: unknown) => ({
     rpc: (fn: string) => {
       onRpc?.(fn);
       return pgBuilder({ data: { readyToPublish: null }, error: null });
@@ -49,6 +52,7 @@ function stubSupabase(onRpc?: (fn: string) => void) {
     from: () => ({
       select: () => ({ eq: () => ({ single: () => pgBuilder({ data: { id: 'gw' } }) }) }),
     }),
+    __options: (lastClientOptions = options),
   });
 }
 
@@ -167,4 +171,20 @@ test('★ מטפל השגיאות שורד גם כשהרישום עצמו זור
   assert.equal(body.ok, false);
   assert.doesNotMatch(String(body.error), /DB_DOWN|is not a function/,
     'השגיאה שחוזרת היא של העבודה, לא של הרישום שנכשל אחריה');
+});
+
+test('★ הלקוח מוגדר לסכימת game — לא ל-public', async () => {
+  const handler = await loadHandler();
+  (globalThis as any).fetch = () => { throw new Error('לא אמור לקרות'); };
+  (globalThis as any).__createClient = stubSupabase();
+
+  /* ping לא נוגע במסד, ולכן מספיק כדי ליצור את הלקוח. */
+  await handler(post({ phase: 'ping' }));
+
+  /* ★ הבאג בייצור:
+       Could not find the function public.ingest_snapshot(...)
+     PostgREST מגיש כמה סכימות, אבל ברירת המחדל היא הראשונה
+     ברשימה — `public`. כל הפונקציות של המוצר ב-`game`. */
+  assert.equal(lastClientOptions?.db?.schema, 'game',
+    'בלי זה כל קריאה למסד נופלת על "schema cache"');
 });

@@ -73,10 +73,16 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
+  /* ★ `db: { schema: 'game' }` — ראו dubid-ingest. הפונקציה הזו
+     קוראת ל-`gameweeks`, `user_lineups` ו-`lineup_scores`, וכולן
+     ב-`game`. בלי השורה הזו PostgREST מחפש ב-`public` ומחזיר
+     "schema cache". הבאג היה כאן מאז ומעולם ולא התגלה, כי אף
+     אחד לא הריץ אותה מקצה לקצה — עד שהקליטה האוטומטית התחילה
+     לקרוא לה לפני כל פרסום. */
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    { auth: { persistSession: false } },
+    { db: { schema: 'game' }, auth: { persistSession: false } },
   );
 
   const { gameweekId } = await req.json().catch(() => ({}));

@@ -1044,10 +1044,23 @@ Deno.serve(async (req) => {
   const given = req.headers.get('x-ingest-token');
   if (!expected || given !== expected) return json({ error: 'forbidden' }, 403);
 
+  /**
+   * ★★ `db: { schema: 'game' }` — הדבר היחיד שהפיל את הקליטה ★★
+   *
+   * כל הפונקציות והטבלאות של המוצר יושבות בסכימת `game`.
+   * PostgREST מגיש כמה סכימות, אבל **ברירת המחדל היא הראשונה
+   * ברשימה** — `public`. לקוח בלי `db.schema` מחפש שם, ומקבל:
+   *
+   *     Could not find the function public.ingest_snapshot(...)
+   *     in the schema cache
+   *
+   * הקליינט (`src/lib/supabase.ts`) מגדיר את זה מהיום הראשון.
+   * ה-Edge Functions לא — ולכן הן נכשלו בקריאה הראשונה למסד.
+   */
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    { auth: { persistSession: false } },
+    { db: { schema: 'game' }, auth: { persistSession: false } },
   );
 
   const body = await req.json().catch(() => ({} as any));
