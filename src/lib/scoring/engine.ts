@@ -23,11 +23,11 @@ import {
   type PlayerScore,
   type ScoreLine,
   type TeamOutcome,
+  round2,
 } from './types.ts';
 import { IL_PREMIER, type RuleSet } from './rules.ts';
 import { assertValidLineup, starters } from './validate.ts';
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
 const sum = (lines: ScoreLine[]) => lines.reduce((a, l) => a + l.points, 0);
 
 export interface ScoreOptions {

@@ -13,7 +13,7 @@
  * שרת. `Math.random()` לא מופיע בקובץ הזה, וגם `Date.now()` לא —
  * חותמת ההגשה מגיעה מהנתונים, לא מהשעון של המכונה שמריצה.
  */
-import { Reason, type LineupScore, type ScoreLine } from './types.ts';
+import { Reason, round2, type LineupScore, type ScoreLine } from './types.ts';
 
 /* =================================================================== */
 /* בונוס דיפרנציאל                                                     */
@@ -279,4 +279,3 @@ export function stageThatBroke(a: TieBreakVector, b: TieBreakVector): TieBreakSt
   return null;
 }
 
-const round2 = (n: number) => Math.round(n * 100) / 100;

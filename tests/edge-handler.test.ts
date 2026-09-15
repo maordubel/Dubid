@@ -188,3 +188,46 @@ test('★ הלקוח מוגדר לסכימת game — לא ל-public', async () 
   assert.equal(lastClientOptions?.db?.schema, 'game',
     'בלי זה כל קריאה למסד נופלת על "schema cache"');
 });
+
+/* ================================================================== *
+ *  dubid-score-gameweek — אותה פריסה, אותן מלכודות
+ * ================================================================== */
+
+/**
+ * ★ הפונקציה הזו נפרסה עד היום כ-`index.ts` + `_lib/`, וזה נכשל
+ *   ב-"Module not found .../_lib/scoring/engine.ts" באותו אופן
+ *   בדיוק. היא מאוחדת עכשיו לקובץ אחד, והבדיקה כאן מוודאת
+ *   שהקובץ המאוחד באמת נטען — ושהוא מדבר עם סכימת `game`.
+ */
+test('★ בונדל הניקוד נטען, ומוגדר לסכימת game', async () => {
+  const src = readFileSync(
+    new URL('../supabase/functions/dubid-score-gameweek/index.ts', import.meta.url),
+    'utf8',
+  ).replace(
+    /import \{ createClient \} from 'https:\/\/esm\.sh\/@supabase\/supabase-js@2';/,
+    'const createClient = (...a: unknown[]) => (globalThis as any).__createClient(...a);',
+  );
+
+  const dir = mkdtempSync(join(tmpdir(), 'dubid-score-'));
+  const file = join(dir, 'bundle.ts');
+  writeFileSync(file, src);
+
+  const g = globalThis as Record<string, any>;
+  let handler: ((req: Request) => Promise<Response>) | null = null;
+  g.Deno = {
+    env: { get: (k: string) => ENV[k] ?? null },
+    serve: (h: (req: Request) => Promise<Response>) => { handler = h; },
+  };
+  g.__createClient = stubSupabase();
+  lastClientOptions = null;
+
+  await import(file);
+  assert.equal(typeof handler, 'function', 'הבונדל נטען ורשם handler');
+
+  /* בלי gameweekId היא נעצרת לפני המסד — מספיק כדי ליצור לקוח. */
+  const res = await handler!(new Request('https://fn.test/score', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+  }));
+  assert.equal(res.status, 400);
+  assert.equal(lastClientOptions?.db?.schema, 'game');
+});

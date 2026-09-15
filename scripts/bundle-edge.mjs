@@ -1,115 +1,120 @@
 /**
- * scripts/bundle-edge.mjs — מאחד את `dubid-ingest` לקובץ אחד.
+ * scripts/bundle-edge.mjs — מאחד כל Edge Function לקובץ אחד.
  *
  * ═══════════════════════════════════════════════════════════════
  * ★ למה
  * ═══════════════════════════════════════════════════════════════
  *
- * שתי פריסות נכשלו לפני שהקובץ הזה נכתב:
+ * עורך ה-Dashboard לא יוצר תיקיות. "Add File" מוסיף קובץ אחד
+ * בשורש הפונקציה, ותו לא. שלוש פריסות נכשלו לפני שזו הייתה
+ * המסקנה:
  *
- *   `./_lib/ingest/x.ts`   →  "Module not found" בזמן bundle.
- *                             עורך ה-Dashboard לא יוצר תיקיות.
- *   שישה קבצים שטוחים      →  500 בכל קריאה, בלי שורה ביומן.
- *                             קובץ שלא נשמר נראה בדיוק כמו קובץ
- *                             שנשמר, ואי אפשר לאמת מהעורך.
+ *   `./_lib/ingest/x.ts`       →  Module not found
+ *   שישה קבצים שטוחים          →  500 בלי שורה ביומן
+ *   `./_lib/scoring/engine.ts` →  Module not found (שוב, בפונקציה השנייה)
  *
  * הפריסה היחידה שאי אפשר לטעות בה היא הדבקה אחת של קובץ אחד.
  *
- * ★ מקור האמת לא זז: `src/lib/ingest/*.ts` (נבדקים ב-npm test)
- *   ו-`supabase/functions/dubid-ingest/_src/handler.ts`.
- *   הקובץ הנפרס הוא תוצר בנייה, ומסומן ככזה.
+ * ★ מקור האמת לא זז: `src/lib/**` (נבדק ב-npm test) ו-
+ *   `<function>/_src/`. הקובץ הנפרס הוא תוצר בנייה.
  *
- * ★ למה concat ולא bundler אמיתי: אין תלויות npm, אין שלב
- *   התקנה, והתוצאה קריאה לאדם. השמות בין המודולים כבר אינם
- *   מתנגשים (`mapSofaStatus` / `map365Status`), וזה נבדק כאן.
+ * ★ התלויות נפתרות לבד. רשימה ידנית של מודולים הייתה נשברת
+ *   בשקט ברגע שמישהו מוסיף ייבוא — והתוצאה היא קובץ שנראה
+ *   תקין ונופל בטעינה.
  *
  * הרצה:  node scripts/bundle-edge.mjs
  */
 import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** סדר תלות. types ראשון, המנהל אחרון. */
-const MODULES = [
-  'src/lib/ingest/types.ts',
-  'src/lib/ingest/derive.ts',
-  'src/lib/ingest/reconcile.ts',
-  'src/lib/ingest/sofascore.ts',
-  'src/lib/ingest/scores365.ts',
+const FUNCTIONS = [
+  { name: 'dubid-ingest',         entry: '_src/handler.ts' },
+  { name: 'dubid-score-gameweek', entry: '_src/index.ts'   },
 ];
-const HANDLER = 'supabase/functions/dubid-ingest/_src/handler.ts';
-const OUT = 'supabase/functions/dubid-ingest/index.ts';
 
-/**
- * מסיר ייבוא יחסי (כולל רב־שורתי) ומשאיר ייבוא מרוחק.
- *
- * ★ `esm.sh` נשאר ועולה לראש הקובץ: הוא התלות היחידה, והוא
- *   חייב להופיע לפני כל שימוש.
- */
-function strip(source) {
-  const remote = [];
-  const out = [];
+/** מפריד ייבוא יחסי (נמחק, התוכן מוטמע) ממרוחק (נשמר). */
+function parse(file) {
+  const source = readFileSync(file, 'utf8');
   const lines = source.split('\n');
+  const body = [];
+  const local = [];
+  const remote = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (!/^\s*import\b/.test(line)) { out.push(line); continue; }
+    if (!/^\s*import\b/.test(line)) { body.push(line); continue; }
 
-    /* ייבוא רב־שורתי: אוספים עד השורה שמסתיימת ב-';' */
     let block = line;
     while (!/;\s*$/.test(block) && i + 1 < lines.length) block += '\n' + lines[++i];
 
-    if (/from\s+['"]\.{1,2}\//.test(block)) continue;      // יחסי → נמחק
-    remote.push(block);                                     // מרוחק → נשמר
+    const m = block.match(/from\s+['"](\.{1,2}\/[^'"]+)['"]/);
+    if (m) { local.push(resolve(dirname(file), m[1])); continue; }
+    remote.push(block.trim());
   }
-  return { body: out.join('\n').trim(), remote };
+  return { body: body.join('\n').trim(), local, remote };
 }
 
-const remoteImports = new Set();
-const parts = [];
-
-for (const rel of [...MODULES, HANDLER]) {
-  const { body, remote } = strip(readFileSync(join(ROOT, rel), 'utf8'));
-  remote.forEach((r) => remoteImports.add(r.trim()));
-  parts.push(`/* ── ${rel} ──────────────────────────────────── */\n\n${body}`);
+/** סדר טופולוגי: תלות לפני מי שתלוי בה. */
+function collect(entry, seen = new Map(), order = []) {
+  if (seen.has(entry)) return order;
+  seen.set(entry, true);
+  const parsed = parse(entry);
+  for (const dep of parsed.local) collect(dep, seen, order);
+  order.push({ file: entry, ...parsed });
+  return order;
 }
 
-/* ★ בדיקת התנגשות שמות. מודול שמגדיר שם שכבר קיים היה יוצר
-   קובץ ש"נראה תקין" ונופל בטעינה — בדיוק סוג הכשל שהקובץ הזה
-   בא למנוע. נכשל כאן, לא בייצור. */
-const declared = new Map();
-const DECL = /^export\s+(?:const|function|class|type|interface|enum)\s+([A-Za-z_$][\w$]*)|^(?:const|function|class)\s+([A-Za-z_$][\w$]*)/gm;
-parts.forEach((part, idx) => {
-  const where = [...MODULES, HANDLER][idx];
-  for (const m of part.matchAll(DECL)) {
-    const name = m[1] ?? m[2];
-    if (declared.has(name)) {
-      console.error(`✗ התנגשות שם: "${name}" מוגדר גם ב-${declared.get(name)} וגם ב-${where}`);
-      process.exit(1);
-    }
-    declared.set(name, where);
-  }
-});
-
-const banner = `/**
+const BANNER = (name, sources) => `/**
  * ⚠ נוצר אוטומטית — אל תערכו כאן.
  *
  * נבנה על ידי scripts/bundle-edge.mjs מתוך:
- *   src/lib/ingest/*.ts
- *   supabase/functions/dubid-ingest/_src/handler.ts
+${sources.map((s) => ` *   ${s}`).join('\n')}
  *
  * ★ קובץ אחד בכוונה. פריסה דרך ה-Dashboard היא הדבקה אחת:
- *   Edge Functions → dubid-ingest → index.ts → להחליף הכל.
- *   כל קובץ נוסף הוא עוד נקודת כשל שקטה, וכבר היו שתיים.
+ *   Edge Functions → ${name} → index.ts → להחליף הכל.
+ *   עורך ה-Dashboard לא יוצר תיקיות, וכל קובץ נוסף הוא עוד
+ *   נקודת כשל שקטה. כבר היו שלוש.
  */
 `;
 
-writeFileSync(
-  join(ROOT, OUT),
-  [banner, [...remoteImports].join('\n'), '', parts.join('\n\n')].join('\n') + '\n',
-);
+let failed = false;
 
-const lines = readFileSync(join(ROOT, OUT), 'utf8').split('\n').length;
-console.log(`✓ ${OUT}  (${lines} שורות, ${declared.size} הגדרות, אפס ייבוא יחסי)`);
+for (const fn of FUNCTIONS) {
+  const entry = join(ROOT, 'supabase/functions', fn.name, fn.entry);
+  const modules = collect(entry);
+
+  /* ★ התנגשות שם בין מודולים שמוטמעים יחד יוצרת קובץ שנראה
+     תקין ונופל בטעינה. נכשל כאן, לא בייצור. */
+  const declared = new Map();
+  const DECL = /^export\s+(?:const|function|class|type|interface|enum)\s+([A-Za-z_$][\w$]*)|^(?:const|function|class)\s+([A-Za-z_$][\w$]*)/gm;
+
+  for (const m of modules) {
+    for (const hit of m.body.matchAll(DECL)) {
+      const name = hit[1] ?? hit[2];
+      if (declared.has(name)) {
+        console.error(`✗ ${fn.name}: התנגשות שם "${name}" — ` +
+          `${relative(ROOT, declared.get(name))} מול ${relative(ROOT, m.file)}`);
+        failed = true;
+      }
+      declared.set(name, m.file);
+    }
+  }
+
+  const remote = [...new Set(modules.flatMap((m) => m.remote))];
+  const sources = modules.map((m) => relative(ROOT, m.file));
+  const parts = modules.map((m) =>
+    `/* ── ${relative(ROOT, m.file)} ──────────────────────── */\n\n${m.body}`);
+
+  const out = join(ROOT, 'supabase/functions', fn.name, 'index.ts');
+  writeFileSync(out, [BANNER(fn.name, sources), remote.join('\n'), '', parts.join('\n\n')]
+    .join('\n') + '\n');
+
+  const lines = readFileSync(out, 'utf8').split('\n').length;
+  console.log(`✓ ${relative(ROOT, out)}  (${lines} שורות · ${modules.length} מודולים · ` +
+              `${declared.size} הגדרות)`);
+}
+
+if (failed) process.exit(1);

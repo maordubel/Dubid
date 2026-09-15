@@ -9,6 +9,16 @@
 export type Position = 'GK' | 'DEF' | 'MID' | 'FWD';
 export type MatchResult = 'W' | 'D' | 'L';
 
+/**
+ * עיגול לשתי ספרות.
+ *
+ * ★ היה מוגדר פעמיים — ב-`engine.ts` וב-`ranking.ts`. שתי
+ *   הגדרות זהות אינן בעיה עד שמאחדים את הקבצים לקובץ אחד
+ *   לפריסה, ואז הן שתי הצהרות `const` באותו סקופ והמודול לא
+ *   נטען. נתפס על ידי בודק ההתנגשויות ב-bundle-edge.mjs.
+ */
+export const round2 = (n: number) => Math.round(n * 100) / 100;
+
 /** קודי סיבה. ה-UI מתרגם אותם — אין מחרוזות תצוגה במנוע. */
 export const Reason = {
   Minutes: 'minutes',
