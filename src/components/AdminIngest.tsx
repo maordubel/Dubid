@@ -28,8 +28,8 @@ import { useEffect, useState } from 'react';
 
 import {
   ingestState, ingestUnmapped, ingestMapPlayer, ingestClearAlert,
-  ingestSetConfig, ingestSetEndpoint, ingestNow,
-  type IngestState, type UnmappedRow,
+  ingestSetConfig, ingestSetEndpoint, ingestNow, ingestDispatches,
+  type IngestState, type UnmappedRow, type IngestDispatch,
 } from '../lib/store.ts';
 import { Card, Note, useAction, input, primary, ghost } from './AdminConsole.tsx';
 import { PLAYERS, TEAMS } from '../data/squads.ts';
@@ -283,6 +283,76 @@ function Mapping({ rows, onChange }: { rows: UnmappedRow[]; onChange: () => void
 }
 
 /* ------------------------------------------------------------------ */
+/* 3.5 · פעימות — האם הבקשה בכלל יצאה                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * ★ הכרטיס הזה נולד מתקלה אמיתית.
+ *
+ * המסד קרא לפונקציה כל עשר דקות, הפונקציה החזירה 500, והמסך
+ * הראה "עוד לא רצה קליטה" — כי `ingest_runs` נכתבת **מתוך**
+ * ה-Edge Function, ופונקציה שנופלת בטעינה לא כותבת כלום.
+ *
+ * "לא יצאה בקשה" ו"יצאה ונדחתה" הן שתי תקלות שונות לגמרי עם
+ * שני תיקונים שונים לגמרי, ובלי הכרטיס הזה אי אפשר להבדיל.
+ */
+const DISPATCH_HE: Record<number, string> = {
+  200: 'עבד',
+  401: 'הרשאה — הטוקן לא התקבל',
+  403: 'הטוקן במסד שונה מזה שב-INGEST_TOKEN',
+  404: 'אין פונקציה בשם הזה',
+  500: 'הפונקציה נפלה — הסיבה ביומן ה-Edge Function',
+  504: 'פג הזמן',
+};
+
+function Dispatches({ rows }: { rows: IngestDispatch[] }) {
+  if (rows.length === 0) {
+    return (
+      <Card
+        title="פעימות"
+        hint="המסד קורא לפונקציה. כאן רואים אם הקריאה יצאה, ומה חזר."
+      >
+        <p className="text-[12.5px] text-chalk-2">
+          לא יצאה אף בקשה. אם גם "ריצות אחרונות" ריק — הבעיה בתזמון או
+          בהגדרות, לא בפונקציה.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card title="פעימות" hint="מה המסד שלח, ומה חזר. זו השכבה שלפני הקליטה עצמה.">
+      <ul className="space-y-1">
+        {rows.map((d) => {
+          const bad = d.status === null ? false : d.status < 200 || d.status >= 300;
+          return (
+            <li
+              key={d.requestId}
+              className="flex items-center justify-between gap-2 border-b border-gold/10
+                         py-1.5 text-[11.5px] last:border-0"
+            >
+              <span className="shrink-0 text-chalk-dim">{when(d.requestedAt)}</span>
+              <span className="min-w-0 flex-1 truncate text-chalk-2">
+                {d.origin === 'admin' ? 'ידני' : 'מתוזמן'}
+                {d.status !== null && (
+                  <> · {DISPATCH_HE[d.status] ?? (d.body || '—')}</>
+                )}
+                {d.status === null && <> · בדרך…</>}
+              </span>
+              <span className={`num shrink-0 font-black ${
+                d.status === null ? 'text-chalk-dim' : bad ? 'text-flare' : 'text-gold'}`}
+              >
+                {d.status ?? '…'}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* 4 · מחזורים                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -476,6 +546,7 @@ function Settings({ state, onChange }: { state: IngestState; onChange: () => voi
 export function AdminIngest() {
   const [state, setState] = useState<IngestState | null>(null);
   const [rows, setRows] = useState<UnmappedRow[]>([]);
+  const [beats, setBeats] = useState<IngestDispatch[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
@@ -483,8 +554,14 @@ export function AdminIngest() {
 
   useEffect(() => {
     let alive = true;
-    void Promise.all([ingestState(), ingestUnmapped(200)])
-      .then(([s, u]) => { if (alive) { setState(s); setRows(u); setErr(null); } })
+    void Promise.all([
+      ingestState(),
+      ingestUnmapped(200),
+      /* ★ נכשל בשקט: מסד שעוד לא קיבל את db/28 לא צריך להפיל
+         את כל המסך בגלל כרטיס אחד. */
+      ingestDispatches(10).catch(() => [] as IngestDispatch[]),
+    ])
+      .then(([s, u, d]) => { if (alive) { setState(s); setRows(u); setBeats(d); setErr(null); } })
       .catch((e: unknown) => { if (alive) setErr(e instanceof Error ? e.message : 'שגיאה'); });
     return () => { alive = false; };
   }, [tick]);
@@ -518,6 +595,7 @@ export function AdminIngest() {
     <div className="space-y-3">
       <Pulse state={state} />
       <Alerts state={state} onChange={refresh} />
+      <Dispatches rows={beats} />
       <Mapping rows={rows} onChange={refresh} />
       <Gameweeks state={state} />
       <Runs state={state} />

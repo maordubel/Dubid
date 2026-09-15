@@ -1811,3 +1811,26 @@ export async function gameweekHistory(limit = 20): Promise<HistoryRow[]> {
   if (error) throw new Error(errorCode(error));
   return (data ?? []) as HistoryRow[];
 }
+
+/**
+ * פעימות — מה המסד שלח ומה חזר.
+ *
+ * ★ נפרד מ-`ingestState`: `ingest_runs` נכתבת מתוך ה-Edge
+ *   Function, ולכן היא ריקה בדיוק במקרים שבהם הכי צריך מידע —
+ *   הפונקציה לא נפרסה, הטוקן שגוי, או שהיא נפלה בטעינה.
+ */
+export interface IngestDispatch {
+  requestId: number;
+  requestedAt: string;
+  origin: 'cron' | 'admin' | string;
+  status: number | null;
+  timedOut?: boolean | null;
+  error?: string | null;
+  body: string | null;
+}
+
+export async function ingestDispatches(limit = 10): Promise<IngestDispatch[]> {
+  const { data, error } = await supabase.rpc('admin_ingest_dispatches', { p_limit: limit });
+  if (error) throw new Error(errorCode(error));
+  return (data ?? []) as IngestDispatch[];
+}
