@@ -12,6 +12,9 @@
 \set ON_ERROR_STOP on
 SET client_min_messages = WARNING;
 
+-- מחזור הבדיקות (gw-2) — ראו _shared_gameweek.sql
+\ir _shared_gameweek.sql
+
 DELETE FROM auth.users WHERE id::TEXT LIKE 'd1000000-%';
 INSERT INTO auth.users (id, email, is_anonymous) VALUES
   ('d1000000-0000-0000-0000-000000000001', 'admin7@x.test', FALSE),

@@ -29,6 +29,7 @@ import {
   AdminGameweeks, AdminRules, AdminContent, AdminAnalytics, AdminActivity,
   AdminBots, AdminAds, AdminFunnel,
 } from './AdminConsole.tsx';
+import { AdminIngest } from './AdminIngest.tsx';
 import { LogoMark } from './Logo.tsx';
 import { resolveGate, type AdminGate } from '../lib/adminGate.ts';
 import { ensureIdentity } from '../lib/identity.ts';
@@ -96,7 +97,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
    * לפעמים, והשאר נדיר.
    */
   const [section, setSection] = useState<
-    'results' | 'gameweeks' | 'gameweek' | 'squads' | 'rules' | 'content'
+    'results' | 'ingest' | 'gameweeks' | 'gameweek' | 'squads' | 'rules' | 'content'
     | 'activity' | 'bots' | 'ads' | 'funnel' | 'stats'
   >('results');
 
@@ -229,7 +230,11 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
               אותה שווה בדיוק כמו תכונה שלא נבנתה, וזה נכון
               בכפליים בלוח ניהול: מי שמחפש בו משהו כבר יודע מה
               הוא רוצה, והוא מחפש **שם** ולא מגלה בגלילה. */}
-          {([['results', 'תוצאות'], ['gameweeks', 'מחזורים'], ['activity', 'פעילות'],
+          {/* ★ "קליטה" שנייה, מיד אחרי תוצאות. מרגע שהמערכת
+              קולטת לבד, זו הלשונית שפותחים כששואלים "למה
+              המחזור לא התפרסם" — והיא צריכה להיות מתחת לאצבע,
+              לא בסוף גלילה אופקית. */}
+          {([['results', 'תוצאות'], ['ingest', 'קליטה'], ['gameweeks', 'מחזורים'], ['activity', 'פעילות'],
              ['bots', 'בוטים'], ['ads', 'פרסום'], ['funnel', 'משפך'],
              ['gameweek', 'המחזור'], ['squads', 'סגלים'], ['rules', 'חוקים'],
              ['content', 'תוכן'], ['stats', 'ניתוח']] as const)
@@ -248,6 +253,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
             ))}
         </div>
 
+        {section === 'ingest' && <AdminIngest />}
         {section === 'squads' && <AdminSquads />}
         {section === 'gameweeks' && <AdminGameweeks />}
         {section === 'activity' && <AdminActivity />}

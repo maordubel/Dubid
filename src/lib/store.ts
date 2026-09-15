@@ -1694,3 +1694,120 @@ export async function adminLeadsCsv(): Promise<string> {
   if (error) throw new Error(errorCode(error));
   return typeof data === 'string' ? data : '';
 }
+
+/* =====================================================================
+ *  קליטה אוטומטית (db/26, db/27)
+ * =====================================================================
+ *
+ *  ★ שום לוגיקה כאן. הקובץ הזה הוא צינור: המסך שואל, השרת עונה.
+ *    כל החלטה — מה מופה, מה חוסם, מתי מפרסמים — יושבת במסד.
+ */
+
+export interface IngestRun {
+  id: string; source: string; phase: string; gw: string | null;
+  status: 'running' | 'ok' | 'partial' | 'failed';
+  startedAt: string; finishedAt: string | null;
+  fixtures: number; playersSeen: number; playersMapped: number;
+  unmapped: number; error: string | null;
+}
+
+export interface IngestAlert {
+  id: number; gw: string | null; kind: string;
+  severity: 'block' | 'warn';
+  detail: Record<string, unknown>; createdAt: string;
+}
+
+export interface IngestGameweek {
+  code: string; number: number; status: string; isCurrent: boolean;
+  lockAt: string | null; fixtures: number; final: number;
+  fingerprint: string | null; stableSince: string | null;
+  movedAfterPublish: boolean;
+}
+
+export interface IngestState {
+  config: {
+    enabled: boolean; stable_minutes: number; auto_publish: boolean;
+    auto_open_next: boolean; auto_map_players: boolean; name_threshold: number;
+  } | null;
+  runs: IngestRun[];
+  alerts: IngestAlert[];
+  unmappedCount: number;
+  blockingCount: number;
+  gameweeks: IngestGameweek[];
+}
+
+export interface UnmappedRow {
+  id: number; source: string; type: string; externalId: string;
+  name: string | null; nameHe: string | null; team: string | null;
+  shirt: number | null; position: string | null;
+  candidates: Array<{ extPlayer: string; nameHe: string; shirt: number | null; score: number }>;
+  blocking: boolean; seen: number; lastSeenAt: string;
+}
+
+export async function ingestState(): Promise<IngestState> {
+  const { data, error } = await supabase.rpc('admin_ingest_state');
+  if (error) throw new Error(errorCode(error));
+  return data as IngestState;
+}
+
+export async function ingestUnmapped(limit = 200): Promise<UnmappedRow[]> {
+  const { data, error } = await supabase.rpc('admin_unmapped', { p_limit: limit });
+  if (error) throw new Error(errorCode(error));
+  return (data ?? []) as UnmappedRow[];
+}
+
+export async function ingestMapPlayer(
+  source: string, externalId: string, extPlayer: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_map_player', {
+    p_source: source, p_external_id: externalId, p_ext_player: extPlayer,
+  });
+  if (error) throw new Error(errorCode(error));
+}
+
+export async function ingestUnmap(source: string, externalId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_unmap', {
+    p_source: source, p_external_id: externalId,
+  });
+  if (error) throw new Error(errorCode(error));
+}
+
+export async function ingestClearAlert(id: number): Promise<void> {
+  const { error } = await supabase.rpc('admin_clear_alert', { p_id: id });
+  if (error) throw new Error(errorCode(error));
+}
+
+export async function ingestSetConfig(patch: Record<string, unknown>): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_ingest_config', { p_patch: patch });
+  if (error) throw new Error(errorCode(error));
+}
+
+export async function ingestSetEndpoint(url: string, token: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_ingest_endpoint', {
+    p_url: url, p_token: token,
+  });
+  if (error) throw new Error(errorCode(error));
+}
+
+/** "הרץ עכשיו" — אותה פעימה שה-cron מריץ, בלי לחכות לשעון. */
+export async function ingestNow(): Promise<Record<string, unknown>> {
+  const { data, error } = await supabase.rpc('admin_ingest_now');
+  if (error) throw new Error(errorCode(error));
+  return (data ?? {}) as Record<string, unknown>;
+}
+
+export interface HistoryRow {
+  code: string; number: number; label: string | null;
+  publishedAt: string | null; lockAt: string | null;
+  entries: number; fixtures: number;
+  topScore: number | null; myPoints: number | null; myRank: number | null;
+}
+
+/** זיכרון המחזורים שעברו — נגיש גם לאורח. */
+export async function gameweekHistory(limit = 20): Promise<HistoryRow[]> {
+  const { data, error } = await supabase.rpc('history_summary', {
+    p_mode: null, p_limit: limit,
+  });
+  if (error) throw new Error(errorCode(error));
+  return (data ?? []) as HistoryRow[];
+}

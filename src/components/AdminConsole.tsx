@@ -61,7 +61,7 @@ import { GAMEWEEK, leagueLocalToIso } from '../data/fixtures.ts';
  * חמישה מקומות לשכוח לכבות ספינר. כאן: מקום אחד, וכל פעולה
  * מסתיימת בהודעה — גם כשהיא הצליחה.
  */
-function useAction() {
+export function useAction() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [bad, setBad] = useState(false);
@@ -93,7 +93,7 @@ function useAction() {
   return { busy, msg, bad, done, run, clear: () => setMsg(null) };
 }
 
-function Note({ msg, bad }: { msg: string | null; bad: boolean }) {
+export function Note({ msg, bad }: { msg: string | null; bad: boolean }) {
   if (!msg) return null;
   return (
     <p
@@ -107,7 +107,7 @@ function Note({ msg, bad }: { msg: string | null; bad: boolean }) {
   );
 }
 
-function Card({ title, hint, children }: {
+export function Card({ title, hint, children }: {
   title: string; hint?: string; children: React.ReactNode;
 }) {
   return (
@@ -120,13 +120,13 @@ function Card({ title, hint, children }: {
   );
 }
 
-const input =
+export const input =
   'w-full rounded-lg border border-gold/25 bg-night px-2.5 py-2 text-[13px] ' +
   'text-chalk outline-none focus:border-gold disabled:opacity-50';
-const primary =
+export const primary =
   'tap shrink-0 rounded-lg bg-gradient-to-b from-gold-light to-gold px-4 ' +
   'text-[12.5px] font-black text-gold-ink disabled:opacity-40';
-const ghost =
+export const ghost =
   'tap shrink-0 rounded-lg border border-gold/25 px-3 py-1.5 text-[11.5px] ' +
   'font-bold text-chalk-2 disabled:opacity-35';
 

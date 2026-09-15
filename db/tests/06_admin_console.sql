@@ -15,6 +15,9 @@
 \set ON_ERROR_STOP on
 SET client_min_messages = WARNING;
 
+-- מחזור הבדיקות (gw-2) — ראו _shared_gameweek.sql
+\ir _shared_gameweek.sql
+
 DELETE FROM auth.users WHERE id::TEXT LIKE 'c1000000-%';
 INSERT INTO auth.users (id, email, is_anonymous) VALUES
   ('c1000000-0000-0000-0000-000000000001', 'boss@x.test',  FALSE),
@@ -178,6 +181,10 @@ BEGIN
   END IF;
 END $$;
 \echo '  ✓ 5  מחזור עם הגשות, או המחזור הפעיל, לא נמחקים'
+
+-- ★ סעיף 5 מוחק את gw-2 כשהוא ריק (וזה מותר). הבדיקות
+--   שאחריו צריכות אותו — מחזירים אותו לקיום.
+\ir _shared_gameweek.sql
 
 -- =====================================================================
 -- 6 — חוקי ניקוד כדאטה

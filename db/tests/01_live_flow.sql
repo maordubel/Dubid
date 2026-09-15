@@ -15,6 +15,9 @@
 \set ON_ERROR_STOP on
 SET client_min_messages = WARNING;
 
+-- מחזור הבדיקות (gw-2) — ראו _shared_gameweek.sql
+\ir _shared_gameweek.sql
+
 -- ---------------------------------------------------------------------
 -- ניקוי — כדי שהקובץ ירוץ שוב ושוב, ובכל סדר
 -- ---------------------------------------------------------------------
@@ -25,6 +28,9 @@ DELETE FROM auth.users WHERE id::TEXT LIKE '%-0000-0000-0000-%'
                           OR id IN ('11111111-1111-1111-1111-111111111111',
                                     '22222222-2222-2222-2222-222222222222');
 
+-- ★ 1202/802 ולא 1201/801: שני האחרונים סומנו `left` בעדכון
+--   הסגלים של מחזור 4, ובדיקה שמקודדת שחקן שעזב נופלת על
+--   דאטה תקינה. 57 מיפויים מצביעים היום על שחקנים לא פעילים.
 -- ---------------------------------------------------------------------
 -- שני שחקנים
 -- ---------------------------------------------------------------------
@@ -44,8 +50,8 @@ SET dubid.test_uid = '11111111-1111-1111-1111-111111111111';
 SELECT game.submit_entry('gw-2', 'five', '2-1-1', $$[
   {"slot_no":1,"ext_player_id":"101", "is_captain":false,"is_vice":false,"is_bench":false},
   {"slot_no":2,"ext_player_id":"1301","is_captain":false,"is_vice":true, "is_bench":false},
-  {"slot_no":3,"ext_player_id":"1201","is_captain":true, "is_vice":false,"is_bench":false},
-  {"slot_no":4,"ext_player_id":"801", "is_captain":false,"is_vice":false,"is_bench":false},
+  {"slot_no":3,"ext_player_id":"1202","is_captain":true, "is_vice":false,"is_bench":false},
+  {"slot_no":4,"ext_player_id":"802", "is_captain":false,"is_vice":false,"is_bench":false},
   {"slot_no":5,"ext_player_id":"1101","is_captain":false,"is_vice":false,"is_bench":false}
 ]$$::jsonb, 'מאור');
 
@@ -53,8 +59,8 @@ SET dubid.test_uid = '22222222-2222-2222-2222-222222222222';
 SELECT game.submit_entry('gw-2', 'five', '2-1-1', $$[
   {"slot_no":1,"ext_player_id":"101", "is_captain":true, "is_vice":false,"is_bench":false},
   {"slot_no":2,"ext_player_id":"201", "is_captain":false,"is_vice":false,"is_bench":false},
-  {"slot_no":3,"ext_player_id":"1201","is_captain":false,"is_vice":true, "is_bench":false},
-  {"slot_no":4,"ext_player_id":"801", "is_captain":false,"is_vice":false,"is_bench":false},
+  {"slot_no":3,"ext_player_id":"1202","is_captain":false,"is_vice":true, "is_bench":false},
+  {"slot_no":4,"ext_player_id":"802", "is_captain":false,"is_vice":false,"is_bench":false},
   {"slot_no":5,"ext_player_id":"1101","is_captain":false,"is_vice":false,"is_bench":false}
 ]$$::jsonb, 'דנה');
 
@@ -76,8 +82,8 @@ BEGIN
   PERFORM game.submit_entry('gw-2', 'five', '2-1-1', $j$[
     {"slot_no":1,"ext_player_id":"101","is_captain":true, "is_vice":false,"is_bench":false},
     {"slot_no":2,"ext_player_id":"102","is_captain":false,"is_vice":false,"is_bench":false},
-    {"slot_no":3,"ext_player_id":"1201","is_captain":false,"is_vice":false,"is_bench":false},
-    {"slot_no":4,"ext_player_id":"801","is_captain":false,"is_vice":false,"is_bench":false},
+    {"slot_no":3,"ext_player_id":"1202","is_captain":false,"is_vice":false,"is_bench":false},
+    {"slot_no":4,"ext_player_id":"802","is_captain":false,"is_vice":false,"is_bench":false},
     {"slot_no":5,"ext_player_id":"1101","is_captain":false,"is_vice":false,"is_bench":false}
   ]$j$::jsonb);
   RAISE EXCEPTION 'FAIL 2: שני שחקנים מאותה קבוצה התקבלו';
@@ -93,8 +99,8 @@ BEGIN
   PERFORM game.submit_entry('gw-2', 'five', '2-1-1', $j$[
     {"slot_no":1,"ext_player_id":"101", "is_captain":false,"is_vice":false,"is_bench":false},
     {"slot_no":2,"ext_player_id":"201", "is_captain":false,"is_vice":false,"is_bench":false},
-    {"slot_no":3,"ext_player_id":"1201","is_captain":false,"is_vice":false,"is_bench":false},
-    {"slot_no":4,"ext_player_id":"801", "is_captain":false,"is_vice":false,"is_bench":false},
+    {"slot_no":3,"ext_player_id":"1202","is_captain":false,"is_vice":false,"is_bench":false},
+    {"slot_no":4,"ext_player_id":"802", "is_captain":false,"is_vice":false,"is_bench":false},
     {"slot_no":5,"ext_player_id":"1101","is_captain":false,"is_vice":false,"is_bench":false}
   ]$j$::jsonb);
   RAISE EXCEPTION 'FAIL 3: הרכב בלי קפטן התקבל';
@@ -113,8 +119,8 @@ BEGIN
   PERFORM game.submit_entry('gw-2', 'five', '2-1-1', $j$[
     {"slot_no":1,"ext_player_id":"101", "is_captain":true, "is_vice":false,"is_bench":false},
     {"slot_no":2,"ext_player_id":"201", "is_captain":false,"is_vice":false,"is_bench":false},
-    {"slot_no":3,"ext_player_id":"1201","is_captain":false,"is_vice":false,"is_bench":false},
-    {"slot_no":4,"ext_player_id":"801", "is_captain":false,"is_vice":false,"is_bench":false},
+    {"slot_no":3,"ext_player_id":"1202","is_captain":false,"is_vice":false,"is_bench":false},
+    {"slot_no":4,"ext_player_id":"802", "is_captain":false,"is_vice":false,"is_bench":false},
     {"slot_no":5,"ext_player_id":"1101","is_captain":false,"is_vice":false,"is_bench":false}
   ]$j$::jsonb);
   RAISE EXCEPTION 'FAIL 4: התקבלה הגשה אחרי הדדליין';
@@ -160,9 +166,9 @@ SELECT game.admin_upsert_player_stat('gw-2', '101',
   '{"minutes":90,"goals":0,"assists":0,"saves":4,"goalsConceded":2}'::jsonb);
 SELECT game.admin_upsert_player_stat('gw-2', '1301',
   '{"minutes":90,"goals":1,"assists":0,"cleanSheet":false}'::jsonb);
-SELECT game.admin_upsert_player_stat('gw-2', '1201',
+SELECT game.admin_upsert_player_stat('gw-2', '1202',
   '{"minutes":90,"goals":0,"assists":1,"cleanSheet":true}'::jsonb);
-SELECT game.admin_upsert_player_stat('gw-2', '801',
+SELECT game.admin_upsert_player_stat('gw-2', '802',
   '{"minutes":90,"goals":0,"assists":0,"cleanSheet":true,"saves":2}'::jsonb);
 SELECT game.admin_upsert_player_stat('gw-2', '1101',
   '{"minutes":75,"goals":2,"assists":0,"yellowCards":1}'::jsonb);

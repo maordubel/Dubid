@@ -29,22 +29,22 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** כל פונקציה שצריכה את הקוד המשותף. */
-const FUNCTIONS = ['dubid-score-gameweek'];
-
-/** תיקיות שמועתקות במלואן. נתיבים יחסיים ל-src/lib. */
-const SHARED = ['scoring', 'events'];
-
 /**
- * קבצים בודדים שמועתקים.
+ * כל פונקציה שצריכה את הקוד המשותף, ומה היא צריכה.
  *
- * ★ `ruleOverrides.ts` הוא כאן כי בלעדיו היו **שני מקורות חוקים**:
- *   הקליינט קרא ל-`game.scoring_rules()` והחיל override-ים,
- *   והפונקציה קראה טבלה אחרת לגמרי (`scoring_rulesets`). כלומר
- *   האדמין היה משנה את הבישול ל-4, המסך היה מראה 4, והניקוד
- *   הרשמי היה נשאר 3 — לנצח, בשקט.
+ * ★ למה מפה ולא רשימה אחת: `dubid-ingest` לא צריכה את מנוע
+ *   הניקוד, ו-`dubid-score-gameweek` לא צריכה את המתאמים.
+ *   העתקה "ליתר ביטחון" מנפחת כל פריסה ומכניסה תלות בין שתי
+ *   פונקציות שאין ביניהן קשר.
  */
-const SHARED_FILES = ['ruleOverrides.ts'];
+const FUNCTIONS = {
+    /* ★ `ruleOverrides.ts` נמצא כאן כי בלעדיו היו **שני מקורות
+     חוקים**: הקליינט קרא ל-`game.scoring_rules()` והחיל
+     override-ים, והפונקציה קראה טבלה אחרת לגמרי. האדמין היה
+     משנה בישול ל-4, המסך היה מראה 4, והניקוד הרשמי היה נשאר 3. */
+  'dubid-score-gameweek': { dirs: ['scoring', 'events'], files: ['ruleOverrides.ts'] },
+  'dubid-ingest':         { dirs: ['ingest'],            files: [] },
+};
 
 const BANNER = `/**
  * ⚠ נוצר אוטומטית — אל תערכו כאן.
@@ -70,15 +70,15 @@ function stamp(dir) {
   return n;
 }
 
-for (const fn of FUNCTIONS) {
+for (const [fn, what] of Object.entries(FUNCTIONS)) {
   const dest = join(ROOT, 'supabase/functions', fn, '_lib');
   rmSync(dest, { recursive: true, force: true });
   mkdirSync(dest, { recursive: true });
 
-  for (const dir of SHARED) {
+  for (const dir of what.dirs) {
     cpSync(join(ROOT, 'src/lib', dir), join(dest, dir), { recursive: true });
   }
-  for (const file of SHARED_FILES) {
+  for (const file of what.files) {
     cpSync(join(ROOT, 'src/lib', file), join(dest, file));
   }
   console.log(`✓ ${relative(ROOT, dest)}  (${stamp(dest)} קבצים)`);
