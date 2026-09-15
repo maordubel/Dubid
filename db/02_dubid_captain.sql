@@ -87,6 +87,13 @@ CREATE INDEX IF NOT EXISTS lineup_scores_rank ON game.lineup_scores (gameweek_id
 --    למה RPC ולא select מהקליינט: זה מקבע את חוזה הקלט של המנוע
 --    ומונע מצב שבו שינוי בשאילתה בצד אחד משנה ניקוד בצד השני.
 -- ---------------------------------------------------------------------
+/* ★ DROP לפני CREATE, ולא CREATE OR REPLACE בלבד.
+   מיגרציה 30 מוסיפה לטבלת ההחזרה עמודת `actions`. בהרצה חוזרת
+   של RUN-ALL הקובץ הזה רץ *אחריה* וניסה לצמצם את טיפוס ההחזרה
+   בחזרה ל-14 עמודות — "cannot change return type of existing
+   function". הרצה חוזרת של RUN-ALL היא הדרך שבה מעדכנים את
+   הייצור, ולכן זו לא הערת שוליים אלא תקלת שדרוג. */
+DROP FUNCTION IF EXISTS game.gameweek_player_stats(UUID);
 CREATE OR REPLACE FUNCTION game.gameweek_player_stats(p_gameweek_id UUID)
 RETURNS TABLE (
   -- "position" מצריך מרכאות: זו מילה שמורה ב-SQL (הפונקציה POSITION(x IN y))

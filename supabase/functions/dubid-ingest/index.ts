@@ -49,6 +49,23 @@ export interface PlayerRef {
   position?: Position | null;
 }
 
+/**
+ * מטא־דאטה של הסגל — משתנה בין מחזורים, לא בתוך משחק.
+ *
+ * ★ נפרד מ-`PlayerStat` בכוונה: ביצועים נכתבים דרך
+ *   `ingest_snapshot`, וזה נכתב דרך פונקציות משלו. שני קצבים
+ *   שונים, שתי טבלאות שונות, שתי סיבות שונות להיכשל.
+ */
+export interface SquadMeta {
+  /** שווי שוק ביורו. מזין את התמחור 1–5. */
+  marketValues: Array<{ providerId: string; marketValue: number }>;
+  /**
+   * מי לא זמין. `reason` הוא מה שהספק אמר, גולמי — המסד מחליט
+   * מה זה אומר. המתאם לא ממציא סיווג שהוא לא יודע.
+   */
+  availability: Array<{ providerId: string; reason: string; note?: string | null }>;
+}
+
 export interface Fixture {
   providerId: string;
   home: TeamRef;
@@ -132,6 +149,7 @@ export interface Provider {
     stats: PlayerStat[];
     alerts: Alert[];
     raw: RawBlob[];
+    meta?: SquadMeta;
   }>;
 }
 
@@ -431,6 +449,43 @@ export function unknownEventKinds(incidents: any[]): string[] {
 /* ------------------------------------------------------------------ *
  *  משחק אחד → שורות שחקנים
  * ------------------------------------------------------------------ */
+/**
+ * שווי שוק וזמינות — נאספים מאותו מטען הרכבים.
+ *
+ * ★ למה מכאן ולא מקריאת סגל נפרדת: המטען הזה כבר נמשך לכל
+ *   משחק, והוא מכסה את מי שבאמת משחק. קריאה נוספת לכל אחת
+ *   מ-14 הקבוצות הייתה מכפילה את נפח הבקשות בשביל אותו נתון.
+ */
+export function mapSquadMeta(lineups: any): SquadMeta {
+  const marketValues: SquadMeta['marketValues'] = [];
+  const availability: SquadMeta['availability'] = [];
+
+  for (const side of ['home', 'away'] as const) {
+    for (const row of lineups?.[side]?.players ?? []) {
+      const id = row?.player?.id;
+      const value = row?.player?.proposedMarketValueRaw?.value;
+      if (id !== undefined && typeof value === 'number' && value > 0) {
+        marketValues.push({ providerId: String(id), marketValue: value });
+      }
+    }
+
+    /* ★ הספק מדווח מי חסר, אבל קוד הסיבה שלו אינו מתועד.
+       לכן: הסיבה נשמרת גולמית והמסד מחליט. המתאם לא מתרגם
+       מספר שהוא לא יודע מה משמעותו לסטטוס שמשפיע על בחירה. */
+      for (const miss of lineups?.[side]?.missingPlayers ?? []) {
+        const id = miss?.player?.id;
+        if (id === undefined || id === null) continue;
+        availability.push({
+          providerId: String(id),
+          reason: 'missing',
+          note: [miss?.type, miss?.reason].filter((x) => x !== undefined).join('/') || null,
+        });
+      }
+  }
+
+  return { marketValues, availability };
+}
+
 export function mapMatchStats(
   fixture: Fixture,
   lineups: any,
@@ -591,6 +646,8 @@ export function createSofascore(http: Http, cfg: SofascoreConfig): Provider {
       const stats: PlayerStat[] = [];
       const alerts: Alert[] = [];
       const raw: RawBlob[] = [];
+      const seenValue = new Map<string, number>();
+      const seenMissing = new Map<string, { providerId: string; reason: string; note?: string | null }>();
 
       for (const f of fixtures) {
         /* משחק שלא התחיל אינו נסרק — אין מה לקרוא ואין למי לנקד */
@@ -608,6 +665,12 @@ export function createSofascore(http: Http, cfg: SofascoreConfig): Provider {
           const mapped = mapMatchStats(f, lineups, incidents);
           stats.push(...mapped.stats);
           alerts.push(...mapped.alerts);
+
+          /* ★ Map ולא מערך: אותו שחקן מופיע בכמה משחקים, ושורה
+             כפולה הייתה מייצרת עדכון כפול על אותו ערך. */
+          const meta = mapSquadMeta(lineups);
+          for (const v of meta.marketValues) seenValue.set(v.providerId, v.marketValue);
+          for (const a of meta.availability) seenMissing.set(a.providerId, a);
         } catch (err) {
           /* ★ משחק אחד שנפל אינו מפיל מחזור. הוא מדווח. */
           alerts.push({
@@ -618,7 +681,14 @@ export function createSofascore(http: Http, cfg: SofascoreConfig): Provider {
         }
       }
 
-      return { stats, alerts, raw };
+      return {
+        stats, alerts, raw,
+        meta: {
+          marketValues: [...seenValue.entries()].map(([providerId, marketValue]) =>
+            ({ providerId, marketValue })),
+          availability: [...seenMissing.values()],
+        },
+      };
     },
   };
 }
@@ -1129,11 +1199,13 @@ Deno.serve(async (req) => {
       || phase === 'final' || phase === 'sweep';
 
     let stats: Snapshot['stats'] = [];
+    let meta: SquadMeta | undefined;
     if (wantStats && !usedBackup) {
       const got = await primary.stats(fixtures);
       stats = got.stats;
       alerts.push(...got.alerts);
       raw.push(...got.raw);
+      meta = got.meta;
     }
 
     /* ── 3. הצלבה מול הגיבוי ───────────────────────────────── */
@@ -1164,6 +1236,32 @@ Deno.serve(async (req) => {
     });
     if (error) throw new Error(`ingest_snapshot: ${error.message}`);
     done.push({ ingest: report });
+
+    /* ── 4b. מטא־דאטה של הסגל: שווי שוק וזמינות ─────────────
+       ★ אחרי הקליטה ולא לפניה: המיפוי בין מזהה הספק לשחקן
+         נוצר בתוך `ingest_snapshot`, ובלעדיו כל שורה כאן
+         הייתה נופלת על "שחקן לא מופה". */
+    if (meta && (meta.marketValues.length > 0 || meta.availability.length > 0)) {
+      const source = primary.name;
+
+      const { data: valueReport } = await supabase.rpc('ingest_set_market_values', {
+        p_rows: meta.marketValues.map((v) => ({ ...v, source })),
+      });
+      const { data: availReport } = await supabase.rpc('ingest_set_availability', {
+        p_rows: meta.availability.map((a) => ({ ...a, source })),
+      });
+      done.push({ marketValues: valueReport, availability: availReport });
+
+      /* ★ תמחור מחדש רק כששווי באמת זז. הפעימה רצה כל עשר
+         דקות; תמחור מחדש בכל אחת מהן הוא עומס על כלום, והוא
+         גם היה מייצר רעש ביומן הביקורת. */
+      if ((valueReport as any)?.updated > 0) {
+        const { data: priceReport } = await supabase.rpc('admin_reprice_from_market', {
+          p_dry_run: false,
+        });
+        done.push({ reprice: priceReport });
+      }
+    }
 
     /* ── 5. המחזור הבא — לוח בלבד, כדי שייווצר בזמן ───────── */
     //  ★ בלי זה, המחזור הבא נולד רק אחרי שהנוכחי פורסם, והמשתמש

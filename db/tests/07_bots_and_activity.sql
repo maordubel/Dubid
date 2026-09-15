@@ -139,11 +139,21 @@ DO $$
 DECLARE slots JSONB := '[]'::jsonb; i INT := 0; r RECORD; e JSONB; mine JSONB;
 BEGIN
   FOR r IN
-    SELECT DISTINCT ON (sq.team_id) xp.external_id AS ext
-      FROM core.squads sq
-      JOIN core.v_ext xp ON xp.entity_type='player' AND xp.entity_id=sq.player_id
-     WHERE sq.valid_to IS NULL
-     ORDER BY sq.team_id, xp.external_id
+    /* ★ החמישה הזולים, לא "החמישה הראשונים".
+
+       קודם נבחרו חמש קבוצות לפי `ORDER BY sq.team_id` — כלומר
+       לפי UUID אקראי שנוצר מחדש בכל מסד. על מסד אחד הסכום יצא
+       12 ועל אחר 16, והבדיקה נפלה ב-OVER_BUDGET על דאטה ולא על
+       באג. הבחירה כאן היא לפי מחיר, ולכן היא בתקציב תמיד. */
+    SELECT ext FROM (
+      SELECT DISTINCT ON (sq.team_id)
+             xp.external_id AS ext, COALESCE(sq.fantasy_price, 0) AS price
+        FROM core.squads sq
+        JOIN core.v_ext xp ON xp.entity_type='player' AND xp.entity_id=sq.player_id
+       WHERE sq.valid_to IS NULL AND sq.status = 'active'
+       ORDER BY sq.team_id, COALESCE(sq.fantasy_price, 0), xp.external_id
+    ) q
+     ORDER BY q.price, q.ext
      LIMIT 5
   LOOP
     i := i + 1;

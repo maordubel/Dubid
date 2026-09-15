@@ -22,7 +22,64 @@ export interface PersonalRules {
   penaltyMissed: number;
   goalsConcededPer: number;
   goalsConceded: Record<Position, number>;
+  /**
+   * נקודות לכל פעולה מדודה. מפתח → נקודות ליחידה.
+   *
+   * ★ מפה ולא שדות: הוספת סטטיסטיקה מנוקדת היא שורה בטבלת
+   *   החוקים, לא שינוי בטיפוס ובמנוע. מפתח שאינו מופיע כאן
+   *   פשוט לא מנוקד, ומפתח עם 0 שקול לכך.
+   *
+   * ★ ברירת המחדל ריקה. השדות נאספים כבר היום לכל שחקן, אבל
+   *   הדלקתם משנה **איזון**, לא קוד — ולכן היא החלטת מוצר
+   *   שנעשית במודע, ולא תופעת לוואי של שדרוג.
+   */
+  actions: Readonly<Record<string, number>>;
 }
+
+/**
+ * הסטטיסטיקות שנאספות ויכולות להיות מנוקדות.
+ *
+ * ★ הרשימה הזו היא החוזה בין המתאם (`src/lib/ingest`), המסד
+ *   (`core.player_match_stats.extra`) והמנוע. שם שמופיע כאן
+ *   ולא שם — לא ינוקד, ואף אחד לא ישים לב.
+ */
+export const ACTION_STATS = [
+  'shots', 'shotsOnTarget', 'keyPasses', 'bigChancesCreated',
+  'dribblesWon', 'tacklesWon', 'interceptions', 'clearances',
+  'recoveries', 'aerialsWon', 'savesInsideBox',
+] as const;
+
+export type ActionStat = (typeof ACTION_STATS)[number];
+
+/**
+ * הצעת איזון לפתיחת עומק הניקוד.
+ *
+ * ★ שמרנית בכוונה. הבריף דורש «הרבה אירועי ניקוד משמעותיים כדי
+ *   להקטין תיקו», אבל ערכים גבוהים על סטטיסטיקות בנפח גבוה
+ *   מתגמלים **דקות**, לא כישרון: שחקן שמשחק 90 דקות בקבוצה
+ *   שסופגת לחץ יצבור הרחקות בלי לתרום דבר.
+ *
+ *   לכן: מה שדורש כוונה (הזדמנות גדולה שנוצרה, בעיטה למסגרת)
+ *   מתומחר גבוה; מה שנובע מנפח (הרחקות, ריבאונדים) מתומחר
+ *   נמוך. מגן עם 6 חטיפות, 4 יירוטים ו-5 הרחקות מרוויח ~3
+ *   נקודות — משמעותי, ועדיין פחות משער.
+ *
+ * ⚠ להפעיל אחרי הרצה על מחזור שכבר הסתיים והשוואת הדירוג לפני
+ *   ואחרי. שינוי איזון בלי לראות את ההשפעה הוא ניחוש.
+ */
+export const RECOMMENDED_ACTIONS: Readonly<Record<ActionStat, number>> = {
+  shots: 0,
+  shotsOnTarget: 0.5,
+  keyPasses: 0.5,
+  bigChancesCreated: 1,
+  dribblesWon: 0.25,
+  tacklesWon: 0.25,
+  interceptions: 0.25,
+  clearances: 0.1,
+  recoveries: 0.1,
+  aerialsWon: 0.1,
+  savesInsideBox: 0.5,
+};
 
 export interface ResultBonusRules {
   W: number;
@@ -144,6 +201,9 @@ export const IL_PREMIER: RuleSet = {
     penaltyMissed: 0,
     goalsConcededPer: 2,
     goalsConceded: CONCEDED,
+
+    // ★ ריק = אף פעולה אינה מנוקדת. ראו RECOMMENDED_ACTIONS.
+    actions: {},
   },
   resultBonus: { W: 4, D: 1, L: 0, requireMinutes: 0 },
   // סכימת שערי כל 11 הקבוצות לקופה אחת; כל 2 שערים = שער וירטואלי של 5 נק׳.
@@ -215,7 +275,13 @@ export function ruleSetFromJson(
   return {
     ...base,
     ...data,
-    personal: { ...base.personal, ...(data.personal ?? {}) },
+    personal: {
+      ...base.personal,
+      ...(data.personal ?? {}),
+      /* ★ מיזוג ולא דריסה: ruleset היסטורי בלי `actions` היה
+         מוחק את ההגדרה הפעילה ומחזיר ניקוד אחר לאותו מחזור. */
+      actions: { ...base.personal.actions, ...((data.personal as any)?.actions ?? {}) },
+    },
     resultBonus: { ...base.resultBonus, ...(data.resultBonus ?? {}) },
     virtualGoal: { ...base.virtualGoal, ...(data.virtualGoal ?? {}) },
     captain: {

@@ -27,6 +27,7 @@ import { serverNow } from './lib/serverTime.ts';
 import { SquadPicker, type PoolPlayer, type TeamMeta } from './components/SquadPicker.tsx';
 import { ShareCard } from './components/ShareCard.tsx';
 import { Leaderboard } from './components/Leaderboard.tsx';
+import { PublicBoard } from './components/PublicBoard.tsx';
 import { AdminPanel } from './components/AdminPanel.tsx';
 import { AccountSheet } from './components/AccountSheet.tsx';
 import { RegisterNudge, readDismissed } from './components/RegisterNudge.tsx';
@@ -49,7 +50,7 @@ import type { RevealCardData } from './lib/revealCard.ts';
 import { modeTheme } from './lib/modeTheme.ts';
 import { text as contentText, subscribeToContent } from './lib/content.ts';
 import { GameStatusBadge } from './components/GameStatusBadge.tsx';
-import { IconHome, IconLineup, IconArena, IconRanking, IconRules } from './components/NavIcons.tsx';
+import { IconHome, IconLineup, IconArena, IconRanking, IconRules, IconTable } from './components/NavIcons.tsx';
 
 import { LEAGUE, TEAMS, PLAYERS, shortName, TEAM_BY_ID } from './data/squads.ts';
 import {
@@ -114,10 +115,26 @@ const SCREEN_TITLE: Record<string, string> = {
  * ב-RTL הפריט הראשון במערך מופיע מימין; האמצעי נשאר באמצע
  * בשני הכיוונים, ולכן אין כאן תלות בשפה.
  */
+/**
+ * ★ «טבלה» נכנסה שנייה, מיד אחרי הבית.
+ *
+ * זה המסך היחיד שעובד גם בלי להגיש: מה קורה בליגה עכשיו, מה
+ * התוצאות, ומי מוביל. מי שלא הספיק להגיש הגיע עד היום למסך
+ * שאומר לו בעקיפין שאין לו מה לעשות כאן — וזה בדיוק האדם שהכי
+ * כדאי להחזיר בשבוע הבא.
+ *
+ * ★ שישה פריטים ולא חמישה, ובכוונה: «חוקים» נשאר.
+ *
+ * הפיתוי היה להוריד אותו כדי לשמור על חמישה. אבל מסך שאי אפשר
+ * להגיע אליו הוא מסך שלא קיים, והחוקים הם מה שמסביר למה הניקוד
+ * יצא כמו שיצא — בדיוק השאלה שנשאלת אחרי מחזור גרוע. ב-390px
+ * שישה פריטים הם ~65px כל אחד, עדיין מעל יעד המגע.
+ */
 const NAV: NavItem[] = [
   { id: 'home',        label: 'בית',    icon: <IconHome /> },
-  { id: 'leaderboard', label: 'דירוג',  icon: <IconRanking /> },
+  { id: 'board',       label: 'טבלה',   icon: <IconTable /> },
   { id: 'lineup',      label: 'ההרכב',  icon: <IconLineup />, primary: true },
+  { id: 'leaderboard', label: 'דירוג',  icon: <IconRanking /> },
   { id: 'arena',       label: 'הזירה',  icon: <IconArena /> },
   { id: 'rules',       label: 'חוקים',  icon: <IconRules /> },
 ];
@@ -927,6 +944,7 @@ function MainApp() {
         origin={SITE_URL}
       />
     ),
+    board: <PublicBoard />,
     leaderboard: <Leaderboard rulesByMode={rulesByMode} userId={userId} />,
     rules: <RulesScreen rulesByMode={rulesByMode} />,
   };

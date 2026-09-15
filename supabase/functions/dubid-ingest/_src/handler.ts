@@ -62,7 +62,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createSofascore } from '../../../../src/lib/ingest/sofascore.ts';
 import { createScores365 } from '../../../../src/lib/ingest/scores365.ts';
 import { reconcileFixtures } from '../../../../src/lib/ingest/reconcile.ts';
-import type { Alert, Snapshot } from '../../../../src/lib/ingest/types.ts';
+import type { Alert, Snapshot, SquadMeta } from '../../../../src/lib/ingest/types.ts';
 
 /** מזהה בנייה — מופיע ב-ping, כדי לדעת איזו גרסה באמת פרוסה. */
 const BUILD = 'dubid-ingest/2';
@@ -253,11 +253,13 @@ Deno.serve(async (req) => {
       || phase === 'final' || phase === 'sweep';
 
     let stats: Snapshot['stats'] = [];
+    let meta: SquadMeta | undefined;
     if (wantStats && !usedBackup) {
       const got = await primary.stats(fixtures);
       stats = got.stats;
       alerts.push(...got.alerts);
       raw.push(...got.raw);
+      meta = got.meta;
     }
 
     /* ── 3. הצלבה מול הגיבוי ───────────────────────────────── */
@@ -288,6 +290,32 @@ Deno.serve(async (req) => {
     });
     if (error) throw new Error(`ingest_snapshot: ${error.message}`);
     done.push({ ingest: report });
+
+    /* ── 4b. מטא־דאטה של הסגל: שווי שוק וזמינות ─────────────
+       ★ אחרי הקליטה ולא לפניה: המיפוי בין מזהה הספק לשחקן
+         נוצר בתוך `ingest_snapshot`, ובלעדיו כל שורה כאן
+         הייתה נופלת על "שחקן לא מופה". */
+    if (meta && (meta.marketValues.length > 0 || meta.availability.length > 0)) {
+      const source = primary.name;
+
+      const { data: valueReport } = await supabase.rpc('ingest_set_market_values', {
+        p_rows: meta.marketValues.map((v) => ({ ...v, source })),
+      });
+      const { data: availReport } = await supabase.rpc('ingest_set_availability', {
+        p_rows: meta.availability.map((a) => ({ ...a, source })),
+      });
+      done.push({ marketValues: valueReport, availability: availReport });
+
+      /* ★ תמחור מחדש רק כששווי באמת זז. הפעימה רצה כל עשר
+         דקות; תמחור מחדש בכל אחת מהן הוא עומס על כלום, והוא
+         גם היה מייצר רעש ביומן הביקורת. */
+      if ((valueReport as any)?.updated > 0) {
+        const { data: priceReport } = await supabase.rpc('admin_reprice_from_market', {
+          p_dry_run: false,
+        });
+        done.push({ reprice: priceReport });
+      }
+    }
 
     /* ── 5. המחזור הבא — לוח בלבד, כדי שייווצר בזמן ───────── */
     //  ★ בלי זה, המחזור הבא נולד רק אחרי שהנוכחי פורסם, והמשתמש

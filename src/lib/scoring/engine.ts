@@ -132,6 +132,19 @@ function scorePlayer(
     if (perf.cleanSheet && perf.minutes >= p.cleanSheetMinMinutes) {
       add(Reason.CleanSheet, p.cleanSheet[pos]);
     }
+    /* ── פעולות מדודות ──────────────────────────────────────
+       ★ שורה נפרדת לכל סטטיסטיקה, ולא סכום אחד. הבריף דורש
+         שהמשתמש יבין **למה** — "3 נקודות" אינו הסבר, "6 חטיפות ·
+         1.5" כן. זו גם הסיבה ש-`count` נשמר: המסך מציג כמות
+         ומחיר ליחידה, לא רק תוצאה. */
+    if (perf.actions) {
+      for (const [stat, points] of Object.entries(p.actions)) {
+        if (!points) continue;
+        const count = perf.actions[stat] ?? 0;
+        if (count > 0) add(Reason.Action, points * count, count, { stat, per: points });
+      }
+    }
+
     if (perf.goalsConceded >= p.goalsConcededPer) {
       add(
         Reason.GoalsConceded,
@@ -401,6 +414,19 @@ export function buildInputs(
     cur.goalsConceded += r.goals_conceded ?? 0;
     cur.played = cur.minutes > 0;
     cur.cleanSheet = cur.goalsConceded === 0 && cur.minutes > 0;
+
+    /* ★ מונים מדודים — נצברים על פני משחקים, בדיוק כמו שערים.
+       שחקן ששיחק פעמיים במחזור (נדיר, קורה בדחיות) חייב לקבל
+       את הסכום ולא את המשחק האחרון. */
+    if (r.actions && typeof r.actions === 'object') {
+      const acts: Record<string, number> = { ...(cur.actions ?? {}) };
+      for (const [k, v] of Object.entries(r.actions as Record<string, unknown>)) {
+        const n = typeof v === 'number' ? v : Number(v);
+        if (Number.isFinite(n) && n > 0) acts[k] = (acts[k] ?? 0) + n;
+      }
+      cur.actions = acts;
+    }
+
     acc.set(r.player_id, cur);
   }
 

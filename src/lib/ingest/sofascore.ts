@@ -15,7 +15,7 @@
  *   כמטא־דאטה בלבד.
  */
 import type {
-  Alert, Fixture, FixtureStatus, Http, PlayerStat, Provider, RawBlob, TeamRef,
+  Alert, Fixture, FixtureStatus, Http, PlayerStat, Provider, RawBlob, SquadMeta, TeamRef,
 } from './types.ts';
 import { concededWhileOn, isoFromUnix, num, toPosition, toShirt, type OnPitch } from './derive.ts';
 
@@ -205,6 +205,43 @@ export function unknownEventKinds(incidents: any[]): string[] {
 /* ------------------------------------------------------------------ *
  *  משחק אחד → שורות שחקנים
  * ------------------------------------------------------------------ */
+/**
+ * שווי שוק וזמינות — נאספים מאותו מטען הרכבים.
+ *
+ * ★ למה מכאן ולא מקריאת סגל נפרדת: המטען הזה כבר נמשך לכל
+ *   משחק, והוא מכסה את מי שבאמת משחק. קריאה נוספת לכל אחת
+ *   מ-14 הקבוצות הייתה מכפילה את נפח הבקשות בשביל אותו נתון.
+ */
+export function mapSquadMeta(lineups: any): SquadMeta {
+  const marketValues: SquadMeta['marketValues'] = [];
+  const availability: SquadMeta['availability'] = [];
+
+  for (const side of ['home', 'away'] as const) {
+    for (const row of lineups?.[side]?.players ?? []) {
+      const id = row?.player?.id;
+      const value = row?.player?.proposedMarketValueRaw?.value;
+      if (id !== undefined && typeof value === 'number' && value > 0) {
+        marketValues.push({ providerId: String(id), marketValue: value });
+      }
+    }
+
+    /* ★ הספק מדווח מי חסר, אבל קוד הסיבה שלו אינו מתועד.
+       לכן: הסיבה נשמרת גולמית והמסד מחליט. המתאם לא מתרגם
+       מספר שהוא לא יודע מה משמעותו לסטטוס שמשפיע על בחירה. */
+      for (const miss of lineups?.[side]?.missingPlayers ?? []) {
+        const id = miss?.player?.id;
+        if (id === undefined || id === null) continue;
+        availability.push({
+          providerId: String(id),
+          reason: 'missing',
+          note: [miss?.type, miss?.reason].filter((x) => x !== undefined).join('/') || null,
+        });
+      }
+  }
+
+  return { marketValues, availability };
+}
+
 export function mapMatchStats(
   fixture: Fixture,
   lineups: any,
@@ -365,6 +402,8 @@ export function createSofascore(http: Http, cfg: SofascoreConfig): Provider {
       const stats: PlayerStat[] = [];
       const alerts: Alert[] = [];
       const raw: RawBlob[] = [];
+      const seenValue = new Map<string, number>();
+      const seenMissing = new Map<string, { providerId: string; reason: string; note?: string | null }>();
 
       for (const f of fixtures) {
         /* משחק שלא התחיל אינו נסרק — אין מה לקרוא ואין למי לנקד */
@@ -382,6 +421,12 @@ export function createSofascore(http: Http, cfg: SofascoreConfig): Provider {
           const mapped = mapMatchStats(f, lineups, incidents);
           stats.push(...mapped.stats);
           alerts.push(...mapped.alerts);
+
+          /* ★ Map ולא מערך: אותו שחקן מופיע בכמה משחקים, ושורה
+             כפולה הייתה מייצרת עדכון כפול על אותו ערך. */
+          const meta = mapSquadMeta(lineups);
+          for (const v of meta.marketValues) seenValue.set(v.providerId, v.marketValue);
+          for (const a of meta.availability) seenMissing.set(a.providerId, a);
         } catch (err) {
           /* ★ משחק אחד שנפל אינו מפיל מחזור. הוא מדווח. */
           alerts.push({
@@ -392,7 +437,14 @@ export function createSofascore(http: Http, cfg: SofascoreConfig): Provider {
         }
       }
 
-      return { stats, alerts, raw };
+      return {
+        stats, alerts, raw,
+        meta: {
+          marketValues: [...seenValue.entries()].map(([providerId, marketValue]) =>
+            ({ providerId, marketValue })),
+          availability: [...seenMissing.values()],
+        },
+      };
     },
   };
 }

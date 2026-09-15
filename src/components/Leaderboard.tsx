@@ -18,6 +18,11 @@
  *  4. **טבלה במקום רשימה.** אותו קומפוננט נותן כרטיסים במובייל
  *     וטבלה בדסקטופ (`Table.tsx`).
  *
+ *  5. ★ **אין תג "בוט".** היה כאן תג שסימן משתתפים שהמערכת
+ *     הוסיפה. הוא הוסר, וגם השדה עצמו ירד מהמטען של
+ *     `game.entries()` — הסתרה במסך אינה הסתרה ממי שפותח
+ *     DevTools. המסד עדיין יודע מי בוט; המוצר לא מספר.
+ *
  * שני מצבי המשחק חולקים תשתית אחת לגמרי — כל אחד רק עם ה-RuleSet
  * שלו, ולכן שני לוחות דירוג נפרדים. הברִיף אוסר למזג אותם.
  */
@@ -25,7 +30,7 @@ import { useMemo, useState, useEffect } from 'react';
 
 import { buildLeaderboard, beatPercent, type LeaderboardRow } from '../lib/leaderboard.ts';
 import type { TieBreakStage } from '../lib/scoring/ranking.ts';
-import { TEAM_BY_ID } from '../data/squads.ts';
+import { TEAM_BY_ID, TEAMS, PLAYERS, shortName } from '../data/squads.ts';
 import { OffsidesInline, OffsidesRail } from './OffsidesAds.tsx';
 import { HouseBanner } from './HouseAds.tsx';
 import { GAMEWEEK } from '../data/fixtures.ts';
@@ -33,6 +38,8 @@ import { listEntries, getResults, subscribeToStore, type LineupEntry } from '../
 import type { LineupScore } from '../lib/scoring/types.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import { Table, type Column } from './Table.tsx';
+import { RivalLineup } from './RivalLineup.tsx';
+import type { PoolPlayer, TeamMeta } from './SquadPicker.tsx';
 import { modeTheme } from '../lib/modeTheme.ts';
 import { NIGHT_PRESS as NP, MISREGISTER } from '../lib/pressPalette.ts';
 
@@ -76,6 +83,32 @@ export function Leaderboard({
     [entries, results, rules, userId],
   );
 
+  /*
+   * ★ COMPARE — החוליה שהייתה חסרה
+   *
+   * הברִיף מגדיר PLAY → WATCH → RESULT → **COMPARE** → RETURN.
+   * `RivalLineup` היה כתוב במלואו ולא היה מחובר לשום מקום, ולכן
+   * COMPARE פשוט לא התקיים במוצר. לחיצה על שורה פותחת את ההרכב.
+   *
+   * אין כאן דלת חדשה: `game.entries` מחזירה `slots: []` לכל הגשה
+   * שאינה שלי כל עוד `now() < lock_at`, והמסך הזה נפתח רק אחרי
+   * פרסום. ההסתרה יושבת בשרת ולא כאן.
+   */
+  const [open, setOpen] = useState<Row | null>(null);
+
+  const teams: TeamMeta[] = useMemo(
+    () => TEAMS.map((t) => ({ id: t.id, short: t.short, name: t.nameHe })), []);
+  const pool: PoolPlayer[] = useMemo(
+    () => PLAYERS.map((p) => ({
+      id: p.id,
+      teamId: p.teamId,
+      position: p.position,
+      name: p.nameHe,
+      nameShort: shortName(p.nameHe),
+      shirt: p.shirt,
+      price: p.price,
+    })), []);
+
   const me = rows.find((r) => r.isMe);
   // ★ אם אני מחוץ ל-20 הראשונים, אני עדיין רואה את עצמי — מעוגן בנפרד.
   const top = rows.slice(0, 20);
@@ -106,7 +139,6 @@ export function Leaderboard({
                 אני
               </span>
             )}
-            {r.entry.isBot && <BotTag />}
           </div>
           <div className="truncate text-[11px] text-chalk-dim">
             {r.entry.teamName ? `${r.entry.displayName} · ` : ''}
@@ -235,7 +267,8 @@ export function Leaderboard({
             rows={top}
             rowKey={(r) => r.entry.id}
             highlight={(r) => r.isMe}
-            caption={`${MODE_LABEL[mode]} · ${rows.length} משתתפים`}
+            onRowClick={setOpen}
+            caption={`${MODE_LABEL[mode]} · ${rows.length} משתתפים · לחיצה פותחת הרכב`}
             empty={`עדיין אין הרכבים מוגשים ב"${MODE_LABEL[mode]}".`}
           />
 
@@ -250,11 +283,26 @@ export function Leaderboard({
                 rows={[meOutsideTop]}
                 rowKey={(r) => r.entry.id}
                 highlight={() => true}
+                onRowClick={setOpen}
               />
             </>
           )}
         </>
       )}
+      {open && (
+        <RivalLineup
+          entry={open.entry}
+          score={open.score}
+          rank={open.rank}
+          mine={me && !open.isMe ? me.entry : undefined}
+          mineScore={me && !open.isMe ? me.score : undefined}
+          pool={pool}
+          teams={teams}
+          mode={mode}
+          onClose={() => setOpen(null)}
+        />
+      )}
+
       {/* ★ הטבלה היא המסך שנקרא הכי לאט — המשתמש מחפש את עצמו
           ברשימה. רצועה מלאה כאן נקראת, ולכן היא כאן ולא שורה. */}
       <HouseBanner
@@ -273,23 +321,6 @@ export function Leaderboard({
         className="mt-3"
       />
     </div>
-  );
-}
-
-/**
- * ★ תג הבוט.
- *
- * בוטים הם כלי מוצר לגיטימי — מחזור ראשון עם שני משתתפים אינו
- * תחרות. הם לגיטימיים **בתנאי אחד**: שהם מסומנים. הדגל מגיע
- * מהשרת (`game.users.is_bot`), והמסך רק מציג אותו. הסתרה כאן
- * הייתה הופכת כלי לגיטימי להטעיה.
- */
-function BotTag() {
-  return (
-    <span className="ms-1.5 rounded px-1.5 py-px text-[9.5px] font-black"
-          style={{ background: 'rgba(216,178,92,.18)', color: '#D8B25C' }}>
-      בוט
-    </span>
   );
 }
 
@@ -348,7 +379,6 @@ export function ParticipantList({
                     <span className="ms-1.5 rounded bg-gold px-1.5 py-px text-[10px]
                                      font-black text-night">אני</span>
                   )}
-                  {e.isBot && <BotTag />}
                 </span>
                 {e.teamName && (
                   <span className="block truncate text-[11px] text-chalk-dim">

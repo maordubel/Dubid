@@ -92,7 +92,6 @@ export interface LineupEntry {
    */
   hidden?: boolean;
   /** משתתף שנוצר על ידי האדמין. מוצג, לא מוסתר. */
-  isBot?: boolean;
 }
 
 export interface FixtureScore {
@@ -1883,4 +1882,70 @@ export async function adminResolveSquadConflict(
   });
   if (error) throw new Error(errorCode(error));
   await refreshLiveData();
+}
+
+/* =====================================================================
+ *  הלוח הפומבי (db/30)
+ * =====================================================================
+ *
+ *  ★ פתוח לאורח שלא נרשם ולמי שלא הגיש. זו הנקודה: מי שלא
+ *    הספיק להגיש הוא בדיוק האדם שהכי כדאי להחזיר בשבוע הבא,
+ *    והמוצר אמר לו עד היום "אין לך מה לעשות כאן".
+ */
+
+export interface BoardFixture {
+  home: string; homeNameHe: string;
+  away: string; awayNameHe: string;
+  kickoff: string;
+  status: 'scheduled' | 'live' | 'finished' | 'postponed' | 'abandoned';
+  homeGoals: number | null;
+  awayGoals: number | null;
+}
+
+export interface TableRow {
+  team: string; nameHe: string; short: string;
+  played: number; won: number; drawn: number; lost: number;
+  goalsFor: number; goalsAgainst: number; goalDiff: number; points: number;
+}
+
+export interface PublicBoard {
+  gameweek: {
+    code: string; number: number; label: string | null;
+    status: string; lockAt: string; live: boolean; entries: number;
+  } | null;
+  fixtures: BoardFixture[];
+  table: TableRow[];
+}
+
+export async function publicBoard(gameweekCode?: string): Promise<PublicBoard> {
+  const { data, error } = await supabase.rpc('public_board', {
+    p_gw_code: gameweekCode ?? null,
+  });
+  if (error) throw new Error(errorCode(error));
+  return data as PublicBoard;
+}
+
+export interface Recap {
+  gw: string;
+  exists: boolean;
+  status?: string;
+  entries: number;
+  hasEntry: boolean;
+  mode?: 'five' | 'full' | null;
+  teamName?: string | null;
+  points?: number | null;
+  rank?: number | null;
+  beatPercent?: number | null;
+  best?: { player: string; nameHe: string | null; points: number } | null;
+  worst?: { player: string; nameHe: string | null; points: number } | null;
+  captain?: { player: string; nameHe: string | null; points: number } | null;
+  top?: { name: string; points: number } | null;
+}
+
+export async function gameweekRecap(gameweekCode: string, mode?: 'five' | 'full'): Promise<Recap> {
+  const { data, error } = await supabase.rpc('gameweek_recap', {
+    p_gw_code: gameweekCode, p_mode: mode ?? null,
+  });
+  if (error) throw new Error(errorCode(error));
+  return data as Recap;
 }

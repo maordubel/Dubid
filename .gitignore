@@ -23,3 +23,6 @@ supabase/functions/dubid-score-gameweek/_lib/
 .DS_Store
 Thumbs.db
 *.log
+
+# ★ תוצר של scripts/export-edge-to-offsides.mjs — נבנה מחדש בכל הרצה.
+dist-edge/

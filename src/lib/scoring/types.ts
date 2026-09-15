@@ -32,6 +32,16 @@ export const Reason = {
   OwnGoal: 'own_goal',
   Yellow: 'yellow_card',
   Red: 'red_card',
+  /**
+   * פעולה מדודה — בעיטה למסגרת, מסירת מפתח, חטיפה, יירוט…
+   *
+   * ★ קוד סיבה **אחד** לכל המשפחה, והסטטיסטיקה הספציפית יושבת
+   *   ב-`meta.stat`. החלופה הייתה עשרה קודים חדשים, וכל הוספה
+   *   עתידית הייתה דורשת שינוי בטיפוס, במנוע, בתוויות ובכל
+   *   מסך שעושה `switch`. כך הוספת סטטיסטיקה מנוקדת היא שורה
+   *   בחוקים — דאטה, לא קוד.
+   */
+  Action: 'action',
   ResultBonus: 'result_bonus',
   VirtualGoal: 'virtual_goal',
   /** בונוס בחירה נדירה שהצליחה. מחושב ב-ranking.ts, לא ב-engine.ts. */
@@ -59,6 +69,14 @@ export interface PlayerPerformance {
   goalsConceded: number;
   cleanSheet: boolean;
   played: boolean;
+  /**
+   * מונים נוספים שנאספו במחזור: בעיטות, מסירות מפתח, חטיפות…
+   *
+   * ★ אופציונלי בכוונה. הרכב היסטורי שנוקד לפני שהשדות האלה
+   *   נאספו חייב להמשיך להיות ניתן לחישוב מחדש ולהחזיר **בדיוק**
+   *   את אותו מספר. `undefined` = אין נתון = אין נקודות.
+   */
+  actions?: Readonly<Record<string, number>>;
 }
 
 /** תוצאת הקבוצה האמיתית במחזור. */

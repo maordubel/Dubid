@@ -28,6 +28,23 @@ export interface PlayerRef {
   position?: Position | null;
 }
 
+/**
+ * מטא־דאטה של הסגל — משתנה בין מחזורים, לא בתוך משחק.
+ *
+ * ★ נפרד מ-`PlayerStat` בכוונה: ביצועים נכתבים דרך
+ *   `ingest_snapshot`, וזה נכתב דרך פונקציות משלו. שני קצבים
+ *   שונים, שתי טבלאות שונות, שתי סיבות שונות להיכשל.
+ */
+export interface SquadMeta {
+  /** שווי שוק ביורו. מזין את התמחור 1–5. */
+  marketValues: Array<{ providerId: string; marketValue: number }>;
+  /**
+   * מי לא זמין. `reason` הוא מה שהספק אמר, גולמי — המסד מחליט
+   * מה זה אומר. המתאם לא ממציא סיווג שהוא לא יודע.
+   */
+  availability: Array<{ providerId: string; reason: string; note?: string | null }>;
+}
+
 export interface Fixture {
   providerId: string;
   home: TeamRef;
@@ -111,6 +128,7 @@ export interface Provider {
     stats: PlayerStat[];
     alerts: Alert[];
     raw: RawBlob[];
+    meta?: SquadMeta;
   }>;
 }
 

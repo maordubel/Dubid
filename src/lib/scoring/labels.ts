@@ -18,6 +18,36 @@ export interface ReasonLabel {
   negative?: boolean;
 }
 
+/**
+ * שמות הסטטיסטיקות המנוקדות, בעברית.
+ *
+ * ★ `Reason.Action` הוא קוד אחד למשפחה שלמה, והסטטיסטיקה
+ *   הספציפית מגיעה ב-`meta.stat`. המפה הזו היא מה שהופך
+ *   `{stat:'keyPasses'}` ל"מסירות מפתח" במסך — בלי שהמנוע
+ *   יכיר מילה אחת בעברית.
+ */
+export const ACTION_LABELS: Record<string, string> = {
+  shots:             'בעיטות',
+  shotsOnTarget:     'בעיטות למסגרת',
+  keyPasses:         'מסירות מפתח',
+  bigChancesCreated: 'הזדמנויות שנוצרו',
+  dribblesWon:       'כיבושים',
+  tacklesWon:        'חטיפות',
+  interceptions:     'יירוטים',
+  clearances:        'הרחקות',
+  recoveries:        'ריבאונדים',
+  aerialsWon:        'ניצחונות באוויר',
+  savesInsideBox:    'הצלות מתוך הרחבה',
+};
+
+/** התווית המלאה לשורת ניקוד, כולל הסטטיסטיקה שמאחוריה. */
+export function lineLabel(reason: ReasonCode, meta?: Record<string, unknown>): string {
+  if (reason === Reason.Action && typeof meta?.stat === 'string') {
+    return ACTION_LABELS[meta.stat] ?? meta.stat;
+  }
+  return REASON_LABELS[reason]?.he ?? reason;
+}
+
 export type ReasonGroup =
   | 'attack' | 'defense' | 'minutes' | 'discipline'
   | 'team' | 'captain' | 'differential';
@@ -32,6 +62,7 @@ export const REASON_LABELS: Record<ReasonCode, ReasonLabel> = {
   [Reason.GoalsConceded]:      { he: 'ספיגות',           group: 'defense', negative: true },
   [Reason.OwnGoal]:            { he: 'שער עצמי',         group: 'defense', negative: true },
   [Reason.Minutes]:            { he: 'דקות משחק',        group: 'minutes' },
+  [Reason.Action]:             { he: 'פעולות',           group: 'attack' },
   [Reason.Yellow]:             { he: 'כרטיס צהוב',       group: 'discipline', negative: true },
   [Reason.Red]:                { he: 'כרטיס אדום',       group: 'discipline', negative: true },
   [Reason.ResultBonus]:        { he: 'תוצאת הקבוצה',     group: 'team' },
