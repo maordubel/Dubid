@@ -950,6 +950,37 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS, 'content-type': 'application/json; charset=utf-8' },
   });
 
+/**
+ * רישום כישלון שאינו יכול להיכשל בעצמו.
+ *
+ * ★★ הבאג שהפונקציה הזו קיימת כדי שלא יחזור ★★
+ *
+ * הקוד היה `supabase.rpc(...).catch(() => {})`. ב-supabase-js v2
+ * הבנאי שמוחזר מ-`rpc()` הוא **thenable בלבד**: יש לו `then`,
+ * ואין לו `catch`. כלומר השורה הזו זרקה
+ *
+ *     TypeError: supabase.rpc(...).catch is not a function
+ *
+ * **מתוך בלוק ה-catch עצמו.** התוצאה הייתה הגרועה מכולן:
+ * השגיאה המקורית נבלעה, הפונקציה קרסה מחוץ לכל טיפול, והפלטפורמה
+ * החזירה "Internal Server Error" חלק — בלי גוף, בלי שורה ביומן
+ * הריצות, ובלי שום דרך לדעת מה באמת נפל. שלוש שעות של איתור
+ * הלכו על שגיאה שהייתה **במטפל בשגיאות**.
+ *
+ * הכלל: מטפל שגיאות לא מריץ שום דבר שיכול לזרוק, ואם הוא כן —
+ * הוא עטוף בעצמו.
+ */
+async function logFailure(
+  supabase: { rpc: (fn: string, args: Record<string, unknown>) => unknown },
+  args: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await supabase.rpc('ingest_log_failure', args);
+  } catch {
+    /* אין לאן לדווח מכאן. הגוף של התשובה עדיין נושא את השגיאה. */
+  }
+}
+
 /* ------------------------------------------------------------------ *
  *  HTTP אל הספקים
  * ------------------------------------------------------------------ */
@@ -1065,7 +1096,7 @@ Deno.serve(async (req) => {
         usedBackup = true;
         source = backup as unknown as typeof primary;
         round = await backup.currentRound();
-        await supabase.rpc('ingest_log_failure', {
+        await logFailure(supabase, {
           p_source: 'sofascore', p_phase: 'fixtures',
           p_gw_code: null, p_error: String(err),
         });
@@ -1164,7 +1195,7 @@ Deno.serve(async (req) => {
         if (!scored.ok) {
           /* ★ ניקוד שנכשל **לא** מפרסם. מחזור מפורסם בלי ניקוד
              הוא טבלה ריקה שכל המשתמשים רואים בבת אחת. */
-          await supabase.rpc('ingest_log_failure', {
+          await logFailure(supabase, {
             p_source: 'scoring', p_phase: 'final',
             p_gw_code: ready, p_error: `score-gameweek ${scored.status}`,
           });
@@ -1181,13 +1212,18 @@ Deno.serve(async (req) => {
     return json({ ok: true, round, source: usedBackup ? 'backup' : 'primary', done });
 
   } catch (err) {
-    await supabase.rpc('ingest_log_failure', {
+    /* ★ התשובה נבנית **לפני** הרישום. אם הרישום ייפול, המשתמש
+       עדיין מקבל את השגיאה האמיתית בגוף התשובה — וזה מה
+       שמופיע בכרטיס "פעימות" במסך הקליטה. */
+    const response = json({ ok: false, error: String(err), round }, 500);
+
+    await logFailure(supabase, {
       p_source: 'dubid-ingest',
       p_phase: phase === 'auto' ? 'sweep' : String(phase),
       p_gw_code: round ? `gw-${round}` : null,
       p_error: String(err),
-    }).catch(() => {});
+    });
 
-    return json({ ok: false, error: String(err), round }, 500);
+    return response;
   }
 });
