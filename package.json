@@ -15,6 +15,7 @@
     "build:squads": "node scripts/build-squads.mjs",
     "typecheck": "tsc --noEmit",
     "sync:edge": "node scripts/sync-edge-shared.mjs",
+    "bundle:edge": "node scripts/bundle-edge.mjs",
     "deploy:edge": "npm run sync:edge && supabase functions deploy dubid-score-gameweek",
     "export:edge": "node scripts/export-edge-to-offsides.mjs"
   },

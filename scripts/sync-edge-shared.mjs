@@ -18,6 +18,12 @@
  * לכן היעד הוא `<function>/_lib/` — בתוך הפונקציה. עובד בשתי דרכי
  * הפריסה, בלי תנאים ובלי "תלוי איך אתה פורס".
  *
+ * ★★ `dubid-ingest` אינה כאן ★★
+ *
+ * גם `_lib/` וגם שישה קבצים שטוחים נכשלו בפריסה דרך הדפדפן.
+ * היא נבנית לקובץ **אחד** על ידי `scripts/bundle-edge.mjs`.
+ * ראו את ההסבר המלא שם.
+ *
  * מקור האמת נשאר `src/lib/`. `_lib/` הוא תוצר בנייה: כל קובץ בו
  * מסומן "נוצר אוטומטית", והתיקייה ב-.gitignore.
  *
@@ -43,7 +49,6 @@ const FUNCTIONS = {
      override-ים, והפונקציה קראה טבלה אחרת לגמרי. האדמין היה
      משנה בישול ל-4, המסך היה מראה 4, והניקוד הרשמי היה נשאר 3. */
   'dubid-score-gameweek': { dirs: ['scoring', 'events'], files: ['ruleOverrides.ts'] },
-  'dubid-ingest':         { dirs: ['ingest'],            files: [] },
 };
 
 const BANNER = `/**
@@ -71,7 +76,9 @@ function stamp(dir) {
 }
 
 for (const [fn, what] of Object.entries(FUNCTIONS)) {
-  const dest = join(ROOT, 'supabase/functions', fn, '_lib');
+  const root = join(ROOT, 'supabase/functions', fn);
+
+  const dest = join(root, '_lib');
   rmSync(dest, { recursive: true, force: true });
   mkdirSync(dest, { recursive: true });
 
@@ -85,4 +92,4 @@ for (const [fn, what] of Object.entries(FUNCTIONS)) {
 }
 
 console.log('\nמקור האמת: src/lib/ — אל תערכו את היעד.');
-console.log('פריסה דרך ה-Dashboard: להעלות את כל תיקיית הפונקציה, כולל _lib/.');
+console.log('פריסה: dubid-score-gameweek — כל התיקייה כולל _lib/.  dubid-ingest — node scripts/bundle-edge.mjs.');

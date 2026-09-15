@@ -15,11 +15,9 @@
  *   כמטא־דאטה בלבד.
  */
 import type {
-  Alert, Fixture, FixtureStatus, PlayerStat, Provider, RawBlob, TeamRef,
+  Alert, Fixture, FixtureStatus, Http, PlayerStat, Provider, RawBlob, TeamRef,
 } from './types.ts';
 import { concededWhileOn, isoFromUnix, num, toPosition, toShirt, type OnPitch } from './derive.ts';
-
-export type Http = (url: string) => Promise<any>;
 
 export interface SofascoreConfig {
   base?: string;
@@ -27,14 +25,14 @@ export interface SofascoreConfig {
   seasonId: number;
 }
 
-const DEFAULT_BASE = 'https://api.sofascore.com/api/v1';
+const SOFA_BASE = 'https://api.sofascore.com/api/v1';
 
 /* ------------------------------------------------------------------ *
  *  מיפוי סטטוס
  * ------------------------------------------------------------------ */
 //  ★ 'suspended' ו-'interrupted' → abandoned ולא live.
 //    משחק שהופסק אינו תוצאה, ומחזור לא ייסגר מעליו בטעות.
-const STATUS: Record<string, FixtureStatus> = {
+const SOFA_STATUS: Record<string, FixtureStatus> = {
   notstarted: 'scheduled',
   willstart: 'scheduled',
   delayed: 'scheduled',
@@ -47,12 +45,12 @@ const STATUS: Record<string, FixtureStatus> = {
   interrupted: 'abandoned',
 };
 
-export function mapStatus(raw: unknown): FixtureStatus {
+export function mapSofaStatus(raw: unknown): FixtureStatus {
   const key = String(raw ?? '').toLowerCase();
-  return STATUS[key] ?? 'scheduled';
+  return SOFA_STATUS[key] ?? 'scheduled';
 }
 
-const team = (t: any): TeamRef => ({
+const sofaTeam = (t: any): TeamRef => ({
   id: String(t?.id ?? ''),
   nameEn: t?.name ?? t?.fullName ?? null,
   nameHe: null,
@@ -64,10 +62,10 @@ export function mapFixture(event: any): Fixture | null {
 
   return {
     providerId: String(id),
-    home: team(event.homeTeam),
-    away: team(event.awayTeam),
+    home: sofaTeam(event.homeTeam),
+    away: sofaTeam(event.awayTeam),
     kickoff: isoFromUnix(event.startTimestamp),
-    status: mapStatus(event?.status?.type),
+    status: mapSofaStatus(event?.status?.type),
     homeGoals: typeof event?.homeScore?.current === 'number' ? event.homeScore.current : null,
     awayGoals: typeof event?.awayScore?.current === 'number' ? event.awayScore.current : null,
   };
@@ -341,7 +339,7 @@ export function mapMatchStats(
  *  הספק
  * ------------------------------------------------------------------ */
 export function createSofascore(http: Http, cfg: SofascoreConfig): Provider {
-  const base = cfg.base ?? DEFAULT_BASE;
+  const base = cfg.base ?? SOFA_BASE;
   const t = cfg.tournamentId;
   const s = cfg.seasonId;
 

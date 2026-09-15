@@ -9,23 +9,23 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  mapStatus, mapFixture, goalMinutesBySide, onPitchWindows,
+  mapSofaStatus, mapFixture, goalMinutesBySide, onPitchWindows,
   cardsByPlayer, ownGoalsByPlayer, unknownEventKinds, mapMatchStats,
 } from '../src/lib/ingest/sofascore.ts';
-import { mapStatus as mapStatus365, parseKickoff, mapGame } from '../src/lib/ingest/scores365.ts';
+import { map365Status, parseKickoff, mapGame } from '../src/lib/ingest/scores365.ts';
 import { reconcileFixtures } from '../src/lib/ingest/reconcile.ts';
 import { concededWhileOn, toPosition, toShirt, isoFromUnix } from '../src/lib/ingest/derive.ts';
 import type { Fixture } from '../src/lib/ingest/types.ts';
 
 /* ------------------------------------------------------------------ */
 test('סטטוס: משחק שהופסק אינו חי ואינו סופי', () => {
-  assert.equal(mapStatus('finished'), 'finished');
-  assert.equal(mapStatus('inprogress'), 'live');
-  assert.equal(mapStatus('postponed'), 'postponed');
-  assert.equal(mapStatus('suspended'), 'abandoned');
-  assert.equal(mapStatus('canceled'), 'abandoned');
+  assert.equal(mapSofaStatus('finished'), 'finished');
+  assert.equal(mapSofaStatus('inprogress'), 'live');
+  assert.equal(mapSofaStatus('postponed'), 'postponed');
+  assert.equal(mapSofaStatus('suspended'), 'abandoned');
+  assert.equal(mapSofaStatus('canceled'), 'abandoned');
   // ★ סטטוס שהספק המציא מחר — נחשב "טרם התחיל", לא "הסתיים".
-  assert.equal(mapStatus('brand_new_status'), 'scheduled');
+  assert.equal(mapSofaStatus('brand_new_status'), 'scheduled');
 });
 
 test('שעה לא מפורסמת נשארת null ולא מומצאת', () => {
@@ -162,11 +162,11 @@ test('משחק שלם → שורות שחקנים, כולל VAR כהתרעה ח�
 
 /* ------------------------------------------------------------------ */
 test('מקור גיבוי: כל מה שלא ודאי "הסתיים" נשאר scheduled', () => {
-  assert.equal(mapStatus365({ statusGroup: 4 }), 'finished');
-  assert.equal(mapStatus365({ winner: 1 }), 'finished');
-  assert.equal(mapStatus365({ statusGroup: 3 }), 'live');
-  assert.equal(mapStatus365({ statusGroup: 99 }), 'scheduled');
-  assert.equal(mapStatus365({}), 'scheduled');
+  assert.equal(map365Status({ statusGroup: 4 }), 'finished');
+  assert.equal(map365Status({ winner: 1 }), 'finished');
+  assert.equal(map365Status({ statusGroup: 3 }), 'live');
+  assert.equal(map365Status({ statusGroup: 99 }), 'scheduled');
+  assert.equal(map365Status({}), 'scheduled');
 });
 
 test('מקור גיבוי: שם עברי נשמר, שעה לא קריאה היא null', () => {

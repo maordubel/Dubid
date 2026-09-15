@@ -17,11 +17,9 @@
  *   והתרעה — ולא מספרים שנראים אמיתיים.
  */
 import type {
-  Alert, Fixture, FixtureStatus, PlayerStat, Provider, RawBlob, TeamRef,
+  Alert, Fixture, FixtureStatus, Http, PlayerStat, Provider, RawBlob, TeamRef,
 } from './types.ts';
 import { num, toShirt } from './derive.ts';
-
-export type Http = (url: string) => Promise<any>;
 
 export interface Scores365Config {
   base?: string;
@@ -30,7 +28,7 @@ export interface Scores365Config {
   langId?: number;
 }
 
-const DEFAULT_BASE = 'https://webws.365scores.com/web';
+const S365_BASE = 'https://webws.365scores.com/web';
 
 /**
  * ★ טבלת הסטטוסים היא **שמרנית בכוונה**: כל מה שלא מזוהה
@@ -38,7 +36,7 @@ const DEFAULT_BASE = 'https://webws.365scores.com/web';
  *   בטעות "הסתיים" יגרום לסגירת מחזור מוקדמת, וזה הנזק הגדול
  *   ביותר שמקור משני יכול לגרום.
  */
-export function mapStatus(game: any): FixtureStatus {
+export function map365Status(game: any): FixtureStatus {
   const group = num(game?.statusGroup);
   const ended = game?.gameTimeAndStatusDisplayType === 1
     || group === 4
@@ -56,7 +54,7 @@ export function parseKickoff(raw: unknown): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-const team = (c: any): TeamRef => ({
+const s365Team = (c: any): TeamRef => ({
   id: String(c?.id ?? ''),
   nameEn: c?.nameForURL ?? null,
   nameHe: c?.name ?? null,      // ← הערך שבגללו המקור הזה קיים
@@ -66,10 +64,10 @@ export function mapGame(game: any): Fixture | null {
   if (game?.id === undefined || game?.id === null) return null;
   return {
     providerId: String(game.id),
-    home: team(game.homeCompetitor),
-    away: team(game.awayCompetitor),
+    home: s365Team(game.homeCompetitor),
+    away: s365Team(game.awayCompetitor),
     kickoff: parseKickoff(game.startTime),
-    status: mapStatus(game),
+    status: map365Status(game),
     homeGoals: typeof game?.homeCompetitor?.score === 'number' && game.homeCompetitor.score >= 0
       ? game.homeCompetitor.score : null,
     awayGoals: typeof game?.awayCompetitor?.score === 'number' && game.awayCompetitor.score >= 0
@@ -103,7 +101,7 @@ export function mapSquad(payload: any, teamProviderId: string): SquadRow[] {
 export function createScores365(http: Http, cfg: Scores365Config): Provider & {
   squad(teamProviderId: string): Promise<SquadRow[]>;
 } {
-  const base = cfg.base ?? DEFAULT_BASE;
+  const base = cfg.base ?? S365_BASE;
   const lang = cfg.langId ?? 2;
   const q = `appTypeId=5&langId=${lang}&timezoneName=Asia/Jerusalem&competitions=${cfg.competitionId}`;
 
@@ -128,7 +126,7 @@ export function createScores365(http: Http, cfg: Scores365Config): Provider & {
       for (const g of all) {
         const r = num(g?.roundNum);
         if (!r) continue;
-        const done = mapStatus(g) === 'finished';
+        const done = map365Status(g) === 'finished';
         byRound.set(r, (byRound.get(r) ?? true) && done);
       }
       const open = [...byRound.entries()].filter(([, done]) => !done).map(([r]) => r);

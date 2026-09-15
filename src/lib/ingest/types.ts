@@ -90,6 +90,15 @@ export interface Snapshot {
   raw: RawBlob[];
 }
 
+/**
+ * הבאת JSON אחת. מוזרקת למתאם כדי שאפשר יהיה לבדוק אותו בלי רשת.
+ *
+ * ★ יושבת כאן ולא בכל מתאם: שני מתאמים שמגדירים `Http` משלהם
+ *   אינם יכולים לחיות באותו קובץ, והפריסה ל-Dashboard דורשת
+ *   בדיוק את זה — קובץ אחד.
+ */
+export type Http = (url: string) => Promise<any>;
+
 /** מה שכל מתאם חייב לספק. */
 export interface Provider {
   readonly name: string;

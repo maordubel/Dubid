@@ -68,6 +68,50 @@ pg_cron כל 10 דק׳
 | לשנות `kickoff` אחרי הנעילה | זה שינוי דדליין רטרואקטיבי — כלומר פסילת הגשות שהיו חוקיות |
 | למחוק שורה מ-`core.ingest_raw` | append-only, נאכף בטריגר. זה מה שעונה על "למה הוא קיבל 3 נקודות" |
 
+## פריסה של ה-Edge Function
+
+**קובץ אחד. אחד.** `supabase/functions/dubid-ingest/index.ts`.
+
+Edge Functions → `dubid-ingest` → `index.ts` → לסמן הכל → להדביק
+→ Deploy. אין תיקיות, אין קבצים נוספים, אין ייבוא יחסי.
+
+★ שתי פריסות נכשלו לפני שזו הייתה המסקנה:
+
+| ניסיון | מה קרה |
+|---|---|
+| `./_lib/ingest/x.ts` | `Module not found` בזמן bundle — העורך לא יוצר תיקיות |
+| שישה קבצים שטוחים | `500` בכל קריאה, **בלי שורה ביומן** — קובץ שלא נשמר נראה בדיוק כמו קובץ שנשמר |
+
+הקובץ נבנה מ-`src/lib/ingest/*.ts` ומ-`_src/handler.ts` על ידי
+`scripts/bundle-edge.mjs`, שגם נכשל מראש על התנגשות שמות בין
+מודולים. מקור האמת לא זז.
+
+`dubid-score-gameweek` נשארת עם `_lib/` — היא מייבאת שתי תיקיות
+שיש בהן `types.ts` כפול.
+
+## הבדיקה שמפרידה תקלת פריסה מתקלת ריצה
+
+```sql
+select net.http_post(
+  url     := (select function_url from game.ingest_secrets where id),
+  headers := jsonb_build_object('content-type','application/json',
+                                'x-ingest-token',(select token from game.ingest_secrets where id)),
+  body    := '{"phase":"ping"}'::jsonb);
+```
+
+ואז, אחרי כמה שניות:
+
+```sql
+select status_code, content from net._http_response order by created desc limit 1;
+```
+
+`200` עם `{"pong":true,...}` → הקובץ נטען והסודות קיימים; כל
+תקלה שנשארה היא בהמשך המסלול.
+`500` → הקובץ עצמו לא נטען. הסיבה ביומן ה-Edge Function.
+
+`ping` לא נוגע ברשת ולא במסד, ולכן הוא לא יכול להיכשל מסיבה
+אחרת. `version` בתשובה אומר איזו גרסה באמת פרוסה.
+
 ## סודות
 
 | איפה | שם | ערך |
