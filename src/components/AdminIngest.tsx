@@ -334,8 +334,16 @@ function Dispatches({ rows }: { rows: IngestDispatch[] }) {
               <span className="shrink-0 text-chalk-dim">{when(d.requestedAt)}</span>
               <span className="min-w-0 flex-1 truncate text-chalk-2">
                 {d.origin === 'admin' ? 'ידני' : 'מתוזמן'}
+                {/* ★ גם המשפט בעברית וגם הגוף האמיתי.
+                    הגרסה הראשונה הציגה רק את המשפט, ולכן 500
+                    נראה זהה בכל סיבה אפשרית — והסיבה האמיתית
+                    הייתה במקום שאי אפשר להגיע אליו מהמסך. */}
                 {d.status !== null && (
-                  <> · {DISPATCH_HE[d.status] ?? (d.body || '—')}</>
+                  <> · {DISPATCH_HE[d.status] ?? ''}
+                    {d.body && (
+                      <span dir="ltr" className="text-chalk-dim"> {d.body.slice(0, 160)}</span>
+                    )}
+                  </>
                 )}
                 {d.status === null && <> · בדרך…</>}
               </span>

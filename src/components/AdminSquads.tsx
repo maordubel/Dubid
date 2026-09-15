@@ -28,7 +28,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   fetchAdminSquads, adminUpsertPlayer, adminMovePlayer,
-  adminSetPrice, adminSetPlayerStatus, errorMessageHe,
+  adminSetPrice, adminSetPlayerStatus, adminSetPlayerPosition,
+  adminResolveSquadConflict, errorMessageHe,
   type AdminTeamSquad, type AdminPlayerRow,
 } from '../lib/store.ts';
 import { TeamCrest } from './TeamCrest.tsx';
@@ -249,6 +250,16 @@ function PlayerRow({
           {teamLabel && <span className="ms-1.5 text-[11px] text-chalk-dim">{teamLabel}</span>}
         </button>
 
+        {/* ★ שחקן שפתוח ביותר מקבוצה אחת מסומן באדום לפני כל
+            דבר אחר. זה לא עניין של סדר — הוא שובר את האילוץ
+            «שחקן אחד מכל קבוצה», כלומר זו תקלה תחרותית. */}
+        {(player.openTeams ?? 1) > 1 && (
+          <span className="shrink-0 rounded bg-flare/20 px-1.5 py-0.5 text-[9.5px]
+                           font-black text-flare">
+            ב-{player.openTeams} קבוצות
+          </span>
+        )}
+
         <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9.5px] font-black
                           ${STATUS_TONE[player.status]}`}>
           {STATUS_HE[player.status]}
@@ -276,6 +287,55 @@ function PlayerRow({
 
       {open && (
         <div className="mt-2 space-y-2 border-t border-gold/10 pt-2">
+          {/* ── עמדה ──
+              ★ שבבים ולא תפריט: ארבע אפשרויות קבועות, וכל אחת
+                במרחק קליק. תפריט נפתח דורש שלושה מגעים באצבע
+                בשביל אותה פעולה בדיוק. */}
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-chalk-dim">
+              עמדה
+            </span>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {POSITIONS.map((pos) => (
+                <button
+                  key={pos}
+                  disabled={busy || pos === player.position}
+                  onClick={() => run(() => adminSetPlayerPosition(player.id, pos, teamId))}
+                  className={`rounded-full px-2 py-1 text-[11px] font-bold transition-colors
+                              disabled:opacity-40 ${
+                                pos === player.position
+                                  ? 'bg-gold text-gold-ink'
+                                  : 'bg-night-3 text-chalk-2'
+                              }`}
+                >
+                  {POSITION_HE[pos]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── שחקן שפתוח בכמה קבוצות ── */}
+          {(player.openTeams ?? 1) > 1 && (
+            <div className="rounded-lg border border-flare/40 bg-flare/5 px-2.5 py-2">
+              <p className="text-[11.5px] leading-snug text-chalk-2">
+                השחקן פתוח ב-{player.openTeams} קבוצות. זה שובר את הכלל
+                «שחקן אחד מכל קבוצה» בהגשות.
+              </p>
+              <button
+                disabled={busy}
+                onClick={() => run(() => adminResolveSquadConflict(player.id, teamId))}
+                className="tap mt-1.5 rounded-lg bg-flare/20 px-3 py-1.5 text-[11.5px]
+                           font-black text-flare disabled:opacity-40"
+              >
+                להשאיר רק ב{teamLabel ? `-${teamLabel}` : 'קבוצה הזו'}
+              </button>
+              <p className="mt-1 text-[10.5px] text-chalk-dim">
+                השורות האחרות נסגרות ולא נמחקות — הרכב שהוגש בעבר ממשיך לדעת
+                מאיזו קבוצה הוא היה.
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-1">
             {(Object.keys(STATUS_HE) as Array<AdminPlayerRow['status']>).map((st) => (
               <button

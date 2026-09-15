@@ -801,6 +801,14 @@ export interface AdminPlayerRow {
   tier: number | null;
   overallRank: number | null;
   nationality: string | null;
+  /**
+   * בכמה קבוצות שורת הסגל שלו פתוחה כרגע. 1 = תקין.
+   *
+   * ★ 2+ אינו באג תצוגה: `submit_entry` אוכף «שחקן אחד מכל
+   *   קבוצה», ושחקן פתוח בשתיים יכול להיבחר כנציג של אחת
+   *   ולהיספר כשנייה.
+   */
+  openTeams?: number;
 }
 
 export interface AdminTeamSquad {
@@ -1833,4 +1841,46 @@ export async function ingestDispatches(limit = 10): Promise<IngestDispatch[]> {
   const { data, error } = await supabase.rpc('admin_ingest_dispatches', { p_limit: limit });
   if (error) throw new Error(errorCode(error));
   return (data ?? []) as IngestDispatch[];
+}
+
+/* =====================================================================
+ *  עמדה ותיקון סגלים (db/29)
+ * ===================================================================== */
+
+export async function adminSetPlayerPosition(
+  playerId: string,
+  position: AdminPlayerRow['position'],
+  teamId?: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_player_position', {
+    p_ext_player: playerId.replace(/^P/, ''),
+    p_position: position,
+    p_ext_team: teamId ? teamId.replace(/^T/, '') : null,
+  });
+  if (error) throw new Error(errorCode(error));
+  await refreshLiveData();
+}
+
+export interface SquadConflict {
+  player: string;
+  nameHe: string;
+  teams: Array<{ team: string; nameHe: string; shirt: number | null; status: string }>;
+}
+
+export async function adminSquadConflicts(): Promise<SquadConflict[]> {
+  const { data, error } = await supabase.rpc('admin_squad_conflicts');
+  if (error) throw new Error(errorCode(error));
+  return (data ?? []) as SquadConflict[];
+}
+
+/** משאיר את השחקן בקבוצה אחת וסוגר את השאר. לא מוחק. */
+export async function adminResolveSquadConflict(
+  playerId: string, teamId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_resolve_squad_conflict', {
+    p_ext_player: playerId.replace(/^P/, ''),
+    p_ext_team: teamId.replace(/^T/, ''),
+  });
+  if (error) throw new Error(errorCode(error));
+  await refreshLiveData();
 }
