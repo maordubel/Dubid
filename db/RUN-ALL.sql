@@ -13091,6 +13091,317 @@ ON CONFLICT (version) DO NOTHING;
 
 
 -- =====================================================================
+-- ▼▼▼  33_anon_grants.sql  —  ★ …וגם מ-anon ומ-authenticated — שם ההרשאה באמת ישבה
+-- =====================================================================
+
+-- =====================================================================
+--  db/33_anon_grants.sql — ההרשאה שלא באה מ-PUBLIC
+--
+--  ═══════════════════════════════════════════════════════════════
+--  ★★ db/32 לא סגר את החור, ובדיקה 18 העידה שכן ★★
+--  ═══════════════════════════════════════════════════════════════
+--
+--  `db/32` הריץ `REVOKE ALL … FROM PUBLIC` והנחתי שזה מספיק, כי
+--  ההנחה הייתה שההרשאה מגיעה מברירת המחדל של PostgreSQL.
+--  היא לא. `db/07` מעניק במפורש:
+--
+--      GRANT ALL ON ALL ROUTINES IN SCHEMA game
+--        TO anon, authenticated, service_role;
+--
+--      ALTER DEFAULT PRIVILEGES … GRANT ALL ON ROUTINES
+--        TO anon, authenticated, service_role;
+--
+--  הענקה מפורשת ל-`anon` שורדת כל `REVOKE … FROM PUBLIC`,
+--  ושורת ה-`ALTER DEFAULT PRIVILEGES` מעניקה אותה מחדש לכל
+--  פונקציה **עתידית** באופן אוטומטי.
+--
+--  אחרי `db/32` המצב היה:  `PUBLIC=no  anon=YES`.
+--  כלומר: אנונימי עדיין הריץ את הפעימה ושינה סטטוס של מחזור.
+--
+--  ★ והחלק החמור יותר: בדיקה 18 בדקה **רק PUBLIC**, ולכן היא
+--    עברה. בדיקה ירוקה שמעידה על סגירה שלא קרתה גרועה מהחור
+--    עצמו — היא מוחקת את הסיכוי שמישהו יסתכל שוב.
+--
+--  ═══════════════════════════════════════════════════════════════
+--  ★ מה משתנה כאן
+--  ═══════════════════════════════════════════════════════════════
+--
+--  ההרשאה נשללת מ-`anon`, מ-`authenticated` ומ-PUBLIC — משלושתם.
+--
+--  והכלל אינו רשימה שמישהו יצטרך לזכור לעדכן, אלא **דפוס**:
+--
+--      · כל פונקציה בסכימת `game` ששמה מתחיל ב-`ingest_`
+--      · ועוד קבוצה מפורשת של פונקציות מחזור חיים וזהות
+--
+--  `admin_ingest_now`, `admin_ingest_state`, `admin_ingest_round`
+--  ו-`admin_ingest_dispatches` מתחילות ב-`admin_` ולכן אינן
+--  נתפסות — והמסך קורא להן. זו בדיוק הסיבה שהדפוס הוא
+--  `ingest\_%` ולא `%ingest%`.
+--
+--  ★ למה זה לא מפיל את האתר: עברתי על כל קריאות ה-`rpc(...)`
+--    ב-`src/`. אף אחת מהפונקציות ברשימה אינה נקראת מהדפדפן.
+--    מה שהמסכים קוראים — `entries`, `fixtures`, `public_board`,
+--    `league_table`, `gameweek_recap`, `squads`, `me` וכל השאר —
+--    אינו נוגע בדפוס הזה כלל.
+--
+--  ★ מה שלא נגעתי בו, ודורש החלטה נפרדת: שורת
+--    `ALTER DEFAULT PRIVILEGES` ב-`db/07` ממשיכה להעניק כל
+--    פונקציה עתידית ל-`anon`. הקובץ הזה רץ אחרון ב-RUN-ALL
+--    ולכן מנקה אחריה, ובדיקה 19 נופלת על כל פונקציית מערכת
+--    חדשה שתיפתח. לצמצם את ברירת המחדל עצמה זה שינוי רחב
+--    שדורש מעבר על כל פונקציה בסכימה — לא בסבב הזה.
+-- =====================================================================
+
+BEGIN;
+
+CREATE OR REPLACE FUNCTION game.is_system_routine(p_name TEXT)
+RETURNS BOOLEAN LANGUAGE sql IMMUTABLE AS $$
+  SELECT p_name LIKE 'ingest\_%'
+      OR p_name IN (
+           'lifecycle_tick','auto_advance','touch_fingerprint',
+           'gameweek_fingerprint','can_write_data','is_system');
+$$;
+
+COMMENT ON FUNCTION game.is_system_routine(TEXT) IS
+  'האם זו פונקציית מערכת שאסור שתהיה קריאה מהדפדפן. מקור אמת אחד לקובץ הזה ולבדיקה.';
+
+DO $lock$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT p.oid::REGPROCEDURE AS sig
+      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'game' AND game.is_system_routine(p.proname)
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', r.sig);
+    /* ★ התפקידים קיימים רק בענן. במסד מקומי אין ממי לשלול. */
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+      EXECUTE format('REVOKE ALL ON FUNCTION %s FROM anon', r.sig);
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+      EXECUTE format('REVOKE ALL ON FUNCTION %s FROM authenticated', r.sig);
+    END IF;
+  END LOOP;
+END
+$lock$;
+
+/* ה-Edge Functions קוראות חמש מהן דרך PostgREST בתור service_role. */
+DO $grant$
+DECLARE
+  r      RECORD;
+  v_list TEXT[] := ARRAY[
+    'ingest_snapshot','ingest_set_availability','ingest_set_market_values',
+    'ingest_log_failure','auto_advance'
+  ];
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    RAISE NOTICE 'אין service_role — מסד מקומי. דילגתי.';
+    RETURN;
+  END IF;
+
+  FOR r IN
+    SELECT p.oid::REGPROCEDURE AS sig
+      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'game' AND p.proname = ANY(v_list)
+  LOOP
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
+  END LOOP;
+END
+$grant$;
+
+COMMIT;
+
+INSERT INTO game.schema_migrations (version, note) VALUES
+  ('33', '★ פונקציות המערכת נשללות גם מ-anon ומ-authenticated — לא רק מ-PUBLIC')
+ON CONFLICT (version) DO NOTHING;
+
+
+-- =====================================================================
+-- ▼▼▼  34_backfill.sql  —  ★ מחזור שנגמר בלי שורת סטטיסטיקה אחת חוזר לתור מעצמו
+-- =====================================================================
+
+-- =====================================================================
+--  db/34_backfill.sql — מחזור שנגמר בלי סטטיסטיקה חוזר לתור
+--
+--  ═══════════════════════════════════════════════════════════════
+--  ★ מה זה פותר
+--  ═══════════════════════════════════════════════════════════════
+--
+--  מחזור 4 נגמר, ולכל שבעת המשחקים יש תוצאה סופית — ו**אפס
+--  שורות** ב-`core.player_match_stats`. המקור החזיר 403 בדיוק
+--  בחלון שבו נאספת הסטטיסטיקה, והקליטה המשיכה הלאה למחזור 5.
+--  אף אחד לא חזר למחזור 4, ואף אחד לא היה חוזר אליו לעולם:
+--  `ingest_tick` שואלת את הספק «מה המחזור הנוכחי» ומקבלת 5.
+--
+--  התיקון היחיד שהיה זמין הוא אדם שמריץ `admin_ingest_round(4)`
+--  ביד. זה בדיוק מה שהברִיף אוסר — «ללא התערבות אדם, אלא רק
+--  יכולת עריכה ותיקונים במקרה הצורך».
+--
+--  ═══════════════════════════════════════════════════════════════
+--  ★ הכלל
+--  ═══════════════════════════════════════════════════════════════
+--
+--  מחזור שלא פורסם, שכל משחקיו הסתיימו, ושאין לו ולו שורת
+--  סטטיסטיקה אחת — **אינו מחזור שממתין. הוא מחזור שנפל.**
+--  הפעימה מזמינה סריקה חוזרת שלו, במפורש לפי מספרו.
+--
+--  ★ שלוש החלטות:
+--
+--   1. **ויסות.** ניסיון אחד לכל חצי שעה לכל היותר. בלעדיו זו
+--      לולאה שמפציצה את הספק שחסם אותנו מלכתחילה — והדרך
+--      הבטוחה להפוך חסימה זמנית לקבועה.
+--   2. **הישן קודם.** מחזור אחד בכל פעימה, לפי סדר. שתי סריקות
+--      במקביל מתחרות על אותו חלון של 55 שניות.
+--   3. **«אין ולו שורה אחת» ולא «חסרות שורות».** כיסוי חלקי הוא
+--      החלטה של `ingest_check_coverage` ושל האדמין. כאן מדובר
+--      במחזור שלא נקלט בכלל — מצב שאין עליו ויכוח.
+-- =====================================================================
+
+BEGIN;
+
+CREATE OR REPLACE FUNCTION game.gameweek_needs_backfill()
+RETURNS TABLE (code TEXT, number INT)
+LANGUAGE sql STABLE
+SET search_path = game, core, public
+AS $$
+  SELECT g.code, g.number
+    FROM game.gameweeks g
+   WHERE g.status NOT IN ('published','archived','draft')
+     AND EXISTS (SELECT 1 FROM core.weekly_matches m WHERE m.gameweek_id = g.id)
+     /* כל המשחקים נגמרו — או שהאחרון שבהם התחיל לפני יותר משלוש
+        שעות, כדי לתפוס גם מחזור שתקוע ב-'live' כי הסטטוס עצמו
+        לא התעדכן. */
+     AND NOT EXISTS (
+           SELECT 1 FROM core.weekly_matches m
+            WHERE m.gameweek_id = g.id
+              AND m.status NOT IN ('finished','postponed','abandoned')
+              AND m.kickoff_at > now() - INTERVAL '3 hours')
+     /* ואין ולו שורת סטטיסטיקה אחת */
+     AND NOT EXISTS (
+           SELECT 1 FROM core.player_match_stats s
+             JOIN core.weekly_matches m ON m.id = s.match_id
+            WHERE m.gameweek_id = g.id)
+   ORDER BY g.number;
+$$;
+
+COMMENT ON FUNCTION game.gameweek_needs_backfill() IS
+  'מחזורים שנגמרו ואין להם ולו שורת סטטיסטיקה אחת — כלומר נפלו, לא ממתינים.';
+
+/* ---------------------------------------------------------------- */
+/* הפעימה מקבלת את השלב הזה. הכול נשאר כפי שהיה, ובסוף נוסף
+   ניסיון השלמה אחד — אחרי `auto_advance` ואחרי הפרסום, כדי
+   שמחזור שבשל לפרסום ייגש לפרסום ולא יידחק על ידי השלמה. */
+CREATE OR REPLACE FUNCTION game.lifecycle_tick()
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public, extensions
+AS $$
+DECLARE
+  v        JSONB;
+  v_ready  TEXT;
+  v_url    TEXT;
+  v_token  TEXT;
+  v_req    BIGINT;
+  v_gap    TIMESTAMPTZ;
+  v_fill   RECORD;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', TRUE);
+
+  v := game.auto_advance();
+  v_ready := v->>'readyToPublish';
+
+  SELECT function_url, token INTO v_url, v_token FROM game.ingest_secrets WHERE id;
+  IF v_url IS NULL OR v_token IS NULL THEN
+    RETURN v || jsonb_build_object('dispatch', 'endpoint_not_configured');
+  END IF;
+
+  /* ── בשל לפרסום: מזמנים את הקליטה, והיא מריצה ניקוד ומפרסמת ── */
+  IF v_ready IS NOT NULL THEN
+    BEGIN
+      SELECT net.http_post(
+               url     := v_url,
+               headers := jsonb_build_object('content-type','application/json',
+                                             'x-ingest-token', v_token),
+               body    := jsonb_build_object('phase','auto'),
+               timeout_milliseconds := 55000) INTO v_req;
+    EXCEPTION WHEN undefined_function OR undefined_table OR invalid_schema_name THEN
+      RETURN v || jsonb_build_object('publish', 'pg_net_missing');
+    END;
+
+    INSERT INTO game.ingest_dispatches (request_id, origin)
+    VALUES (v_req, 'lifecycle') ON CONFLICT DO NOTHING;
+
+    RETURN v || jsonb_build_object('publish', jsonb_build_object('requested', v_req));
+  END IF;
+
+  /* ── ★ השלמה: מחזור שנגמר ואין לו סטטיסטיקה בכלל ───────────── */
+  SELECT * INTO v_fill FROM game.gameweek_needs_backfill() LIMIT 1;
+  IF v_fill.code IS NULL THEN
+    RETURN v;
+  END IF;
+
+  /* ויסות — ניסיון אחד לחצי שעה. הספק כבר חסם אותנו פעם אחת. */
+  SELECT max(requested_at) INTO v_gap
+    FROM game.ingest_dispatches WHERE origin = 'backfill';
+  IF v_gap IS NOT NULL AND v_gap > now() - INTERVAL '30 minutes' THEN
+    RETURN v || jsonb_build_object('backfill',
+             jsonb_build_object('gw', v_fill.code, 'held', 'throttled'));
+  END IF;
+
+  BEGIN
+    SELECT net.http_post(
+             url     := v_url,
+             headers := jsonb_build_object('content-type','application/json',
+                                           'x-ingest-token', v_token),
+             body    := jsonb_build_object('phase','sweep','round', v_fill.number),
+             timeout_milliseconds := 55000) INTO v_req;
+  EXCEPTION WHEN undefined_function OR undefined_table OR invalid_schema_name THEN
+    RETURN v || jsonb_build_object('backfill', 'pg_net_missing');
+  END;
+
+  INSERT INTO game.ingest_dispatches (request_id, origin)
+  VALUES (v_req, 'backfill') ON CONFLICT DO NOTHING;
+
+  INSERT INTO game.audit_logs (actor, action, entity, entity_id, new_value)
+  VALUES (game.actor_label(), 'lifecycle_backfill', 'gameweek', v_fill.code,
+          jsonb_build_object('round', v_fill.number, 'request', v_req));
+
+  RETURN v || jsonb_build_object('backfill',
+           jsonb_build_object('gw', v_fill.code, 'round', v_fill.number,
+                              'requested', v_req));
+END;
+$$;
+
+COMMIT;
+
+/* ★ אחרי שהוגדרה מחדש — נשללת שוב. פונקציה שנוצרת מחדש מקבלת
+   את ברירת המחדל של db/07, וזו בדיוק הדרך שבה חור נסגר ונפתח
+   בלי שאיש שם לב. */
+DO $relock$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT p.oid::REGPROCEDURE AS sig
+      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'game' AND game.is_system_routine(p.proname)
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', r.sig);
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+      EXECUTE format('REVOKE ALL ON FUNCTION %s FROM anon', r.sig);
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+      EXECUTE format('REVOKE ALL ON FUNCTION %s FROM authenticated', r.sig);
+    END IF;
+  END LOOP;
+END
+$relock$;
+
+INSERT INTO game.schema_migrations (version, note) VALUES
+  ('34', '★ מחזור שנגמר בלי שורת סטטיסטיקה אחת חוזר לתור מעצמו')
+ON CONFLICT (version) DO NOTHING;
+
+
+-- =====================================================================
 --  סיום
 -- =====================================================================
 DO $done$
