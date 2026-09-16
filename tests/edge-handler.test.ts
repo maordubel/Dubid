@@ -231,3 +231,88 @@ test('★ בונדל הניקוד נטען, ומוגדר לסכימת game', asy
   assert.equal(res.status, 400);
   assert.equal(lastClientOptions?.db?.schema, 'game');
 });
+
+/* ================================================================== *
+ *  ★★ המראות — התיקון ל-403 ★★
+ *
+ *  `api.sofascore.com` החזיר 403 לכל קריאה מה-Edge Function, וכל
+ *  מחזור 4 נשאר בלי שורת סטטיסטיקה אחת. User-Agent של דפדפן כבר
+ *  היה שם — החסימה הייתה על המארח, לא על הכותרות.
+ *
+ *  הבדיקות כאן טוענות שני דברים שאי אפשר לראות בעין:
+ *    · 403 מעביר למראה הבאה **עם אותו נתיב בדיוק**;
+ *    · 403 אינו גורר ניסיון חוזר על אותו מארח — חסימה אינה תקלה
+ *      זמנית, ושלושה ניסיונות עליה הם רק בזבוז של חלון ההרצה.
+ * ================================================================== */
+test('★ 403 עובר למראה הבאה, ושומר על הנתיב', async () => {
+  const handler = await loadHandler();
+
+  const seen: string[] = [];
+  (globalThis as any).fetch = async (url: string) => {
+    seen.push(String(url));
+    if (String(url).startsWith('https://api.sofascore.com')) {
+      return new Response('blocked', { status: 403 });
+    }
+    return new Response(JSON.stringify({ rounds: [{ round: 4 }] }), {
+      status: 200, headers: { 'content-type': 'application/json' },
+    });
+  };
+  (globalThis as any).__createClient = stubSupabase();
+
+  await handler(post({ phase: 'auto' }));
+
+  const blocked = seen.filter((u) => u.startsWith('https://api.sofascore.com'));
+  const mirrored = seen.filter(
+    (u) => u.startsWith('https://www.sofascore.com') ||
+           u.startsWith('https://api.sofascore.app'));
+
+  assert.ok(blocked.length > 0, 'המארח החסום לא נוסה כלל');
+  assert.ok(mirrored.length > 0, '403 לא הפעיל מראה חלופית');
+
+  /* אותו נתיב, מארח אחר — אחרת קיבלנו כתובת אחרת ולא מראה. */
+  const path = (u: string) => new URL(u).pathname + new URL(u).search;
+  assert.ok(
+    mirrored.some((m) => blocked.some((b) => path(b) === path(m))),
+    'המראה נקראה בנתיב שונה מזה שנחסם',
+  );
+});
+
+test('★ 403 אינו מנוסה שוב על אותו מארח', async () => {
+  const handler = await loadHandler();
+
+  const perHost: Record<string, number> = {};
+  (globalThis as any).fetch = async (url: string) => {
+    const host = new URL(String(url)).host;
+    perHost[host] = (perHost[host] ?? 0) + 1;
+    return new Response('blocked', { status: 403 });
+  };
+  (globalThis as any).__createClient = stubSupabase();
+
+  await handler(post({ phase: 'auto' }));
+
+  for (const [host, n] of Object.entries(perHost)) {
+    assert.ok(n <= 2, `${host} נוסה ${n} פעמים — חסימה אינה תקלה זמנית`);
+  }
+});
+
+test('★ probe מדווח קודים ואינו נוגע במסד', async () => {
+  const handler = await loadHandler();
+
+  (globalThis as any).fetch = async (url: string) =>
+    String(url).startsWith('https://api.sofascore.com')
+      ? new Response('nope', { status: 403 })
+      : new Response('[]', { status: 200 });
+
+  const rpcs: string[] = [];
+  (globalThis as any).__createClient = stubSupabase((fn) => rpcs.push(fn));
+
+  const res = await handler(post({ phase: 'probe', round: 4 }));
+  assert.equal(res.status, 200);
+
+  const body = await res.json() as any;
+  assert.ok(Array.isArray(body.probe), 'probe לא החזיר רשימה');
+  assert.ok(body.probe.length >= 5, 'probe בדק פחות מדי כתובות');
+  assert.equal(body.probe.find((p: any) => p.url.startsWith('https://api.sofascore.com')).status, 403);
+  assert.ok(body.probe.some((p: any) => p.ok), 'אף כתובת לא הצליחה');
+  assert.deepEqual(rpcs, [], 'probe נגע במסד');
+});

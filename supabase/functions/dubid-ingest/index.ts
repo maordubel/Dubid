@@ -1011,7 +1011,7 @@ export function hebrewByShirt(
    הקובץ ולעקוב אחרי המקור. */
 
 /** מזהה בנייה — מופיע ב-ping, כדי לדעת איזו גרסה באמת פרוסה. */
-const BUILD = 'dubid-ingest/2';
+const BUILD = 'dubid-ingest/3';
 
 const CORS = {
   'Access-Control-Allow-Origin': Deno.env.get('APP_ORIGIN') ?? 'https://dubid.dubelteam.com',
@@ -1072,38 +1072,146 @@ async function logFailure(
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
            '(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
 
+/**
+ * ★★ המראות — התיקון ל-403 ★★
+ *
+ * `api.sofascore.com` החזיר 403 לכל קריאה מה-Edge Function.
+ * User-Agent של דפדפן כבר היה כאן ולא הספיק: החסימה היא על
+ * מארח ה-API הישיר מכתובות של ספקי ענן, לא על הכותרות.
+ *
+ * אותו API מוגש גם מ-`www.sofascore.com` (המארח שהאתר עצמו
+ * קורא לו) ומ-`api.sofascore.app` (המארח של האפליקציה). שלושתם
+ * מחזירים את אותו JSON.
+ *
+ * לכן: 403/451 אינו כישלון — הוא סיבה לנסות את המראה הבאה
+ * עם אותו נתיב בדיוק. הכתובת שעבדה מוחזרת בדיווח, כדי שנדע
+ * מה באמת קרה ולא ננחש בפעם הבאה.
+ */
+const MIRRORS: Record<string, string[]> = {
+  'https://api.sofascore.com': [
+    'https://api.sofascore.com',
+    'https://www.sofascore.com',
+    'https://api.sofascore.app',
+  ],
+};
+
+/** לאיזו מראה עברנו בפועל — מדווח בתשובה. */
+const mirrorInUse: Record<string, string> = {};
+
+function mirrorsFor(url: string): string[] {
+  try {
+    const origin = new URL(url).origin;
+    return MIRRORS[origin] ?? [origin];
+  } catch {
+    return [];
+  }
+}
+
+function swapOrigin(url: string, origin: string): string {
+  try {
+    const u = new URL(url);
+    const o = new URL(origin);
+    u.protocol = o.protocol; u.host = o.host;
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** כותרות של דפדפן אמיתי, כולל Referer — בלעדיו נחסמים. */
+function browserHeaders(target: string): HeadersInit {
+  let site = 'https://www.sofascore.com';
+  try { site = new URL(target).origin.replace('api.', 'www.'); } catch { /* ignore */ }
+  return {
+    'user-agent': UA,
+    accept: 'application/json, text/plain, */*',
+    'accept-language': 'en-US,en;q=0.9,he;q=0.8',
+    referer: site + '/',
+    origin: site,
+    'cache-control': 'no-cache',
+  };
+}
+
+/** ניסיון יחיד, בלי מראות ובלי ניסיון חוזר. מחזיר גם קוד ומצב. */
+export async function probeOnce(
+  url: string,
+): Promise<{ url: string; status: number; ok: boolean; sample?: string; error?: string }> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12_000);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, headers: browserHeaders(url) });
+    clearTimeout(timer);
+    const text = await res.text();
+    return { url, status: res.status, ok: res.ok, sample: text.slice(0, 220) };
+  } catch (err) {
+    clearTimeout(timer);
+    return { url, status: 0, ok: false, error: String(err) };
+  }
+}
 
 function makeHttp(gapMs = 900) {
   let last = 0;
-  return async function http(url: string): Promise<any> {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const wait = last + gapMs - Date.now();
-      if (wait > 0) await sleep(wait);
-      last = Date.now();
 
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 15_000);
-      try {
-        const res = await fetch(url, {
-          signal: ctrl.signal,
-          headers: { 'user-agent': UA, accept: 'application/json' },
-        });
-        clearTimeout(timer);
-        if (res.status === 429 || res.status >= 500) {
-          await sleep(1500 * (attempt + 1));
-          continue;
+  return async function http(url: string): Promise<any> {
+    const mirrors = mirrorsFor(url);
+    /* המראה שכבר הוכיחה את עצמה בריצה הזו עולה לראש התור. */
+    const origin0 = mirrors[0] ?? '';
+    const preferred = mirrorInUse[origin0];
+    const order = preferred
+      ? [preferred, ...mirrors.filter((m) => m !== preferred)]
+      : mirrors;
+
+    let lastErr: unknown = new Error(`אין מארח לכתובת ${url}`);
+
+    for (const origin of order.length ? order : ['']) {
+      const target = origin ? swapOrigin(url, origin) : url;
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const wait = last + gapMs - Date.now();
+        if (wait > 0) await sleep(wait);
+        last = Date.now();
+
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 15_000);
+        try {
+          const res = await fetch(target, {
+            signal: ctrl.signal,
+            headers: browserHeaders(target),
+          });
+          clearTimeout(timer);
+
+          if (res.status === 429 || res.status >= 500) {
+            await sleep(1500 * (attempt + 1));
+            continue;
+          }
+          /* ★ חסימה אינה תקלה זמנית — אין טעם לנסות שוב את אותו
+             מארח. עוברים למראה הבאה מיד. */
+          if (res.status === 403 || res.status === 451) {
+            lastErr = new Error(`HTTP ${res.status} ${target}`);
+            break;
+          }
+          if (!res.ok) throw new Error(`HTTP ${res.status} ${target}`);
+
+          if (origin && origin0) mirrorInUse[origin0] = origin;
+          return await res.json();
+        } catch (err) {
+          clearTimeout(timer);
+          lastErr = err;
+          if (attempt === 2) break;
+          await sleep(1200 * (attempt + 1));
         }
-        if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`);
-        return await res.json();
-      } catch (err) {
-        clearTimeout(timer);
-        if (attempt === 2) throw err;
-        await sleep(1200 * (attempt + 1));
       }
     }
-    throw new Error(`נכשל אחרי שלושה ניסיונות: ${url}`);
+
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
   };
+}
+
+/** מה המראות שנבחרו בפועל — נכנס לדיווח של כל ריצה. */
+function mirrorReport(): Record<string, string> {
+  return { ...mirrorInUse };
 }
 
 /* ------------------------------------------------------------------ *
@@ -1139,7 +1247,7 @@ Deno.serve(async (req) => {
   );
 
   const body = await req.json().catch(() => ({} as any));
-  const phase: Snapshot['phase'] | 'auto' | 'ping' = body?.phase ?? 'auto';
+  const phase: Snapshot['phase'] | 'auto' | 'ping' | 'probe' = body?.phase ?? 'auto';
 
   /* ★ דופק. בלי רשת, בלי מסד, בלי תלות בשום ספק.
      זו הבדיקה שאומרת "הקובץ נטען והסודות קיימים" — והיא מפרידה
@@ -1157,6 +1265,43 @@ Deno.serve(async (req) => {
         competition: Deno.env.get('SCORES365_COMPETITION') ?? null,
       },
     });
+  }
+
+  /**
+   * ★ בדיקת קווים — `phase: 'probe'`
+   *
+   * כשמקור נופל, השאלה היחידה שחשובה היא «מה בדיוק הוא מחזיר,
+   * מכאן». את זה אי אפשר לבדוק משום מקום אחר: ה-Edge Function
+   * היא היחידה שיושבת ברשת שממנה הקריאות באמת יוצאות.
+   *
+   * לכן היא בודקת בעצמה ומדווחת קודים, בלי לכתוב למסד ובלי
+   * לגעת במחזור. `urls` בגוף הבקשה מאפשר לבדוק כתובת חדשה
+   * בלי פריסה מחדש.
+   */
+  if (phase === 'probe') {
+    const t = Deno.env.get('SOFASCORE_TOURNAMENT') ?? '266';
+    const se = Deno.env.get('SOFASCORE_SEASON') ?? '96740';
+    const comp = Deno.env.get('SCORES365_COMPETITION') ?? '42';
+    const r = Number.isInteger(body?.round) ? body.round : 4;
+
+    const targets: string[] = Array.isArray(body?.urls) && body.urls.length
+      ? body.urls.slice(0, 12).map(String)
+      : [
+          `https://api.sofascore.com/api/v1/unique-tournament/${t}/season/${se}/rounds`,
+          `https://www.sofascore.com/api/v1/unique-tournament/${t}/season/${se}/rounds`,
+          `https://api.sofascore.app/api/v1/unique-tournament/${t}/season/${se}/rounds`,
+          `https://www.sofascore.com/api/v1/unique-tournament/${t}/season/${se}/events/round/${r}`,
+          `https://api.sofascore.app/api/v1/unique-tournament/${t}/season/${se}/events/round/${r}`,
+          `https://webws.365scores.com/web/games/results/?appTypeId=5&langId=2&competitions=${comp}`,
+          `https://webws.365scores.com/web/games/fixtures/?appTypeId=5&langId=2&competitions=${comp}`,
+        ];
+
+    const results = [];
+    for (const u of targets) {
+      results.push(await probeOnce(u));
+      await sleep(400);
+    }
+    return json({ ok: true, version: BUILD, probe: results });
   }
 
   const http = makeHttp();
@@ -1325,13 +1470,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ ok: true, round, source: usedBackup ? 'backup' : 'primary', done });
+    return json({ ok: true, round, source: usedBackup ? 'backup' : 'primary',
+                  mirrors: mirrorReport(), done });
 
   } catch (err) {
     /* ★ התשובה נבנית **לפני** הרישום. אם הרישום ייפול, המשתמש
        עדיין מקבל את השגיאה האמיתית בגוף התשובה — וזה מה
        שמופיע בכרטיס "פעימות" במסך הקליטה. */
-    const response = json({ ok: false, error: String(err), round }, 500);
+    const response = json({ ok: false, error: String(err), round,
+                            mirrors: mirrorReport() }, 500);
 
     await logFailure(supabase, {
       p_source: 'dubid-ingest',
