@@ -1,0 +1,213 @@
+<title>ארכיון המדים של AEK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Secular+One&family=Assistant:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a dark museum vault. Shirts hang on lit plates in a grid; one tap opens the garment as an exhibit with its evidence. */
+:root{
+  --ink:#0b0b0c;        /* vault black */
+  --plate:#151516;      /* plate */
+  --plate-2:#1d1d1f;
+  --line:#2c2c2f;
+  --gold:#f2b705;       /* AEK gold */
+  --gold-soft:#f2b70522;
+  --paper:#f3efe4;      /* text */
+  --mute:#9a968b;
+  --ok:#6fcf97;
+  --draft:#e0884a;
+  --display:'Secular One','Assistant',system-ui,sans-serif;
+  --body:'Assistant',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--ink);color:var(--paper);font:400 16px/1.55 var(--body);padding-inline:clamp(16px,4vw,48px);padding-block:0 64px;
+  background-image:radial-gradient(1200px 500px at 85% -10%,#f2b70518,transparent 60%)}
+.wrap{max-width:1240px;margin-inline:auto}
+header{padding-block:clamp(28px,6vw,64px) 28px;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;border-bottom:1px solid var(--line)}
+.kick{font:600 12px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin:0 0 10px}
+h1{font:400 clamp(40px,8vw,92px)/.95 var(--display);margin:0;text-wrap:balance}
+h1 em{font-style:normal;color:var(--gold)}
+.lede{max-width:52ch;color:var(--mute);margin:16px 0 0}
+.tally{display:flex;gap:28px;font-family:var(--mono)}
+.tally div{display:flex;flex-direction:column}
+.tally b{font:400 40px/1 var(--display);color:var(--paper);font-variant-numeric:tabular-nums}
+.tally span{font-size:11px;letter-spacing:.12em;color:var(--mute);text-transform:uppercase}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:#0b0b0cee;backdrop-filter:blur(8px);display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;padding-block:14px;border-bottom:1px solid var(--line)}
+.grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.grp>span{font:600 11px var(--mono);letter-spacing:.14em;color:var(--mute);margin-inline-end:4px;text-transform:uppercase}
+.chip{font:600 14px var(--body);color:var(--paper);background:transparent;border:1px solid var(--line);border-radius:999px;padding:5px 14px;cursor:pointer}
+.chip:hover{border-color:var(--mute)}
+.chip[aria-pressed=true]{background:var(--gold);border-color:var(--gold);color:#111}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px;padding-block:28px}
+.card{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;background:var(--plate);border:1px solid var(--line);position:relative;transition:transform .25s,border-color .25s}
+.card:hover,.card:focus-visible{transform:translateY(-4px);border-color:var(--gold)}
+.card:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.stage{aspect-ratio:1/.95;display:grid;place-items:center;background:radial-gradient(70% 60% at 50% 40%,#2a2a2d,var(--plate) 75%);position:relative;overflow:hidden}
+.stage svg{width:88%;height:auto;filter:drop-shadow(0 18px 14px #000a)}
+.badge{position:absolute;top:10px;inset-inline-start:10px;font:600 10.5px var(--mono);letter-spacing:.1em;padding:3px 8px;border:1px solid;text-transform:uppercase}
+.badge.ok{color:var(--ok);border-color:var(--ok)}
+.badge.draft{color:var(--draft);border-color:var(--draft)}
+.meta{padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--line)}
+.season{font:400 26px/1 var(--display);font-variant-numeric:tabular-nums}
+.sub{color:var(--mute);font-size:14px}
+.type{font:600 11px var(--mono);letter-spacing:.14em;color:var(--gold);text-transform:uppercase}
+.empty{padding:60px 0;color:var(--mute);text-align:center}
+.gap{border:1px dashed var(--line);padding:22px;display:grid;gap:8px;margin-top:8px}
+.gap h2{font:400 24px var(--display);margin:0}
+.gap p{margin:0;color:var(--mute);max-width:70ch}
+dialog{border:1px solid var(--gold);background:var(--ink);color:var(--paper);padding:0;width:min(980px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto}
+dialog::backdrop{background:#000c}
+.dlg{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+.dlg .stage{aspect-ratio:auto;min-height:420px}
+.dlg .stage svg{width:94%}
+.info{padding:28px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.info h2{font:400 clamp(34px,5vw,54px)/1 var(--display);margin:0}
+dl{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;margin:0}
+dt{color:var(--mute);font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;padding-top:4px}
+dd{margin:0}
+.swatches{display:flex;gap:8px}
+.sw{width:26px;height:26px;border:1px solid #fff4;display:inline-block}
+.note{border-inline-start:3px solid var(--draft);padding:8px 14px;background:#e0884a14;color:var(--paper);font-size:15px}
+.note.ok{border-color:var(--ok);background:#6fcf9714}
+.acts{display:flex;gap:10px;flex-wrap:wrap;margin-top:auto}
+.btn{font:800 14px var(--body);background:var(--gold);color:#111;border:0;padding:10px 18px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--paper);border:1px solid var(--line)}
+.x{position:absolute;top:10px;inset-inline-end:10px;z-index:2}
+textarea{position:absolute;opacity:0;pointer-events:none;height:1px}
+@media(max-width:760px){header{grid-template-columns:1fr}.dlg{grid-template-columns:1fr}.dlg .stage{min-height:300px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div>
+    <p class="kick">AEK Athens · Kit Archive</p>
+    <h1>ארכיון <em>המדים</em></h1>
+    <p class="lede">כל חולצה מצוירת משכבות: בד, חיתוך, שרוולים, צווארון, יצרן. מה שהמקורות לא קובעים נשאר ריק ומסומן. שום פרט לא מומצא.</p>
+  </div>
+  <div class="tally" aria-label="סיכום">
+    <div><b id="nAll">0</b><span>חולצות</span></div>
+    <div><b id="nOk">0</b><span>מאומתות</span></div>
+  </div>
+</header>
+
+<div class="bar" role="toolbar" aria-label="סינון">
+  <div class="grp" id="fStatus"><span>מצב</span></div>
+  <div class="grp" id="fType"><span>סוג</span></div>
+  <div class="grp" id="fDec"><span>עשור</span></div>
+</div>
+
+<main>
+  <div class="grid" id="grid"></div>
+  <p class="empty" id="empty" hidden>אין חולצות שמתאימות לסינון.</p>
+  <section class="gap">
+    <h2>מה חסר כדי להשלים את הארכיון</h2>
+    <p>אומתו מול נתוני המועדון רק שתי חולצות בית (2016/17 ו-2023/24, יצרן Nike). שאר החולצות הן טיוטת תקופות ללא מקור, וכל אחת מסומנת ככה. הסמל מודפס מקובץ מקור ולא מצויר, ולכן משבצת הסמל ריקה עד שיועלו תמונות מורשות. כדי למלא הכול צריך את תמונות ויקימדיה קומונס (הסביבה שבה עבדתי חוסמת את האתר) או קבצים שתעלה.</p>
+  </section>
+</main>
+</div>
+
+<dialog id="dlg" aria-labelledby="dTitle"><div class="dlg" id="dBody"></div></dialog>
+<textarea id="cp" aria-hidden="true" tabindex="-1"></textarea>
+
+<script>
+const GOLD='#f2b705',BLACK='#101010';
+/* status ok = verified in the club pack; draft = era placeholder with no source */
+const KITS=[
+ {id:'2023-24-h',season:'2023/24',from:2023,type:'home',maker:'Nike',sponsor:null,pattern:'solid',status:'ok',src:'חבילת המועדון, אושר ב-9.10.2026',note:'התיעוד קובע עונה, סוג ויצרן בלבד. הדוגמה והספונסר לא מתועדים ולכן החולצה מוצגת חלקה.'},
+ {id:'2016-17-h',season:'2016/17',from:2016,type:'home',maker:'Nike',sponsor:null,pattern:'solid',status:'ok',src:'אתר AEK הרשמי, כתבת מדי 2016/17',note:'התיעוד קובע עונה, סוג ויצרן בלבד. הדוגמה והספונסר לא מתועדים ולכן החולצה מוצגת חלקה.'},
+ {id:'e2021',season:'2021–2026',from:2021,type:'home',maker:'Nike',pattern:'solid',status:'draft'},
+ {id:'e2018',season:'2018–2021',from:2018,type:'home',maker:'Capelli',pattern:'stripes',status:'draft'},
+ {id:'e2015',season:'2015–2018',from:2015,type:'away',maker:'Nike',pattern:'solid',status:'draft',c:[BLACK,GOLD]},
+ {id:'e2007',season:'2007–2014',from:2007,type:'home',maker:'Puma',pattern:'stripes',status:'draft'},
+ {id:'e2004',season:'2004–2007',from:2004,type:'home',maker:'Adidas',pattern:'solid',status:'draft'},
+ {id:'e2000',season:'2000–2004',from:2000,type:'home',maker:'Nike',pattern:'solid',status:'draft'},
+ {id:'e1996',season:'1996–2000',from:1996,type:'home',maker:'Kappa',pattern:'stripes',status:'draft'},
+ {id:'e1995',season:'1995–1996',from:1995,type:'home',maker:'Kappa',pattern:'halves',status:'draft'},
+ {id:'e1989',season:'1989–1993',from:1989,type:'home',maker:'Diadora',pattern:'stripes',status:'draft'},
+ {id:'e1983',season:'1983–1988',from:1983,type:'home',maker:'Zita Hellas',pattern:'solid',status:'draft'},
+ {id:'e1974',season:'1974–1982',from:1974,type:'home',maker:'Puma / Adidas',pattern:'solid',status:'draft'}
+];
+const TYPE={home:'בית',away:'חוץ',third:'שלישית'};
+const DRAFT_NOTE='טיוטת תקופה. הצבעים, הדוגמה והיצרן הגיעו מרשימה ראשונית ללא מקור. אל תסתמכו עליהם עד שתאומת עונה אחר עונה.';
+let uid=0;
+function shade(hex,k){const n=parseInt(hex.slice(1),16),f=v=>Math.max(0,Math.min(255,Math.round(v*(1+k)))).toString(16).padStart(2,'0');return '#'+f(n>>16&255)+f(n>>8&255)+f(n&255)}
+
+/* Garment on a 340x320 board: curved cut, sleeves, pattern clipped to the cloth, folds, seams and a woven grain. */
+function shirt(k,opts={}){
+  const id='s'+(++uid),[base,trim]=k.c||[GOLD,BLACK];
+  const body='M110 30C128 46 150 56 170 56S212 46 230 30L276 46 324 120 278 148 258 120V292C222 304 118 304 82 292V120L62 148 16 120 64 46Z';
+  let pat='';
+  const P=k.pattern;
+  if(P==='stripes'){for(let x=94;x<250;x+=40)pat+=`<rect x="${x}" y="20" width="20" height="300" fill="${trim}"/>`}
+  else if(P==='halves'){pat=`<rect x="170" y="20" width="170" height="300" fill="${trim}"/>`}
+  else if(P==='hoops'){for(let y=70;y<300;y+=44)pat+=`<rect x="0" y="${y}" width="340" height="22" fill="${trim}"/>`}
+  else if(P==='sash'){pat=`<polygon points="82,80 120,60 258,230 220,262" fill="${trim}"/>`}
+  const sleeveCuff=`<path d="M16 120 62 148 76 124 30 98Z" fill="${trim}"/><path d="M324 120 278 148 264 124 310 98Z" fill="${trim}"/>`;
+  const collar=`<path d="M110 30C128 46 150 56 170 56S212 46 230 30L222 24C205 38 188 44 170 44S135 38 118 24Z" fill="${trim}"/>`;
+  const svg=`<svg viewBox="0 0 340 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="חולצת ${TYPE[k.type]} ${k.season}">
+  <defs>
+   <clipPath id="${id}c"><path d="${body}"/></clipPath>
+   <filter id="${id}w" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9 .55" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0"/></filter>
+   <linearGradient id="${id}f" x1="0" x2="1"><stop offset="0" stop-color="#000" stop-opacity=".34"/><stop offset=".22" stop-color="#fff" stop-opacity=".08"/><stop offset=".5" stop-color="#fff" stop-opacity=".16"/><stop offset=".8" stop-color="#000" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity=".4"/></linearGradient>
+   <radialGradient id="${id}s" cx=".5" cy=".12" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <g clip-path="url(#${id}c)">
+   <rect width="340" height="320" fill="${base}"/>${pat}${sleeveCuff}
+   <rect width="340" height="320" fill="url(#${id}f)"/>
+   <rect width="340" height="320" fill="url(#${id}s)"/>
+   <path d="M92 150C110 180 108 230 98 292M248 150C230 180 232 230 242 292M140 190C160 202 190 202 200 190" stroke="#000" stroke-opacity=".16" stroke-width="6" fill="none" stroke-linecap="round"/>
+   <rect width="340" height="320" filter="url(#${id}w)" opacity=".13"/>
+  </g>
+  ${collar}
+  <path d="${body}" fill="none" stroke="${shade(base,-.55)}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M82 120 82 290M258 120 258 290M64 46 82 120M276 46 258 120" stroke="#000" stroke-opacity=".35" stroke-width="1.2" stroke-dasharray="4 3" fill="none"/>
+  <g fill="none" stroke="${trim==BLACK||P==='solid'?'#000':'#fff'}" stroke-opacity=".5" stroke-width="1.2" stroke-dasharray="3 3">
+   <rect x="188" y="82" width="34" height="38" rx="3"/><rect x="118" y="86" width="52" height="16" rx="3"/>
+  </g>
+  </svg>`;
+  return svg;
+}
+
+const $=s=>document.querySelector(s),F={status:'all',type:'all',dec:'all'};
+const dec=k=>Math.floor(k.from/10)*10;
+function chips(el,key,items){
+  items.forEach(([v,l])=>{const b=document.createElement('button');b.className='chip';b.type='button';b.textContent=l;b.dataset.v=v;
+    b.setAttribute('aria-pressed',v==='all');b.onclick=()=>{F[key]=v;el.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.v===v));render()};el.append(b)})
+}
+chips($('#fStatus'),'status',[['all','הכול'],['ok','מאומתות'],['draft','טיוטה']]);
+chips($('#fType'),'type',[['all','הכול'],['home','בית'],['away','חוץ']]);
+chips($('#fDec'),'dec',[['all','הכול'],...[...new Set(KITS.map(dec))].sort((a,b)=>b-a).map(d=>[String(d),d+'s'])]);
+$('#nAll').textContent=KITS.length;$('#nOk').textContent=KITS.filter(k=>k.status==='ok').length;
+
+function render(){
+  const list=KITS.filter(k=>(F.status==='all'||k.status===F.status)&&(F.type==='all'||k.type===F.type)&&(F.dec==='all'||String(dec(k))===F.dec));
+  const g=$('#grid');g.innerHTML='';$('#empty').hidden=list.length>0;
+  list.forEach(k=>{
+    const b=document.createElement('button');b.className='card';b.type='button';
+    b.innerHTML=`<div class="stage"><span class="badge ${k.status}">${k.status==='ok'?'מאומת':'טיוטה'}</span>${shirt(k)}</div>
+      <div class="meta"><span class="type">${TYPE[k.type]}</span><span class="season">${k.season}</span><span class="sub">${k.maker}</span></div>`;
+    b.onclick=()=>open(k);g.append(b);
+  });
+}
+function open(k){
+  const [a,b]=k.c||[GOLD,BLACK];
+  $('#dBody').innerHTML=`<div class="stage" style="position:relative"><span class="badge ${k.status}">${k.status==='ok'?'מאומת':'טיוטה'}</span>${shirt(k)}</div>
+  <div class="info"><p class="kick" style="margin:0">חולצת ${TYPE[k.type]}</p><h2 id="dTitle">${k.season}</h2>
+  <dl><dt>יצרן</dt><dd>${k.maker}${k.status==='draft'?' (לא מאומת)':''}</dd>
+  <dt>ספונסר</dt><dd>${k.sponsor||'לא מתועד'}</dd>
+  <dt>צבעים</dt><dd class="swatches"><i class="sw" style="background:${a}"></i><i class="sw" style="background:${b}"></i></dd>
+  <dt>סמל</dt><dd>משבצת ריקה עד שיועלה קובץ מורשה</dd>
+  <dt>מקור</dt><dd>${k.src||'אין'}</dd></dl>
+  <p class="note ${k.status}">${k.note||DRAFT_NOTE}</p>
+  <div class="acts"><button class="btn" id="cpy" type="button">העתק קוד SVG</button><button class="btn ghost" id="cls" type="button">סגור</button></div></div>`;
+  $('#cls').onclick=()=>$('#dlg').close();
+  $('#cpy').onclick=async e=>{const t=shirt(k),btn=e.target;
+    try{await navigator.clipboard.writeText(t)}catch(_){const c=$('#cp');c.value=t;c.select();document.execCommand&&document.execCommand('copy')}
+    btn.textContent='הועתק';setTimeout(()=>btn.textContent='העתק קוד SVG',1600)};
+  $('#dlg').showModal();
+}
+$('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')e.target.close()});
+render();
+</script>
