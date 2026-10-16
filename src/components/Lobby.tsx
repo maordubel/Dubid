@@ -51,6 +51,8 @@ import {
 import type { ModeId } from '../lib/events/bus.ts';
 import { modeTheme } from '../lib/modeTheme.ts';
 import { NIGHT_PRESS as NP, MISREGISTER } from '../lib/pressPalette.ts';
+import { RoundTracker } from './RoundTracker.tsx';
+import type { RoundBrief } from '../lib/roundPhase.ts';
 import { pressNote } from '../lib/pressNotes.ts';
 import { text as content, hasText } from '../lib/content.ts';
 import { ModeMark } from './ModeMark.tsx';
@@ -101,6 +103,8 @@ export interface LobbyProps {
   gameweekNumber?: number;
   onDismissPromo?: () => void;
   onOpenPromo?: (promo: Promo) => void;
+  /** ★ באיזה שלב המחזור ומה עושים עכשיו (`describeRound`). */
+  roundBrief?: RoundBrief;
 }
 
 /* ================================================================== */
@@ -109,7 +113,7 @@ export function Lobby({
   gameweek, nowMs, modes, displayName, entrants, leagueCount,
   myRank, myPoints, fixtures = [],
   onPlay, onLeagues, onLeaderboard, onAccount, identity = null, nudge,
-  promo, gameweekNumber = gameweek.number, onDismissPromo, onOpenPromo,
+  promo, gameweekNumber = gameweek.number, onDismissPromo, onOpenPromo, roundBrief,
 }: LobbyProps) {
   /**
    * ★★ הזמן מגיע מבחוץ, נקודה. ★★
@@ -207,6 +211,8 @@ export function Lobby({
           published={gameweek.status === GameweekStatus.Published}
           kicker={content('lobby.hero.kicker')}
         />
+
+        {roundBrief && <RoundTracker brief={roundBrief} />}
 
         <PressPhoto gameweekNumber={gameweekNumber} />
 
