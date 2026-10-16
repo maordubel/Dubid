@@ -40,10 +40,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { AuthChip } from './AuthChip.tsx';
 import { TeamTag } from './TeamTag.tsx';
 import type { Identity } from '../lib/identity.ts';
-import { OffsidesBanner } from './OffsidesBanner.tsx';
-import { HouseBanner } from './HouseAds.tsx';
 import { DubelCredit } from './DubelCredit.tsx';
-import type { Promo } from '../lib/growth.ts';
 import {
   GameweekStatus, STATUS_LABEL_HE, deadlineView, msUntilDeadline,
   isSubmissionOpen, type Gameweek,
@@ -99,10 +96,7 @@ export interface LobbyProps {
   onAccount?: () => void;
   identity?: Identity | null;
   nudge?: ReactNode;
-  promo?: Promo | null;
   gameweekNumber?: number;
-  onDismissPromo?: () => void;
-  onOpenPromo?: (promo: Promo) => void;
   /** ★ באיזה שלב המחזור ומה עושים עכשיו (`describeRound`). */
   roundBrief?: RoundBrief;
 }
@@ -113,7 +107,7 @@ export function Lobby({
   gameweek, nowMs, modes, displayName, entrants, leagueCount,
   myRank, myPoints, fixtures = [],
   onPlay, onLeagues, onLeaderboard, onAccount, identity = null, nudge,
-  promo, gameweekNumber = gameweek.number, onDismissPromo, onOpenPromo, roundBrief,
+  gameweekNumber = gameweek.number, roundBrief,
 }: LobbyProps) {
   /**
    * ★★ הזמן מגיע מבחוץ, נקודה. ★★
@@ -278,20 +272,7 @@ export function Lobby({
             מוריד את שיעור ההתחלה. אחרי שהמשתמש כבר סרק את מה
             שהוא בא בשבילו, רצועה אחת היא סקרנות ולא הפרעה. */}
         <div className="relative z-[2] px-3 pt-3">
-          <HouseBanner placement="lobby" gameweekNumber={gameweekNumber} />
         </div>
-
-        {promo && (
-          <div className="relative z-[2] px-3 pt-3">
-            <OffsidesBanner
-              promo={promo}
-              placement="lobby"
-              gameweekNumber={gameweekNumber}
-              onDismiss={onDismissPromo}
-              onOpen={onOpenPromo}
-            />
-          </div>
-        )}
 
         {/* ═══════════ בית הדפוס ═══════════ */}
         <Rule weight="top" className="mt-4" />

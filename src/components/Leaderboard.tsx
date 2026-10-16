@@ -31,8 +31,6 @@ import { useMemo, useState, useEffect } from 'react';
 import { buildLeaderboard, beatPercent, type LeaderboardRow } from '../lib/leaderboard.ts';
 import type { TieBreakStage } from '../lib/scoring/ranking.ts';
 import { TEAM_BY_ID, TEAMS, PLAYERS, shortName } from '../data/squads.ts';
-import { OffsidesInline, OffsidesRail } from './OffsidesAds.tsx';
-import { HouseBanner } from './HouseAds.tsx';
 import { GAMEWEEK } from '../data/fixtures.ts';
 import { listEntries, getResults, subscribeToStore, type LineupEntry } from '../lib/store.ts';
 import type { LineupScore } from '../lib/scoring/types.ts';
@@ -305,21 +303,6 @@ export function Leaderboard({
 
       {/* ★ הטבלה היא המסך שנקרא הכי לאט — המשתמש מחפש את עצמו
           ברשימה. רצועה מלאה כאן נקראת, ולכן היא כאן ולא שורה. */}
-      <HouseBanner
-        placement="leaderboard"
-        gameweekNumber={GAMEWEEK.number}
-        className="mt-6"
-      />
-      <OffsidesInline
-        placement="leaderboard"
-        gameweekNumber={GAMEWEEK.number}
-        className="mt-4"
-      />
-      <OffsidesRail
-        placement="leaderboard"
-        gameweekNumber={GAMEWEEK.number}
-        className="mt-3"
-      />
     </div>
   );
 }

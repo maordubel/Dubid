@@ -18,10 +18,7 @@ import { Lobby, type LobbyMode, type LobbyFixture } from './components/Lobby.tsx
 import { Arena } from './components/Arena.tsx';
 import { DubelCredit } from './components/DubelCredit.tsx';
 import { ShadesDivider } from './components/Shades.tsx';
-import { usePromo } from './state/usePromo.ts';
-import { DUBID_URL, type GrowthContext } from './lib/growth.ts';
-import { OffsidesHero, OffsidesInline, OffsidesRail } from './components/OffsidesAds.tsx';
-import { HouseBanner, HouseStrip } from './components/HouseAds.tsx';
+import { DUBID_URL } from './lib/growth.ts';
 import { GameweekStatus, type Gameweek } from './lib/gameweek.ts';
 import { serverNow } from './lib/serverTime.ts';
 import { SquadPicker, type PoolPlayer, type TeamMeta } from './components/SquadPicker.tsx';
@@ -506,30 +503,6 @@ function MainApp() {
   const entryByMode: Record<Mode, LineupEntry | undefined> = { full: entryFull, five: entryFive };
 
 
-  /**
-   * ★ ההקשר של תוכנית השיווק הצולבת.
-   *
-   * כל שדה כאן הוא עובדה שהמסך כבר מחזיק — אין מעקב חדש, אין
-   * קריאה לשרת, ואין מזהה אישי. `lib/growth.ts` מחליט מזה מה
-   * להציג, דטרמיניסטית.
-   *
-   * ה-`useMemo` חיוני: הלובי מרנדר כל שנייה בגלל השעון, ואובייקט
-   * חדש בכל רינדור היה מפעיל את בחירת המסר מחדש בלי סוף.
-   */
-  const growthCtx: GrowthContext = useMemo(() => ({
-    submissionOpen: lobbyGameweek.status === GameweekStatus.Open,
-    hasSubmitted: !!entryFull || !!entryFive,
-    resultsPublished: results.published,
-    // הרגע שקובע הוא השריקה הראשונה, לא הדדליין. הם לא זהים:
-    // הדדליין הוא פתיחת המשחק המוקדם ביותר, וזה בדיוק הרגע שבו
-    // אופסיידס הופך לרלוונטי.
-    msToKickoff: Date.parse(lobbyGameweek.firstKickoffAt ?? lobbyGameweek.deadlineAt) - nowMs,
-    entrants: entrantCount,
-  }), [lobbyGameweek.status, lobbyGameweek.firstKickoffAt,
-       entryFull, entryFive, results.published, entrantCount]);
-
-  const { promo, dismiss: dismissPromo, open: openPromo } =
-    usePromo(growthCtx, lobbyGameweek.number);
 
 
   /**
@@ -858,10 +831,7 @@ function MainApp() {
             />
           ) : undefined
         }
-        promo={promo}
         gameweekNumber={lobbyGameweek.number}
-        onDismissPromo={dismissPromo}
-        onOpenPromo={openPromo}
       />
     ),
     /**
@@ -1506,27 +1476,12 @@ function CardScreen({
             המשתמש בדיוק ראה כמה עשה. יש רגש טרי — ניצחון או
             הפסד, ושניהם עובדים — ואין לו שום משימה פתוחה. זה
             המסך היחיד שבו כרזה בגודל מלא היא המשך ולא הפרעה. */}
-        <OffsidesHero
-          className="mt-5"
-          placement="card"
-          gameweekNumber={GAMEWEEK.number}
-          headline={data.rank === 1
-            ? 'מקום ראשון. עכשיו בלי שבוע להתכונן.'
-            : 'הריוונג׳ כאן הוא בעוד שבוע. שם — הערב.'}
-          body="אותם משחקים, ניחושים חיים, זירות מול החברים שלכם."
-        />
 
-        <OffsidesInline
-          placement="card"
-          gameweekNumber={GAMEWEEK.number}
-          className="mt-3 text-center"
-        />
 
         {/* ★ אחרי הכרזה של אופסיידס — רצועה של המוצר השני.
             שתי יחידות באותו מסך הן בדרך כלל טעות; כאן הן
             **שני מוצרים שונים**, והמסך הזה הוא היחיד שבו
             למשתמש אין שום משימה פתוחה. */}
-        <HouseBanner placement="card" gameweekNumber={GAMEWEEK.number} className="mt-4" />
       </div>
     );
   }
@@ -1776,14 +1731,11 @@ export function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet
           מסך החוקים הוא הרגע הקר ביותר במוצר — המשתמש קורא, הוא
           לא מחליט כלום, ואין לו רגש. באנר כאן היה מוקפץ; משפט
           שממשיך את מה שהוא כבר קורא הוא פשוט מידע נוסף. */}
-      <OffsidesInline placement="rules" gameweekNumber={GAMEWEEK.number} className="px-1" />
 
       {/* ★ מסך החוקים הוא הרגע הכי קר במוצר — המשתמש קורא ולא
           מחליט כלום. לכן שורה, לא רצועה: היחידה הכי צנועה שיש,
           במקום שבו אין שום רגש לרכוב עליו. */}
-      <HouseStrip placement="rules" gameweekNumber={GAMEWEEK.number} className="mt-3" />
 
-      <OffsidesRail placement="rules" gameweekNumber={GAMEWEEK.number} className="mt-4" />
 
       <ShadesDivider className="my-7 px-8" />
 

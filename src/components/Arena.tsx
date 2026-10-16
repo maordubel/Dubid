@@ -38,8 +38,6 @@ import { scoreLineup } from '../lib/scoring/engine.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import { GAMEWEEK } from '../data/fixtures.ts';
 import { Table, type Column } from './Table.tsx';
-import { OffsidesInline } from './OffsidesAds.tsx';
-import { HouseBanner } from './HouseAds.tsx';
 import { ShadesDivider } from './Shades.tsx';
 import { NIGHT_PRESS as NP, MISREGISTER } from '../lib/pressPalette.ts';
 
@@ -172,13 +170,7 @@ function ArenaEmpty({ userId, displayName }: { userId: string; displayName: stri
           מי שפתח זירה כבר עשה את הפעולה שאנחנו מבקשים באופסיידס
           — הזמין חברים והתחרה מולם. המשפט לא מסביר מה זו זירה;
           הוא מציע את אותה זירה בקצב אחר. */}
-      <OffsidesInline
-        placement="arena"
-        gameweekNumber={GAMEWEEK.number}
-        className="mt-5"
-      />
 
-      <HouseBanner placement="arena" gameweekNumber={GAMEWEEK.number} className="mt-4" />
     </div>
   );
 }

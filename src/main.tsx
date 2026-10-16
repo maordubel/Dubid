@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './App.tsx';
+import { PromoBanner } from './components/PromoBanner.tsx';
 import { purgeLocalGameData } from './lib/store.ts';
 import { startClockSync } from './lib/serverTime.ts';
 import { fetchServerTime } from './lib/supabase.ts';
@@ -51,6 +52,7 @@ if (!root) throw new Error('#root לא נמצא');
 createRoot(root).render(
   <StrictMode>
     <App />
+    <PromoBanner />
   </StrictMode>,
 );
 
