@@ -60,6 +60,7 @@ import {
 import { resolveRules, DUBID_5X5, DUBID_5X5_BUDGET } from './lib/scoring/rules.ts';
 import { scoreLineup } from './lib/scoring/engine.ts';
 import { buildLeaderboard } from './lib/leaderboard.ts';
+import { describeRound } from './lib/roundPhase.ts';
 import { pickName, cleanTeamName, TEAM_NAME_MAX } from './lib/teamNames.ts';
 import { NIGHT_PRESS as NP, MISREGISTER } from './lib/pressPalette.ts';
 import {
@@ -68,6 +69,7 @@ import {
 import { checkLeagueCapacity, formatIssue } from './lib/scoring/validate.ts';
 import { useLineup } from './state/useLineup.ts';
 import { myLeagues } from './lib/leagueStore.ts';
+import { myProfile } from './lib/identity.ts';
 import {
   getResults, saveEntry, listEntries, findMyEntry, deleteEntry, subscribeToStore,
   hydrate, startRealtime, storeStatus, errorMessageHe, getGameweekState,
@@ -563,8 +565,10 @@ function MainApp() {
    *
    * מחושב רק כשיש תוצאות. לפני זה `undefined`, והלובי מציג מקף.
    */
+  /* ★ ניקוד זמני: גם לפני הפרסום, אם כבר יש ביצועים — הדירוג מסומן "זמני". */
+  const hasAnyScores = Object.keys(results.performances).length > 0;
   const myStanding = useMemo(() => {
-    if (!hasRealResults) return { rank: undefined, points: undefined };
+    if (!hasAnyScores) return { rank: undefined, points: undefined };
     let best: { rank: number; points: number } | undefined;
     for (const m of ['five', 'full'] as const) {
       const mine = entryByMode[m];
@@ -584,7 +588,39 @@ function MainApp() {
       }
     }
     return { rank: best?.rank, points: best?.points };
-  }, [hasRealResults, entryByMode, results, rulesByMode, userId]);
+  }, [hasAnyScores, entryByMode, results, rulesByMode, userId]);
+
+  /* ★ המחזור הקודם — מההיסטוריה של המשתמש (נשמרת, לא נמחקת). */
+  const [prevRound, setPrevRound] = useState<{ number: number; points: number | null; rank: number | null } | null>(null);
+  useEffect(() => {
+    let off = false;
+    void myProfile().then((p) => {
+      if (off || !p) return;
+      const rows = p.history.filter((h) => h.gwNumber < lobbyGameweek.number && h.points !== null);
+      if (!rows.length) { setPrevRound(null); return; }
+      const top = Math.max(...rows.map((h) => h.gwNumber));
+      const best = rows.filter((h) => h.gwNumber === top)
+        .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))[0];
+      setPrevRound({ number: best.gwNumber, points: best.points, rank: best.rank });
+    });
+    return () => { off = true; };
+  }, [lobbyGameweek.number, results.published]);
+
+  const roundBrief = useMemo(() => describeRound({
+    number: lobbyGameweek.number,
+    submissionOpen: lobbyGameweek.status === GameweekStatus.Open,
+    published: results.published,
+    nowMs,
+    deadlineAt: lobbyGameweek.deadlineAt,
+    firstKickoffAt: lobbyGameweek.firstKickoffAt,
+    hasSubmitted: !!entryFull || !!entryFive,
+    fixturesTotal: gwState?.fixturesTotal,
+    fixturesFinal: gwState?.fixturesFinal,
+    fixturesLive: gwState?.fixturesLive,
+    myPoints: myStanding.points,
+    myRank: myStanding.rank,
+    previous: prevRound,
+  }), [lobbyGameweek, results.published, nowMs, entryFull, entryFive, gwState, myStanding, prevRound]);
 
   /** לוח המשחקים כפי שהלובי צריך אותו — בלי לחשוף לו את מבנה הדאטה. */
   const lobbyFixtures: LobbyFixture[] = useMemo(
@@ -795,6 +831,7 @@ function MainApp() {
         leagueCount={leagueCount}
         myRank={myStanding.rank}
         myPoints={myStanding.points}
+        roundBrief={roundBrief}
         fixtures={lobbyFixtures}
         onPlay={goToMode}
         onLeagues={() => setTab('arena')}
