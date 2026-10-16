@@ -51,6 +51,7 @@ const FILES = [
   ['32_internal_grants.sql',   '★ פונקציות המערכת נסגרות ל-PUBLIC; המסכים נשארים פתוחים'],
   ['33_anon_grants.sql',       '★ …וגם מ-anon ומ-authenticated — שם ההרשאה באמת ישבה'],
   ['34_backfill.sql',          '★ מחזור שנגמר בלי שורת סטטיסטיקה אחת חוזר לתור מעצמו'],
+  ['35_announce.sql',          '★ הודעות מחזור — outbox לטלגרם, סריקה, claim/mark'],
 ];
 
 const bar = '=' .repeat(69);
