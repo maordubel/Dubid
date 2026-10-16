@@ -33,7 +33,6 @@
  * "קופץ" ברגע שהתוצאות נכנסות; הוא רק מתמלא במשמעות.
  */
 import { Pitch } from './Pitch.tsx';
-import { HouseStrip } from './HouseAds.tsx';
 import { TeamCrest } from './TeamCrest.tsx';
 import { Footballer } from './Footballer.tsx';
 import { PRESS } from '../lib/pressPalette.ts';
@@ -44,7 +43,7 @@ import type { Lineup, LineupScore, LineupSlot, Position } from '../lib/scoring/t
 
 export function LockedLineup({
   lineup, pool, teams, score, gameweekLabel, submittedAt, onUnlock, onViewCard,
-  onShare, mode = 'full', gameweekNumber = 0, live = false,
+  onShare, mode = 'full', live = false,
 }: {
   lineup: Lineup;
   pool: PoolPlayer[];
@@ -222,11 +221,6 @@ export function LockedLineup({
 
         {/* ★ המסך היחיד שבו למשתמש **אין מה לעשות** עד שבת.
             רצועה אחת, אמביינטית, בלי לקטוע כלום. */}
-        <HouseStrip
-          placement="locked"
-          gameweekNumber={gameweekNumber}
-          className="mt-2"
-        />
       </div>
     </div>
   );
