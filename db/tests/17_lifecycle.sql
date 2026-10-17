@@ -243,13 +243,13 @@ BEGIN
   VALUES (v_season, 97, 'gw-97',
           jsonb_build_object('he', jsonb_build_object('full','מחזור 97'),
                              'en', jsonb_build_object('full','Gameweek 97')),
-          now() + INTERVAL '5 days', 'draft')
+          now() + INTERVAL '30 minutes', 'draft')
   ON CONFLICT (season_id, number) DO UPDATE
-    SET status = 'draft', lock_at = now() + INTERVAL '5 days'
+    SET status = 'draft', lock_at = now() + INTERVAL '30 minutes'
   RETURNING id INTO v_next;
 
   INSERT INTO core.weekly_matches (gameweek_id, home_team_id, away_team_id, kickoff_at, status)
-  SELECT v_next, t1.id, t2.id, now() + INTERVAL '5 days', 'scheduled'
+  SELECT v_next, t1.id, t2.id, now() + INTERVAL '30 minutes', 'scheduled'
     FROM (SELECT id FROM core.teams ORDER BY id LIMIT 1) t1,
          (SELECT id FROM core.teams ORDER BY id DESC LIMIT 1) t2
   ON CONFLICT DO NOTHING;
