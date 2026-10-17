@@ -32,7 +32,7 @@ test('statNumber קורא את הפורמטים של הספק', () => {
 for (const id of [4739316, 4739321]) {
   test(`משחק אמיתי ${id}: שערים מהאירועים = התוצאה, בלי התרעה חוסמת`, () => {
     const g = load(id);
-    const { stats, alerts } = mapGameStats(fixtureOf(g), g, 1);
+    const { stats, alerts } = mapGameStats(fixtureOf(g), g);
     assert.equal(alerts.filter((a) => a.severity === 'block').length, 0, JSON.stringify(alerts));
 
     const total = stats.reduce((n, s) => n + s.goals + s.ownGoals, 0);
@@ -43,7 +43,7 @@ for (const id of [4739316, 4739321]) {
 
   test(`משחק אמיתי ${id}: ספיגות של שוער = "Goals Conceded" של הספק`, () => {
     const g = load(id);
-    const { stats } = mapGameStats(fixtureOf(g), g, 1);
+    const { stats } = mapGameStats(fixtureOf(g), g);
     for (const side of ['homeCompetitor', 'awayCompetitor'] as const) {
       for (const row of g[side].lineups.members) {
         if (row.status !== 1 || row.position?.name !== 'Goalkeeper') continue;
@@ -60,7 +60,7 @@ for (const id of [4739316, 4739321]) {
 
   test(`משחק אמיתי ${id}: דקות ופותחים`, () => {
     const g = load(id);
-    const { stats } = mapGameStats(fixtureOf(g), g, 1);
+    const { stats } = mapGameStats(fixtureOf(g), g);
     const starters = stats.filter((s) => s.started);
     assert.equal(starters.length, 22);
     assert.ok(stats.every((s) => s.minutes <= 130));
@@ -70,21 +70,31 @@ for (const id of [4739316, 4739321]) {
 test('שער שלא מסתדר עם התוצאה → התרעה חוסמת, לא ניקוד שקט', () => {
   const g = load(4739316);
   g.homeCompetitor.score += 1;
-  const { alerts } = mapGameStats(fixtureOf(g), g, 1);
+  const { alerts } = mapGameStats(fixtureOf(g), g);
   assert.ok(alerts.some((a) => a.kind === 'source_disagreement' && a.severity === 'block'));
 });
 
 test('אירוע לא מוכר מדווח ולא נבלע', () => {
   const g = load(4739316);
   g.events.push({ order: 99, gameTime: 80, playerId: 1, eventType: { id: 77, name: 'Mystery' } });
-  const { alerts } = mapGameStats(fixtureOf(g), g, 1);
+  const { alerts } = mapGameStats(fixtureOf(g), g);
   assert.ok(alerts.some((a) => a.kind === 'unknown_event'));
 });
 
-test('עברית: השם נשמר כ-nameHe', () => {
+test('שם עברי מגיע מהקריאה השנייה, והאירועים נשארים באנגלית', () => {
   const g = load(4739316);
-  const { stats } = mapGameStats(fixtureOf(g), g, 2);
-  assert.ok(stats.every((s) => s.player.nameEn === null && typeof s.player.nameHe === 'string'));
+  const he = structuredClone(g);
+  for (const m of he.members) m.name = 'ע-' + m.id;
+  for (const e of he.events) e.eventType.name = 'שער';   // כמו שהספק מחזיר בעברית
+  const { stats, alerts } = mapGameStats(fixtureOf(g), g, he);
+  assert.ok(stats.every((s) => typeof s.player.nameEn === 'string' && s.player.nameHe === 'ע-' + s.player.id));
+  assert.equal(alerts.filter((a) => a.severity === 'block').length, 0);
+});
+
+test('בלי עברית השם העברי null — ולא שם אנגלי בשדה עברי', () => {
+  const g = load(4739316);
+  const { stats } = mapGameStats(fixtureOf(g), g);
+  assert.ok(stats.every((s) => s.player.nameHe === null));
 });
 
 test('מחזור ישן נמצא בעמודים הקודמים, ועונה קודמת לא נערבבת', async () => {

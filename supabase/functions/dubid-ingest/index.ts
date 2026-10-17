@@ -822,7 +822,7 @@ interface PlayerTally {
 export function mapGameStats(
   fixture: Fixture,
   game: any,
-  langId = 2,
+  heGame?: any,
 ): { stats: PlayerStat[]; alerts: Alert[] } {
   const stats: PlayerStat[] = [];
   const alerts: Alert[] = [];
@@ -838,6 +838,12 @@ export function mapGameStats(
   const events: any[] = Array.isArray(game.events) ? game.events : [];
   const names = new Map<number, any>();
   for (const m of game.members ?? []) names.set(m.id, m);
+  /* ★ `game` חייב להיות בשפה 1 (אנגלית): שמות סוגי האירועים מתורגמים
+     יחד עם השפה ("Goal" ← "שער"), והמיפוי כאן נשען על השמות האנגליים.
+     שמות השחקנים והחולצות בעברית מגיעים מקריאה שנייה (`heGame`) —
+     המזהים זהים בשתי השפות, וההתאמה לסגל נעשית לפי עברית. */
+  const namesHe = new Map<number, any>();
+  for (const m of heGame?.members ?? []) namesHe.set(m.id, m);
 
   /* ── אירועים → ספירה לכל שחקן + דקות שערים לכל צד ───────────── */
   const tally = new Map<number, PlayerTally>();
@@ -948,9 +954,9 @@ export function mapGameStats(
         team: teamRef,
         player: {
           id: String(pid),
-          nameEn: langId === 2 ? null : (member?.name ?? null),
-          nameHe: langId === 2 ? (member?.name ?? null) : null,
-          shirt: toShirt(member?.jerseyNumber),
+          nameEn: member?.name ?? null,
+          nameHe: namesHe.get(pid)?.name ?? null,
+          shirt: toShirt(member?.jerseyNumber ?? namesHe.get(pid)?.jerseyNumber),
           position: toPosition(row?.position?.name),
         },
         minutes,
@@ -1071,11 +1077,15 @@ export function createScores365(http: Http, cfg: Scores365Config): Provider & {
         /* משחק שלא התחיל או נדחה אינו נסרק */
         if (f.status === 'scheduled' || f.status === 'postponed') continue;
         try {
-          const payload = await http(
-            `${base}/game/?appTypeId=5&langId=${lang}&timezoneName=Asia/Jerusalem&gameId=${f.providerId}`,
-          );
+          const url = (l: number) =>
+            `${base}/game/?appTypeId=5&langId=${l}&timezoneName=Asia/Jerusalem&gameId=${f.providerId}`;
+          /* אנגלית לאירועים (שמות יציבים), עברית לשמות — ראו mapGameStats */
+          const [payload, heLoaded] = await Promise.all([
+            http(url(1)),
+            http(url(2)).catch(() => null),
+          ]);
           raw.push({ kind: 'game', externalId: f.providerId, payload });
-          const mapped = mapGameStats(f, payload?.game, lang);
+          const mapped = mapGameStats(f, payload?.game, heLoaded?.game);
           stats.push(...mapped.stats);
           alerts.push(...mapped.alerts);
         } catch (err) {
