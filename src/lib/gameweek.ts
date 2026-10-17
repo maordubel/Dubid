@@ -278,3 +278,26 @@ export function deadlineView(ms: number): DeadlineView {
     flash: 'שעה אחרונה', note: 'אחרי זה אי אפשר לשנות כלום.',
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * סטריפ "המחזור ננעל בעוד" — 12 שעות לפני הנעילה ועד הנעילה.
+ *
+ * טהור, כמו כל הקובץ: הזמן מגיע כפרמטר (שעון מסונכרן-שרת), והסף
+ * יושב כאן ולא בקומפוננטה. FAN LIFE קורא את אותו סף בשרת שלו
+ * (`COUNTDOWN_HOURS`), כך ששתי האפליקציות מדליקות את השעון באותה שנייה.
+ * ------------------------------------------------------------------ */
+export const LOCK_STRIP_HOURS = 12;
+export interface LockStripView { clock: string; urgent: boolean; }
+
+export function lockStripView(
+  lockAtIso: string | null | undefined,
+  status: string | null | undefined,
+  nowMs: number,
+): LockStripView | null {
+  if (!lockAtIso || status !== 'open') return null;
+  const lockMs = Date.parse(lockAtIso);
+  if (!Number.isFinite(lockMs)) return null;
+  const left = lockMs - nowMs;
+  if (left <= 0 || left > LOCK_STRIP_HOURS * 3600_000) return null;
+  return { clock: countdown(left).clock, urgent: left < URGENT_FROM_MS };
+}

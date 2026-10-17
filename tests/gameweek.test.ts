@@ -208,3 +208,15 @@ test('כל מצב מחזיר תווית ומשפט — אין מסך חצי רי
 test('יום אחד בדיוק אינו "בעוד 1 ימים"', () => {
   assert.equal(deadlineView(30 * 3600_000).value, 'בעוד יום');
 });
+
+/* ★ סטריפ הנעילה: נדלק ב-T-12 בדיוק, אדום בשעה האחרונה, נעלם בנעילה. */
+import { lockStripView, LOCK_STRIP_HOURS } from '../src/lib/gameweek.ts';
+test('lockStripView: 12 hours before the lock until the lock', () => {
+  const lock = '2026-10-17T15:45:00Z', L = Date.parse(lock), H = 3600_000;
+  assert.equal(lockStripView(lock, 'open', L - LOCK_STRIP_HOURS * H - 1000), null);
+  assert.deepEqual(lockStripView(lock, 'open', L - LOCK_STRIP_HOURS * H), { clock: '12:00:00', urgent: false });
+  assert.deepEqual(lockStripView(lock, 'open', L - 59 * 60_000), { clock: '00:59:00', urgent: true });
+  assert.equal(lockStripView(lock, 'open', L), null);
+  assert.equal(lockStripView(lock, 'locked', L - H), null);
+  assert.equal(lockStripView(null, 'open', L - H), null);
+});

@@ -10,6 +10,7 @@
  *   · padding-bottom של התוכן מחושב מגובה הניווט + safe-area,
  *     ולכן הניווט לעולם לא מכסה את סוף התוכן.
  */
+import { LockCountdownStrip } from './LockCountdownStrip.tsx';
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { BottomNav, SideRail, NAV_HEIGHT_PX, type NavItem } from './BottomNav.tsx';
 import { LogoMark } from './Logo.tsx';
@@ -45,6 +46,7 @@ export function AppShell({
       <SideRail items={items} activeId={activeId} onSelect={onSelect} />
 
       <div className="flex min-w-0 flex-1 flex-col">
+        <LockCountdownStrip />
         {header}
 
         <div className="flex min-h-0 flex-1">
