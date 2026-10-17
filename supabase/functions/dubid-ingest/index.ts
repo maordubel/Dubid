@@ -1453,19 +1453,36 @@ Deno.serve(async (req) => {
           },
         );
 
-        if (!scored.ok) {
-          /* ★ ניקוד שנכשל **לא** מפרסם. מחזור מפורסם בלי ניקוד
-             הוא טבלה ריקה שכל המשתמשים רואים בבת אחת. */
+        /* ★ הדוח, לא קוד ה-HTTP. «200» אינו «נוקדו כולם»: בעבר
+           פרסום קרה גם כשלא נוקד אף הרכב. השער האטומי במסד
+           (`publish_scored_gameweek`) משווה את הדוח למה שהוא סופר. */
+        let report: any = null;
+        try { report = await scored.json(); } catch { /* נבדק מיד */ }
+
+        if (!scored.ok || !report || typeof report.fingerprint !== 'string') {
           await logFailure(supabase, {
             p_source: 'scoring', p_phase: 'final',
-            p_gw_code: ready, p_error: `score-gameweek ${scored.status}`,
+            p_gw_code: ready,
+            p_error: `score-gameweek ${scored.status}${report?.error ? ` ${report.error}` : ''}`,
           });
           done.push({ publish: 'skipped_scoring_failed' });
         } else {
-          const { error: pubErr } = await supabase.rpc('admin_set_published', {
-            p_gw_code: ready, p_published: true,
+          const failures = Array.isArray(report.failures) ? report.failures.length : 0;
+          const { data: gate, error: pubErr } = await supabase.rpc('publish_scored_gameweek', {
+            p_gw_code: ready,
+            p_scored: Number(report.scored ?? 0),
+            p_fingerprint: report.fingerprint,
+            p_failures: failures,
           });
-          done.push({ publish: pubErr ? `failed: ${pubErr.message}` : ready });
+          if (pubErr) {
+            done.push({ publish: `failed: ${pubErr.message}` });
+          } else if (gate && gate.ok === false) {
+            /* סירוב הוא ערך, לא חריגה: ההתראה והביקורת כבר נכתבו
+               במסד, והפעימה הבאה תנסה שוב. */
+            done.push({ publish: `refused: ${gate.reason}` });
+          } else {
+            done.push({ publish: ready });
+          }
         }
       }
     }

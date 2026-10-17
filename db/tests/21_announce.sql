@@ -40,7 +40,7 @@ BEGIN
   /* 5 · התרעה חוסמת → alert, פעם אחת */
   INSERT INTO game.ingest_alerts (gw_code, kind, severity, detail) VALUES ('gw-2','var','block','{"x":1}');
   PERFORM game.announce_scan(); PERFORM game.announce_scan();
-  SELECT count(*) INTO n FROM game.announce_outbox WHERE kind='alert';
+  SELECT count(*) INTO n FROM game.announce_outbox WHERE kind='alert' AND gw_code='gw-2';
   IF n <> 1 THEN RAISE EXCEPTION 'alert expected once, got %', n; END IF;
 
   /* 6 · פרסום → published עם טבלה */

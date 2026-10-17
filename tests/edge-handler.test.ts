@@ -225,8 +225,25 @@ test('★ בונדל הניקוד נטען, ומוגדר לסכימת game', asy
   assert.equal(typeof handler, 'function', 'הבונדל נטען ורשם handler');
 
   /* בלי gameweekId היא נעצרת לפני המסד — מספיק כדי ליצור לקוח. */
-  const res = await handler!(new Request('https://fn.test/score', {
+  /* ★ בלי מפתח שירות — 403. אימות קורא נאכף בקוד, לא רק בשער הפלטפורמה. */
+  const anon = await handler!(new Request('https://fn.test/score', {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+  }));
+  assert.equal(anon.status, 403);
+  const wrong = await handler!(new Request('https://fn.test/score', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: 'Bearer not-the-key' },
+    body: '{}',
+  }));
+  assert.equal(wrong.status, 403);
+
+  const res = await handler!(new Request('https://fn.test/score', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${ENV.SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+    body: '{}',
   }));
   assert.equal(res.status, 400);
   assert.equal(lastClientOptions?.db?.schema, 'game');
