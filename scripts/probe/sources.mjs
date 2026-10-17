@@ -41,3 +41,4 @@ await probe('thesportsdb league', 'https://www.thesportsdb.com/api/v1/json/3/eve
 await probe('one.co.il', 'https://www.one.co.il/Soccer/', {}, 120);
 await probe('sport5', 'https://www.sport5.co.il/', {}, 120);
 await probe('football.org.il', 'https://www.football.org.il/', {}, 120);
+// run
