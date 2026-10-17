@@ -44,7 +44,7 @@ const POSITION_MAP: Record<string, Position> = {
   G: 'GK', GK: 'GK', GOALKEEPER: 'GK', 'שוער': 'GK',
   D: 'DEF', DF: 'DEF', DEF: 'DEF', DEFENDER: 'DEF', 'מגן': 'DEF',
   M: 'MID', MF: 'MID', MID: 'MID', MIDFIELDER: 'MID', 'קשר': 'MID',
-  F: 'FWD', FW: 'FWD', FWD: 'FWD', A: 'FWD', ATT: 'FWD',
+  F: 'FWD', FW: 'FWD', FWD: 'FWD', A: 'FWD', ATT: 'FWD', ATTACKER: 'FWD',
   FORWARD: 'FWD', STRIKER: 'FWD', 'חלוץ': 'FWD',
 };
 

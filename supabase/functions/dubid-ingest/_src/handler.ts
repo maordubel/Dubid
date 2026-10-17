@@ -62,7 +62,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createSofascore } from '../../../../src/lib/ingest/sofascore.ts';
 import { createScores365 } from '../../../../src/lib/ingest/scores365.ts';
 import { reconcileFixtures } from '../../../../src/lib/ingest/reconcile.ts';
-import type { Alert, Snapshot, SquadMeta } from '../../../../src/lib/ingest/types.ts';
+import type { Alert, Fixture, RawBlob, Snapshot, SquadMeta } from '../../../../src/lib/ingest/types.ts';
 
 /** מזהה בנייה — מופיע ב-ping, כדי לדעת איזו גרסה באמת פרוסה. */
 const BUILD = 'dubid-ingest/3';
@@ -390,8 +390,23 @@ Deno.serve(async (req) => {
       }
     }
 
-    /* ── 2. לוח + סטטיסטיקה ────────────────────────────────── */
-    const { fixtures, raw } = await source.round(round!);
+    /* ── 2. לוח + סטטיסטיקה ──────────────────────────────────
+       ★ גם כשהמחזור התבקש במפורש (השלמה) — מקור ראשי שנחסם לא
+         עוצר את הריצה. עוברים לגיבוי, שהוא כבר מקור סטטיסטיקה. */
+    let fixtures: Fixture[];
+    let raw: RawBlob[];
+    try {
+      ({ fixtures, raw } = await source.round(round!));
+    } catch (err) {
+      if (usedBackup) throw err;
+      usedBackup = true;
+      source = backup as unknown as typeof primary;
+      await logFailure(supabase, {
+        p_source: 'sofascore', p_phase: 'fixtures',
+        p_gw_code: `gw-${round}`, p_error: String(err),
+      });
+      ({ fixtures, raw } = await backup.round(round!));
+    }
     const alerts: Alert[] = [];
 
     const wantStats = phase === 'auto' || phase === 'live'
@@ -399,12 +414,39 @@ Deno.serve(async (req) => {
 
     let stats: Snapshot['stats'] = [];
     let meta: SquadMeta | undefined;
-    if (wantStats && !usedBackup) {
-      const got = await primary.stats(fixtures);
+    if (wantStats) {
+      const got = await source.stats(fixtures);
       stats = got.stats;
       alerts.push(...got.alerts);
       raw.push(...got.raw);
-      meta = got.meta;
+      meta = (got as { meta?: SquadMeta }).meta;
+    }
+
+    /* ★ המקור הראשי ענה על הלוח אבל לא נתן סטטיסטיקה (חסימה חלקית):
+       משחק שהתחיל ואין לו ולו שורה אחת → משלימים מהגיבוי, כקליטה
+       נפרדת תחת שמו. אותם משחקים בדיוק (מפתח: מחזור + בית + חוץ),
+       אז אין כפילות. */
+    const started = fixtures.filter((f) => f.status === 'live' || f.status === 'finished');
+    if (wantStats && !usedBackup && started.length > 0 && stats.length === 0) {
+      try {
+        const b = await backup.round(round!);
+        const bs = await backup.stats(b.fixtures);
+        const { data: fb, error: fbErr } = await supabase.rpc('ingest_snapshot', {
+          p_source: backup.name,
+          p_payload: {
+            phase: 'sweep', gameweek: { number: round! },
+            fixtures: b.fixtures, stats: bs.stats, alerts: bs.alerts,
+            raw: [...b.raw, ...bs.raw],
+          } satisfies Snapshot,
+        });
+        if (fbErr) throw new Error(fbErr.message);
+        done.push({ statsFallback: { source: backup.name, players: bs.stats.length, report: fb } });
+      } catch (err) {
+        await logFailure(supabase, {
+          p_source: 'scores365', p_phase: 'sweep',
+          p_gw_code: `gw-${round}`, p_error: `stats fallback: ${String(err)}`,
+        });
+      }
     }
 
     /* ── 3. הצלבה מול הגיבוי ───────────────────────────────── */
@@ -466,10 +508,10 @@ Deno.serve(async (req) => {
     //  ★ בלי זה, המחזור הבא נולד רק אחרי שהנוכחי פורסם, והמשתמש
     //    מגלה את המשחקים שלו יום לפני הדדליין.
     try {
-      const next = await primary.round(round! + 1);
+      const next = await source.round(round! + 1);
       if (next.fixtures.length > 0) {
         const { data: nextReport } = await supabase.rpc('ingest_snapshot', {
-          p_source: primary.name,
+          p_source: usedBackup ? backup.name : primary.name,
           p_payload: {
             phase: 'fixtures',
             gameweek: { number: round! + 1 },

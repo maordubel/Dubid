@@ -11,15 +11,24 @@
  *      וזה מה שמחבר בין קובץ הסגלים (עברית בלבד, 457 שחקנים)
  *      לבין המקור הראשי (לטינית בלבד).
  *
- * ★ מה שהוא **לא** עושה: הוא אינו מקור הסטטיסטיקה. מבנה
- *   הסטטיסטיקה שלו לא אומת מול נתון אמיתי, ולנחש מבנה זה
- *   לכתוב נקודות שאיש לא בדק. `stats()` מחזיר רשימה ריקה
- *   והתרעה — ולא מספרים שנראים אמיתיים.
+ * ★ 17.10.2026 — הוא **כן** מקור סטטיסטיקה. SofaScore נחסם (403
+ *   מ-Supabase ומ-GitHub), ומבנה `game` של 365scores אומת מול
+ *   שני משחקים אמיתיים (tests/fixtures/scores365-game-*.json):
+ *   לכל שחקן בהרכב יש `stats[]` עם דקות, שערים, בישולים, בעיטות,
+ *   מסירות מפתח ועוד, ויש `events[]` עם שערים, כרטיסים והחלפות.
+ *
+ *   כללי האמון:
+ *    1. שערים, בישולים, כרטיסים והחלפות נלקחים מ-`events[]`
+ *       (ניתנים לביקורת, עם דקה). `stats[]` משמש לדקות, הצלות
+ *       ולנתוני ה-extra, ומשמש גם כהצלבה.
+ *    2. סכום השערים מהאירועים חייב להיות שווה לתוצאה. אחרת —
+ *       התרעה **חוסמת** (`source_disagreement`), לא ניחוש.
+ *    3. סוג אירוע שלא מוכר → `unknown_event`, לא התעלמות שקטה.
  */
 import type {
   Alert, Fixture, FixtureStatus, Http, PlayerStat, Provider, RawBlob, TeamRef,
 } from './types.ts';
-import { num, toShirt } from './derive.ts';
+import { concededWhileOn, num, toPosition, toShirt, type OnPitch } from './derive.ts';
 
 export interface Scores365Config {
   base?: string;
@@ -98,6 +107,194 @@ export function mapSquad(payload: any, teamProviderId: string): SquadRow[] {
     }));
 }
 
+
+/* ------------------------------------------------------------------ *
+ *  סטטיסטיקה אישית ממשחק אחד — `game.homeCompetitor.lineups.members`
+ * ------------------------------------------------------------------ */
+
+/** "39'" → 39 · "12/17 (71%)" → 12 · "0.68" → 0.68 · חסר → 0 */
+export function statNumber(raw: unknown): number {
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 0;
+  if (typeof raw !== 'string') return 0;
+  const m = raw.match(/-?\d+(?:\.\d+)?/);
+  return m ? Number(m[0]) : 0;
+}
+
+const S365_KNOWN_EVENTS = new Set(['Goal', 'Yellow Card', 'Red Card', 'Substitution', 'Woodwork']);
+
+interface PlayerTally {
+  goals: number; assists: number; own: number; yellow: number; red: number; missedPen: number;
+}
+
+export function mapGameStats(
+  fixture: Fixture,
+  game: any,
+  langId = 2,
+): { stats: PlayerStat[]; alerts: Alert[] } {
+  const stats: PlayerStat[] = [];
+  const alerts: Alert[] = [];
+  if (!game?.homeCompetitor || !game?.awayCompetitor) {
+    return { stats, alerts: [{
+      kind: 'source_down', severity: 'warn',
+      detail: { source: 'scores365', match: fixture.providerId, error: 'game ריק' },
+    }] };
+  }
+
+  const homeId = game.homeCompetitor.id;
+  const awayId = game.awayCompetitor.id;
+  const events: any[] = Array.isArray(game.events) ? game.events : [];
+  const names = new Map<number, any>();
+  for (const m of game.members ?? []) names.set(m.id, m);
+
+  /* ── אירועים → ספירה לכל שחקן + דקות שערים לכל צד ───────────── */
+  const tally = new Map<number, PlayerTally>();
+  const t = (id: number): PlayerTally => {
+    let row = tally.get(id);
+    if (!row) { row = { goals: 0, assists: 0, own: 0, yellow: 0, red: 0, missedPen: 0 }; tally.set(id, row); }
+    return row;
+  };
+  /** דקות שערים שנזקפו **לטובת** כל צד (שער עצמי נזקף ליריבה). */
+  const goalsFor = new Map<number, number[]>([[homeId, []], [awayId, []]]);
+  const onAt = new Map<number, number>();   // שחקן → דקת כניסה
+  const offAt = new Map<number, number>();  // שחקן → דקת יציאה
+  const unknown = new Set<string>();
+
+  const sorted = [...events].sort((a, b) => num(a?.order) - num(b?.order));
+  for (const e of sorted) {
+    const type = String(e?.eventType?.name ?? '');
+    const sub = String(e?.eventType?.subTypeName ?? '');
+    const minute = num(e?.gameTime);
+    const pid = num(e?.playerId);
+
+    if (type === 'Goal') {
+      const own = /own/i.test(sub);
+      if (own) t(pid).own += 1; else t(pid).goals += 1;
+      for (const a of e?.extraPlayers ?? []) if (!own) t(num(a)).assists += 1;
+      /* ★ למי נזקף שער עצמי — לא ידוע מדגימה; נקבע לפי התוצאה בהמשך. */
+      const credited = own ? (e.competitorId === homeId ? awayId : homeId) : e.competitorId;
+      goalsFor.get(credited)?.push(minute);
+    } else if (type === 'Yellow Card') {
+      t(pid).yellow += 1;
+    } else if (type === 'Red Card') {
+      /* כרטיס אדום שני (צהוב-אדום) — הצהוב הראשון כבר נספר בנפרד */
+      t(pid).red += 1;
+    } else if (type === 'Substitution') {
+      onAt.set(pid, minute);
+      for (const off of e?.extraPlayers ?? []) offAt.set(num(off), minute);
+    } else if (/penalt/i.test(type) && /(miss|fail|saved)/i.test(type)) {
+      t(pid).missedPen += 1;
+    } else if (!S365_KNOWN_EVENTS.has(type)) {
+      unknown.add(type + (sub ? `/${sub}` : ''));
+    }
+  }
+
+  if (unknown.size > 0) {
+    alerts.push({
+      kind: 'unknown_event', severity: 'warn',
+      detail: { source: 'scores365', match: fixture.providerId, kinds: [...unknown] },
+    });
+  }
+
+  /* ── הצלבה: סכום השערים חייב להיות שווה לתוצאה ──────────────── */
+  const hs = game.homeCompetitor.score;
+  const as = game.awayCompetitor.score;
+  const sumHome = goalsFor.get(homeId)!.length;
+  const sumAway = goalsFor.get(awayId)!.length;
+  if (typeof hs === 'number' && typeof as === 'number' && hs >= 0 && as >= 0
+      && (sumHome !== hs || sumAway !== as)) {
+    alerts.push({
+      kind: 'source_disagreement', severity: 'block',
+      detail: {
+        source: 'scores365', match: fixture.providerId,
+        score: [hs, as], fromEvents: [sumHome, sumAway],
+      },
+    });
+  }
+
+  /* ── שחקנים ────────────────────────────────────────────────── */
+  for (const side of ['homeCompetitor', 'awayCompetitor'] as const) {
+    const comp = game[side];
+    const teamRef = side === 'homeCompetitor' ? fixture.home : fixture.away;
+    const against = goalsFor.get(comp.id === homeId ? awayId : homeId) ?? [];
+
+    for (const row of comp?.lineups?.members ?? []) {
+      /* 1 = פותח · 2 = ספסל. 3 = חסר · 4 = סגל מקצועי — לא שיחקו */
+      if (row?.status !== 1 && row?.status !== 2) continue;
+      const pid = num(row?.id);
+      if (!pid) continue;
+
+      const byType = new Map<number, string>();
+      for (const s of row?.stats ?? []) byType.set(s?.type, s?.value);
+      const stat = (type: number) => statNumber(byType.get(type));
+
+      const started = row.status === 1;
+      let minutes = stat(30);
+      /* ★ ספסלן בלי דקות ובלי סטטיסטיקה = לא עלה. שורת אפסים
+         עבורו היא רעש, לא נתון. */
+      if (!started && minutes === 0 && !row?.hasStats) continue;
+
+      const from = started ? 0 : (onAt.get(pid) ?? -1);
+      const to = started ? (offAt.get(pid) ?? null) : null;
+      const window: OnPitch = { from, to };
+      if (started && minutes === 0) minutes = to ?? 90;   // פותח בלי שדה דקות
+
+      const tl = tally.get(pid) ?? { goals: 0, assists: 0, own: 0, yellow: 0, red: 0, missedPen: 0 };
+      const member = names.get(pid);
+
+      /* הצלבה פנימית: סטטיסטיקת הספק מול האירועים */
+      if (byType.has(27) && stat(27) !== tl.goals) {
+        alerts.push({
+          kind: 'source_disagreement', severity: 'warn',
+          detail: { source: 'scores365', match: fixture.providerId, player: pid,
+                    field: 'goals', stat: stat(27), events: tl.goals },
+        });
+      }
+
+      stats.push({
+        matchProviderId: fixture.providerId,
+        team: teamRef,
+        player: {
+          id: String(pid),
+          nameEn: langId === 2 ? null : (member?.name ?? null),
+          nameHe: langId === 2 ? (member?.name ?? null) : null,
+          shirt: toShirt(member?.jerseyNumber),
+          position: toPosition(row?.position?.name),
+        },
+        minutes,
+        started,
+        goals: tl.goals,
+        assists: tl.assists,
+        ownGoals: tl.own,
+        yellowCards: tl.yellow,
+        redCards: tl.red,
+        saves: stat(23),
+        penaltiesSaved: 0,
+        penaltiesMissed: tl.missedPen,
+        goalsConceded: minutes > 0 ? concededWhileOn(window, against) : 0,
+        extra: {
+          shots: stat(3),
+          shotsOnTarget: stat(4),
+          keyPasses: stat(46),
+          bigChancesCreated: stat(24),
+          dribblesWon: stat(54),
+          tacklesWon: stat(39),
+          interceptions: stat(41),
+          clearances: stat(40),
+          recoveries: stat(86),
+          touches: stat(45),
+          blocks: stat(59),
+          foulsMade: stat(42),
+          wasFouled: stat(37),
+          providerRating: typeof row?.ranking === 'number' ? row.ranking : null,
+        },
+      });
+    }
+  }
+
+  return { stats, alerts };
+}
+
+
 export function createScores365(http: Http, cfg: Scores365Config): Provider & {
   squad(teamProviderId: string): Promise<SquadRow[]>;
 } {
@@ -146,17 +343,31 @@ export function createScores365(http: Http, cfg: Scores365Config): Provider & {
       };
     },
 
-    async stats(): Promise<{ stats: PlayerStat[]; alerts: Alert[]; raw: RawBlob[] }> {
-      /* ★ ראו הערת הפתיחה: אין כאן ניחוש מבנה. */
-      return {
-        stats: [],
-        alerts: [{
-          kind: 'unknown_event',
-          severity: 'warn',
-          detail: { source: 'scores365', note: 'מקור גיבוי — תוצאות ולוח בלבד, ללא סטטיסטיקה אישית' },
-        }],
-        raw: [],
-      };
+    async stats(fixtures): Promise<{ stats: PlayerStat[]; alerts: Alert[]; raw: RawBlob[] }> {
+      const stats: PlayerStat[] = [];
+      const alerts: Alert[] = [];
+      const raw: RawBlob[] = [];
+
+      for (const f of fixtures) {
+        /* משחק שלא התחיל או נדחה אינו נסרק */
+        if (f.status === 'scheduled' || f.status === 'postponed') continue;
+        try {
+          const payload = await http(
+            `${base}/game/?appTypeId=5&langId=${lang}&timezoneName=Asia/Jerusalem&gameId=${f.providerId}`,
+          );
+          raw.push({ kind: 'game', externalId: f.providerId, payload });
+          const mapped = mapGameStats(f, payload?.game, lang);
+          stats.push(...mapped.stats);
+          alerts.push(...mapped.alerts);
+        } catch (err) {
+          /* ★ משחק אחד שנפל אינו מפיל מחזור. הוא מדווח. */
+          alerts.push({
+            kind: 'source_down', severity: 'warn',
+            detail: { source: 'scores365', match: f.providerId, error: String(err) },
+          });
+        }
+      }
+      return { stats, alerts, raw };
     },
 
     async squad(teamProviderId) {

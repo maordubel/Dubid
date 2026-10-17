@@ -1,12 +1,14 @@
 import { writeFileSync } from 'node:fs';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const get = async (u) => (await fetch(u, { headers: { 'user-agent': UA } })).json();
-const b = 'https://webws.365scores.com/web';
-const q = 'appTypeId=5&langId=1&timezoneName=Asia/Jerusalem';
-const res = await get(`${b}/games/results/?${q}&competitions=42`);
-const fin = (res.games || []).filter((x) => x.statusGroup === 4).slice(0, 2);
-const out = { list: (res.games || []).map((g) => ({ id: g.id, r: g.roundNum, sg: g.statusGroup, st: g.statusText, t: g.startTime, h: g.homeCompetitor?.name, a: g.awayCompetitor?.name, hs: g.homeCompetitor?.score, as: g.awayCompetitor?.score })), games: [] };
-for (const g of fin) out.games.push((await get(`${b}/game/?${q}&gameId=${g.id}`)).game);
-writeFileSync('probe-games.json', JSON.stringify(out));
-const hu = (await (await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/isr.1/scoreboard', { headers: { 'user-agent': UA } })).text());
-writeFileSync('probe-espn.json', hu);
+const out = [];
+let url = 'https://webws.365scores.com/web/games/results/?appTypeId=5&langId=2&timezoneName=Asia/Jerusalem&competitions=42';
+for (let i = 0; i < 5; i++) {
+  const j = await get(url);
+  out.push({ url, paging: j.paging, rounds: (j.games || []).map((g) => [g.id, g.roundNum, g.statusGroup, g.homeCompetitor?.name, g.awayCompetitor?.name]) });
+  if (!j.paging?.previousPage) break;
+  url = 'https://webws.365scores.com' + j.paging.previousPage;
+}
+const fx = await get('https://webws.365scores.com/web/games/fixtures/?appTypeId=5&langId=2&timezoneName=Asia/Jerusalem&competitions=42');
+out.push({ fixtures: (fx.games || []).map((g) => [g.id, g.roundNum, g.statusGroup, g.startTime]), paging: fx.paging });
+writeFileSync('probe-paging.json', JSON.stringify(out, null, 1));
