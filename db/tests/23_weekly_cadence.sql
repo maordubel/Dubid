@@ -68,3 +68,18 @@ BEGIN
   END IF;
 END $$;
 \echo '  ✓ 6  התרעת מחלוקת נסגרת לבד אחרי בדיקה מחדש, ומתועדת'
+
+-- ★ is_current עוקב אחרי המחזור הפעיל
+DO $$
+DECLARE v_cur TEXT;
+BEGIN
+  UPDATE game.gameweeks SET status='published', is_current = (code='gw-2');
+  UPDATE game.gameweeks SET status='open' WHERE code='gw-2';
+  UPDATE game.gameweeks SET is_current = FALSE;
+  UPDATE game.gameweeks SET is_current = TRUE WHERE code = (SELECT code FROM game.gameweeks WHERE status='published' ORDER BY number LIMIT 1) AND status='published';
+  PERFORM game.sync_current_gameweek();
+  SELECT code INTO v_cur FROM game.gameweeks WHERE is_current;
+  IF v_cur <> 'gw-2' THEN RAISE EXCEPTION 'FAIL 7: הנוכחי % ולא המחזור הפתוח', v_cur; END IF;
+  IF (SELECT count(*) FROM game.gameweeks WHERE is_current) <> 1 THEN RAISE EXCEPTION 'FAIL 7b'; END IF;
+END $$;
+\echo '  ✓ 7  is_current עוקב אחרי המחזור הפעיל'
