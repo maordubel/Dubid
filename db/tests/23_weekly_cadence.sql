@@ -48,3 +48,23 @@ BEGIN
   IF v_status <> 'open' THEN RAISE EXCEPTION 'FAIL 5: לא נפתח אחרי זמן הפרסום (%)', v_status; END IF;
 END $$;
 \echo '  ✓ 4-5  לא נפתח לפני יום שני 09:00; נפתח אחריו'
+
+-- ★ ריפוי עצמי של התרעת source_disagreement
+DO $$
+DECLARE v_id BIGINT; v_cleared TIMESTAMPTZ;
+BEGIN
+  INSERT INTO game.ingest_alerts (gw_code, kind, severity, detail)
+  VALUES ('gw-2','source_disagreement','block',
+          '{"source":"scores365","match":"m-heal","score":[1,0],"fromEvents":[0,0]}'::jsonb)
+  RETURNING id INTO v_id;
+  PERFORM game.ingest_snapshot('scores365', jsonb_build_object(
+    'phase','sweep',
+    'gameweek', (SELECT jsonb_build_object('number', number) FROM game.gameweeks WHERE code='gw-2'),
+    'stats', jsonb_build_array(jsonb_build_object('matchProviderId','m-heal'))));
+  SELECT cleared_at INTO v_cleared FROM game.ingest_alerts WHERE id = v_id;
+  IF v_cleared IS NULL THEN RAISE EXCEPTION 'FAIL 6: ההתרעה לא נסגרה אחרי בדיקה מחדש'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM game.audit_logs WHERE action='auto_clear_alert' AND entity_id LIKE '%'||v_id) THEN
+    RAISE EXCEPTION 'FAIL 6b: אין שורת ביקורת';
+  END IF;
+END $$;
+\echo '  ✓ 6  התרעת מחלוקת נסגרת לבד אחרי בדיקה מחדש, ומתועדת'
