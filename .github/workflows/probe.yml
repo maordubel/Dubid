@@ -1,0 +1,12 @@
+name: Probe sources
+on:
+  workflow_dispatch:
+  push:
+    branches: [work/data-sources]
+    paths: ['scripts/probe/**']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/probe/sources.mjs
