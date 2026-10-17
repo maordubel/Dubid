@@ -10402,6 +10402,26 @@ BEGIN
     END IF;
   END LOOP;
 
+  /* ★ ריפוי עצמי (A05): התרעת `source_disagreement` של אותו מקור,
+     על משחק שהמטען הזה בדק מחדש, נסגרת. אם המחלוקת עדיין קיימת —
+     ההתרעה מוזרקת שוב מיד למטה (האינדקס חלקי על cleared_at IS NULL).
+     כך התרעה שנוצרה מתקלה זמנית לא חוסמת מחזור לנצח ואין צורך באדמין. */
+  WITH healed AS (
+    UPDATE game.ingest_alerts a
+       SET cleared_at = now(), cleared_by = 'auto:reverified'
+     WHERE a.cleared_at IS NULL
+       AND a.kind = 'source_disagreement'
+       AND a.detail->>'source' = p_source
+       AND a.detail->>'match' IN (
+             SELECT DISTINCT e->>'matchProviderId'
+               FROM jsonb_array_elements(COALESCE(p_payload->'stats','[]'::jsonb)) e)
+    RETURNING a.id
+  )
+  INSERT INTO game.audit_logs (actor, action, entity, entity_id, new_value)
+  SELECT game.actor_label(), 'auto_clear_alert', 'alert', string_agg(id::TEXT, ','),
+         jsonb_build_object('reason', 'reverified', 'source', p_source)
+    FROM healed HAVING count(*) > 0;
+
   /* ── התרעות מהמתאם (VAR, כרטיס שבוטל, מקור שנפל) ────────── */
   FOR r IN SELECT * FROM jsonb_array_elements(COALESCE(p_payload->'alerts', '[]'::jsonb)) LOOP
     INSERT INTO game.ingest_alerts (gw_code, kind, severity, detail)
