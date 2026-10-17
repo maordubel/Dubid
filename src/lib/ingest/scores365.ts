@@ -302,15 +302,41 @@ export function createScores365(http: Http, cfg: Scores365Config): Provider & {
   const lang = cfg.langId ?? 2;
   const q = `appTypeId=5&langId=${lang}&timezoneName=Asia/Jerusalem&competitions=${cfg.competitionId}`;
 
-  async function games(): Promise<any[]> {
-    const [results, fixtures] = await Promise.all([
+  /**
+   * ★ `results` מחזיר רק את העמוד האחרון (שבעה משחקים). מחזור ישן —
+   *   השלמה של מחזור 5 ב-17.10 — נמצא בעמודים הקודמים, שמקושרים
+   *   ב-`paging.previousPage`. עוקבים עד שרואים מחזור נמוך מהמבוקש
+   *   או עונה אחרת (אותו עמוד עשוי להכיל שתיהן), ולא יותר מ-6 עמודים.
+   */
+  async function games(downToRound?: number): Promise<any[]> {
+    const origin = new URL(base).origin;
+    const [first, fixtures] = await Promise.all([
       http(`${base}/games/results/?${q}`).catch(() => null),
       http(`${base}/games/fixtures/?${q}`).catch(() => null),
     ]);
-    return [
-      ...(Array.isArray(results?.games) ? results.games : []),
+    const out: any[] = [
+      ...(Array.isArray(first?.games) ? first.games : []),
       ...(Array.isArray(fixtures?.games) ? fixtures.games : []),
     ];
+    const season = Math.max(0, ...out.map((g) => num(g?.seasonNum)));
+
+    let prev: string | undefined = first?.paging?.previousPage;
+    for (let i = 0; downToRound !== undefined && prev && i < 6; i++) {
+      const lowest = Math.min(
+        Number.POSITIVE_INFINITY,
+        ...out.filter((g) => num(g?.seasonNum) === season && num(g?.roundNum) > 0)
+              .map((g) => num(g.roundNum)),
+      );
+      if (lowest < downToRound) break;
+      const page = await http(`${origin}${prev}`).catch(() => null);
+      if (!page) break;
+      const games = (Array.isArray(page.games) ? page.games : [])
+        .filter((g: any) => num(g?.seasonNum) === season);
+      if (games.length === 0) break;            // עברנו לעונה קודמת
+      out.push(...games);
+      prev = page?.paging?.previousPage;
+    }
+    return out;
   }
 
   return {
@@ -334,7 +360,7 @@ export function createScores365(http: Http, cfg: Scores365Config): Provider & {
     },
 
     async round(n) {
-      const all = await games();
+      const all = await games(n);
       const of = all.filter((g) => num(g?.roundNum) === n);
       const fixtures = of.map(mapGame).filter((f): f is Fixture => f !== null);
       return {

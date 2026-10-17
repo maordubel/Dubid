@@ -86,3 +86,33 @@ test('עברית: השם נשמר כ-nameHe', () => {
   const { stats } = mapGameStats(fixtureOf(g), g, 2);
   assert.ok(stats.every((s) => s.player.nameEn === null && typeof s.player.nameHe === 'string'));
 });
+
+test('מחזור ישן נמצא בעמודים הקודמים, ועונה קודמת לא נערבבת', async () => {
+  const { createScores365 } = await import('../src/lib/ingest/scores365.ts');
+  const g = (id: number, round: number, season: number) => ({
+    id, roundNum: round, seasonNum: season, statusGroup: 4,
+    homeCompetitor: { id: 1, name: 'א', score: 1 }, awayCompetitor: { id: 2, name: 'ב', score: 0 },
+    startTime: '2026-10-10T19:00:00+03:00',
+  });
+  const pages: Record<string, any> = {
+    results: { games: [g(60, 6, 9)], paging: { previousPage: '/web/games/?p=1' } },
+    fixtures: { games: [g(70, 7, 9)] },
+    p1: { games: [g(50, 5, 9), g(40, 4, 9)], paging: { previousPage: '/web/games/?p=2' } },
+    p2: { games: [g(33, 33, 8)], paging: { previousPage: '/web/games/?p=3' } },
+  };
+  const seen: string[] = [];
+  const http = async (url: string) => {
+    seen.push(url);
+    if (url.includes('/games/results/')) return pages.results;
+    if (url.includes('/games/fixtures/')) return pages.fixtures;
+    if (url.endsWith('p=1')) return pages.p1;
+    if (url.endsWith('p=2')) return pages.p2;
+    throw new Error('unexpected ' + url);
+  };
+  const p = createScores365(http, { competitionId: 42 });
+  const r5 = await p.round(5);
+  assert.deepEqual(r5.fixtures.map((f) => f.providerId), ['50']);
+  const r6 = await p.round(6);
+  assert.deepEqual(r6.fixtures.map((f) => f.providerId), ['60']);
+  assert.ok(!seen.some((u) => u.endsWith('p=2')), 'מחזור 5 נמצא בעמוד 1 — לא ממשיכים אחורה');
+});
