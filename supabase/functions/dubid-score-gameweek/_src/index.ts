@@ -44,7 +44,14 @@
  * `scripts/bundle-edge.mjs`, בדיוק כמו `dubid-ingest`. פריסה =
  * הדבקה אחת של `index.ts`.
  *
- * הרשאות: service_role בלבד. אין חישוב ניקוד מהקליינט.
+ * הרשאות: service_role בלבד — **נאכף בקוד** (ראו `isServiceCaller`),
+ * לא רק בהערה ולא רק בשער ה-JWT של הפלטפורמה. JWT של משתמש רגיל
+ * תקף לשער, ובכל זאת אינו מפעיל מורשה.
+ *
+ * ★ הפונקציה **מחשבת וכותבת ציונים — ואינה מפרסמת.** פרסום הוא
+ *   החלטה אחת, אטומית, במסד: `game.publish_scored_gameweek`, שנקרא
+ *   על ידי `dubid-ingest` עם הדוח שהפונקציה הזו מחזירה. בעבר
+ *   הפונקציה כתבה `published` בעצמה — גם כשלא נוקד אף הרכב.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -70,9 +77,32 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS, 'content-type': 'application/json; charset=utf-8' },
   });
 
+/** השוואה בזמן קבוע — כדי שהמפתח לא ייחשף דרך זמן התשובה. */
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/**
+ * ★ הקורא חייב להיות מפעיל מורשה: `Authorization: Bearer <service_role>`.
+ *   בלי מפתח מוגדר בסביבה — סירוב לכולם (נכשל סגור, לא פתוח).
+ */
+function isServiceCaller(req: Request): boolean {
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!key) return false;
+  const header = req.headers.get('authorization') ?? '';
+  return header.startsWith('Bearer ') && safeEqual(header.slice(7), key);
+}
+
+/** כמה הרכבים נקראים בבקשה אחת. PostgREST חותך ב-1,000 בשקט. */
+const PAGE = 500;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+  if (!isServiceCaller(req)) return json({ error: 'forbidden' }, 403);
 
   /* ★ `db: { schema: 'game' }` — ראו dubid-ingest. הפונקציה הזו
      קוראת ל-`gameweeks`, `user_lineups` ו-`lineup_scores`, וכולן
@@ -92,19 +122,30 @@ Deno.serve(async (req) => {
   /* -------- 1. חוקי הניקוד של הליגה, בגרסה שהייתה בתוקף -------- */
   const { data: gw, error: gwErr } = await supabase
     .from('gameweeks')
-    .select('id, number, season_id, seasons(league_id, leagues(code))')
+    .select('id, code, number, season_id, seasons(league_id, leagues(code))')
     .eq('id', gameweekId)
     .single();
   if (gwErr || !gw) return json({ error: 'gameweek_not_found' }, 404);
 
+  /* ★ טביעת האצבע נלקחת **לפני** קריאת הקלטים. אם הנתונים זזים
+     בזמן החישוב, השער במסד רואה אותה שונה ומסרב לפרסם. */
+  const { data: fingerprint, error: fpErr } = await supabase
+    .rpc('gameweek_fingerprint', { p_gw_code: (gw as any).code });
+  if (fpErr || typeof fingerprint !== 'string') {
+    return json({ ok: false, error: 'read_failed', what: 'fingerprint', detail: fpErr?.message }, 500);
+  }
+
   const leagueId = (gw as any).seasons?.league_id;
-  const { data: rulesetRow } = await supabase
+  const { data: rulesetRow, error: rulesetErr } = await supabase
     .from('scoring_rulesets')
     .select('id, version, rules')
     .eq('league_id', leagueId)
     .order('version', { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (rulesetErr) {
+    return json({ ok: false, error: 'read_failed', what: 'ruleset', detail: rulesetErr.message }, 500);
+  }
 
   const base = rulesetRow
     ? ruleSetFromJson({ ...rulesetRow.rules, version: rulesetRow.version })
@@ -119,7 +160,10 @@ Deno.serve(async (req) => {
 
      ה-override-ים מוחלים אחרונים, מעל הגרסה ההיסטורית: הם
      ה"עכשיו" של האיזון, וה-ruleset הוא הבסיס. */
-  const { data: overrideRows } = await supabase.rpc('scoring_rules');
+  const { data: overrideRows, error: overridesErr } = await supabase.rpc('scoring_rules');
+  if (overridesErr) {
+    return json({ ok: false, error: 'read_failed', what: 'scoring_rules', detail: overridesErr.message }, 500);
+  }
   const overrides: Record<string, number> = {};
   if (overrideRows && typeof overrideRows === 'object') {
     for (const [k, v] of Object.entries(overrideRows as Record<string, unknown>)) {
@@ -144,19 +188,40 @@ Deno.serve(async (req) => {
   } as const;
 
   /* -------- 2. קלטי המנוע: סטטיסטיקות ותוצאות המחזור -------- */
-  const [{ data: statRows }, { data: matchRows }] = await Promise.all([
+  const [statsRes, matchesRes] = await Promise.all([
     supabase.rpc('gameweek_player_stats', { p_gameweek_id: gameweekId }),
     supabase.rpc('gameweek_team_results', { p_gameweek_id: gameweekId }),
   ]);
+  /* ★ שגיאת קריאה אינה «אין נתונים». `null` שהפך למערך ריק ניקד
+     את כל המחזור באפס — ופורסם. */
+  if (statsRes.error || matchesRes.error) {
+    return json({
+      ok: false, error: 'read_failed', what: 'inputs',
+      detail: statsRes.error?.message ?? matchesRes.error?.message,
+    }, 500);
+  }
+  const statRows = statsRes.data;
+  const matchRows = matchesRes.data;
 
   const { performances, outcomes } = buildInputs(statRows ?? [], matchRows ?? []);
 
   /* -------- 3. כל ההרכבים הנעולים -------- */
-  const { data: lineupRows } = await supabase
-    .from('user_lineups')
-    .select('id, user_id, mode, formation, status, submitted_at, user_lineup_slots(slot_no, player_id, team_id, position, is_captain, is_vice, is_bench)')
-    .eq('gameweek_id', gameweekId)
-    .in('status', ['locked', 'scored']);
+  const lineupRows: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('user_lineups')
+      .select('id, user_id, mode, formation, status, submitted_at, user_lineup_slots(slot_no, player_id, team_id, position, is_captain, is_vice, is_bench)')
+      .eq('gameweek_id', gameweekId)
+      .in('status', ['submitted', 'locked', 'scored'])
+      /* סדר יציב — בלעדיו עמודים יכולים לחזור על שורות ולדלג על אחרות */
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) {
+      return json({ ok: false, error: 'read_failed', what: 'lineups', detail: error.message }, 500);
+    }
+    lineupRows.push(...(data ?? []));
+    if (!data || data.length < PAGE) break;
+  }
 
   type Scored = {
     mode: 'five' | 'full';
@@ -167,7 +232,7 @@ Deno.serve(async (req) => {
   const scores: Scored[] = [];
   const failures: Array<{ lineupId: string; mode: string; issues: unknown }> = [];
 
-  for (const row of lineupRows ?? []) {
+  for (const row of lineupRows) {
     const mode: 'five' | 'full' = (row as any).mode === 'five' ? 'five' : 'full';
     const rules = rulesFor[mode];
     const lineup: Lineup = {
@@ -255,32 +320,22 @@ Deno.serve(async (req) => {
     computed_at: new Date().toISOString(),
   }));
 
+  /* ★ כותבים ציונים — ולא נוגעים בסטטוס המחזור ובסטטוס ההרכבים.
+     «פורסם» ו-«נוקד» הם החלטה אחת במסד (`publish_scored_gameweek`),
+     אחרי שהוא סופר: ציון לכל הגשה, אפס כשלים, נתונים שלא זזו. */
   if (rows.length) {
     const { error } = await supabase.from('lineup_scores').upsert(rows, { onConflict: 'lineup_id' });
-    if (error) return json({ error: 'write_failed', detail: error.message }, 500);
-
-    await supabase.from('user_lineups')
-      .update({ status: 'scored' })
-      .eq('gameweek_id', gameweekId)
-      .eq('status', 'locked');
+    if (error) return json({ ok: false, error: 'write_failed', detail: error.message }, 500);
   }
 
-  /* ★ 'published' ולא 'settled'.
-     ה-CHECK על `game.gameweeks.status` צומצם ב-db/05 לערכים
-     draft/open/locked/live/scoring/published/archived — ו-'settled'
-     מופה ל-'published' באותה מיגרציה. הכתיבה הזו נפסלה על ידי
-     המסד, והשגיאה **לא נבדקה** — כלומר הניקוד נכתב בהצלחה,
-     הפונקציה החזירה 200, והמחזור נשאר לנצח במצב 'locked'.
-     תקלה שנראית בדיוק כמו "הניקוד לא עבד". */
-  const { error: statusErr } = await supabase
-    .from('gameweeks')
-    .update({ status: 'published', published_at: new Date().toISOString() })
-    .eq('id', gameweekId);
-  if (statusErr) return json({ error: 'publish_failed', detail: statusErr.message }, 500);
-
   return json({
+    ok: failures.length === 0,
     gameweekId,
+    gameweekCode: (gw as any).code,
+    /* מה שנקרא — לא מה שנכתב. הפרסום ישווה אותו למספר ההגשות במסד. */
+    entries: lineupRows.length,
     scored: rows.length,
+    fingerprint,
     byMode: [...byMode.entries()].map(([mode, list]) => ({ mode, count: list.length })),
     failures,
     rulesetVersion: base.version,

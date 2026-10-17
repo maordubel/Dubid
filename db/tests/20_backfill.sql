@@ -57,32 +57,36 @@ END $$;
 \echo '  ✓ 1  מחזור שנגמר בלי שורת סטטיסטיקה אחת מזוהה'
 
 -- =====================================================================
--- 2 — ★ מחזור עם ולו שורה אחת אינו «נפל»
+-- 2 — ★ מחזור שכל משחקיו נקלטו אינו «נפל»
 --
---     כיסוי חלקי הוא החלטה של `ingest_check_coverage` ושל
---     האדמין. סריקה חוזרת על מחזור שנקלט היא בזבוז חלון הרצה,
---     ועל ספק שכבר חסם אותנו — גם סיכון.
+--     ★ שונה בסבב האוטומציה (db/36, ביקורת A03). הגרסה הקודמת קבעה
+--     ש«ולו שורה אחת מספיקה כדי שמחזור לא ייחשב שנפל», ולכן מחזור
+--     שנקלט חלקית — משחק אחד עם נתונים ושישה בלי — נשאר מחוץ לתור
+--     לנצח (כך נתקע מחזור 5). הכלל עכשיו ברמת **המשחק**: משחק
+--     שנגמר בלי שורה אחת מחזיר את המחזור לתור; מחזור שכל משחקיו
+--     נקלטו — לא. הכיסוי החלקי נבדק ב-`22_publish_gate`.
 -- =====================================================================
 DO $$
-DECLARE v_gw UUID; v_match UUID; v_player UUID; v_team UUID;
+DECLARE v_gw UUID; r RECORD; v_player UUID;
 BEGIN
   SELECT id INTO v_gw FROM game.gameweeks WHERE code = 'gw-2';
-  SELECT id, home_team_id INTO v_match, v_team
-    FROM core.weekly_matches WHERE gameweek_id = v_gw LIMIT 1;
-  SELECT player_id INTO v_player FROM core.squads
-   WHERE team_id = v_team AND valid_to IS NULL LIMIT 1;
 
-  INSERT INTO core.player_match_stats (match_id, player_id, team_id, minutes)
-  VALUES (v_match, v_player, v_team, 90)
-  ON CONFLICT DO NOTHING;
+  FOR r IN SELECT id, home_team_id FROM core.weekly_matches WHERE gameweek_id = v_gw LOOP
+    SELECT player_id INTO v_player FROM core.squads
+     WHERE team_id = r.home_team_id AND valid_to IS NULL LIMIT 1;
+    INSERT INTO core.player_match_stats (match_id, player_id, team_id, minutes)
+    VALUES (r.id, v_player, r.home_team_id, 90)
+    ON CONFLICT DO NOTHING;
+  END LOOP;
 
   IF EXISTS (SELECT 1 FROM game.gameweek_needs_backfill() WHERE code = 'gw-2') THEN
-    RAISE EXCEPTION 'FAIL 2: מחזור עם סטטיסטיקה סומן כנפל';
+    RAISE EXCEPTION 'FAIL 2: מחזור שכל משחקיו נקלטו סומן כנפל';
   END IF;
 
-  DELETE FROM core.player_match_stats WHERE match_id = v_match AND player_id = v_player;
+  DELETE FROM core.player_match_stats s USING core.weekly_matches m
+   WHERE m.id = s.match_id AND m.gameweek_id = v_gw;
 END $$;
-\echo '  ✓ 2  שורה אחת מספיקה כדי שלא ייחשב שנפל'
+\echo '  ✓ 2  מחזור שכל משחקיו נקלטו אינו נחשב כנפל'
 
 -- =====================================================================
 -- 3 — ★ ויסות: ניסיון אחד לחצי שעה

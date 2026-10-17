@@ -1,0 +1,35 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Edge bundles are up to date
+        run: |
+          npm run bundle:edge
+          git diff --exit-code -- supabase/functions
+  sql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: RUN-ALL.sql is up to date
+        run: |
+          node scripts/build-all-sql.mjs
+          git diff --exit-code -- db/RUN-ALL.sql
+      - name: SQL tests (fresh Postgres, migrations twice, then suites)
+        run: |
+          sudo systemctl start postgresql
+          sudo -u postgres psql -c "CREATE ROLE runner SUPERUSER LOGIN" || true
+          PGHOST=/var/run/postgresql PGUSER=runner bash scripts/test-sql.sh

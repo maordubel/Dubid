@@ -52,6 +52,7 @@ const FILES = [
   ['33_anon_grants.sql',       '★ …וגם מ-anon ומ-authenticated — שם ההרשאה באמת ישבה'],
   ['34_backfill.sql',          '★ מחזור שנגמר בלי שורת סטטיסטיקה אחת חוזר לתור מעצמו'],
   ['35_announce.sql',          '★ הודעות מחזור — outbox לטלגרם, סריקה, claim/mark'],
+  ['36_publish_gate.sql',      '★ שער פרסום אטומי, משחק שנדחה לא חוסם, מחזור חלקי חוזר להשלמה'],
 ];
 
 const bar = '=' .repeat(69);
