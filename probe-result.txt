@@ -1,0 +1,77 @@
+
+### sofascore api.sofascore.com round
+403 application/json len=48
+https://api.sofascore.com/api/v1/unique-tournament/328/season/96740/events/round/5
+{"error": {"code": 403, "reason": "Forbidden" }}
+
+### sofascore api.sofascore.app round
+200 null len=0
+https://api.sofascore.app/api/v1/unique-tournament/328/season/96740/events/round/5
+
+
+### sofascore www.sofascore.com round
+403 application/json len=48
+https://www.sofascore.com/api/v1/unique-tournament/328/season/96740/events/round/5
+{"error": {"code": 403, "reason": "Forbidden" }}
+
+### 365 results comp=42
+200 application/json; charset=utf-8 len=17816
+https://webws.365scores.com/web/games/results/?appTypeId=5&langId=1&timezoneName=Asia/Jerusalem&competitions=42
+{"lastUpdateId":5792477037,"requestedUpdateId":-1,"ttl":300,"paging":{"previousPage":"/web/games/?langId=1&timezoneId=15&userCountryId=-1&apptype=5&competitions=42&games=1&aftergame=4739317&direction=
+365 games 7 sample {"id":4739316,"round":6,"h":"Hapoel Jerusalem","a":"Maccabi Haifa"}
+
+### 365 game detail
+200 application/json; charset=utf-8 len=129272
+https://webws.365scores.com/web/game/?appTypeId=5&langId=1&timezoneName=Asia/Jerusalem&gameId=4739316
+{"lastUpdateId":5792477043,"requestedUpdateId":-1,"ttl":300,"game":{"lineTypesIds":[1,2,3,5,6,44,7,8
+game keys lineTypesIds,id,sportId,competitionId,statusId,seasonNum,stageNum,roundNum,roundName,competitionDisplayName,startTime,statusGroup,statusText,shortStatusText,gameTimeAndStatusDisplayType,justEnded,gameTime,gameTimeDisplay,preciseGameTime,hasLineups,hasMissingPlayers,hasFieldPositions,winDescription,homeCompetitor,awayCompetitor,stages,events,isHomeAwayInverted,hasStats,hasStandings,standingsName,hasBrackets,hasPreviousMeetings,hasRecentMatches,hasVideo,hasShotChart,hasBets,hasPlayerBets,hasPointByPoint,video,venue,officials,members,widgets,promotedPredictions,topPerformers,gameStageHasTable,hasTrends,hasTopTrends,chartEvents,actualPlayTime
+members? [
+  '0',  '1',  '2',  '3',  '4',  '5',  '6',
+  '7',  '8',  '9',  '10', '11', '12', '13',
+  '14', '15', '16', '17', '18', '19', '20',
+  '21', '22', '23', '24', '25', '26', '27',
+  '28', '29', '30', '31', '32', '33', '34',
+  '35', '36', '37', '38', '39', '40', '41',
+  '42', '43', '44', '45', '46', '47', '48',
+  '49', '50'
+] chartEvents true events 20
+homeComp keys id,countryId,sportId,name,longName,score,isQualified,toQualify,isWinner,type,recentMatches,lineups,nameForURL,imageVersion,color,mainCompetitionId
+lineups {"status":"Confirmed","formation":"4-3-3","hasFieldPositions":true,"members":[{"status":1,"statusText":"Starting","position":{"id":4,"name":"Attacker"},"formation":{"id":12,"name":"Centre Forward","shortName":"Centre Forward"},"yardFormation":{"line":4,"fieldPosition":9,"fieldLine":99,"fieldSide":0},"ranking":7.6,"hasHighestRanking":true,"hasStats":true,"stats":[{"type":30,"value":"90'","isTop":true,"categoryId":2,"name":"Minutes","shortName":"Min","order":20101,"imageId":229},{"type":27,"value":"1","isTop":true,"categoryId":2,"name":"Goals","order":20301,"imageId":226},{"type":26,"value":"0","isTop":true,"categoryId":2,"name":"Assists","order":20701,"imageId":225},{"type":76,"value":"0.68","categoryId":2,"name":"Expected Goals","order":20203,"imageId":393},{"type":3,"value":"1","categoryId":2,"name":"Total Shots","order":20204,"imageId":3},{"type":4,"value":"1","categoryId":2,"name":"Shots On Target","order":20204,"imageId":4},{"type":79,"value":"0.68","categoryId":2,"name":"Expected Goals On Target","order":20205,"imageId":396},{"type":9,"value":"0","categoryId":2,"name":"Offsides","order":20209,"imageId":9},{"type":78,"value":"0.03","categoryId":2,"name":"Expected Assists","order":20210,"imageId":395},{"type":46,"value":"2","categoryId":2,"name":"Key Passes","order":20301,"imageId":238},{"type":80,"value":"4","categoryId":2,"name":"Passes Into Final Third","order":20303,"imageId":399},{"type":81,"value":"5","categoryId":2,"name":"Backward Passes","order":20304,"imageId":40
+events sample [{"competitorId":614,"statusId":6,"stageId":7,"order":1,"num":1,"gameTime":18,"addedTime":0,"gameTimeDisplay":"18'","gameTimeAndStatusDisplayType":2,"playerId":3237992,"isMajor":false,"eventType":{"id":2,"name":"Yellow Card","subTypeId":-1}},{"competitorId":614,"statusId":6,"stageId":7,"order":2,"num":1,"gameTime":26,"addedTime":0,"gameTimeDisplay":"26'","gameTimeAndStatusDisplayType":2,"playerId":75486431,"extraPlayers":[53282940],"isMajor":true,"eventType":{"id":1,"name":"Goal","subTypeId":1,"subTypeName":"Field Goal"}},{"competitorId":562,"statusId":6,"stageId":7,"order":3,"num":2,"gameTime":36,"addedTime":0,"gameTimeDisplay":"36'","gameTimeAndStatusDisplayType":2,"playerId":632391,"isMajor":false,"eventType":{"id":2,"name":"Yellow Card","subTypeId":-1}}]
+members sample [{"competitorId":614,"id":75486431,"athleteId":181852,"name":"Andrew Idoko","shortName":"Idoko","jerseyNumber":25,"nameForURL":"andrew-idoko","imageVersion":7,"createdAt":"2024-08-31T16:33:21.827Z"},{"competitorId":614,"id":3237992,"athleteId":77509,"name":"Edward Chilufya","shortName":"Chilufya","jerseyNumber":9,"nameForURL":"edward-chilufya","imageVersion":40,"createdAt":"2017-03-01T17:17:49.94Z"}]
+stats sample []
+
+### 365 game stats-tab
+200 application/json; charset=utf-8 len=20022
+https://webws.365scores.com/web/game/stats/?appTypeId=5&langId=1&timezoneName=Asia/Jerusalem&games=4739316
+{"statisticsFilters":[{"filterId":-1,"name":"Match"},{"filterId":6,"name":"1st Half"},{"filterId":8,"name":"2nd Half"}],"statistics":[{"id":10,"name":"Possession","competitorId":614,"isMajor":true,"value":"34%","valuePercentage":0.34,"isPrimary":true,"order":0,"markedTeam":2,"isTop":true},{"id":76,"name":"Expected Goals","competitorId":614,"categoryId":46,"categoryName":"Shots","isMajor":true,"value":"1.19","valuePercentage":0.26,"categoryOrder":1,"order":1,"markedTeam":2,"isTop":true},{"id":3,"name":"Total Shots","competitorId":614,"categoryId":46,"categoryName":"Shots","isMajor":true,"value"
+
+### fotmob league
+404 text/html; charset=utf-8 len=210266
+https://www.fotmob.com/api/leagues?id=127&ccode3=ISR
+<!DOCTYPE html><html lang="en" dir="ltr"><head><meta name="apple-itunes-app" content="app-id=488575683" data-next-head=""/><link rel="alternate" href="android-app://com.mobilefootie.wc2010/http" data-
+
+### espn scoreboard
+200 application/json;charset=UTF-8 len=18648
+https://site.api.espn.com/apis/site/v2/sports/soccer/isr.1/scoreboard
+{"leagues":[{"id":"10750","uid":"s:600~l:10750","name":"Israeli Premier League","abbreviation":"Israeli Premier League","midsizeName":"ISR.1","slug":"isr.1","season":{"year":2024,"startDate":"2024-07-
+
+### thesportsdb league
+403 text/plain len=153
+https://www.thesportsdb.com/api/v1/json/3/eventsround.php?id=4644&r=5&s=2026-2027
+The old '3' Free Sports API key is permanently disabled, Please use the new test key "123" or sign up to premium here https://www.thesportsdb.com/pricing
+
+### one.co.il
+404 text/html; charset=utf-8 len=2668
+https://www.one.co.il/Soccer/
+<!DOCTYPE html> <html lang="he" dir="rtl"> <head> <link rel="preconnect" href="https://photo.one.co.il"> <link rel="prec
+
+### sport5
+200 text/html len=443105
+https://www.sport5.co.il/
+ <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> <ht
+
+### football.org.il
+403 text/html; charset=UTF-8 len=4549
+https://www.football.org.il/
+<!DOCTYPE html> <!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]--> <!--[if IE 7]> <html class
