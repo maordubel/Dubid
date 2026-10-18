@@ -23,7 +23,6 @@ import { GameweekStatus, type Gameweek } from './lib/gameweek.ts';
 import { serverNow } from './lib/serverTime.ts';
 import { SquadPicker, type PoolPlayer, type TeamMeta } from './components/SquadPicker.tsx';
 import { ShareCard } from './components/ShareCard.tsx';
-import { Leaderboard } from './components/Leaderboard.tsx';
 import { PublicBoard } from './components/PublicBoard.tsx';
 import { AdminPanel } from './components/AdminPanel.tsx';
 import { AccountSheet } from './components/AccountSheet.tsx';
@@ -47,7 +46,7 @@ import type { RevealCardData } from './lib/revealCard.ts';
 import { modeTheme } from './lib/modeTheme.ts';
 import { text as contentText, subscribeToContent } from './lib/content.ts';
 import { GameStatusBadge } from './components/GameStatusBadge.tsx';
-import { IconHome, IconLineup, IconArena, IconRanking, IconRules, IconTable } from './components/NavIcons.tsx';
+import { IconHome, IconLineup, IconArena, IconRanking, IconRules } from './components/NavIcons.tsx';
 
 import { LEAGUE, TEAMS, PLAYERS, shortName, TEAM_BY_ID } from './data/squads.ts';
 import {
@@ -132,7 +131,6 @@ const SCREEN_TITLE: Record<string, string> = {
  */
 const NAV: NavItem[] = [
   { id: 'home',        label: 'בית',    icon: <IconHome /> },
-  { id: 'board',       label: 'טבלה',   icon: <IconTable /> },
   { id: 'lineup',      label: 'ההרכב',  icon: <IconLineup />, primary: true },
   { id: 'leaderboard', label: 'דירוג',  icon: <IconRanking /> },
   { id: 'arena',       label: 'הזירה',  icon: <IconArena /> },
@@ -954,7 +952,7 @@ function MainApp() {
       />
     ),
     board: <PublicBoard rulesByMode={rulesByMode} userId={userId} />,
-    leaderboard: <Leaderboard rulesByMode={rulesByMode} userId={userId} />,
+    leaderboard: <PublicBoard rulesByMode={rulesByMode} userId={userId} />,
     rules: <RulesScreen rulesByMode={rulesByMode} />,
   };
 
