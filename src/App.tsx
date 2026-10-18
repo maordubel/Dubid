@@ -9,6 +9,7 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useI18n } from './lib/i18n/index.tsx';
+import { chooseLeague, selectedLeague } from './lib/league.ts';
 import type { DictKey } from './lib/i18n/dict.ts';
 import { ensureIdentity, storedDisplayName, setDisplayName, subscribeToIdentity, watchAuth,
   finishPendingMerge,
@@ -75,7 +76,7 @@ import {
   scoringVisible, scoringIsLive,
 } from './lib/store.ts';
 import {
-  hydrateLiveData, startLiveDataRealtime, subscribeToLiveData, liveDataVersion,
+  hydrateLiveData, startLiveDataRealtime, subscribeToLiveData, liveDataVersion, liveDataStatus,
   currentGameweekCode, ruleOverrides,
 } from './lib/liveData.ts';
 import { applyOverrides } from './lib/ruleOverrides.ts';
@@ -248,6 +249,9 @@ function MainApp() {
     void (async () => {
       await ensureIdentity();
       await hydrateLiveData();
+      /* ★ ליגה לא-ראשית שלא נטענה מהשרת: לא מציגים לה את הזרע הישראלי
+         (זה היה נראה כמו ליגה יוונית עם שחקנים ישראלים). חוזרים לראשית. */
+      if (selectedLeague() && !liveDataStatus().fromServer) { chooseLeague(null, true); return; }
       setBooted(true);
     })();
   }, []);
@@ -523,8 +527,8 @@ function MainApp() {
     const scored = e && hasRealResults;
     return {
       id: m,
-      title: m === 'five' ? 'דוביד 5' : 'דוביד 11',
-      tagline: m === 'five' ? 'בחרו 5. נצחו את כולם.' : 'בנו הרכב. שלטו בליגה.',
+      title: t(`mode.${m}.title` as DictKey),
+      tagline: t(`mode.${m}.tag` as DictKey),
       state: scored ? 'scored' : e ? 'submitted' : filled > 0 ? 'draft' : 'empty',
       points: scored
         ? scoreLineup(e!.lineup, results.performances, results.outcomes, rulesByMode[m],
@@ -533,7 +537,7 @@ function MainApp() {
       filled,
       size,
     } as LobbyMode;
-  }), [entryByMode, luByMode, rulesByMode, hasRealResults, results]);
+  }), [entryByMode, luByMode, rulesByMode, hasRealResults, results, t]);
 
   /**
    * ★ המדדים בפס העליון של הלובי.

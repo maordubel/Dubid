@@ -138,7 +138,7 @@ BEGIN
     SELECT DISTINCT ON (sq.team_id) xp.external_id AS ext, sq.fantasy_price AS p
     FROM core.squads sq
     JOIN core.v_ext xp ON xp.entity_type='player' AND xp.entity_id=sq.player_id
-    WHERE sq.valid_to IS NULL AND sq.fantasy_price = 5
+    WHERE sq.valid_to IS NULL AND sq.season_id = (SELECT s.id FROM core.seasons s JOIN core.leagues l ON l.id = s.league_id WHERE l.code = 'IL_PREMIER' AND s.is_current) AND sq.fantasy_price = 5
     ORDER BY sq.team_id, xp.external_id LIMIT 5) x;
 
   IF array_length(ids,1) <> 5 THEN

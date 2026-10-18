@@ -194,10 +194,12 @@ export interface PlayerRow {
   isClubCaptain: boolean;
 }
 
+/** ★ מוטבל בזמן ריצה כשנבחרת ליגה אחרת (liveData.applyLiveSquads). */
+export interface LeagueInfo { code: string; nameHe: string; nameEn: string; season: string }
 export const LEAGUE = ${JSON.stringify(
   { code: 'IL_PREMIER', nameHe: src.league.name_he, nameEn: src.league.name_en, season: src.league.season },
   null, 2,
-)} as const;
+)} as LeagueInfo;
 
 /** מספר הקבוצות בליגת העל במציאות. מכאן נגזר החסם על גודל ההרכב. */
 export const LEAGUE_TEAM_COUNT_REAL = ${IL_PREMIER_FULL};

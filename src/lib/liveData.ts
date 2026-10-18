@@ -43,8 +43,11 @@
  *   חוסר-העקביות שקשה לאתר: המחיר החדש והשחקן הישן, באותו מסך.
  */
 import { supabase } from './supabase.ts';
+import { selectedLeague } from './league.ts';
+import { displayName } from './i18n/names.ts';
+import { DEFAULT_LOCALE, type Locale } from './i18n/locales.ts';
 import {
-  TEAMS, PLAYERS, TEAM_BY_ID, PLAYERS_BY_TEAM,
+  LEAGUE, TEAMS, PLAYERS, TEAM_BY_ID, PLAYERS_BY_TEAM,
   type TeamRow, type PlayerRow,
 } from '../data/squads.ts';
 import { applyLiveFixtures, GAMEWEEK, type LiveFixturePayload } from '../data/fixtures.ts';
@@ -57,13 +60,14 @@ import type { Position } from './scoring/types.ts';
 /* ================================================================== */
 
 interface SquadsPayload {
+  season?: { code: string; nameHe: string | null; nameEn: string | null; label: string };
   teams?: Array<{
-    id: string; externalId: string; nameHe: string; nameEn: string;
+    id: string; externalId: string; nameHe: string; nameEn: string; nameEl?: string | null;
     short: string; city: string | null; stadium: string | null;
   }>;
   players?: Array<{
     id: string; externalId: string; teamId: string; position: string;
-    nameHe: string; nameEn: string; shirt: number | null;
+    nameHe: string; nameEn: string; nameEl?: string | null; shirt: number | null;
     tier: number; price: number; overallRank: number | null; rated: boolean;
     nationality: string | null; isClubCaptain: boolean; status: string;
   }>;
@@ -203,7 +207,18 @@ function toTier(raw: unknown): 1 | 2 | 3 | 4 | 5 {
  * חדש שרק המודול הזה מכיר, וכל שאר המוצר היה ממשיך להצביע על
  * הישן — כלומר בדיוק הבאג שאנחנו מתקנים, רק במקום אחר.
  */
+/** שפת התצוגה של שמות. נקבעת מ-I18nProvider; שינוי → החלה מחדש של הסגל האחרון. */
+let displayLocale: Locale = DEFAULT_LOCALE;
+let lastSquads: SquadsPayload | null = null;
+
+export function setDisplayLocale(l: Locale): void {
+  if (l === displayLocale) return;
+  displayLocale = l;
+  if (lastSquads && applyLiveSquads(lastSquads)) notify();
+}
+
 export function applyLiveSquads(payload: SquadsPayload): boolean {
+  lastSquads = payload;
   const rawTeams = payload.teams ?? [];
   const rawPlayers = payload.players ?? [];
 
@@ -216,9 +231,10 @@ export function applyLiveSquads(payload: SquadsPayload): boolean {
   const teams: TeamRow[] = rawTeams.map((t) => ({
     id: t.id,
     externalId: t.externalId,
-    nameHe: t.nameHe,
+    nameHe: displayName({ he: t.nameHe, en: t.nameEn, el: t.nameEl }, displayLocale) || t.nameHe,
     nameEn: t.nameEn ?? t.nameHe,
-    short: t.short || t.nameHe,
+    nameEl: t.nameEl ?? null,
+    short: displayLocale === 'el' && t.nameEl ? t.nameEl.slice(0, 3).toUpperCase() : (t.short || t.nameHe),
     city: t.city,
     stadium: t.stadium,
   }));
@@ -228,8 +244,9 @@ export function applyLiveSquads(payload: SquadsPayload): boolean {
     externalId: p.externalId,
     teamId: p.teamId,
     position: toPosition(p.position),
-    nameHe: p.nameHe,
+    nameHe: displayName({ he: p.nameHe, en: p.nameEn, el: p.nameEl }, displayLocale) || p.nameHe,
     nameEn: p.nameEn ?? p.nameHe,
+    nameEl: p.nameEl ?? null,
     shirt: p.shirt ?? null,
     tier: toTier(p.tier),
     price: Number(p.price) || 1,
@@ -255,6 +272,15 @@ export function applyLiveSquads(payload: SquadsPayload): boolean {
     PLAYERS_BY_TEAM.length,
     ...teams.map((t) => ({ team: t, players: players.filter((p) => p.teamId === t.id) })),
   );
+
+  /* שם הליגה לכותרות (תצוגה לפי שפה, כמו שאר השמות). */
+  if (payload.season) {
+    LEAGUE.code = payload.season.code;
+    LEAGUE.nameEn = payload.season.nameEn ?? LEAGUE.nameEn;
+    LEAGUE.nameHe = displayName({ he: payload.season.nameHe, en: payload.season.nameEn }, displayLocale)
+                    || LEAGUE.nameHe;
+    LEAGUE.season = payload.season.label || LEAGUE.season;
+  }
 
   if (typeof payload.revision === 'number') state.revision = payload.revision;
   state.fromServer = true;
@@ -311,9 +337,12 @@ export function hydrateLiveData(force = false): Promise<void> {
       /* המחזור, הסגלים, חוקי הניקוד והתוכן — כולם במקביל.
          אף אחד מהם לא תלוי באחר, וארבע קריאות טוריות היו
          מוסיפות שלושה הלוך-ושוב למסך הראשון. */
+      /* ★ ליגה לא-ראשית נשלחת במפורש; בלי בחירה — בלי פרמטר, כמו תמיד. */
+      const lg = selectedLeague();
+      const lgArgs = lg ? { p_league: lg } : undefined;
       const [gwRes, squadsRes, rulesRes] = await Promise.all([
-        supabase.rpc('current_gameweek'),
-        supabase.rpc('squads'),
+        supabase.rpc('current_gameweek', lgArgs),
+        supabase.rpc('squads', lgArgs),
         supabase.rpc('scoring_rules'),
         hydrateContent(),
         /* ★ הפרסום הפנימי נטען יחד עם כל השאר ולא בבקשה נפרדת.

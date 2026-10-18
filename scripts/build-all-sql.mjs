@@ -56,6 +56,8 @@ const FILES = [
   ['37_weekly_cadence.sql',    '★ קצב שבועי: פתיחה ביום שני 09:00 אתונה, סגירה מיד עם המשחק האחרון'],
   ['38_current_sync.sql',      '★ המחזור הנוכחי נגזר אוטומטית מסטטוס המחזורים'],
   ['39_league_scoped_current.sql', '★ מחזור נוכחי אחד לכל ליגה (הכנה ליוון)'],
+  ['40_league_reads.sql',      '★ squads / current_gameweek לפי ליגה + leagues_public'],
+  ['41_seed_greece.sql',       '★ סגלי הליגה היוונית 2026/27 (457 שחקנים, 14 קבוצות)'],
 ];
 
 const bar = '=' .repeat(69);

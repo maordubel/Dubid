@@ -25,6 +25,7 @@ import {
 import { AuthPanel } from './AuthPanel.tsx';
 import { LogoMark } from './Logo.tsx';
 import { LanguagePicker } from './LanguagePicker.tsx';
+import { LeaguePicker } from './LeaguePicker.tsx';
 import { useI18n } from '../lib/i18n/index.tsx';
 
 type Tab = 'me' | 'move';
@@ -97,6 +98,9 @@ export function AccountSheet({
         <div className="mx-4 mt-3 flex items-center justify-between rounded-xl bg-night-2 px-3 py-2">
           <span className="text-[12px] font-bold text-chalk-dim">{t('lang.label')}</span>
           <LanguagePicker />
+        </div>
+        <div className="mx-4 mt-2 flex items-center justify-between rounded-xl bg-night-2 px-3 py-2 empty:hidden">
+          <LeaguePicker className="w-full justify-end" />
         </div>
 
         <div className="mx-4 mt-3 flex gap-1 rounded-full bg-night-2 p-1 edge-gold">
