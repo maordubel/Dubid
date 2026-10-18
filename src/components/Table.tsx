@@ -44,11 +44,12 @@ export interface TableProps<T> {
 export function Table<T>({
   columns, rows, rowKey, highlight, onRowClick, empty, caption,
 }: TableProps<T>) {
+  const { t } = useI18n();
   if (rows.length === 0) {
     return (
       <div className="rounded-2xl border border-gold/15 bg-night-2 px-4 py-10 text-center
                       text-sm text-chalk-dim">
-        {empty ?? 'אין נתונים להצגה.'}
+        {empty ?? t('board.table.empty')}
       </div>
     );
   }

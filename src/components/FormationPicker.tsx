@@ -11,6 +11,8 @@
  */
 import { layoutFormation, type FormationOption } from '../lib/formation.ts';
 import { PRESS } from '../lib/pressPalette.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
+import { DICT, type DictKey } from '../lib/i18n/dict.ts';
 
 export function FormationPicker({
   options, value, onChange, disabled = false,
@@ -20,6 +22,7 @@ export function FormationPicker({
   onChange: (formation: string) => void;
   disabled?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="px-3 pt-3">
       <div className="mx-auto max-w-3xl">
@@ -27,7 +30,7 @@ export function FormationPicker({
             בלעדיו, החלפת מערך שמפילה שחקנים נראית כמו באג. */}
         <div className="mb-2 flex items-baseline justify-between gap-3">
           <h2 className="text-[11px] font-black tracking-widest text-chalk-dim">
-            בחר מערך — הבחירות נשמרות במידת האפשר
+            {t('lineup.formation.title')}
           </h2>
           <span className="num text-xs font-black text-gold" dir="ltr">{value}</span>
         </div>
@@ -35,7 +38,7 @@ export function FormationPicker({
         {/* גלילה אופקית רק כאן, ורק כשצריך. שאר המסך לא זז. */}
         <ul
           role="radiogroup"
-          aria-label="בחירת מערך"
+          aria-label={t('lineup.formation.aria')}
           className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]
                      [&::-webkit-scrollbar]:hidden"
         >
@@ -64,7 +67,7 @@ export function FormationPicker({
                 >
                   {o.id}
                 </span>
-                <span className="text-[9px] leading-tight text-chalk-dim">{o.hintHe}</span>
+                <span className="text-[9px] leading-tight text-chalk-dim">{`formation.hint.${o.id}` in DICT ? t(`formation.hint.${o.id}` as DictKey) : o.hintHe}</span>
               </button>
             </li>
           ))}

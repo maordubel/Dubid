@@ -13,11 +13,13 @@
  * הברִיף אוסר "כרטיסים עמוסים". פירוט מלא זה עומס אלא אם ביקשו אותו.
  */
 import { useState } from 'react';
-import { GROUP_ORDER, GROUP_LABELS, labelFor, lineText, type ReasonGroup }
+import { GROUP_ORDER, groupLabel, labelFor, lineText, type ReasonGroup }
   from '../lib/scoring/labels.ts';
 import type { LineupScore, ScoreLine } from '../lib/scoring/types.ts';
 import { TEAM_BY_ID } from '../data/squads.ts';
 import { TeamTag } from './TeamTag.tsx';
+import { useI18n } from '../lib/i18n/index.tsx';
+import { displayName } from '../lib/i18n/names.ts';
 
 /** מספר מנוקד עם סימן — ‎+12‎ / ‎-2‎. אף פעם לא "12-" ב-RTL. */
 export function Signed({ value, muted = false }: { value: number; muted?: boolean }) {
@@ -43,6 +45,7 @@ export function ScoreBreakdown({
   playerName?: (playerId: string) => string;
 }) {
   const [open, setOpen] = useState(false);
+  const { t, locale } = useI18n();
 
   const allLines: ScoreLine[] = [
     ...score.players.flatMap((p) => p.lines),
@@ -64,7 +67,7 @@ export function ScoreBreakdown({
       {/* ---- הכותרת: הציון, גדול ---- */}
       <header className="flex items-baseline justify-between gap-3 border-b border-gold/15
                          bg-night-3/50 px-4 py-3">
-        <h3 className="font-press text-sm font-black text-chalk-dim">פירוט הניקוד</h3>
+        <h3 className="font-press text-sm font-black text-chalk-dim">{t('score.title')}</h3>
         <div className="num text-3xl font-black leading-none text-gold" dir="ltr">
           {score.totalPoints}
         </div>
@@ -74,7 +77,7 @@ export function ScoreBreakdown({
       <dl className="divide-y divide-gold/10">
         {groups.map(({ group, points }) => (
           <div key={group} className="flex items-center justify-between gap-3 px-4 py-2.5">
-            <dt className="text-sm text-chalk">{GROUP_LABELS[group]}</dt>
+            <dt className="text-sm text-chalk">{groupLabel(group)}</dt>
             <dd className="text-base font-black"><Signed value={points} /></dd>
           </div>
         ))}
@@ -83,7 +86,7 @@ export function ScoreBreakdown({
       {/* ---- הסך הכול ---- */}
       <div className="flex items-center justify-between gap-3 border-t border-gold/15
                       bg-night-3/40 px-4 py-3">
-        <span className="font-display text-sm font-black">סך הכול</span>
+        <span className="font-display text-sm font-black">{t('score.total')}</span>
         <span className="num text-xl font-black text-gold" dir="ltr">{score.totalPoints}</span>
       </div>
 
@@ -96,7 +99,7 @@ export function ScoreBreakdown({
                    py-3 text-xs font-black text-chalk-dim transition-colors
                    duration-200 ease-brand hover:text-chalk"
       >
-        {open ? 'סגירת הפירוט' : 'פירוט לפי שחקן'}
+        {open ? t('score.closeDetail') : t('score.byPlayer')}
         <span aria-hidden="true" className={open ? 'rotate-180' : ''}>⌄</span>
       </button>
 
@@ -121,7 +124,7 @@ export function ScoreBreakdown({
                     <TeamTag
                       teamId={p.teamId}
                       short={TEAM_BY_ID.get(p.teamId)?.short}
-                      name={TEAM_BY_ID.get(p.teamId)?.nameHe}
+                      name={(() => { const tm = TEAM_BY_ID.get(p.teamId); return tm ? displayName({ he: tm.nameHe, en: tm.nameEn, el: tm.nameEl }, locale) : undefined; })()}
                       size="xs"
                     />
                   </span>
@@ -135,7 +138,7 @@ export function ScoreBreakdown({
                       <span className="text-chalk-dim">
                         {lineText(l.reason, l.count, l.meta)}
                         {l.reason === 'differential' && l.meta
-                          ? ` · רק ${(l.meta as { selectionPct: number }).selectionPct}% בחרו בו`
+                          ? ` · ${t('score.onlyPct', { pct: (l.meta as { selectionPct: number }).selectionPct })}`
                           : ''}
                       </span>
                       <Signed value={l.points} muted />
@@ -146,7 +149,7 @@ export function ScoreBreakdown({
             ))}
           {score.bonusLines.length > 0 && (
             <li className="px-4 py-3">
-              <div className="mb-1.5 text-sm font-bold text-chalk">בונוס הרכב</div>
+              <div className="mb-1.5 text-sm font-bold text-chalk">{t('score.lineupBonus')}</div>
               <ul className="space-y-0.5">
                 {score.bonusLines.map((l, i) => (
                   <li key={i} className="flex items-baseline justify-between gap-2 text-[11px]">
