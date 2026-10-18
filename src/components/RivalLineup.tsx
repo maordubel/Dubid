@@ -83,6 +83,11 @@ export function RivalLineup({
     [score],
   );
 
+  const linesByPlayer = useMemo(
+    () => new Map((score?.players ?? []).map((p) => [p.playerId, p.lines])),
+    [score],
+  );
+
   /* ★ ההשוואה מחושבת פעם אחת, ומכאן מוזנים גם המגרש וגם הרשימה.
      שני חישובים היו יכולים לא להסכים — ואז המגרש מסמן שחקן
      כמשותף בזמן שהרשימה סופרת אותו כהפרש. */
@@ -227,6 +232,7 @@ export function RivalLineup({
                   player={poolById.get(slot.playerId)}
                   team={teamById.get(slot.teamId)}
                   points={pointsByPlayer.get(slot.playerId)}
+                  lines={linesByPlayer.get(slot.playerId)}
                   live={live}
                 />
               </div>
