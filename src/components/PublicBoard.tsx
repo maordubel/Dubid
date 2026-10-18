@@ -31,9 +31,10 @@ import { useEffect, useState } from 'react';
 
 import {
   publicBoard, gameweekRecap, errorMessageHe,
-  type PublicBoard as Board, type BoardFixture, type TableRow, type Recap,
+  type PublicBoard as Board, type BoardFixture, type Recap,
 } from '../lib/store.ts';
-import { Table, type Column } from './Table.tsx';
+import { Leaderboard } from './Leaderboard.tsx';
+import type { RuleSet } from '../lib/scoring/rules.ts';
 import { TeamCrest } from './TeamCrest.tsx';
 import { NIGHT_PRESS as NP } from '../lib/pressPalette.ts';
 
@@ -80,8 +81,12 @@ function Fixture({ f }: { f: BoardFixture }) {
 
       <div className="shrink-0 text-center">
         {hasScore ? (
-          <span className={`num text-[15px] font-black ${live ? 'text-flare' : 'text-chalk'}`}>
-            {f.homeGoals}<span className="mx-1 opacity-40">:</span>{f.awayGoals}
+          /* ★ flex + dir=rtl ולא טקסט רץ: `1:0` כטקסט נפתר ע״י האלגוריתם הדו-כיווני
+             כרצף ספרות שמוצג שמאל→ימין, והשער של הקבוצה הביתית (בצד ימין)
+             הופיע בצד שמאל — כלומר התוצאה הפוכה. בפלקס הסדר נקבע לפי הכיוון. */
+          <span dir="rtl"
+                className={`num inline-flex items-center gap-1 text-[15px] font-black ${live ? 'text-flare' : 'text-chalk'}`}>
+            <span>{f.homeGoals}</span><span className="opacity-40">:</span><span>{f.awayGoals}</span>
           </span>
         ) : (
           <span className="num text-[11px] text-chalk-dim">{kickoffLabel(f.kickoff)}</span>
@@ -179,7 +184,10 @@ function RecapCard({ recap }: { recap: Recap }) {
 /* המסך                                                                */
 /* ------------------------------------------------------------------ */
 
-export function PublicBoard() {
+export function PublicBoard({ rulesByMode, userId }: {
+  rulesByMode: Record<'full' | 'five', RuleSet>;
+  userId?: string;
+}) {
   const [board, setBoard] = useState<Board | null>(null);
   const [recap, setRecap] = useState<Recap | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -223,38 +231,6 @@ export function PublicBoard() {
     return <p className="py-10 text-center text-sm text-chalk-dim">טוען…</p>;
   }
 
-  const columns: Column<TableRow>[] = [
-    {
-      key: 'pos', header: '#', width: '2.2rem', numeric: true, primary: true,
-      render: (_r, i) => <span className="num text-chalk-dim">{i + 1}</span>,
-    },
-    {
-      key: 'team', header: 'קבוצה', primary: true,
-      render: (r) => (
-        <span className="flex items-center gap-1.5">
-          <TeamCrest teamId={r.team} short={r.short} size={18} />
-          <bdi className="truncate font-bold text-chalk">{r.nameHe}</bdi>
-        </span>
-      ),
-    },
-    { key: 'played', header: 'מש׳', numeric: true, primary: true, width: '2.6rem',
-      render: (r) => <span className="num text-chalk-2">{r.played}</span> },
-    { key: 'won', header: 'נצ׳', numeric: true, primary: false, width: '2.4rem',
-      render: (r) => <span className="num text-chalk-2">{r.won}</span> },
-    { key: 'drawn', header: 'תק׳', numeric: true, primary: false, width: '2.4rem',
-      render: (r) => <span className="num text-chalk-2">{r.drawn}</span> },
-    { key: 'lost', header: 'הפ׳', numeric: true, primary: false, width: '2.4rem',
-      render: (r) => <span className="num text-chalk-2">{r.lost}</span> },
-    { key: 'diff', header: 'הפרש', numeric: true, primary: false, width: '3.2rem',
-      render: (r) => (
-        <span className="num text-chalk-2">
-          {r.goalDiff > 0 ? `+${r.goalDiff}` : r.goalDiff}
-        </span>
-      ) },
-    { key: 'points', header: 'נק׳', numeric: true, primary: true, width: '2.8rem',
-      render: (r) => <span className="num font-black text-gold">{r.points}</span> },
-  ];
-
   const gw = board.gameweek;
 
   return (
@@ -282,14 +258,9 @@ export function PublicBoard() {
         </section>
       )}
 
-      <section>
-        <h3 className="mb-2 font-press text-base font-black text-chalk">טבלת הליגה</h3>
-        <Table
-          columns={columns}
-          rows={board.table}
-          rowKey={(r) => r.team}
-          empty="הטבלה תתמלא אחרי המשחקים הראשונים."
-        />
+      {/* ★ הטבלה כאן היא טבלת המתמודדים בתחרות שלנו — לא טבלת ליגת העל. */}
+      <section className="-mx-4">
+        <Leaderboard rulesByMode={rulesByMode} userId={userId} />
       </section>
     </div>
   );
