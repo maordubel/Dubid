@@ -58,6 +58,7 @@ import { supabase, DUBID_PROJECT, OFFSIDES_PROJECT } from './supabase.ts';
 /* ★ כתובת אחת לכל המוצר. קבוע שני היה נשאר מאחור ביום שהדומיין
    ישתנה, וכל הכרטיסים שכבר שמורים אצל משתמשים היו מצביעים לשם. */
 import { DUBID_URL } from './growth.ts';
+import { DICT, tr, type DictKey } from './i18n/dict.ts';
 
 export interface Identity {
   /** מזהה ה-auth. זה ה-userId שכל שאר המוצר מכיר. */
@@ -996,32 +997,39 @@ function mapAuthError(message: string): string {
   return 'AUTH_FAILED';
 }
 
-export const AUTH_ERROR_HE: Record<string, string> = {
-  /* ★ ההודעות האלה כמעט לא אמורות להופיע יותר — המסלול החדש
-     נכנס לחשבון קיים במקום להיכשל עליו. הן נשארות כרשת ביטחון,
-     ומנוסחות כהוראה ולא כהאשמה. */
-  identity_already_exists:
-    'החשבון הזה כבר מחובר. נסו שוב — הפעם ניכנס אליו ישירות.',
-  user_already_exists:
-    'כבר יש חשבון עם הכתובת הזו. אותו כפתור יכניס אתכם אליו.',
-  manual_linking_disabled:
-    'החיבור הזה לא פעיל בהגדרות. אפשר להיכנס עם גוגל או עם מייל.',
-  OFFSIDES_NOT_ENABLED:
-    'חיבור החשבון מאופסיידס עוד לא הופעל. אפשר להיכנס עם כרטיס המנוי או עם מייל.',
-  USERNAME_TOO_SHORT: 'שם משתמש — שלושה תווים לפחות.',
-  USERNAME_TAKEN: 'השם הזה כבר תפוס. נסו אחר.',
-  PASSWORD_TOO_SHORT: 'סיסמה — שישה תווים לפחות.',
-  EMAIL_TAKEN: 'כבר יש חשבון עם המייל הזה. אפשר פשוט להתחבר.',
-  BAD_CREDENTIALS: 'מייל או סיסמה לא נכונים.',
-  EMAIL_NOT_CONFIRMED: 'צריך לאשר את המייל. בדקו את תיבת הדואר.',
-  RATE_LIMIT: 'יותר מדי ניסיונות. נסו שוב בעוד כמה דקות.',
-  PROVIDER_DISABLED: 'הכניסה עם גוגל לא מופעלת עדיין בשרת.',
-  AUTH_FAILED: 'משהו השתבש. נסו שוב.',
-};
+const AUTH_ERROR_CODES = [
+  'identity_already_exists', 'user_already_exists', 'manual_linking_disabled',
+  'OFFSIDES_NOT_ENABLED', 'USERNAME_TOO_SHORT', 'USERNAME_TAKEN',
+  'PASSWORD_TOO_SHORT', 'EMAIL_TAKEN', 'BAD_CREDENTIALS', 'EMAIL_NOT_CONFIRMED',
+  'RATE_LIMIT', 'PROVIDER_DISABLED', 'AUTH_FAILED',
+] as const;
 
-export function authMessageHe(code: string): string {
-  return AUTH_ERROR_HE[code] ?? AUTH_ERROR_HE.AUTH_FAILED;
+/** ★ ההודעות העבריות יושבות במילון (`auth.err.<קוד>`); המפה נשארת לתאימות לאחור. */
+export const AUTH_ERROR_HE: Record<string, string> = Object.fromEntries(
+  AUTH_ERROR_CODES.map((c) => [c, DICT[`auth.err.${c}` as DictKey].he]),
+);
+
+/** הודעת שגיאה בשפת המסך הפעילה. הקודים עצמם לא משתנים. */
+export function authMessage(code: string): string {
+  const known = (AUTH_ERROR_CODES as readonly string[]).includes(code) ? code : 'AUTH_FAILED';
+  return tr(`auth.err.${known}` as DictKey);
 }
+
+/** שם היסטורי — עכשיו מתורגם לפי שפת המסך. */
+export function authMessageHe(code: string): string {
+  return authMessage(code);
+}
+
+/** הודעת כישלון פדיון מפתח/כרטיס. `fromLink` = הגיע מקישור, לא מהקלדה. */
+export function redeemErrorMessage(
+  error: ClaimResult['error'] | undefined, fromLink = false,
+): string {
+  if (error === 'TOO_MANY_ATTEMPTS') return tr('acct.err.tooMany');
+  return tr(fromLink ? 'acct.err.invalidKeyLink' : 'acct.err.invalidKey');
+}
+
+export const serverUnreachableMessage = (): string => tr('acct.err.network');
+export const oauthFailedMessage = (err: string): string => tr('auth.oauthFailed', { err });
 
 /* ================================================================== */
 /* פרופיל המאמן                                                        */

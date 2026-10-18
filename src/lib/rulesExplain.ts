@@ -43,6 +43,7 @@
 import type { RuleSet } from './scoring/rules.ts';
 import type { Position } from './scoring/types.ts';
 import { DEFAULT_DIFFERENTIAL } from './scoring/ranking.ts';
+import { tr } from './i18n/dict.ts';
 
 export interface RuleRow {
   label: string;
@@ -70,7 +71,7 @@ export function scoringRows(rules: RuleSet): RuleRow[] {
 
   /* ---- שערים, מקובצים לפי ערך ---- */
   const POS_HE: Record<Position, string> = {
-    GK: 'שוער', DEF: 'מגן', MID: 'קשר', FWD: 'חלוץ',
+    GK: tr('rules.pos.GK'), DEF: tr('rules.pos.DEF'), MID: tr('rules.pos.MID'), FWD: tr('rules.pos.FWD'),
   };
   const byValue = new Map<number, Position[]>();
   for (const pos of ['GK', 'DEF', 'MID', 'FWD'] as Position[]) {
@@ -79,12 +80,12 @@ export function scoringRows(rules: RuleSet): RuleRow[] {
   }
   for (const [value, list] of [...byValue.entries()].sort((a, b) => b[0] - a[0])) {
     rows.push({
-      label: `שער — ${list.map((x) => POS_HE[x]).join(' / ')}`,
+      label: tr('rules.goalPos', { pos: list.map((x) => POS_HE[x]).join(' / ') }),
       value: signed(value),
     });
   }
 
-  if (p.assist) rows.push({ label: 'בישול', value: signed(p.assist) });
+  if (p.assist) rows.push({ label: tr('rules.assist'), value: signed(p.assist) });
 
   /* ---- שער נקי ---- */
   const clean = new Map<number, Position[]>();
@@ -96,40 +97,40 @@ export function scoringRows(rules: RuleSet): RuleRow[] {
   for (const [value, list] of [...clean.entries()].sort((a, b) => b[0] - a[0])) {
     const all = list.length === 4;
     rows.push({
-      label: all ? 'שער נקי' : `שער נקי — ${list.map((x) => POS_HE[x]).join(' / ')}`,
+      label: all ? tr('rules.cleanSheet') : tr('rules.cleanSheetPos', { pos: list.map((x) => POS_HE[x]).join(' / ') }),
       value: signed(value),
-      note: `נדרשות ${p.cleanSheetMinMinutes} דקות משחק ומעלה`,
+      note: tr('rules.cleanSheetMin', { n: p.cleanSheetMinMinutes }),
     });
   }
 
   /* ---- דקות. מוצג רק אם הוא באמת פועל. ---- */
-  if (p.minutesPlayed) rows.push({ label: 'הופעה במשחק', value: signed(p.minutesPlayed) });
-  if (p.minutes60Plus) rows.push({ label: '60 דקות ומעלה', value: signed(p.minutes60Plus) });
+  if (p.minutesPlayed) rows.push({ label: tr('rules.appearance'), value: signed(p.minutesPlayed) });
+  if (p.minutes60Plus) rows.push({ label: tr('rules.min60'), value: signed(p.minutes60Plus) });
 
   /* ---- עונשים ---- */
-  if (p.yellowCard) rows.push({ label: 'כרטיס צהוב', value: signed(p.yellowCard) });
-  if (p.redCard) rows.push({ label: 'כרטיס אדום', value: signed(p.redCard) });
+  if (p.yellowCard) rows.push({ label: tr('rules.yellow'), value: signed(p.yellowCard) });
+  if (p.redCard) rows.push({ label: tr('rules.red'), value: signed(p.redCard) });
   /* ★ שער עצמי היה חסר מהמסך לגמרי, והמנוע כן קורא אותו.
      משתמש שראה ‎-2‎ בפירוט לא מצא לזה הסבר בשום מקום. */
-  if (p.ownGoal) rows.push({ label: 'שער עצמי', value: signed(p.ownGoal) });
+  if (p.ownGoal) rows.push({ label: tr('rules.ownGoal'), value: signed(p.ownGoal) });
 
   /* ---- שוער ---- */
   if (p.savesPoints) {
     rows.push({
-      label: 'הצלות',
+      label: tr('rules.saves'),
       value: signed(p.savesPoints),
-      note: `לכל ${p.savesPer} הצלות`,
+      note: tr('rules.savesPer', { n: p.savesPer }),
     });
   }
-  if (p.penaltySaved) rows.push({ label: 'עצירת פנדל', value: signed(p.penaltySaved) });
-  if (p.penaltyMissed) rows.push({ label: 'החמצת פנדל', value: signed(p.penaltyMissed) });
+  if (p.penaltySaved) rows.push({ label: tr('rules.penSaved'), value: signed(p.penaltySaved) });
+  if (p.penaltyMissed) rows.push({ label: tr('rules.penMissed'), value: signed(p.penaltyMissed) });
 
   const conceded = Object.entries(p.goalsConceded).filter(([, v]) => v);
   if (conceded.length) {
     rows.push({
-      label: 'ספיגות',
+      label: tr('rules.conceded'),
       value: signed(conceded[0][1] as number),
-      note: `לכל ${p.goalsConcededPer} שערים שנספגו`,
+      note: tr('rules.concededPer', { n: p.goalsConcededPer }),
     });
   }
 
@@ -140,21 +141,21 @@ export function scoringRows(rules: RuleSet): RuleRow[] {
      הבונוס. בלי המשפט הזה, "ספסלן זול מקבוצה חזקה" נראה כמו
      טריק שהמערכת לא התכוונה אליו — במקום כלל גלוי. */
   const resultNote = rb.requireMinutes > 0
-    ? `נדרשות ${rb.requireMinutes} דקות משחק`
-    : 'ניתן לכל שחקן בהרכב, גם אם לא שיחק';
-  if (rb.W) rows.push({ label: 'ניצחון של הקבוצה', value: signed(rb.W, true), note: resultNote });
-  if (rb.D) rows.push({ label: 'תיקו של הקבוצה', value: signed(rb.D, true), note: resultNote });
-  if (rb.L) rows.push({ label: 'הפסד של הקבוצה', value: signed(rb.L, true) });
+    ? tr('rules.resultMin', { n: rb.requireMinutes })
+    : tr('rules.resultAny');
+  if (rb.W) rows.push({ label: tr('rules.win'), value: signed(rb.W, true), note: resultNote });
+  if (rb.D) rows.push({ label: tr('rules.draw'), value: signed(rb.D, true), note: resultNote });
+  if (rb.L) rows.push({ label: tr('rules.loss'), value: signed(rb.L, true) });
 
   /* ---- שער וירטואלי ---- */
   const vg = rules.virtualGoal;
   if (vg.points) {
     rows.push({
-      label: `כל ${vg.goalsPerVirtual} שערים של קבוצות ההרכב`,
+      label: tr('rules.virtual', { n: vg.goalsPerVirtual }),
       value: signed(vg.points, true),
       note: vg.aggregation === 'pooled'
-        ? 'כל השערים לקופה אחת; שארית נשמרת למחזור הבא'
-        : 'לכל קבוצה בנפרד; שארית לא נספרת',
+        ? tr('rules.virtualPooled')
+        : tr('rules.virtualPerTeam'),
     });
   }
 
@@ -173,31 +174,30 @@ export function captainRows(rules: RuleSet): RuleRow[] {
     label: `×${c.multiplier}`,
     value: '',
     note: c.appliesTo === 'personalAndResult'
-      ? `הציון של הקפטן מוכפל פי ${c.multiplier}, כולל בונוס התוצאה של הקבוצה שלו.`
-      : `הציון האישי של הקפטן מוכפל פי ${c.multiplier}. בונוס התוצאה לא מוכפל.`,
+      ? tr('rules.capAll', { n: c.multiplier })
+      : tr('rules.capPersonal', { n: c.multiplier }),
   });
 
   if (c.immunity.yellowCards) {
     rows.push({
-      label: 'חסינות',
+      label: tr('rules.immunity'),
       value: '',
-      note: `כרטיס צהוב של הקפטן מבוטל אם שיחק ${c.immunity.minMinutes} דקות ומעלה` +
+      note: tr('rules.immunityBase', { n: c.immunity.minMinutes }) +
         (c.immunity.requireResultIn.length < 3
-          ? ' והקבוצה שלו לא הפסידה.'
+          ? tr('rules.immunityNoLoss')
           : '.') +
-        (c.immunity.redCards ? '' : ' אדום לא נסלח.'),
+        (c.immunity.redCards ? '' : tr('rules.immunityRed')),
     });
   }
 
   if (c.transferToViceIfMinutesBelow > 0) {
     rows.push({
-      label: 'סגן',
+      label: tr('rules.vice'),
       value: '',
       /* ★ "אם הסגן שיחק" היה חסר. קפטן שלא ירד וגם סגן שלא ירד
          פירושם **אין מכפיל בכלל** — וזה בדיוק המחזור שבו משתמש
          מרגיש שהמערכת אכלה לו נקודות. */
-      note: `אם הקפטן שיחק פחות מ-${c.transferToViceIfMinutesBelow} דקות, ` +
-        'הכפולה עוברת לסגן — בתנאי שהסגן עצמו שיחק.',
+      note: tr('rules.viceNote', { n: c.transferToViceIfMinutesBelow }),
     });
   }
 
@@ -205,7 +205,7 @@ export function captainRows(rules: RuleSet): RuleRow[] {
     rows.push({
       label: '',
       value: '',
-      note: 'ציון שלילי לא מוכפל. ההימור מגדיל רווח, לא הפסד.',
+      note: tr('rules.capNegative'),
     });
   }
 
@@ -230,25 +230,24 @@ export function captainRows(rules: RuleSet): RuleRow[] {
 export function differentialRows(): RuleRow[] {
   const d = DEFAULT_DIFFERENTIAL;
   const rows: RuleRow[] = d.tiers.map((t) => ({
-    label: `עד ${Math.round(t.maxSelectionPct * 100)}% מהמשתתפים בחרו`,
+    label: tr('rules.diffTier', { pct: Math.round(t.maxSelectionPct * 100) }),
     value: `+${t.points}`,
   }));
 
   rows.push({
-    label: 'תנאי',
+    label: tr('rules.diffCond'),
     value: '',
-    note: `הבונוס ניתן רק אם השחקן צבר ${d.minPlayerPoints} נקודות ומעלה. ` +
-      'בחירה נדירה שלא הביאה כלום — לא מזכה.',
+    note: tr('rules.diffCondNote', { n: d.minPlayerPoints }),
   });
   rows.push({
-    label: 'תקרה',
+    label: tr('rules.diffCap'),
     value: '',
-    note: `עד ${d.maxPerLineup} נקודות בונוס להרכב אחד.`,
+    note: tr('rules.diffCapNote', { n: d.maxPerLineup }),
   });
   rows.push({
-    label: 'מתי כבוי',
+    label: tr('rules.diffOff'),
     value: '',
-    note: `כשיש פחות מ-${d.minEntriesForStats} משתתפים — אז "נדיר" לא אומר כלום.`,
+    note: tr('rules.diffOffNote', { n: d.minEntriesForStats }),
   });
 
   return rows;
@@ -270,13 +269,13 @@ export function tiebreakSteps(rules: RuleSet): string[] {
   const otherLive = !!(p.savesPoints || p.penaltySaved || p.minutesPlayed || p.minutes60Plus);
 
   return [
-    'ניקוד כולל',
-    'ניקוד הקפטן',
-    'תרומת הבחירות הנדירות',
-    'שערים של השחקנים שנבחרו',
-    'בישולים של השחקנים שנבחרו',
-    'שערים נקיים',
-    ...(otherLive ? ['שאר התרומה המאומתת'] : []),
-    'זמן ההגשה הרשמי — מי שהגיש קודם',
+    tr('rules.tb.total'),
+    tr('rules.tb.captain'),
+    tr('rules.tb.diff'),
+    tr('rules.tb.goals'),
+    tr('rules.tb.assists'),
+    tr('rules.tb.cleanSheets'),
+    ...(otherLive ? [tr('rules.tb.other')] : []),
+    tr('rules.tb.time'),
   ];
 }

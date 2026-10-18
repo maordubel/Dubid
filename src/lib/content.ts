@@ -23,6 +23,7 @@
  * זו אותה החלטה בדיוק כמו ב-`ruleOverrides.ts`, ומאותה סיבה.
  */
 import { supabase } from './supabase.ts';
+import { tr, type DictKey } from './i18n/dict.ts';
 
 /**
  * ★ הרשימה הזו היא גם התיעוד וגם הממשק.
@@ -70,6 +71,15 @@ const FALLBACKS: Record<string, string> = Object.fromEntries(
   CONTENT_KEYS.map((c) => [c.key, c.fallback]),
 );
 
+/** ברירות מחדל שמוצגות למשתמש — מתורגמות לשפה הפעילה. (הערך ב-CONTENT_KEYS נשאר העברית לטופס האדמין.) */
+const FALLBACK_I18N: Record<string, DictKey> = {
+  'mode.five.tagline': 'mode.five.tag',
+  'mode.full.tagline': 'mode.full.tag',
+  'submit.success': 'shell.content.submitSuccess',
+  'share.cta': 'shell.content.shareCta',
+  'results.empty': 'shell.content.resultsEmpty',
+};
+
 /* ================================================================== */
 
 let overrides: Record<string, string> = {};
@@ -98,7 +108,9 @@ export function subscribeToContent(cb: () => void): () => void {
  */
 export function text(key: string): string {
   const v = overrides[key];
-  return typeof v === 'string' && v.length > 0 ? v : (FALLBACKS[key] ?? '');
+  if (typeof v === 'string' && v.length > 0) return v;
+  const k = FALLBACK_I18N[key];
+  return k ? tr(k) : (FALLBACKS[key] ?? '');
 }
 
 /** `true` = יש מה להציג. לשדות שריקים כברירת מחדל. */

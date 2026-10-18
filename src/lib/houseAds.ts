@@ -59,6 +59,7 @@
  */
 import type { Placement } from './growth.ts';
 import { DUBEL } from './growth.ts';
+import { tr } from './i18n/dict.ts';
 
 /* ================================================================== */
 /* המותגים                                                             */
@@ -78,7 +79,7 @@ export const BRANDS = {
     url: 'https://takemeout.dubelteam.com',
     domainLabel: 'TAKEMEOUT.DUBELTEAM.COM',
     /** מה המוצר עושה, במשפט אחד. לתגית מעל הכותרת. */
-    kicker: 'כל מה שצריך לדעת כשנוסעים',
+    get kicker() { return tr('shell.brand.tmo.kicker'); },
     /** צבע המותג. משמש למסגרת ולסימן הקריאה. */
     ink: '#E4453B',
     tint: 'rgba(228,69,59,.10)',
@@ -89,7 +90,7 @@ export const BRANDS = {
     nameHe: 'אופסיידס',
     url: 'https://offsides.dubelteam.com',
     domainLabel: 'OFFSIDES.DUBELTEAM.COM',
-    kicker: 'חיזוי משחקים חי, זירות מול חברים',
+    get kicker() { return tr('shell.brand.ofs.kicker'); },
     ink: '#2E9E6B',
     tint: 'rgba(46,158,107,.10)',
   },
@@ -148,9 +149,9 @@ export const DEFAULT_ADS: HouseAd[] = [
     brand: 'takemeout',
     enabled: true,
     weight: 5,
-    headline: 'נחתתם בעיר זרה. עכשיו מה?',
-    body: 'מה לראות, מה לאכול ומה לדלג עליו — בעיר שאתם לא מכירים.',
-    cta: 'לבחור עיר',
+    get headline() { return tr('shell.house.tmoLanded.h'); },
+    get body() { return tr('shell.house.tmoLanded.b'); },
+    get cta() { return tr('shell.house.tmoLanded.c'); },
     url: BRANDS.takemeout.url,
     placements: [],
     startsAt: null,
@@ -161,9 +162,9 @@ export const DEFAULT_ADS: HouseAd[] = [
     brand: 'takemeout',
     enabled: true,
     weight: 4,
-    headline: 'התייר רואה חמישה מקומות. המקומי יודע חמישים',
-    body: 'אתונה, ברלין, פריז, סופיה — הרשימה שהמקומיים היו נותנים.',
-    cta: 'לפתוח את הרשימה',
+    get headline() { return tr('shell.house.tmoLocals.h'); },
+    get body() { return tr('shell.house.tmoLocals.b'); },
+    get cta() { return tr('shell.house.tmoLocals.c'); },
     url: BRANDS.takemeout.url,
     placements: [],
     startsAt: null,
@@ -174,9 +175,9 @@ export const DEFAULT_ADS: HouseAd[] = [
     brand: 'offsides',
     enabled: true,
     weight: 5,
-    headline: 'כאן מחכים שבוע. שם — תשעים דקות',
-    body: 'אותם משחקים, ניחושים בזמן אמת, זירות מול החברים שלכם.',
-    cta: 'להיכנס לזירה',
+    get headline() { return tr('shell.house.ofsLive.h'); },
+    get body() { return tr('shell.house.ofsLive.b'); },
+    get cta() { return tr('shell.house.ofsLive.c'); },
     url: BRANDS.offsides.url,
     placements: [],
     startsAt: null,
@@ -187,9 +188,9 @@ export const DEFAULT_ADS: HouseAd[] = [
     brand: 'offsides',
     enabled: true,
     weight: 4,
-    headline: 'אותו חשבון. בלי הרשמה מחדש',
-    body: 'המוצר השני שלנו, על אותם משחקים — נכנסים ומתחילים.',
-    cta: 'להעיף מבט',
+    get headline() { return tr('shell.house.ofsAccount.h'); },
+    get body() { return tr('shell.house.ofsAccount.b'); },
+    get cta() { return tr('shell.house.ofsAccount.c'); },
     url: BRANDS.offsides.url,
     placements: [],
     startsAt: null,

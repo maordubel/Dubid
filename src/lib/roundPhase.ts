@@ -9,14 +9,15 @@
  * ★ חמישה שלבים, תמיד אותם חמישה, כדי שהמשתמש ילמד את המסלול:
  *     פתוח להגשה → נעול → בעיצומו → ניקוד → פורסם
  */
+import { tr, activeLocale, type DictKey } from './i18n/dict.ts';
+import { INTL_TAG } from './i18n/lazy.ts';
+
 export type RoundStep = 'open' | 'locked' | 'live' | 'scoring' | 'published';
-export const STEPS: readonly { id: RoundStep; label: string }[] = [
-  { id: 'open', label: 'פתוח להגשה' },
-  { id: 'locked', label: 'נעול' },
-  { id: 'live', label: 'בעיצומו' },
-  { id: 'scoring', label: 'ניקוד' },
-  { id: 'published', label: 'פורסם' },
-];
+export const STEPS: readonly { id: RoundStep; label: string }[] =
+  (['open', 'locked', 'live', 'scoring', 'published'] as const).map((id) => ({
+    id,
+    get label() { return tr(`shell.step.${id}` as DictKey); },
+  }));
 
 export interface RoundInput {
   number: number;
@@ -51,7 +52,7 @@ export interface RoundBrief {
 
 const TZ = 'Asia/Jerusalem';
 const fmt = (ms: number) =>
-  new Intl.DateTimeFormat('he-IL', {
+  new Intl.DateTimeFormat(INTL_TAG[activeLocale()], {
     timeZone: TZ, weekday: 'long', day: 'numeric', month: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(new Date(ms));
@@ -79,49 +80,49 @@ export function describeRound(i: RoundInput): RoundBrief {
 
   switch (step) {
     case 'open':
-      headline = `מחזור ${i.number} פתוח להגשה`;
+      headline = tr('shell.round.openH', { n: i.number });
       doNow = i.hasSubmitted
-        ? 'ההרכב הוגש ונעול. נשאר לחכות לשריקה.'
-        : 'בנו הרכב והגישו לפני הנעילה.';
-      facts.push({ label: 'ההגשות נסגרות', value: fmt(Date.parse(i.deadlineAt)) });
+        ? tr('shell.round.openSub')
+        : tr('shell.round.openTodo');
+      facts.push({ label: tr('shell.round.closes'), value: fmt(Date.parse(i.deadlineAt)) });
       break;
     case 'locked':
-      headline = `מחזור ${i.number} נעול`;
-      doNow = i.hasSubmitted ? 'ההרכב שלכם נעול. ממתינים לשריקה הראשונה.' : 'לא הגשתם הרכב למחזור הזה. המחזור הבא יפתח אוטומטית.';
-      if (i.firstKickoffAt) facts.push({ label: 'המחזור מתחיל', value: fmt(Date.parse(i.firstKickoffAt)) });
+      headline = tr('shell.round.lockedH', { n: i.number });
+      doNow = i.hasSubmitted ? tr('shell.round.lockedSub') : tr('shell.round.lockedNone');
+      if (i.firstKickoffAt) facts.push({ label: tr('shell.round.starts'), value: fmt(Date.parse(i.firstKickoffAt)) });
       break;
     case 'live':
-      headline = `מחזור ${i.number} בעיצומו`;
-      doNow = i.hasSubmitted ? 'הניקוד מתעדכן תוך כדי המשחקים.' : 'לא הגשתם הרכב למחזור הזה. אפשר לעקוב אחרי הדירוג.';
-      if (total > 0) facts.push({ label: 'משחקים שהסתיימו', value: `${done} מתוך ${total}` });
+      headline = tr('shell.round.liveH', { n: i.number });
+      doNow = i.hasSubmitted ? tr('shell.round.liveSub') : tr('shell.round.liveNone');
+      if (total > 0) facts.push({ label: tr('shell.round.finished'), value: tr('shell.round.ofTotal', { done, total }) });
       pointsAreLive = i.myPoints !== undefined;
       break;
     case 'scoring':
-      headline = `מחזור ${i.number}: כל המשחקים הסתיימו`;
-      doNow = 'הניקוד הסופי מתפרסם אוטומטית אחרי שהנתונים מתייצבים, בדרך כלל תוך פחות משעה.';
-      if (total > 0) facts.push({ label: 'משחקים שהסתיימו', value: `${total} מתוך ${total}` });
+      headline = tr('shell.round.scoringH', { n: i.number });
+      doNow = tr('shell.round.scoringSub');
+      if (total > 0) facts.push({ label: tr('shell.round.finished'), value: tr('shell.round.ofTotal', { done: total, total }) });
       pointsAreLive = i.myPoints !== undefined;
       break;
     case 'published':
-      headline = `מחזור ${i.number} הסתיים`;
-      doNow = 'הניקוד סופי. המחזור הבא ייפתח אוטומטית כשהלוח שלו יתפרסם, וההרכב שלו מתחיל נקי.';
+      headline = tr('shell.round.doneH', { n: i.number });
+      doNow = tr('shell.round.doneSub');
       break;
   }
 
   if (i.myPoints !== undefined) {
     facts.push({
-      label: pointsAreLive ? 'הניקוד שלי כרגע (זמני)' : 'הניקוד שלי',
-      value: i.myRank ? `${i.myPoints} · מקום ${i.myRank}` : String(i.myPoints),
+      label: pointsAreLive ? tr('shell.round.myPtsLive') : tr('shell.round.myPts'),
+      value: i.myRank ? tr('shell.round.ptsRank', { pts: i.myPoints, rank: i.myRank }) : String(i.myPoints),
     });
   } else if (step === 'live' || step === 'scoring') {
-    facts.push({ label: 'הניקוד שלי', value: i.hasSubmitted ? 'ממתין לנתונים' : 'אין הרכב' });
+    facts.push({ label: tr('shell.round.myPts'), value: i.hasSubmitted ? tr('shell.round.awaiting') : tr('shell.round.noLineup') });
   }
 
   if (i.previous && i.previous.number !== i.number) {
     facts.push({
-      label: `מחזור ${i.previous.number}`,
-      value: i.previous.points === null ? 'לא נוקד'
-        : i.previous.rank ? `${i.previous.points} · מקום ${i.previous.rank}` : String(i.previous.points),
+      label: tr('shell.round.prev', { n: i.previous.number }),
+      value: i.previous.points === null ? tr('shell.round.notScored')
+        : i.previous.rank ? tr('shell.round.ptsRank', { pts: i.previous.points, rank: i.previous.rank }) : String(i.previous.points),
     });
   }
 

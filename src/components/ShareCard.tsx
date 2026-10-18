@@ -16,10 +16,12 @@ import {
   canvasToBlob, shareCardImage, shareToWhatsApp, downloadBlob,
   buildShareText, copyToClipboard, type ShareResult,
 } from '../lib/share.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 type Status = 'rendering' | 'ready' | 'sharing' | 'error';
 
 export function ShareCard({ data }: { data: ShareCardData }) {
+  const { t, locale } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const blobRef = useRef<Blob | null>(null);
   const [status, setStatus] = useState<Status>('rendering');
@@ -43,7 +45,7 @@ export function ShareCard({ data }: { data: ShareCardData }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [data]);
+  }, [data, locale]);
 
   const shareText = buildShareText({
     userName: data.userName,
@@ -63,13 +65,13 @@ export function ShareCard({ data }: { data: ShareCardData }) {
     if (!blob) return;
     setStatus('sharing');
     const result: ShareResult = await shareCardImage({
-      blob, url: data.url, text: shareText, title: 'דוביד',
+      blob, url: data.url, text: shareText, title: t('share.brand'),
       fileName: `dubid-${data.gameweekLabel.replace(/\s/g, '-')}.png`,
     });
     setStatus('ready');
-    if (result.method === 'download') flash('הכרטיס ירד למכשיר והקישור הועתק');
-    if (result.method === 'failed') flash('השיתוף נכשל — נסה להוריד את התמונה');
-  }, [data.url, data.gameweekLabel, shareText]);
+    if (result.method === 'download') flash(t('share.flash.downloaded'));
+    if (result.method === 'failed') flash(t('share.flash.failed'));
+  }, [data.url, data.gameweekLabel, shareText, t]);
 
   const handleWhatsApp = () => {
     shareToWhatsApp(shareText, data.url, blobRef.current ?? undefined);
@@ -78,12 +80,12 @@ export function ShareCard({ data }: { data: ShareCardData }) {
   const handleDownload = () => {
     if (blobRef.current) {
       downloadBlob(blobRef.current, `dubid-${data.gameweekLabel.replace(/\s/g, '-')}.png`);
-      flash('הכרטיס נשמר');
+      flash(t('share.flash.saved'));
     }
   };
 
   const handleCopy = async () => {
-    flash((await copyToClipboard(data.url)) ? 'הקישור הועתק' : 'לא הצלחנו להעתיק');
+    flash((await copyToClipboard(data.url)) ? t('share.flash.linkCopied') : t('share.flash.copyFailed'));
   };
 
   return (
@@ -98,19 +100,19 @@ export function ShareCard({ data }: { data: ShareCardData }) {
               width={CARD_W}
               height={CARD_H}
               className="block h-auto w-full"
-              aria-label={`כרטיס השיתוף: ${data.totalPoints} נקודות ב${data.gameweekLabel}`}
+              aria-label={t('share.cardAria', { points: data.totalPoints, gw: data.gameweekLabel })}
             />
             {status === 'rendering' && (
               <div className="absolute inset-0 grid place-items-center bg-night/80">
                 <span className="animate-pulse font-display text-sm text-chalk-dim">
-                  מכינים את הכרטיס…
+                  {t('share.preparing')}
                 </span>
               </div>
             )}
           </div>
 
           <p className="mt-3 text-center text-xs text-chalk-dim">
-            1080×1920 — מותאם לסטורי, לטיקטוק ולסטטוס וואטסאפ
+            {t('share.sizeHint')}
           </p>
         </div>
       </div>
@@ -125,17 +127,17 @@ export function ShareCard({ data }: { data: ShareCardData }) {
                      transition-transform duration-200 ease-brand active:scale-[.98]
                      disabled:bg-night-3 disabled:text-chalk-dim"
         >
-          {status === 'sharing' ? 'פותח שיתוף…' : 'שתף את הכרטיס'}
+          {status === 'sharing' ? t('share.opening') : t('share.shareCard')}
         </button>
 
         <div className="mt-2 grid grid-cols-3 gap-2">
           <SecondaryButton onClick={handleWhatsApp} disabled={status !== 'ready'}>
-            וואטסאפ
+            {t('share.whatsapp')}
           </SecondaryButton>
           <SecondaryButton onClick={handleDownload} disabled={status !== 'ready'}>
-            שמירה
+            {t('acct.save')}
           </SecondaryButton>
-          <SecondaryButton onClick={handleCopy}>העתק קישור</SecondaryButton>
+          <SecondaryButton onClick={handleCopy}>{t('share.copyLink')}</SecondaryButton>
         </div>
       </div>
 

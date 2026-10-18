@@ -9,6 +9,9 @@
  * לא מציג יותר את ה-SquadPicker אלא תצוגת "הרכב נעול" — זו בדיוק
  * המשמעות של השכבה הזו: אחרי הגשה, אין יותר "טיוטה שרירה".
  */
+import { type DictKey } from './i18n/dict.ts';
+import { lazyRec } from './i18n/lazy.ts';
+
 export type GameStatus = 'not_started' | 'draft' | 'ready' | 'locked' | 'finished';
 
 export function computeGameStatus(params: {
@@ -23,28 +26,13 @@ export function computeGameStatus(params: {
   return isComplete ? 'ready' : 'draft';
 }
 
-export const STATUS_LABEL: Record<GameStatus, string> = {
-  not_started: 'טרם התחיל',
-  draft: 'טיוטה',
-  ready: 'מוכן להגשה',
-  locked: 'ננעל',
-  finished: 'הסתיים',
-};
+const IDS = ['not_started', 'draft', 'ready', 'locked', 'finished'] as const;
+const cap = (id: GameStatus) => id === 'not_started' ? 'NotStarted' : id[0].toUpperCase() + id.slice(1);
+
+export const STATUS_LABEL: Record<GameStatus, string> = lazyRec(IDS, (id) => `shell.gs.${id === 'not_started' ? 'notStarted' : id}` as DictKey);
 
 /** הפעולה הבאה שהמשתמש אמור לעשות, לפי המצב הנוכחי. */
-export const STATUS_ACTION: Record<GameStatus, string> = {
-  not_started: 'בניית ההרכב',
-  draft: 'המשך בנייה',
-  ready: 'הגשת ההרכב',
-  locked: 'המחזור בעיצומו',
-  finished: 'צפייה בניקוד',
-};
+export const STATUS_ACTION: Record<GameStatus, string> = lazyRec(IDS, (id) => `shell.gs.act${cap(id)}` as DictKey);
 
 /** הסבר קצר, לתת-כותרת מתחת לתג הסטטוס. */
-export const STATUS_HINT: Record<GameStatus, string> = {
-  not_started: 'עדיין לא בחרתם אף שחקן',
-  draft: 'ההרכב נשמר אוטומטית, אפשר להמשיך בכל רגע',
-  ready: 'ההרכב מלא ותקין — מוכן להגשה רשמית',
-  locked: 'ההרכב הוגש ונעול. התוצאות יתעדכנו בסיום המחזור',
-  finished: 'המחזור הסתיים — הניקוד שלכם מוכן',
-};
+export const STATUS_HINT: Record<GameStatus, string> = lazyRec(IDS, (id) => `shell.gs.hint${cap(id)}` as DictKey);

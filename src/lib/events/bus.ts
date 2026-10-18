@@ -30,6 +30,7 @@ import type { Lineup, LineupScore } from '../scoring/types.ts';
 import { mergeProjections, project, type Projection, type Roster } from './project.ts';
 import { fingerprint } from './log.ts';
 import type { MatchLog } from './types.ts';
+import { tr } from '../i18n/dict.ts';
 
 /** מזהי מצבי המשחק. אותם ערכים שכבר בשימוש ב-`LineupEntry.mode`. */
 export type ModeId = 'five' | 'full';
@@ -51,15 +52,15 @@ export interface GameMode {
 export const MODES: Record<ModeId, GameMode> = {
   five: {
     id: 'five',
-    labelHe: 'דוביד 5',
-    taglineHe: 'בחרו 5. נצחו את כולם.',
+    get labelHe() { return tr('mode.five.title'); },
+    get taglineHe() { return tr('mode.five.tag'); },
     rules: DUBID_5X5,
     budget: DUBID_5X5_BUDGET,
   },
   full: {
     id: 'full',
-    labelHe: 'דוביד 11',
-    taglineHe: 'בנו הרכב. שלטו בליגה.',
+    get labelHe() { return tr('mode.full.title'); },
+    get taglineHe() { return tr('mode.full.tag'); },
     rules: IL_PREMIER,
     budget: null,
   },

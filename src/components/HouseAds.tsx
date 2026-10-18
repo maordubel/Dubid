@@ -42,6 +42,7 @@ import {
 } from '../lib/houseAds.ts';
 import { adsAll, trackAd } from '../lib/adsStore.ts';
 import type { Placement } from '../lib/growth.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 /** `noopener` הוא אבטחה ולא נימוס: בלעדיו הדף הנפתח מקבל גישה
  *  ל-`window.opener` שלנו. */
@@ -103,6 +104,7 @@ export function HouseBanner({
   gameweekNumber: number;
   className?: string;
 }) {
+  const { t } = useI18n();
   const ad = useRotatingAd(placement, gameweekNumber);
   if (!ad) return null;
 
@@ -131,7 +133,7 @@ export function HouseBanner({
       <span className="min-w-0 flex-1 px-3 py-2.5">
         <span className="flex items-center gap-1.5">
           <span className="text-[8.5px] font-black tracking-[0.2em] text-chalk-dim">
-            גם שלנו
+            {t('shell.ad.alsoOurs')}
           </span>
           <span className="h-px flex-1" style={{ background: 'rgba(216,178,92,.25)' }} />
           <BrandWord brand={ad.brand} size={10} />
@@ -191,6 +193,7 @@ export function HouseStrip({
   gameweekNumber: number;
   className?: string;
 }) {
+  useI18n();
   const ad = useRotatingAd(placement, gameweekNumber);
   if (!ad) return null;
 
@@ -314,6 +317,7 @@ function BrandArt({ brand }: { brand: Brand }) {
  *   מה שהוא מקליד עכשיו, כולל לפני שנשמר.
  */
 export function HouseAdPreview({ ad }: { ad: HouseAd }) {
+  const { t } = useI18n();
   const brand = BRANDS[ad.brand] ?? BRANDS.offsides;
   return (
     <div
@@ -325,12 +329,12 @@ export function HouseAdPreview({ ad }: { ad: HouseAd }) {
       </span>
       <span className="min-w-0 flex-1 px-3 py-2.5">
         <span className="flex items-center gap-1.5">
-          <span className="text-[8.5px] font-black tracking-[0.2em] text-chalk-dim">גם שלנו</span>
+          <span className="text-[8.5px] font-black tracking-[0.2em] text-chalk-dim">{t('shell.ad.alsoOurs')}</span>
           <span className="h-px flex-1" style={{ background: 'rgba(216,178,92,.25)' }} />
           <BrandWord brand={ad.brand} size={10} />
         </span>
         <span className="mt-1 block truncate font-press text-[14px] font-black text-chalk">
-          {ad.headline || 'כותרת המודעה'}
+          {ad.headline || t('shell.ad.headlinePh')}
         </span>
         <span
           className="mt-0.5 block text-[11px] leading-snug text-chalk-dim"
@@ -340,7 +344,7 @@ export function HouseAdPreview({ ad }: { ad: HouseAd }) {
           {ad.body}
         </span>
         <span className="mt-1 block text-[11.5px] font-black" style={{ color: brand.ink }}>
-          {ad.cta || 'לפעולה'} ›
+          {ad.cta || t('shell.ad.ctaPh')} ›
         </span>
       </span>
     </div>

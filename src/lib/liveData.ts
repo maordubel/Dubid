@@ -45,6 +45,7 @@
 import { supabase } from './supabase.ts';
 import { selectedLeague } from './league.ts';
 import { displayName } from './i18n/names.ts';
+import { tr } from './i18n/dict.ts';
 import { DEFAULT_LOCALE, type Locale } from './i18n/locales.ts';
 import {
   LEAGUE, TEAMS, PLAYERS, TEAM_BY_ID, PLAYERS_BY_TEAM,
@@ -95,12 +96,13 @@ export function isPlayerAvailable(playerId: string): boolean {
   return s !== 'left' && s !== 'loaned_out';
 }
 
+/* ★ getters: הטקסט נקרא בזמן הרינדור, בשפה הפעילה. */
 export const STATUS_HE: Record<PlayerStatus, string> = {
   active: '',
-  injured: 'פצוע',
-  suspended: 'מורחק',
-  loaned_out: 'בהשאלה',
-  left: 'עזב',
+  get injured() { return tr('board.status.injured'); },
+  get suspended() { return tr('board.status.suspended'); },
+  get loaned_out() { return tr('board.status.loanedOut'); },
+  get left() { return tr('board.status.left'); },
 };
 
 /* ================================================================== */

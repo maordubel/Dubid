@@ -36,9 +36,11 @@ import { renderRevealCard, type RevealCardData } from '../lib/revealCard.ts';
 import { CARD_W, CARD_H } from '../lib/shareCard.ts';
 import { canvasToBlob, shareCardImage, shareToWhatsApp, downloadBlob,
          copyToClipboard } from '../lib/share.ts';
-import { modeTheme, modeVars } from '../lib/modeTheme.ts';
+import { modeVars } from '../lib/modeTheme.ts';
 import { ModeMark } from './ModeMark.tsx';
 import { text as content } from '../lib/content.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
+import { tr } from '../lib/i18n/dict.ts';
 
 export interface RevealShareProps {
   data: RevealCardData;
@@ -52,20 +54,20 @@ export interface RevealShareProps {
  * בשאלה מקבלת תשובה; הודעה שמסתיימת בהכרזה מקבלת לייק.
  */
 export function buildRevealText(d: RevealCardData): string {
-  const t = modeTheme(d.mode);
   const cap = d.lineup.find((p) => p.isCaptain);
-  const capPart = cap ? ` הקפטן שלי: ${cap.name}.` : '';
+  const capPart = cap ? tr('share.reveal.cap', { name: cap.name }) : '';
   /* ★ ניתן לעקיפה מלוח הניהול — קמפיין הוא החלטה שיווקית,
      לא קוד. ריק = הטקסט האוטומטי, שכולל את שם הקפטן. */
   const custom = content('share.text').trim();
   if (custom) return custom;
 
-  return `סגרתי הרכב ל${d.gameweekLabel} · ${t.name}.${capPart} ` +
-         `אתם הייתם בוחרים אחרת? 👇`;
+  return tr('share.reveal.text', {
+    gw: d.gameweekLabel, mode: tr(d.mode === 'five' ? 'mode.five.title' : 'mode.full.title'), cap: capPart,
+  });
 }
 
 export function RevealShare({ data, onClose }: RevealShareProps) {
-  const t = modeTheme(data.mode);
+  const { t: tx, dir, locale } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   /* ★ ה-Blob מוכן **לפני** הלחיצה, ולא בתוכה.
@@ -91,23 +93,23 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
       }
     })();
     return () => { alive = false; };
-  }, [data]);
+  }, [data, locale]);
 
   const fileName = `dubid-${data.mode}-${data.gameweekLabel.replace(/\s/g, '')}.png`;
   const text = buildRevealText(data);
 
   const share = () => {
     if (!blob) return;
-    void shareCardImage({ blob, fileName, title: 'דוביד', text, url: data.url })
+    void shareCardImage({ blob, fileName, title: tx('share.brand'), text, url: data.url })
       .then((r) => { if (r.method !== 'cancelled' && r.method !== 'failed') setSent(true); });
   };
 
   return (
     <div
-      dir="rtl"
+      dir={dir}
       role="dialog"
       aria-modal="true"
-      aria-label="שיתוף ההרכב"
+      aria-label={tx('share.reveal.aria')}
       style={modeVars(data.mode)}
       className="fixed inset-0 z-[70] flex flex-col bg-night/92 backdrop-blur-sm"
     >
@@ -120,10 +122,10 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
           <ModeMark mode={data.mode} size={22} weight={2.8} />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="font-press text-[18px] font-black leading-none text-chalk">ההרכב נעול</h2>
+          <h2 className="font-press text-[18px] font-black leading-none text-chalk">{tx('share.reveal.locked')}</h2>
           <p className="mt-1 truncate text-[11.5px] text-chalk-dim">
-            {t.name} · {data.gameweekLabel}
-            {data.deadlineLabel && ` · נעילה ${data.deadlineLabel}`}
+            {tx(data.mode === 'five' ? 'mode.five.title' : 'mode.full.title')} · {data.gameweekLabel}
+            {data.deadlineLabel && ` · ${tx('share.reveal.lock', { at: data.deadlineLabel })}`}
           </p>
         </div>
         {/* ★ סגירה בגובה העין ובגודל מלא. ראו כלל 3. */}
@@ -133,7 +135,7 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
           className="tap shrink-0 rounded-full px-3 py-1.5 text-[12px] font-bold text-chalk-dim
                      transition-colors active:text-chalk"
         >
-          לא עכשיו
+          {tx('share.reveal.notNow')}
         </button>
       </header>
 
@@ -147,13 +149,13 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
             ref={canvasRef}
             width={CARD_W}
             height={CARD_H}
-            aria-label="תצוגה מקדימה של הכרטיס"
+            aria-label={tx('share.reveal.previewAria')}
             className="block h-auto w-auto max-h-[min(58vh,520px)] max-w-full"
             style={{ aspectRatio: `${CARD_W} / ${CARD_H}` }}
           />
           {!blob && !failed && (
             <div className="absolute inset-0 grid place-items-center bg-night/60">
-              <span className="text-[12px] text-chalk-dim">מכין את הכרטיס…</span>
+              <span className="text-[12px] text-chalk-dim">{tx('share.reveal.preparing')}</span>
             </div>
           )}
         </div>
@@ -166,7 +168,7 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
             ממילא רוצה לנהל. */}
         <p className="mb-3 text-center text-[13px] leading-snug text-chalk-2">
           {sent
-            ? 'נשלח. עכשיו נחכה ונראה מי צדק.'
+            ? tx('share.reveal.sent')
             : content('submit.success')}
         </p>
 
@@ -181,7 +183,7 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
               'linear-gradient(180deg, var(--mode-accent-light), var(--mode-accent))',
           }}
         >
-          שיתוף לסטורי
+          {tx('share.reveal.story')}
         </button>
 
         {/*
@@ -194,13 +196,13 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
         */}
         <div className="mt-2.5 flex items-center justify-center gap-2">
           <SmallAction
-            label="וואטסאפ"
+            label={tx('share.whatsapp')}
             disabled={!blob}
             onClick={() => { if (blob) { shareToWhatsApp(text, data.url, blob); setSent(true); } }}
           />
           <span aria-hidden="true" className="text-[10px] text-chalk-dim">·</span>
           <SmallAction
-            label={copied ? 'הקישור הועתק' : 'העתקת קישור'}
+            label={copied ? tx('share.reveal.linkCopied') : tx('share.reveal.copyLink')}
             onClick={() => {
               void copyToClipboard(`${text}\n${data.url}`).then((ok) => {
                 if (ok) { setCopied(true); setSent(true); window.setTimeout(() => setCopied(false), 2200); }
@@ -209,7 +211,7 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
           />
           <span aria-hidden="true" className="text-[10px] text-chalk-dim">·</span>
           <SmallAction
-            label="שמירת תמונה"
+            label={tx('share.reveal.saveImage')}
             disabled={!blob}
             onClick={() => { if (blob) { downloadBlob(blob, fileName); setSent(true); } }}
           />
@@ -217,7 +219,7 @@ export function RevealShare({ data, onClose }: RevealShareProps) {
 
         {failed && (
           <p role="alert" className="mt-3 text-center text-[11.5px] text-flare">
-            לא הצלחנו להכין את הכרטיס. ההרכב נשמר — אפשר לשתף מאוחר יותר מהכרטיס.
+            {tx('share.reveal.failed')}
           </p>
         )}
       </div>

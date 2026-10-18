@@ -51,6 +51,7 @@ import { PRESS, NIGHT_PRESS as NP, MISREGISTER } from '../lib/pressPalette.ts';
 import { modeTheme, type ModeId } from '../lib/modeTheme.ts';
 import type { LineupEntry } from '../lib/store.ts';
 import type { LineupScore } from '../lib/scoring/types.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 export interface RivalLineupProps {
   /** ההגשה שרוצים לראות. */
@@ -73,6 +74,12 @@ export function RivalLineup({
   entry, score, rank, live = false, mine, mineScore, pool, teams, mode, onClose,
 }: RivalLineupProps) {
   const [compare, setCompare] = useState(false);
+  const { t, dir } = useI18n();
+  /* משפט עם מספר בתוך <span> — מפצלים סביב {n}. */
+  const withNum = (key: 'lineup.rival.leadYou' | 'lineup.rival.leadMe', n: number) => {
+    const [a, b = ''] = t(key).split('{n}');
+    return <>{a}<span className="num" dir="ltr">{n}</span>{b}</>;
+  };
 
   const poolById = useMemo(() => new Map(pool.map((p) => [p.id, p])), [pool]);
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
@@ -125,7 +132,7 @@ export function RivalLineup({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`ההרכב של ${entry.teamName || entry.displayName}`}
+      aria-label={t('lineup.rival.aria', { name: entry.teamName || entry.displayName })}
       className="fixed inset-0 z-sheet flex flex-col"
       style={{ background: NP.paper }}
     >
@@ -144,7 +151,7 @@ export function RivalLineup({
             <p className="truncate pt-1 text-[11.5px]" style={{ color: NP.inkDim }}>
               {entry.teamName ? `${entry.displayName} · ` : ''}
               {theme.name}
-              {rank ? ` · מקום ${rank}` : ''}
+              {rank ? ` · ${t('lineup.rival.rank', { rank })}` : ''}
             </p>
           </div>
 
@@ -155,14 +162,14 @@ export function RivalLineup({
                 {score.totalPoints}
               </div>
               <div className="text-[10px] font-bold" style={{ color: NP.inkFaint }}>
-                {live ? 'נק׳ · חי' : 'נק׳'}
+                {live ? t('lineup.rival.ptsLive') : t('lineup.rival.pts')}
               </div>
             </div>
           )}
 
           <button
             onClick={onClose}
-            aria-label="סגירה"
+            aria-label={t('lineup.close')}
             className="tap grid size-9 shrink-0 place-items-center rounded-full"
             style={{ border: `1px solid ${NP.rule}`, color: NP.ink }}
           >
@@ -187,16 +194,16 @@ export function RivalLineup({
                 ? { background: theme.accent, color: NP.paper }
                 : { border: `1px solid ${NP.rule}`, color: NP.inkFaint }}
             >
-              השוואה להרכב שלי
+              {t('lineup.rival.compare')}
             </button>
 
             {gap !== null && (
               <span className="text-[12px] font-bold"
                     style={{ color: gap > 0 ? NP.redLight : gap < 0 ? '#7FBF6A' : NP.inkFaint }}
-                    dir="rtl">
-                {gap === 0 ? 'תיקו' : gap > 0
-                  ? <>מקדים אותך ב־<span className="num" dir="ltr">{gap}</span></>
-                  : <>אתה מקדים ב־<span className="num" dir="ltr">{Math.abs(gap)}</span></>}
+                    dir={dir}>
+                {gap === 0 ? t('lineup.rival.tie') : gap > 0
+                  ? withNum('lineup.rival.leadYou', gap)
+                  : withNum('lineup.rival.leadMe', Math.abs(gap))}
               </span>
             )}
           </div>
@@ -245,7 +252,7 @@ export function RivalLineup({
       {compare && diff && (
         <div className="max-h-[38vh] shrink-0 overflow-y-auto overscroll-contain px-4 pb-1">
           <DiffColumn
-            title="רק אצלו"
+            title={t('lineup.rival.onlyHim')}
             accent={theme.accent}
             total={diff.theirsPoints}
             rows={diff.onlyTheirs.map((id) => ({
@@ -253,7 +260,7 @@ export function RivalLineup({
             }))}
           />
           <DiffColumn
-            title="רק אצלך"
+            title={t('lineup.rival.onlyYou')}
             accent={NP.gold}
             total={diff.minePoints}
             rows={diff.onlyMine.map((id) => ({
@@ -262,7 +269,7 @@ export function RivalLineup({
           />
           {diff.onlyTheirs.length === 0 && diff.onlyMine.length === 0 && (
             <p className="py-3 text-center text-[12px]" style={{ color: NP.inkDim }}>
-              אותו הרכב בדיוק. ההפרש כולו בקפטן.
+              {t('lineup.rival.same')}
             </p>
           )}
         </div>
@@ -277,7 +284,7 @@ export function RivalLineup({
                      transition-transform duration-200 ease-brand active:scale-[.99]"
           style={{ background: NP.gold, color: NP.paper }}
         >
-          חזרה לדירוג
+          {t('lineup.rival.back')}
         </button>
       </div>
     </div>

@@ -10,8 +10,10 @@ import { useEffect, useState } from 'react';
 import { getGameweekState, subscribeToStore } from '../lib/store.ts';
 import { serverNow } from '../lib/serverTime.ts';
 import { lockStripView } from '../lib/gameweek.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 export function LockCountdownStrip() {
+  const { t } = useI18n();
   const [, tick] = useState(0);
   useEffect(() => subscribeToStore(() => tick((n) => n + 1)), []);
   const gw = getGameweekState();
@@ -45,7 +47,7 @@ export function LockCountdownStrip() {
         view.urgent ? 'bg-red-700 text-white' : 'bg-night-2 text-chalk border-b border-gold/25',
       ].join(' ')}
     >
-      <span>המחזור ננעל בעוד</span>
+      <span>{t('shell.lockStrip')}</span>
       <span dir="ltr" className="num tabular-nums text-base">{view.clock}</span>
     </div>
   );

@@ -14,6 +14,8 @@
  * שימו לב: iOS דורש שה-Blob יהיה מוכן לפני navigator.share, אחרת
  * הדפדפן חוסם את הקריאה כ"לא מתוך אינטראקציה".
  */
+import { tr } from './i18n/dict.ts';
+
 
 export interface ShareResult {
   method: 'native-file' | 'native-text' | 'download' | 'whatsapp' | 'cancelled' | 'failed';
@@ -52,7 +54,7 @@ export async function shareCardImage(opts: ShareOptions): Promise<ShareResult> {
   const {
     blob,
     fileName = 'dubid-gameweek.png',
-    title = 'דוביד',
+    title = tr('share.brand'),
     text,
     url,
   } = opts;
@@ -132,6 +134,6 @@ export function buildShareText(opts: {
 }): string {
   const { gameweekLabel, points, rank, totalPlayers } = opts;
   const rankPart =
-    rank && totalPlayers ? ` · מקום ${rank} מתוך ${totalPlayers}` : '';
-  return `${points} נקודות ב${gameweekLabel}${rankPart}. בוא תנסה לעבור אותי 👇`;
+    rank && totalPlayers ? ` · ${tr('share.rankOf', { rank, total: totalPlayers })}` : '';
+  return tr('share.text', { points, gw: gameweekLabel, rank: rankPart });
 }

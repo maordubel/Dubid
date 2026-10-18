@@ -6,14 +6,19 @@
  */
 import { TEAM_BY_ID } from '../data/squads.ts';
 import { TeamTag } from './TeamTag.tsx';
-import { FIXTURES, GAMEWEEK, kickoffDateLabel, kickoffTimeLabel } from '../data/fixtures.ts';
+import { displayName } from '../lib/i18n/names.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
+import { FIXTURES, GAMEWEEK, localizedRoundLabel, kickoffDateLabel, kickoffTimeLabel } from '../data/fixtures.ts';
 
 export function FixturesStrip({ compact = false }: { compact?: boolean }) {
+  const { t, locale } = useI18n();
+  const teamName = (tm?: { nameHe: string; nameEn?: string | null; nameEl?: string | null }) =>
+    tm ? displayName({ he: tm.nameHe, en: tm.nameEn, el: tm.nameEl }, locale) : undefined;
   return (
     <div className={compact ? 'px-3 pt-3' : 'mx-auto max-w-2xl px-4 pt-4'}>
       <div className="mb-2 flex items-baseline justify-between">
         <h2 className="font-press text-sm font-black text-chalk">
-          {GAMEWEEK.label} · לוח המשחקים
+          {localizedRoundLabel(GAMEWEEK.label, GAMEWEEK.number)} · {t('lobby.fixtures')}
         </h2>
         <span className="text-[11px] text-chalk-dim">{GAMEWEEK.seasonLabel}</span>
       </div>
@@ -36,10 +41,10 @@ export function FixturesStrip({ compact = false }: { compact?: boolean }) {
                   נגד מי" צריך להיקלט בלי לקרוא שם אחד. */}
               <div className="flex items-center justify-between gap-1">
                 <TeamTag teamId={f.homeTeamId} short={home?.short}
-                         name={home?.nameHe} size="xs" />
+                         name={teamName(home)} size="xs" />
                 <span className="shrink-0 text-[10px] text-chalk-dim">–</span>
                 <TeamTag teamId={f.awayTeamId} short={away?.short}
-                         name={away?.nameHe} size="xs" />
+                         name={teamName(away)} size="xs" />
               </div>
               <div className={`text-center text-[11px] ${f.timeConfirmed ? 'num text-gold' : 'text-chalk-dim'}`}>
                 {kickoffTimeLabel(f.kickoff, f.timeConfirmed)}

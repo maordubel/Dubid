@@ -37,11 +37,13 @@
 import { useState } from 'react';
 import {
   continueWithGoogle, continueWithEmail, verifyEmailCode, refreshIdentity,
-  authMessageHe,
+  authMessage,
 } from '../lib/identity.ts';
 import { OFFSIDES } from '../lib/growth.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 export function AuthPanel({ onDone }: { onDone?: () => void }) {
+  const { t, locale } = useI18n();
   const [emailOpen, setEmailOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
@@ -53,7 +55,7 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
     setBusy(true); setError(null);
     void continueWithGoogle()
       .catch((e: unknown) => {
-        setError(authMessageHe(e instanceof Error ? e.message : ''));
+        setError(authMessage(e instanceof Error ? e.message : ''));
         setBusy(false);
       });
     /* ★ אין `finally`: הצלחה = ניווט החוצה, והמסך הזה מת.
@@ -65,10 +67,10 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
     return (
       <div className="rounded-2xl bg-night-2 p-5 edge-gold">
         <h3 className="text-center font-press text-base font-black text-chalk">
-          שלחנו לך מייל
+          {t('auth.emailSent')}
         </h3>
         <p className="mt-1.5 text-center text-[12.5px] leading-snug text-chalk-2">
-          ל־<bdi dir="ltr" className="font-bold text-chalk">{email.trim()}</bdi>
+          {t('auth.emailTo')}<bdi dir="ltr" className="font-bold text-chalk">{email.trim()}</bdi>
         </p>
 
         {/*
@@ -82,11 +84,11 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
         <ol className="mt-4 space-y-2 text-[12.5px] leading-snug text-chalk-2">
           <li className="flex gap-2">
             <span className="num shrink-0 text-gold">1.</span>
-            <span>לפתוח את המייל וללחוץ על הקישור.</span>
+            <span>{t('auth.step1')}</span>
           </li>
           <li className="flex gap-2">
             <span className="num shrink-0 text-gold">2.</span>
-            <span>לחזור לכאן וללחוץ על הכפתור.</span>
+            <span>{t('auth.step2')}</span>
           </li>
         </ol>
 
@@ -98,26 +100,26 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
             void refreshIdentity()
               .then((id) => {
                 if (id && !id.isGuest) { onDone?.(); return; }
-                setError('עוד לא ראינו את האישור. אם לחצתם על הקישור — נסו שוב בעוד רגע.');
+                setError(t('auth.notYet'));
               })
               .finally(() => setBusy(false));
           }}
           className="tap mt-4 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
                      py-2.5 font-poster text-gold-ink disabled:opacity-40"
         >
-          {busy ? 'בודק…' : 'לחצתי על הקישור'}
+          {busy ? t('auth.checking') : t('auth.clickedLink')}
         </button>
 
         <details className="mt-3">
           <summary className="cursor-pointer text-center text-[11.5px] text-chalk-dim
                               underline underline-offset-2">
-            יש לי קוד, או שאני מעדיף להדביק את הקישור
+            {t('auth.haveCode')}
           </summary>
           <input
             value={token}
             onChange={(e) => setToken(e.target.value)}
             dir="ltr"
-            placeholder="000000  או  הדבקת הקישור"
+            placeholder={t('auth.tokenPh')}
             className="mt-2 w-full rounded-xl border border-gold/25 bg-night px-3 py-2.5
                        text-center text-[13px] text-chalk outline-none focus:border-gold"
           />
@@ -129,13 +131,13 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
               void verifyEmailCode(email, token)
                 .then(() => onDone?.())
                 .catch((e: unknown) =>
-                  setError(authMessageHe(e instanceof Error ? e.message : '')))
+                  setError(authMessage(e instanceof Error ? e.message : '')))
                 .finally(() => setBusy(false));
             }}
             className="tap mt-2 w-full rounded-full border border-gold/35 py-2
                        text-[13px] font-bold text-gold-light disabled:opacity-40"
           >
-            {busy ? 'מאמת…' : 'אימות'}
+            {busy ? t('auth.verifying') : t('auth.verify')}
           </button>
         </details>
 
@@ -148,7 +150,7 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
 
         {/* ★ מונע נטישה, וגם נכון: המיזוג קורה אחרי ההתחברות. */}
         <p className="mt-3 rounded-xl bg-night px-3 py-2 text-center text-[11.5px] text-chalk-dim">
-          ההרכבים והדירוג שלך עוברים איתך.
+          {t('auth.carryOver')}
         </p>
 
         <button
@@ -156,7 +158,7 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
           onClick={() => { setSent(false); setToken(''); setError(null); }}
           className="mt-2 w-full text-center text-[11.5px] text-chalk-dim underline underline-offset-2"
         >
-          לשנות כתובת
+          {t('auth.changeEmail')}
         </button>
       </div>
     );
@@ -174,14 +176,14 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
                    duration-200 ease-brand active:scale-[.99] disabled:opacity-50"
       >
         <GoogleG />
-        {busy ? 'רגע…' : 'המשך עם גוגל'}
+        {busy ? t('auth.busy') : t('auth.google')}
       </button>
 
       {!emailOpen ? (
         <>
           <div className="flex items-center gap-3 py-0.5">
             <span className="h-px flex-1 bg-gold/15" />
-            <span className="text-[10px] font-black text-chalk-dim">או</span>
+            <span className="text-[10px] font-black text-chalk-dim">{t('auth.or')}</span>
             <span className="h-px flex-1 bg-gold/15" />
           </div>
 
@@ -192,13 +194,13 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
                        border border-gold/30 px-4 py-3 font-black text-gold-light
                        transition-colors duration-200 ease-brand active:bg-gold/10"
           >
-            <span aria-hidden>✉</span> המשך עם אימייל
+            <span aria-hidden>✉</span> {t('auth.emailBtn')}
           </button>
         </>
       ) : (
         <div className="rounded-2xl bg-night-2 p-3 edge-gold">
           <label className="block">
-            <span className="text-[11px] text-chalk-dim">המייל שלך</span>
+            <span className="text-[11px] text-chalk-dim">{t('auth.yourEmail')}</span>
             <input
               type="email"
               inputMode="email"
@@ -220,20 +222,20 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
                 void continueWithEmail(email)
                   .then(() => setSent(true))
                   .catch((e: unknown) =>
-                    setError(authMessageHe(e instanceof Error ? e.message : '')))
+                    setError(authMessage(e instanceof Error ? e.message : '')))
                   .finally(() => setBusy(false));
               }}
               className="tap flex-1 rounded-full bg-gradient-to-b from-gold-light to-gold
                          py-2.5 font-poster text-gold-ink disabled:opacity-40"
             >
-              {busy ? 'שולח…' : 'שליחה'}
+              {busy ? t('auth.sending') : t('auth.send')}
             </button>
             <button
               type="button"
               onClick={() => setEmailOpen(false)}
               className="tap rounded-full border border-gold/25 px-4 text-[12.5px] text-chalk-dim"
             >
-              ביטול
+              {t('auth.cancel')}
             </button>
           </div>
         </div>
@@ -242,7 +244,7 @@ export function AuthPanel({ onDone }: { onDone?: () => void }) {
       {/* ★ שורה אחת שמחליפה לשונית שלמה: מרגע ששני המוצרים
           חולקים OAuth client אחד, זה באמת אותו כפתור. */}
       <p className="pt-0.5 text-center text-[11px] leading-snug text-chalk-dim">
-        יש לכם כבר חשבון ב{OFFSIDES.nameHe}? זה אותו כפתור — אותה זהות.
+        {t('auth.offsidesHint', { app: locale === 'he' ? OFFSIDES.nameHe : OFFSIDES.name })}
       </p>
 
       {error && (

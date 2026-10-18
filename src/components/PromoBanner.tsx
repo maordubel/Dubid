@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { capped, delayOf, eligible, isOwn, outbound, pageOf, pickBanner, showOf } from '../lib/promo/rules.ts';
 import { SEED_DOC } from '../lib/promo/seed.ts';
 import type { Banner, Page, PromoDoc, Seen } from '../lib/promo/types.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 const REMOTE = 'https://fanlife.dubelteam.com/api/promo/public';
 const KEY = 'dubid.promo.v2';
@@ -46,6 +47,7 @@ async function loadDoc(): Promise<PromoDoc> {
 }
 
 export function PromoBanner() {
+  const { t } = useI18n();
   const [doc, setDoc] = useState<PromoDoc | null>(null);
   const [shown, setShown] = useState<Banner | null>(null);
   const [up, setUp] = useState(false);
@@ -117,7 +119,7 @@ export function PromoBanner() {
     window.setTimeout(() => setShown(null), reduce() ? 0 : 460);
   };
   return (
-    <aside className="promo" data-up={up || undefined} data-promo={shown.id} role="complementary" aria-label="פרסומת"
+    <aside className="promo" data-up={up || undefined} data-promo={shown.id} role="complementary" aria-label={t('shell.ad.aria')}
       onPointerEnter={() => { hold.current = true; }} onPointerLeave={() => { hold.current = false; }}
       onFocusCapture={() => { hold.current = true; }} onBlurCapture={() => { hold.current = false; }}>
       <a className="promo-link" href={outbound(shown, PAGE)}
@@ -126,8 +128,8 @@ export function PromoBanner() {
         <img src={shown.img1x} srcSet={`${shown.img1x} 1x, ${shown.img2x} 2x`} width={320} height={50}
           alt={shown.alt || shown.name} decoding="async" />
       </a>
-      <button type="button" className="promo-x" onClick={dismiss} aria-label="סגירת הפרסומת">×</button>
-      <span className="promo-tag" aria-hidden="true">מודעה</span>
+      <button type="button" className="promo-x" onClick={dismiss} aria-label={t('shell.ad.close')}>×</button>
+      <span className="promo-tag" aria-hidden="true">{t('shell.ad.tag')}</span>
     </aside>
   );
 }

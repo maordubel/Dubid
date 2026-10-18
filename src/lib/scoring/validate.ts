@@ -9,39 +9,49 @@
 import { ErrorCode, type Lineup, type Position, type ValidationIssue } from './types.ts';
 import type { RuleSet } from './rules.ts';
 
-export const MESSAGES: Record<string, { he: string; en: string }> = {
+export const MESSAGES: Record<string, { he: string; en: string; el?: string }> = {
   [ErrorCode.LineupSize]: {
     he: 'ההרכב חייב לכלול בדיוק {expected} שחקנים (יש {actual}).',
     en: 'Lineup must contain exactly {expected} players (got {actual}).',
+    el: 'Η ενδεκάδα πρέπει να έχει ακριβώς {expected} παίκτες (έχεις {actual}).',
   },
   [ErrorCode.DuplicateTeam]: {
     he: 'מותר עד {max} שחקנים מכל קבוצה. יש חריגה ב: {teams}.',
     en: 'At most {max} player(s) per team. Violating: {teams}.',
+    el: 'Έως {max} παίκτες ανά ομάδα. Υπέρβαση σε: {teams}.',
   },
   [ErrorCode.DuplicatePlayer]: {
     he: 'אותו שחקן נבחר יותר מפעם אחת.',
     en: 'The same player was selected more than once.',
+    el: 'Ο ίδιος παίκτης επιλέχθηκε περισσότερες από μία φορές.',
   },
   [ErrorCode.FormationInvalid]: {
     he: 'המערך {formation} אינו נתמך.',
     en: 'Formation {formation} is not supported.',
+    el: 'Η διάταξη {formation} δεν υποστηρίζεται.',
   },
   [ErrorCode.FormationMismatch]: {
     he: 'חלוקת העמדות אינה תואמת ל־{formation}.',
     en: 'Positions do not match formation {formation}.',
+    el: 'Οι θέσεις δεν ταιριάζουν με τη διάταξη {formation}.',
   },
-  [ErrorCode.CaptainMissing]: { he: 'יש לבחור קפטן.', en: 'A captain must be selected.' },
+  [ErrorCode.CaptainMissing]: {
+    he: 'יש לבחור קפטן.', en: 'A captain must be selected.', el: 'Πρέπει να επιλέξεις αρχηγό.',
+  },
   [ErrorCode.CaptainDuplicate]: {
     he: 'אפשר לבחור קפטן אחד בלבד.',
     en: 'Only one captain may be selected.',
+    el: 'Επιτρέπεται μόνο ένας αρχηγός.',
   },
   [ErrorCode.NoGoalkeeper]: {
     he: 'ההרכב חייב לכלול שוער.',
     en: 'Lineup must include a goalkeeper.',
+    el: 'Η ενδεκάδα πρέπει να έχει τερματοφύλακα.',
   },
   [ErrorCode.NotEnoughTeams]: {
     he: 'צריך {required} קבוצות כדי לבנות הרכב של {size} שחקנים (יש {available}). חסרות {missing}.',
     en: 'Need {required} teams for a {size}-player lineup (have {available}). Missing {missing}.',
+    el: 'Χρειάζονται {required} ομάδες για ενδεκάδα {size} παικτών (υπάρχουν {available}). Λείπουν {missing}.',
   },
 };
 
@@ -66,14 +76,15 @@ export function checkLeagueCapacity(
   };
 }
 
-export function formatIssue(issue: ValidationIssue, locale: 'he' | 'en' = 'he'): string {
-  const tpl = MESSAGES[issue.code]?.[locale] ?? issue.code;
+export function formatIssue(issue: ValidationIssue, locale: 'he' | 'en' | 'el' = 'he'): string {
+  const m = MESSAGES[issue.code];
+  const tpl = m?.[locale] ?? m?.en ?? issue.code;
   return tpl.replace(/\{(\w+)\}/g, (_, k) => String(issue.params[k] ?? ''));
 }
 
 export class LineupInvalidError extends Error {
   issues: ValidationIssue[];
-  constructor(issues: ValidationIssue[], locale: 'he' | 'en' = 'he') {
+  constructor(issues: ValidationIssue[], locale: 'he' | 'en' | 'el' = 'he') {
     super(issues.map((i) => formatIssue(i, locale)).join(' | '));
     this.name = 'LineupInvalidError';
     this.issues = issues;
@@ -224,6 +235,7 @@ export interface TeamBlock {
   occupiedBy?: string;
   reasonHe?: string;
   reasonEn?: string;
+  reasonEl?: string;
 }
 
 /**
@@ -239,5 +251,6 @@ export function teamBlock(lineup: Lineup, teamId: string, rules: RuleSet): TeamB
     occupiedBy: occupants[0]?.playerId,
     reasonHe: 'כבר יש לך שחקן מהקבוצה הזו',
     reasonEn: 'You already have a player from this team',
+    reasonEl: 'Έχεις ήδη παίκτη από αυτή την ομάδα',
   };
 }

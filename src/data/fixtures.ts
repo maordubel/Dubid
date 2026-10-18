@@ -27,6 +27,8 @@
  * אותה קבוצה. מאז המיפוי חי במסד ולא כאן.
  */
 import { TEAM_BY_ID } from './squads.ts';
+import { tr, activeLocale } from '../lib/i18n/dict.ts';
+import { LOCALE_META } from '../lib/i18n/locales.ts';
 
 export interface Fixture {
   id: string;
@@ -46,11 +48,27 @@ export interface Fixture {
  * ★ אובייקט ולא קבוע: `applyLiveFixtures` מעדכנת את השדות שלו
  *   במקום. כל מי שמייבא `GAMEWEEK` ממשיך להצביע על אותו אובייקט.
  */
+/** תווית מחזור בשפה הפעילה. "מחזור N" (ברירת המחדל וגם מה שהשרת שומר) מתורגם; תווית מותאמת נשארת כפי שהיא. */
+export function localizedRoundLabel(label: string | null | undefined, number: number): string {
+  const raw = label || '';
+  const m = /^מחזור\s+(\d+)$/.exec(raw);
+  if (!raw) return tr('board.fx.round', { n: number });
+  return m ? tr('board.fx.round', { n: m[1] }) : raw;
+}
+
+/* ★ label/seasonLabel הם accessors: כל מי שקורא `GAMEWEEK.label` מקבל את השפה הפעילה,
+   וכתיבה (applyLiveFixtures) שומרת את הערך הגולמי. */
+let gwLabelRaw = 'מחזור 4';
+let seasonLabelRaw = 'ליגת העל 2026/27';
 export const GAMEWEEK = {
   id: 'gw-4',
   number: 4,
-  label: 'מחזור 4',
-  seasonLabel: 'ליגת העל 2026/27',
+  get label(): string { return localizedRoundLabel(gwLabelRaw, this.number); },
+  set label(v: string) { gwLabelRaw = v; },
+  get seasonLabel(): string {
+    return seasonLabelRaw === 'ליגת העל 2026/27' ? tr('board.fx.season') : seasonLabelRaw;
+  },
+  set seasonLabel(v: string) { seasonLabelRaw = v; },
 };
 
 /**
@@ -67,7 +85,7 @@ export const GAMEWEEK = {
  *   משחקים — יתרון מידע שהורס את התחרות. השרת גוזר אותו באותה
  *   דרך בדיוק (`game.admin_resync_deadline`).
  */
-export const FIXTURES: Fixture[] = [
+const FIXTURE_SEED: Fixture[] = [
   // ראשון 13/09 — המחזור נפתח בראשון ולא בשבת: 12/09 הוא ראש השנה.
   { id: 'gw4-1', homeTeamId: 'T14', awayTeamId: 'T1',  kickoff: '2026-09-13T20:30:00+03:00', dayLabel: 'ראשון', timeConfirmed: true },
   // שני 14/09
@@ -80,6 +98,14 @@ export const FIXTURES: Fixture[] = [
   { id: 'gw4-6', homeTeamId: 'T11', awayTeamId: 'T2',  kickoff: '2026-09-15T19:30:00+03:00', dayLabel: 'שלישי', timeConfirmed: true },
   { id: 'gw4-7', homeTeamId: 'T5',  awayTeamId: 'T12', kickoff: '2026-09-15T20:00:00+03:00', dayLabel: 'שלישי', timeConfirmed: true },
 ];
+
+/** ★ dayLabel נגזר מהתאריך בזמן הקריאה (בשפה הפעילה), לא נשמר — החלפת שפה מתעדכנת מיד. */
+function withLiveDay(f: Fixture): Fixture {
+  const fallback = f.dayLabel;
+  return { ...f, get dayLabel() { return dayLabelOf(this.kickoff) || fallback; } };
+}
+
+export const FIXTURES: Fixture[] = FIXTURE_SEED.map(withLiveDay);
 
 /** מפה: מזהה קבוצה → היריבה שלה במחזור הנוכחי (או null אם אין לה משחק). */
 export const OPPONENT_BY_TEAM: Record<string, { opponentId: string; isHome: boolean; fixture: Fixture } | undefined> = {};
@@ -117,9 +143,11 @@ export function fixtureLabel(f: Fixture): string {
 const LEAGUE_TZ = 'Asia/Jerusalem';
 
 export function kickoffTimeLabel(iso: string, confirmed = true): string {
-  if (!confirmed) return 'שעה תיקבע';
-  return new Date(iso).toLocaleTimeString('he-IL', {
+  if (!confirmed) return tr('board.fx.timeTbd');
+  const l = activeLocale();
+  return new Date(iso).toLocaleTimeString(LOCALE_META[l].intl, {
     hour: '2-digit', minute: '2-digit', timeZone: LEAGUE_TZ,
+    ...(l === 'he' ? {} : { hourCycle: 'h23' as const }),
   });
 }
 
@@ -174,7 +202,7 @@ export function leagueLocalToIso(local: string): string {
 }
 
 export function kickoffDateLabel(iso: string): string {
-  return new Date(iso).toLocaleDateString('he-IL', {
+  return new Date(iso).toLocaleDateString(LOCALE_META[activeLocale()].intl, {
     day: '2-digit', month: '2-digit', timeZone: LEAGUE_TZ,
   });
 }
@@ -182,7 +210,7 @@ export function kickoffDateLabel(iso: string): string {
 /** יום בשבוע בעברית, לפי שעון ישראל. נגזר ולא מוקלד. */
 function dayLabelOf(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString('he-IL', {
+    return new Date(iso).toLocaleDateString(LOCALE_META[activeLocale()].intl, {
       weekday: 'long', timeZone: LEAGUE_TZ,
     }).replace(/^יום\s+/, '');
   } catch {
@@ -268,7 +296,7 @@ export function applyLiveFixtures(payload: LiveFixturePayload): boolean {
     touched = GAMEWEEK.id !== gw.id;
     GAMEWEEK.id = gw.id;
     GAMEWEEK.number = gw.number;
-    GAMEWEEK.label = gw.label || `מחזור ${gw.number}`;
+    GAMEWEEK.label = gw.label || `מחזור ${gw.number}`; // גולמי; התצוגה מתורגמת ב-getter
     if (gw.lockAt) GAMEWEEK_DEADLINE = gw.lockAt;
     FIRST_KICKOFF = gw.firstKickoffAt || GAMEWEEK_DEADLINE;
   }
@@ -277,12 +305,12 @@ export function applyLiveFixtures(payload: LiveFixturePayload): boolean {
      לוח קיים: מסך בלי לוח נראה כמו מוצר שבור. */
   if (raw.length === 0) return touched;
 
-  const next: Fixture[] = raw.map((f) => ({
+  const next: Fixture[] = raw.map((f) => withLiveDay({
     id: f.id,
     homeTeamId: f.homeTeamId,
     awayTeamId: f.awayTeamId,
     kickoff: f.kickoff,
-    dayLabel: dayLabelOf(f.kickoff),
+    dayLabel: '',
     // כל משחק שיושב במסד הוא משחק עם שעה. "שעה תיקבע" היה מצב
     // של קובץ ידני שחסרה בו שורה.
     timeConfirmed: true,

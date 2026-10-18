@@ -32,9 +32,10 @@
  */
 import type { CSSProperties, ReactNode } from 'react';
 import {
-  INLINE_ADS, OFFSIDES, RAIL_COPY, offsidesUrl,
+  INLINE_ADS, OFFSIDES, offsidesUrl,
   type Placement, type PromoId,
 } from '../lib/growth.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 /* ================================================================== */
 /* משותף                                                               */
@@ -75,13 +76,14 @@ export function OffsidesHero({
   onOpen?: () => void;
   className?: string;
 }) {
+  const { t } = useI18n();
   return (
     <a
       href={href(placement, promo, gameweekNumber)}
       target="_blank"
       rel={LINK_REL}
       onClick={onOpen}
-      aria-label={`${OFFSIDES.nameHe} — ${headline ?? OFFSIDES.name}`}
+      aria-label={`${t('shell.offsides')} — ${headline ?? OFFSIDES.name}`}
       className={`group relative block overflow-hidden rounded-3xl bg-night-2
                   transition-transform duration-200 ease-brand active:scale-[.99]
                   edge-gold ${className}`}
@@ -133,16 +135,16 @@ export function OffsidesHero({
         />
 
         <span className="mt-3 block font-poster text-[22px] leading-[1.15] text-chalk">
-          {headline ?? 'תשעים דקות. בלי לחכות לשבת.'}
+          {headline ?? t('shell.ofs.heroHead')}
         </span>
         <span className="mt-1.5 block max-w-[34ch] text-[12.5px] leading-snug text-chalk-2">
-          {body ?? 'חיזוי משחקים חי וזירות מול חברים — על אותם משחקים שאתם כבר צופים בהם.'}
+          {body ?? t('shell.ofs.heroBody')}
         </span>
 
         <span className="mt-4 inline-flex items-center gap-2 rounded-full
                          bg-gradient-to-b from-gold-light to-gold px-5 py-2.5
                          font-poster text-[15px] text-gold-ink">
-          {cta ?? 'להיכנס לאופסיידס'}
+          {cta ?? t('shell.ofs.heroCta')}
           <Arrow />
         </span>
 
@@ -179,6 +181,7 @@ export function OffsidesInline({
   onOpen?: () => void;
   className?: string;
 }) {
+  useI18n();
   const copy = INLINE_ADS[placement];
   if (!copy) return null;
 
@@ -225,6 +228,7 @@ export function OffsidesRail({
   onOpen?: () => void;
   className?: string;
 }) {
+  const { t } = useI18n();
   return (
     <a
       href={href(placement, promo, gameweekNumber)}
@@ -252,15 +256,15 @@ export function OffsidesRail({
 
       <span className="min-w-0 flex-1 leading-tight">
         <span className="block text-[9px] font-black uppercase tracking-[0.2em] text-chalk-dim">
-          {RAIL_COPY.label}
+          {t('shell.ofs.railLabel')}
         </span>
         <span className="block truncate text-[12px] font-bold text-chalk-2">
-          {RAIL_COPY.text}
+          {t('shell.ofs.railText')}
         </span>
       </span>
 
       <span className="shrink-0 text-[11px] font-black text-gold-light">
-        {OFFSIDES.nameHe}
+        {t('shell.offsides')}
       </span>
       <Arrow small />
     </a>

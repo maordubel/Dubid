@@ -43,6 +43,7 @@ import {
   canvasToBlob, shareCardImage, shareToWhatsApp, downloadBlob, copyToClipboard,
 } from '../lib/share.ts';
 import { captureLead } from '../lib/leads.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 export interface PassSheetProps {
   data: PassCardData;
@@ -53,6 +54,7 @@ export interface PassSheetProps {
 }
 
 export function PassSheet({ data, source, gameweekCode, onClose }: PassSheetProps) {
+  const { t, dir, locale } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [failed, setFailed] = useState(false);
@@ -73,17 +75,17 @@ export function PassSheet({ data, source, gameweekCode, onClose }: PassSheetProp
       .then((b) => { if (alive) setBlob(b); })
       .catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };
-  }, [data]);
+  }, [data, locale]);
 
   const text = buildPassMessage(data);
   const fileName = passFileName();
 
   return (
     <div
-      dir="rtl"
+      dir={dir}
       role="dialog"
       aria-modal="true"
-      aria-label="כרטיס המנוי שלך"
+      aria-label={t('pass.aria')}
       className="fixed inset-0 z-[70] flex flex-col bg-night/94 backdrop-blur-sm"
     >
       <header className="flex items-center gap-2.5 px-5 pt-[calc(1rem+env(safe-area-inset-top))]">
@@ -92,7 +94,7 @@ export function PassSheet({ data, source, gameweekCode, onClose }: PassSheetProp
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="font-press text-[18px] font-black leading-none text-chalk">
-            הכרטיס שלך מוכן
+            {t('pass.ready')}
           </h2>
           {/*
             ★ הניסוח הזה נבחר בקפידה.
@@ -100,7 +102,7 @@ export function PassSheet({ data, source, gameweekCode, onClose }: PassSheetProp
             של בעלות — ואנשים לא מאבדים כרטיסים, הם שומרים אותם.
           */}
           <p className="mt-1 truncate text-[11.5px] text-chalk-dim">
-            שמרו אותו — הוא הכניסה שלכם מכל מכשיר
+            {t('pass.sub')}
           </p>
         </div>
         <button
@@ -109,7 +111,7 @@ export function PassSheet({ data, source, gameweekCode, onClose }: PassSheetProp
           className="tap shrink-0 rounded-full px-3 py-1.5 text-[12px] font-bold text-chalk-dim
                      transition-colors active:text-chalk"
         >
-          {kept ? 'סיימתי' : 'אחר כך'}
+          {kept ? t('pass.done') : t('pass.later')}
         </button>
       </header>
 
@@ -120,7 +122,7 @@ export function PassSheet({ data, source, gameweekCode, onClose }: PassSheetProp
             ref={canvasRef}
             width={CARD_W}
             height={CARD_H}
-            aria-label="תצוגה מקדימה של כרטיס המנוי"
+            aria-label={t('pass.previewAria')}
             className="block h-auto max-h-[46vh] w-auto max-w-full"
           />
         </div>
@@ -149,7 +151,7 @@ export function PassSheet({ data, source, gameweekCode, onClose }: PassSheetProp
                      font-poster text-xl text-gold-ink transition-transform duration-200
                      ease-brand active:scale-[.98] disabled:opacity-40"
         >
-          {blob ? 'שמירת הכרטיס לגלריה' : 'מכין את הכרטיס…'}
+          {blob ? t('pass.save') : t('pass.preparing')}
         </button>
 
         <div className="mt-2 grid grid-cols-2 gap-2">
@@ -167,7 +169,7 @@ export function PassSheet({ data, source, gameweekCode, onClose }: PassSheetProp
             className="tap h-12 rounded-full border border-gold/35 text-[13px] font-bold
                        text-gold-light disabled:opacity-40"
           >
-            וואטסאפ לעצמי
+            {t('pass.whatsapp')}
           </button>
           <button
             type="button"
@@ -175,7 +177,7 @@ export function PassSheet({ data, source, gameweekCode, onClose }: PassSheetProp
             onClick={() => {
               if (!blob) return;
               void shareCardImage({
-                blob, fileName, title: 'כרטיס המנוי שלי בדוביד', text, url: data.link,
+                blob, fileName, title: t('pass.shareTitle'), text, url: data.link,
               }).then((r) => {
                 if (r.method !== 'cancelled' && r.method !== 'failed') setKept(true);
               });
@@ -183,7 +185,7 @@ export function PassSheet({ data, source, gameweekCode, onClose }: PassSheetProp
             className="tap h-12 rounded-full border border-gold/35 text-[13px] font-bold
                        text-gold-light disabled:opacity-40"
           >
-            שיתוף · אינסטגרם
+            {t('pass.share')}
           </button>
         </div>
 
@@ -203,12 +205,12 @@ export function PassSheet({ data, source, gameweekCode, onClose }: PassSheetProp
           className="tap mt-1.5 h-11 w-full text-[12.5px] font-bold text-chalk-dim
                      transition-colors active:text-chalk"
         >
-          {copied ? 'הועתק ✓' : `העתקת המפתח · ${data.pretty}`}
+          {copied ? t('pass.copied') : t('pass.copyKey', { key: data.pretty })}
         </button>
 
         {failed && (
           <p role="alert" className="mt-1 text-center text-[11.5px] text-flare">
-            לא הצלחנו להכין את התמונה. המפתח למעלה עובד — אפשר להעתיק אותו.
+            {t('pass.imgFailed')}
           </p>
         )}
 
@@ -252,6 +254,7 @@ export function PassSheet({ data, source, gameweekCode, onClose }: PassSheetProp
 function MailBackup({
   source, gameweekCode,
 }: { source: string; gameweekCode?: string }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [consent, setConsent] = useState(false);
@@ -262,13 +265,13 @@ function MailBackup({
   if (done) {
     return (
       <p className="mt-2.5 text-center text-[11.5px] leading-snug text-chalk-dim">
-        נשמר. נשלח לך את הכרטיס למייל.{' '}
+        {t('pass.mailSaved')}{' '}
         <button
           type="button"
           onClick={() => { void import('../lib/leads.ts').then((m) => m.forgetMe()); setDone(false); setEmail(''); }}
           className="underline underline-offset-2"
         >
-          להסיר אותי
+          {t('pass.forget')}
         </button>
       </p>
     );
@@ -282,7 +285,7 @@ function MailBackup({
         className="mt-2.5 w-full text-center text-[11.5px] text-chalk-dim
                    underline underline-offset-2 transition-colors active:text-chalk"
       >
-        רוצים שנשלח לכם עותק גם למייל?
+        {t('pass.mailAsk')}
       </button>
     );
   }
@@ -290,7 +293,7 @@ function MailBackup({
   return (
     <div className="mt-2.5 rounded-xl border border-gold/20 bg-night-2 p-3">
       <label className="block">
-        <span className="text-[11px] text-chalk-dim">המייל שלך</span>
+        <span className="text-[11px] text-chalk-dim">{t('auth.yourEmail')}</span>
         <input
           type="email"
           inputMode="email"
@@ -314,8 +317,8 @@ function MailBackup({
           className="mt-0.5 size-4 shrink-0 accent-[#D8B25C]"
         />
         <span>
-          אפשר לשלוח לי גם תזכורת לפני נעילת המחזור.
-          <span className="block text-chalk-dim/70">לא חובה. אפשר להסיר בכל רגע.</span>
+          {t('pass.consent')}
+          <span className="block text-chalk-dim/70">{t('pass.consentOpt')}</span>
         </span>
       </label>
 
@@ -333,14 +336,14 @@ function MailBackup({
               .then(() => setDone(true))
               .catch((e: unknown) => setError(
                 e instanceof Error && e.message === 'EMAIL_INVALID'
-                  ? 'הכתובת לא נראית תקינה'
-                  : 'לא הצלחנו לשמור. אפשר לנסות שוב.'))
+                  ? t('pass.emailInvalid')
+                  : t('pass.saveFailed')))
               .finally(() => setBusy(false));
           }}
           className="tap flex-1 rounded-lg bg-gold px-4 py-2 text-[12.5px] font-black
                      text-gold-ink disabled:opacity-40"
         >
-          {busy ? 'שומר…' : 'שליחה'}
+          {busy ? t('pass.saving') : t('auth.send')}
         </button>
         <button
           type="button"
@@ -348,7 +351,7 @@ function MailBackup({
           onClick={() => setOpen(false)}
           className="tap rounded-lg border border-gold/25 px-3 py-2 text-[12px] text-chalk-dim"
         >
-          לא צריך
+          {t('pass.noThanks')}
         </button>
       </div>
     </div>

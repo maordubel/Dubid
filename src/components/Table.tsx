@@ -15,6 +15,7 @@
  * ולכן היא נכונה גם בסיבוב מסך וגם בחלון שמשנים לו גודל.
  */
 import type { ReactNode } from 'react';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 export interface Column<T> {
   key: string;

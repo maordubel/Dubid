@@ -46,6 +46,7 @@ import type { HouseAd } from './houseAds.ts';
 import { ensureIdentity, currentIdentity } from './identity.ts';
 import { refreshLiveData, currentGameweekCode } from './liveData.ts';
 import { GAMEWEEK } from '../data/fixtures.ts';
+import { tr } from './i18n/dict.ts';
 
 /* ★★ אין כאן יותר מפתחות `localStorage`. ★★
  *
@@ -499,28 +500,28 @@ function errorCode(err: unknown): string {
   return 'NETWORK';
 }
 
-/** הודעה בעברית לקוד שגיאה. מקום אחד — לא ניסוח לכל מסך. */
+/** הודעה לקוד שגיאה, בשפה הפעילה (getters). מקום אחד — לא ניסוח לכל מסך. */
 export const ERROR_HE: Record<string, string> = {
-  DEADLINE_PASSED: 'הדדליין עבר. ההרכבים נעולים למחזור הזה.',
-  GAMEWEEK_LOCKED: 'המחזור נעול. אי אפשר להגיש עכשיו.',
-  GAMEWEEK_NOT_FOUND: 'המחזור לא נמצא במסד. פנו לאדמין.',
-  CAPTAIN_REQUIRED: 'צריך לבחור קפטן אחד.',
-  LINEUP_SIZE: 'מספר השחקנים בהרכב לא תקין.',
-  PLAYER_NOT_FOUND: 'אחד השחקנים לא קיים במסד.',
-  PLAYER_NOT_IN_SQUAD: 'אחד השחקנים לא רשום בסגל פעיל.',
-  DUPLICATE_TEAM: 'שני שחקנים מאותה קבוצה. הכלל היחיד — אחד מכל קבוצה.',
-  DUPLICATE_PLAYER: 'אותו שחקן נבחר פעמיים.',
-  ADMIN_REQUIRED: 'הפעולה דורשת הרשאת ניהול.',
-  AUTH_REQUIRED: 'צריך זהות פעילה. רעננו את הדף.',
-  ALREADY_PUBLISHED: 'המחזור כבר פורסם.',
-  NAME_REQUIRED: 'צריך שם לשחקן.',
-  TEAM_NOT_FOUND: 'הקבוצה לא נמצאה.',
-  PRICE_RANGE: 'מחיר חייב להיות בין 0 ל-99.',
-  BAD_STATUS: 'מצב זמינות לא חוקי.',
-  NO_SEASON: 'אין עונה פעילה במסד. הריצו את db/03.',
-  OVER_BUDGET: 'ההרכב חורג מהתקציב.',
-  NETWORK: 'השרת לא ענה. נסו שוב בעוד רגע.',
-  OFFLINE: 'אין חיבור לאינטרנט.',
+  get DEADLINE_PASSED() { return tr('board.err.DEADLINE_PASSED'); },
+  get GAMEWEEK_LOCKED() { return tr('board.err.GAMEWEEK_LOCKED'); },
+  get GAMEWEEK_NOT_FOUND() { return tr('board.err.GAMEWEEK_NOT_FOUND'); },
+  get CAPTAIN_REQUIRED() { return tr('board.err.CAPTAIN_REQUIRED'); },
+  get LINEUP_SIZE() { return tr('board.err.LINEUP_SIZE'); },
+  get PLAYER_NOT_FOUND() { return tr('board.err.PLAYER_NOT_FOUND'); },
+  get PLAYER_NOT_IN_SQUAD() { return tr('board.err.PLAYER_NOT_IN_SQUAD'); },
+  get DUPLICATE_TEAM() { return tr('board.err.DUPLICATE_TEAM'); },
+  get DUPLICATE_PLAYER() { return tr('board.err.DUPLICATE_PLAYER'); },
+  get ADMIN_REQUIRED() { return tr('board.err.ADMIN_REQUIRED'); },
+  get AUTH_REQUIRED() { return tr('board.err.AUTH_REQUIRED'); },
+  get ALREADY_PUBLISHED() { return tr('board.err.ALREADY_PUBLISHED'); },
+  get NAME_REQUIRED() { return tr('board.err.NAME_REQUIRED'); },
+  get TEAM_NOT_FOUND() { return tr('board.err.TEAM_NOT_FOUND'); },
+  get PRICE_RANGE() { return tr('board.err.PRICE_RANGE'); },
+  get BAD_STATUS() { return tr('board.err.BAD_STATUS'); },
+  get NO_SEASON() { return tr('board.err.NO_SEASON'); },
+  get OVER_BUDGET() { return tr('board.err.OVER_BUDGET'); },
+  get NETWORK() { return tr('board.err.NETWORK'); },
+  get OFFLINE() { return tr('board.err.OFFLINE'); },
   // ★ שלוש ההודעות האלה אומרות **מה לעשות**, לא רק שמשהו נכשל.
   MIGRATION_MISSING: 'המסד לא הוגדר עדיין — חסרות מיגרציות. ראו docs/INSTALL.md שלב 1.',
   SCHEMA_NOT_EXPOSED: 'הסכימות לא חשופות ב-Supabase. Settings → API → Exposed schemas: public, core, game, shared.',

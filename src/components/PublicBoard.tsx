@@ -40,6 +40,7 @@ import { NIGHT_PRESS as NP } from '../lib/pressPalette.ts';
 import { useI18n } from '../lib/i18n/index.tsx';
 import { LOCALE_META, type Locale } from '../lib/i18n/locales.ts';
 import { TEAM_BY_ID } from '../data/squads.ts';
+import { localizedRoundLabel } from '../data/fixtures.ts';
 import type { DictKey } from '../lib/i18n/dict.ts';
 
 /** ממלא {placeholders} בצמתי React — כדי לשמור על עיצוב חלקי משפט. */
@@ -264,7 +265,7 @@ export function PublicBoard({ rulesByMode, userId }: {
         <section>
           <div className="mb-2 flex items-baseline justify-between gap-2">
             <h3 className="font-press text-base font-black text-chalk">
-              {t('board.pb.results')} · {gw.label ?? `${t('common.round')} ${gw.number}`}
+              {t('board.pb.results')} · {localizedRoundLabel(gw.label, gw.number)}
             </h3>
             {gw.live && (
               <span className="flex items-center gap-1 text-[11px] font-black text-flare">

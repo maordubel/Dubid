@@ -75,6 +75,8 @@
  * ⚠ הכתובת הישנה `offsidebets.dubel.team` בוטלה. אם היא עדיין
  *   מפנה — עדיף redirect 301 ולא שני שמות חיים במקביל.
  */
+import { lazyFields } from './i18n/lazy.ts';
+
 export const DUBEL = {
   /** האתר הראשי של החברה. */
   site: 'https://www.dubelteam.com',
@@ -200,41 +202,21 @@ export function pickPromo(ctx: GrowthContext): Promo {
  * ניסוח בלי לגעת בקומפוננטה — ולבדוק אותו.
  */
 export const PROMOS: Record<PromoId, Promo> = {
-  'just-locked': {
-    id: 'just-locked',
-    headline: 'ההרכב נעול. ומה עכשיו?',
-    body: 'שלושה ימים עד השריקה. באופסיידס המשחק עצמו הוא המשחק.',
-    cta: 'לפתוח זירה',
-    tone: 'calm',
-  },
-  'kickoff-soon': {
-    id: 'kickoff-soon',
-    headline: 'עוד רגע שורקים',
-    body: 'אותם משחקים, תשעים דקות, ניחושים חיים מול החברים.',
-    cta: 'להיכנס לזירה',
-    tone: 'urgent',
-  },
-  beaten: {
-    id: 'beaten',
-    headline: 'הריוונג׳ בדוביד הוא בעוד שבוע',
-    body: 'באופסיידס הוא במשחק הבא. אותו חשבון, בלי הרשמה מחדש.',
-    cta: 'לקחת ריוונג׳',
-    tone: 'revenge',
-  },
-  champion: {
-    id: 'champion',
-    headline: 'מקום ראשון. עכשיו תוכיח שזה לא מזל',
-    body: 'ניחושים בזמן אמת, בלי שבוע להתכונן. שם יודעים מי באמת מבין.',
-    cta: 'לקבל את האתגר',
-    tone: 'crown',
-  },
-  idle: {
-    id: 'idle',
-    headline: OFFSIDES.nameHe,
-    body: 'חיזוי משחקים חי, זירות מול חברים. אותו חשבון בדיוק.',
-    cta: 'להעיף מבט',
-    tone: 'calm',
-  },
+  'just-locked': lazyFields({ id: 'just-locked' as const, tone: 'calm' as const }, {
+    headline: 'shell.promo.justLocked.h', body: 'shell.promo.justLocked.b', cta: 'shell.promo.justLocked.c',
+  }),
+  'kickoff-soon': lazyFields({ id: 'kickoff-soon' as const, tone: 'urgent' as const }, {
+    headline: 'shell.promo.kickoff.h', body: 'shell.promo.kickoff.b', cta: 'shell.promo.kickoff.c',
+  }),
+  beaten: lazyFields({ id: 'beaten' as const, tone: 'revenge' as const }, {
+    headline: 'shell.promo.beaten.h', body: 'shell.promo.beaten.b', cta: 'shell.promo.beaten.c',
+  }),
+  champion: lazyFields({ id: 'champion' as const, tone: 'crown' as const }, {
+    headline: 'shell.promo.champion.h', body: 'shell.promo.champion.b', cta: 'shell.promo.champion.c',
+  }),
+  idle: lazyFields({ id: 'idle' as const, tone: 'calm' as const }, {
+    headline: 'shell.offsides', body: 'shell.promo.idle.b', cta: 'shell.promo.idle.c',
+  }),
 };
 
 /* ================================================================== */
@@ -371,31 +353,11 @@ export interface InlineAd {
 }
 
 export const INLINE_ADS: Partial<Record<Placement, InlineAd>> = {
-  rules: {
-    before: 'החוקים כאן נועדו למחזור שלם. אם בא לכם משחק שנגמר תוך תשעים דקות — ',
-    link: 'אופסיידס',
-    after: ' הוא אותו כדורגל, בקצב אחר. אותו חשבון.',
-  },
-  leaderboard: {
-    before: 'הדירוג מתעדכן פעם בשבוע. ',
-    link: 'בזירות של אופסיידס',
-    after: ' הוא מתעדכן תוך כדי המשחק.',
-  },
-  locked: {
-    before: 'ההרכב נעול עד השריקה. עד אז, ',
-    link: 'אופסיידס',
-    after: ' פתוח — ניחושים חיים על אותם משחקים בדיוק.',
-  },
-  arena: {
-    before: 'הזירה הזו רצה על מחזורים. ',
-    link: 'זירה באופסיידס',
-    after: ' רצה על משחק בודד — אותם חברים, ערב אחד.',
-  },
-  card: {
-    before: 'הכרטיס הזה מסכם שבוע. ',
-    link: 'באופסיידס',
-    after: ' יש כרטיס כזה אחרי כל משחק.',
-  },
+  rules: lazyFields({}, { before: 'shell.inline.rules.a', link: 'shell.inline.rules.l', after: 'shell.inline.rules.z' }),
+  leaderboard: lazyFields({}, { before: 'shell.inline.board.a', link: 'shell.inline.board.l', after: 'shell.inline.board.z' }),
+  locked: lazyFields({}, { before: 'shell.inline.locked.a', link: 'shell.inline.locked.l', after: 'shell.inline.locked.z' }),
+  arena: lazyFields({}, { before: 'shell.inline.arena.a', link: 'shell.inline.arena.l', after: 'shell.inline.arena.z' }),
+  card: lazyFields({}, { before: 'shell.inline.card.a', link: 'shell.inline.card.l', after: 'shell.inline.card.z' }),
 };
 
 /**
@@ -406,7 +368,4 @@ export const INLINE_ADS: Partial<Record<Placement, InlineAd>> = {
  * ל"המוצר השני של אותה חברה" — וההבדל הזה הוא כל ההבדל
  * באמינות.
  */
-export const RAIL_COPY = {
-  label: 'גם שלנו',
-  text: 'חיזוי משחקים חי וזירות מול חברים',
-} as const;
+export const RAIL_COPY = lazyFields({}, { label: 'shell.ofs.railLabel', text: 'shell.ofs.railText' });

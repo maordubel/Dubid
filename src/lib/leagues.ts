@@ -18,6 +18,7 @@
 import { rankEntries, type TieBreakStage } from './scoring/ranking.ts';
 import type { LineupScore } from './scoring/types.ts';
 import type { ModeId } from './events/bus.ts';
+import { tr } from './i18n/dict.ts';
 
 /* =================================================================== */
 /* מודל                                                                */
@@ -131,12 +132,13 @@ export const JoinError = {
 } as const;
 export type JoinErrorValue = (typeof JoinError)[keyof typeof JoinError];
 
+/* ★ getters: הטקסט נקרא בזמן הרינדור, בשפה הפעילה. */
 export const JOIN_ERROR_HE: Record<JoinErrorValue, string> = {
-  league_not_found: 'לא נמצאה ליגה עם הקוד הזה.',
-  league_closed: 'הליגה סגורה להצטרפות.',
-  league_full: 'הליגה מלאה.',
-  already_member: 'אתם כבר חברים בליגה הזו.',
-  invalid_code: 'הקוד לא תקין. שישה תווים, בלי אפס ובלי האות O.',
+  get league_not_found() { return tr('arena.join.league_not_found'); },
+  get league_closed() { return tr('arena.join.league_closed'); },
+  get league_full() { return tr('arena.join.league_full'); },
+  get already_member() { return tr('arena.join.already_member'); },
+  get invalid_code() { return tr('arena.join.invalid_code'); },
 };
 
 export interface JoinResult {

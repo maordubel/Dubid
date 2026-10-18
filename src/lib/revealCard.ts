@@ -54,7 +54,9 @@
  */
 import {
   CARD_W, CARD_H, F_DISPLAY, F_POSTER, F_UI, clip,
+  cardDir, isRtlCard, leadAlign, fitFont,
 } from './shareCard.ts';
+import { tr } from './i18n/dict.ts';
 import { modeTheme, type ModeId } from './modeTheme.ts';
 import { teamColor, type TeamColor } from '../data/teamColors.ts';
 import { PRESS } from './pressPalette.ts';
@@ -154,7 +156,7 @@ export function drawRevealCard(
   logo?: CanvasImageSource | null,
 ): void {
   ctx.save();
-  ctx.direction = 'rtl';
+  ctx.direction = cardDir();
   ctx.textBaseline = 'alphabetic';
   ctx.clearRect(0, 0, CARD_W, CARD_H);
 
@@ -210,7 +212,8 @@ function drawMasthead(
   });
 
   /* חותמת המדור — זהות המצב, בצבע שלו. */
-  drawModeStamp(ctx, d.mode, 190, 214, t.accent, t.codeName);
+  drawModeStamp(ctx, d.mode, 190, 214, t.accent,
+    tr(d.mode === 'five' ? 'mode.five.code' : 'mode.full.code'));
 
   perforation(ctx, 392);
 
@@ -231,13 +234,15 @@ function drawMasthead(
   ctx.fillStyle = INK;
   ctx.font = `900 74px ${F_DISPLAY}`;
   withSpacing(ctx, '6px', () => {
-    ctx.fillText('ההרכב השבועי', CARD_W / 2, by + 74);
+    const title = tr('share.reveal.title');
+    fitFont(ctx, title, bw - 40);
+    ctx.fillText(title, CARD_W / 2, by + 74);
   });
 
   ctx.font = `700 32px ${F_UI}`;
   ctx.fillStyle = INK;
   ctx.fillText(
-    `${t.name}  ·  ${d.gameweekLabel}  ·  ${d.leagueLabel ?? 'ליגת העל'}`,
+    `${tr(d.mode === 'five' ? 'mode.five.title' : 'mode.full.title')}  ·  ${d.gameweekLabel}  ·  ${d.leagueLabel ?? tr('share.defaultLeague')}`,
     CARD_W / 2, by + bh + 44,
   );
 }
@@ -263,16 +268,17 @@ function drawModeStamp(
   ctx.lineWidth = 1.6;
   ctx.strokeRect(-w / 2 + 7, -h / 2 + 7, w - 14, h - 14);
 
-  drawModeMark(ctx, mode, w / 2 - 40, 0, 46, color);
+  const sgn = isRtlCard() ? 1 : -1;   // RTL: הסמל בימין; LTR: בשמאל
+  drawModeMark(ctx, mode, sgn * (w / 2 - 40), 0, 46, color);
 
-  ctx.textAlign = 'right';
+  ctx.textAlign = leadAlign();
   ctx.fillStyle = color;
   ctx.font = `700 26px ${F_UI}`;
-  ctx.fillText(modeTheme(mode).name, w / 2 - 70, -2);
+  ctx.fillText(tr(mode === 'five' ? 'mode.five.title' : 'mode.full.title'), sgn * (w / 2 - 70), -2);
   ctx.font = `400 19px ${F_POSTER}`;
   ctx.globalAlpha = 0.8;
   withSpacing(ctx, '1px', () => {
-    ctx.fillText(spaced(codeName), w / 2 - 70, 26);
+    ctx.fillText(spaced(codeName), sgn * (w / 2 - 70), 26);
   });
 
   ctx.restore();
@@ -359,7 +365,7 @@ function drawPitch(
       ctx.font = `400 21px ${F_POSTER}`;
       ctx.fillStyle = cap ? '#fff' : INK;
       ctx.fillText(p.shirt ? String(p.shirt) : '', nx, ny + 8);
-      ctx.direction = 'rtl';
+      ctx.direction = cardDir();
 
       /* השם — שחור על הדשא, עם הילה בהירה לקריאות. */
       ctx.font = `900 27px ${F_DISPLAY}`;
@@ -398,17 +404,26 @@ function drawLegend(
   ctx.lineWidth = 2.5;
   ctx.strokeRect(lx, ly, lw, lh);
 
-  ctx.textAlign = 'right';
+  const rtl = isRtlCard();
+  const tx = rtl ? lx + lw - 40 : lx + 40;
+  const mx = rtl ? lx + lw - 20 : lx + 20;
+  ctx.textAlign = leadAlign();
   ctx.font = `700 19px ${F_UI}`;
   ctx.fillStyle = INK;
-  ctx.fillText('הרכב פותח', lx + lw - 40, ly + 26);
-  ctx.fillText(`קפטן ×${trim(multiplier)}`, lx + lw - 40, ly + 50);
+  const legendMax = lw - 52;
+  const l1 = tr('share.reveal.opened');
+  const l2 = tr('share.reveal.captain', { m: trim(multiplier) });
+  fitFont(ctx, l1, legendMax);
+  ctx.fillText(l1, tx, ly + 26);
+  ctx.font = `700 19px ${F_UI}`;
+  fitFont(ctx, l2, legendMax);
+  ctx.fillText(l2, tx, ly + 50);
 
   ctx.fillStyle = PRESS.mark;
-  ctx.beginPath(); ctx.arc(lx + lw - 20, ly + 20, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(mx, ly + 20, 8, 0, Math.PI * 2); ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = INK; ctx.stroke();
   ctx.fillStyle = RED;
-  ctx.beginPath(); ctx.arc(lx + lw - 20, ly + 44, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(mx, ly + 44, 8, 0, Math.PI * 2); ctx.fill();
   ctx.stroke();
 }
 
@@ -421,8 +436,8 @@ function drawLegend(
  * וזה בדיוק מה שמייצר תגובה בסטורי במקום צפייה.
  */
 function drawCoach(ctx: CanvasRenderingContext2D, d: RevealCardData, y: number) {
-  const label = 'שם המאמן:';
-  const name = d.userName || 'מאמן';
+  const label = tr('share.reveal.coachLabel');
+  const name = d.userName || tr('acct.coachDefault');
 
   ctx.font = `900 46px ${F_DISPLAY}`;
   const nameW = ctx.measureText(clip(ctx, name, 520)).width;
@@ -430,23 +445,44 @@ function drawCoach(ctx: CanvasRenderingContext2D, d: RevealCardData, y: number) 
   const labelW = ctx.measureText(label).width;
 
   const gap = 18;
-  let right = CARD_W / 2 + (labelW + gap + nameW) / 2;
+  if (isRtlCard()) {
+    let right = CARD_W / 2 + (labelW + gap + nameW) / 2;
 
-  ctx.textAlign = 'right';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#00000099';
+    ctx.fillText(label, right, y);
+
+    right -= labelW + gap;
+    ctx.font = `900 46px ${F_DISPLAY}`;
+    ctx.fillStyle = INK;
+    ctx.fillText(clip(ctx, name, 520), right, y + 2);
+
+    /* קו החתימה — מתחת לשם בלבד, לא מתחת לתווית. */
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(right - nameW - 10, y + 16);
+    ctx.lineTo(right + 10, y + 16);
+    ctx.stroke();
+    return;
+  }
+
+  /* LTR: התווית משמאל, השם אחריה, והקו מתחת לשם. */
+  let left = CARD_W / 2 - (labelW + gap + nameW) / 2;
+  ctx.textAlign = 'left';
   ctx.fillStyle = '#00000099';
-  ctx.fillText(label, right, y);
+  ctx.fillText(label, left, y);
 
-  right -= labelW + gap;
+  left += labelW + gap;
   ctx.font = `900 46px ${F_DISPLAY}`;
   ctx.fillStyle = INK;
-  ctx.fillText(clip(ctx, name, 520), right, y + 2);
+  ctx.fillText(clip(ctx, name, 520), left, y + 2);
 
-  /* קו החתימה — מתחת לשם בלבד, לא מתחת לתווית. */
   ctx.strokeStyle = INK;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(right - nameW - 10, y + 16);
-  ctx.lineTo(right + 10, y + 16);
+  ctx.moveTo(left - 10, y + 16);
+  ctx.lineTo(left + nameW + 10, y + 16);
   ctx.stroke();
 }
 
@@ -455,10 +491,10 @@ function drawStub(ctx: CanvasRenderingContext2D, d: RevealCardData) {
   perforation(ctx, CARD_H - 166);
 
   const meta: string[] = [];
-  if (d.formation) meta.push(`מערך ${d.formation}`);
-  if (typeof d.spent === 'number') meta.push(`תקציב ${trim(d.spent)}M`);
-  if (d.deadlineLabel) meta.push(`נעילה ${d.deadlineLabel}`);
-  if (d.entrants) meta.push(`${d.entrants} משתתפים`);
+  if (d.formation) meta.push(tr('share.reveal.formation', { f: d.formation }));
+  if (typeof d.spent === 'number') meta.push(tr('share.reveal.budget', { n: trim(d.spent) }));
+  if (d.deadlineLabel) meta.push(tr('share.reveal.lock', { at: d.deadlineLabel }));
+  if (d.entrants) meta.push(tr('share.reveal.entrants', { n: d.entrants }));
 
   ctx.textAlign = 'center';
   ctx.fillStyle = INK;
@@ -473,7 +509,7 @@ function drawStub(ctx: CanvasRenderingContext2D, d: RevealCardData) {
   ctx.font = `900 40px ${F_DISPLAY}`;
   ctx.fillStyle = RED_D;
   ctx.fillText(
-    clip(ctx, d.ctaLine || 'חושב שאתה מבין יותר?', CARD_W - 160),
+    clip(ctx, d.ctaLine || tr('share.reveal.cta'), CARD_W - 160),
     CARD_W / 2, CARD_H - 68,
   );
 }

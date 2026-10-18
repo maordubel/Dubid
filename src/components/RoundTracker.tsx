@@ -4,12 +4,14 @@
  */
 import { STEPS, type RoundBrief } from '../lib/roundPhase.ts';
 import { NIGHT_PRESS as NP } from '../lib/pressPalette.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 export function RoundTracker({ brief }: { brief: RoundBrief }) {
+  const { t } = useI18n();
   return (
     <section className="relative z-[2] mx-3 mt-2 border px-3 py-3"
-             style={{ borderColor: NP.rule }} aria-label="שלב המחזור" data-round-step={brief.step}>
-      <ol className="flex items-center justify-between gap-1" aria-label="שלבי המחזור">
+             style={{ borderColor: NP.rule }} aria-label={t('shell.round.aria')} data-round-step={brief.step}>
+      <ol className="flex items-center justify-between gap-1" aria-label={t('shell.round.stepsAria')}>
         {STEPS.map((s, idx) => {
           const done = idx < brief.stepIndex;
           const now = idx === brief.stepIndex;

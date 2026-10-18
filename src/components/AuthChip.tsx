@@ -46,6 +46,8 @@
 
 import type { Identity } from '../lib/identity.ts';
 import { LogoMark } from './Logo.tsx';
+import { useI18n } from '../lib/i18n/index.tsx';
+import type { DictKey } from '../lib/i18n/dict.ts';
 
 export interface AuthChipProps {
   /** `null` = הזהות עוד לא נטענה. */
@@ -55,6 +57,7 @@ export interface AuthChipProps {
 }
 
 export function AuthChip({ identity, onOpen }: AuthChipProps) {
+  const { t, dir } = useI18n();
   /* ---- טוען ---- */
   if (!identity) {
     return (
@@ -106,7 +109,7 @@ export function AuthChip({ identity, onOpen }: AuthChipProps) {
     <button
       type="button"
       onClick={onOpen}
-      aria-label="פרופיל המאמן"
+      aria-label={t('acct.title')}
       className="tap -mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-1
                  text-start transition-colors active:bg-night-2/70"
     >
@@ -146,7 +149,7 @@ export function AuthChip({ identity, onOpen }: AuthChipProps) {
                 className="size-1.5 shrink-0 rounded-full bg-emerald-400/80"
               />
               <span className="truncate text-[10px] font-bold tracking-[0.14em] text-chalk-dim">
-                {providerLabel(identity.provider)}
+                {t(providerLabelKey(identity.provider))}
               </span>
             </>
           ) : (
@@ -156,26 +159,26 @@ export function AuthChip({ identity, onOpen }: AuthChipProps) {
                 className="size-1.5 shrink-0 rounded-full bg-armband/80"
               />
               <span className="truncate text-[10px] font-bold tracking-[0.14em] text-armband/90">
-                לא שמור · לחצו לשמירה
+                {t('auth.chip.unsaved')}
               </span>
             </>
           )}
         </span>
         <span className="block truncate text-[15px] font-black text-chalk">
-          {name || identity.username || 'מאמן'}
+          {name || identity.username || t('acct.coachDefault')}
         </span>
       </span>
 
       <span aria-hidden="true" className="shrink-0 text-[16px] leading-none text-chalk-dim">
-        ‹
+        {dir === 'rtl' ? '‹' : '›'}
       </span>
     </button>
   );
 }
 
 /** "מחובר עם גוגל" / "מחובר במייל". `null` = מחובר, בלי לפרט. */
-function providerLabel(provider: string | null | undefined): string {
-  if (provider === 'google') return 'מחובר עם גוגל';
-  if (provider === 'email') return 'מחובר במייל';
-  return 'החשבון שמור';
+function providerLabelKey(provider: string | null | undefined): DictKey {
+  if (provider === 'google') return 'auth.chip.google';
+  if (provider === 'email') return 'auth.chip.email';
+  return 'auth.chip.saved';
 }
