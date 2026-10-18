@@ -20,6 +20,9 @@
  * האכיפה האמיתית היא ב-`game.submit_lineup` במסד (מיגרציה 05).
  * לקוח שיעקוף את הקוד הזה ייתקל בחומה בשרת.
  */
+import { translate, type DictKey } from './i18n/dict.ts';
+import type { Locale } from './i18n/locales.ts';
+
 
 export const GameweekStatus = {
   /** האדמין עדיין מרכיב את המחזור. לא גלוי למשתמשים. */
@@ -244,11 +247,12 @@ export const TICK_FROM_MS = 24 * 3600_000;
 /** מתי הוא הופך לאדום. שעה. */
 export const URGENT_FROM_MS = 3600_000;
 
-export function deadlineView(ms: number): DeadlineView {
+export function deadlineView(ms: number, locale: Locale = 'he'): DeadlineView {
+  const T = (k: DictKey, v?: Record<string, string | number>) => translate(k, locale, v);
   if (ms <= 0) {
     return {
-      mode: 'closed', value: 'ההרכבים נעולים', ticking: false,
-      flash: 'נעול', note: 'הכדור כבר מתגלגל.',
+      mode: 'closed', value: T('deadline.locked'), ticking: false,
+      flash: T('deadline.lockedFlash'), note: T('deadline.lockedNote'),
     };
   }
 
@@ -259,23 +263,24 @@ export function deadlineView(ms: number): DeadlineView {
        ההבדל הוא מילה אחת, והיא מה שהופך תווית לכותרת. */
     return {
       mode: 'far',
-      value: daysLabel(c.days).replace(/^עוד /, 'בעוד '),
+      value: c.days === 1 ? T('deadline.inDay') : c.days === 2 ? T('deadline.inDays2')
+             : T('deadline.inDaysN', { n: c.days }),
       ticking: false,
-      flash: 'מבזק',
-      note: 'אחרי זה אין שינויים.',
+      flash: T('deadline.flashFar'),
+      note: T('deadline.farNote'),
     };
   }
 
   if (ms >= URGENT_FROM_MS) {
     return {
       mode: 'today', value: c.clock, ticking: true,
-      flash: 'היום האחרון', note: 'השעון רץ.',
+      flash: T('deadline.lastDay'), note: T('deadline.todayNote'),
     };
   }
 
   return {
     mode: 'urgent', value: c.clock, ticking: true,
-    flash: 'שעה אחרונה', note: 'אחרי זה אי אפשר לשנות כלום.',
+    flash: T('deadline.lastHour'), note: T('deadline.urgentNote'),
   };
 }
 

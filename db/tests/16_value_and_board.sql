@@ -35,7 +35,9 @@ BEGIN
            THEN 2500000 + (('x' || substr(md5(s.player_id::TEXT), 1, 8))::BIT(32)::BIGINT % 500000)
            ELSE 50000 + (('x' || substr(md5(s.player_id::TEXT), 1, 8))::BIT(32)::BIGINT % 600000)
          END
-   WHERE s.valid_to IS NULL AND s.status <> 'left';
+   WHERE s.valid_to IS NULL AND s.status <> 'left'
+     AND s.season_id = (SELECT x.id FROM core.seasons x JOIN core.leagues l ON l.id = x.league_id
+                         WHERE l.code = 'IL_PREMIER' AND x.is_current);
 
   r := game.admin_reprice_from_market(FALSE);
   v_bands := r->'bands';
@@ -59,7 +61,7 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM core.squads a JOIN core.squads b ON TRUE
      WHERE a.valid_to IS NULL AND b.valid_to IS NULL
-       AND a.market_value > b.market_value
+       AND a.season_id = b.season_id AND a.market_value > b.market_value
        AND a.fantasy_price < b.fantasy_price
        AND NOT a.price_locked AND NOT b.price_locked)
   THEN RAISE EXCEPTION 'FAIL 1c: שחקן יקר יותר קיבל מחיר נמוך יותר'; END IF;

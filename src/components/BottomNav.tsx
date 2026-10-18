@@ -15,6 +15,8 @@
  * הפריט הראשון במערך מופיע בימין. אין `left`/`right` בקוד.
  */
 import type { CSSProperties, ReactNode } from 'react';
+import { useI18n } from '../lib/i18n/index.tsx';
+import { LanguagePicker } from './LanguagePicker.tsx';
 
 export interface NavItem {
   id: string;
@@ -43,9 +45,10 @@ export interface NavProps {
 export const NAV_HEIGHT_PX = 64;
 
 export function BottomNav({ items, activeId, onSelect }: NavProps) {
+  const { t } = useI18n();
   return (
     <nav
-      aria-label="ניווט ראשי"
+      aria-label={t('nav.aria')}
       style={{ '--nav-h': `${NAV_HEIGHT_PX}px` } as CSSProperties}
       className="fixed inset-x-0 bottom-0 z-nav border-t border-gold/15
                  bg-night-2/95 backdrop-blur
@@ -145,9 +148,10 @@ export function BottomNav({ items, activeId, onSelect }: NavProps) {
 
 /** אותם פריטים, פס אנכי — הגרסה לדסקטופ. */
 export function SideRail({ items, activeId, onSelect }: NavProps) {
+  const { t } = useI18n();
   return (
     <nav
-      aria-label="ניווט ראשי"
+      aria-label={t('nav.aria')}
       className="hidden w-[84px] shrink-0 flex-col items-center gap-1 border-gold/12
                  bg-night-2 pt-4 border-e lg:flex"
     >
@@ -172,6 +176,7 @@ export function SideRail({ items, activeId, onSelect }: NavProps) {
           </button>
         );
       })}
+      <LanguagePicker className="mt-auto mb-3 flex-col" />
     </nav>
   );
 }

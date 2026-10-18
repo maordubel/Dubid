@@ -14425,6 +14425,983 @@ ON CONFLICT (version) DO NOTHING;
 
 
 -- =====================================================================
+-- ▼▼▼  39_league_scoped_current.sql  —  ★ מחזור נוכחי אחד לכל ליגה (הכנה ליוון)
+-- =====================================================================
+
+-- =====================================================================
+--  db/39_league_scoped_current.sql — מחזור נוכחי אחד **לכל ליגה**
+-- =====================================================================
+--  הכנה לליגה היוונית (ובכלל לכל ליגה נוספת). עד עכשיו `is_current`
+--  היה דגל יחיד במערכת כולה (`gameweeks_one_current`). מרגע שיש
+--  יותר מליגה אחת פעילה זה היה גורם לכך שפתיחת מחזור ביוון מכבה את
+--  המחזור הנוכחי בישראל.
+--
+--  מה משתנה (תוספתי, ללא שינוי התנהגות כל עוד יש ליגה אחת):
+--   1. `gameweeks.league_id` — עמודה נגזרת מהעונה (טריגר), לצורך
+--      אינדקס ייחודי חלקי.
+--   2. האינדקס הייחודי `gameweeks_one_current` מוחלף ב-
+--      `gameweeks_one_current_per_league`.
+--   3. `sync_current_gameweek()` עובד לכל ליגה בנפרד.
+--   4. `auto_advance()`: «המחזור הקודם עדיין באוויר» נבדק באותה
+--      עונה בלבד; פתיחת מחזור לא נוגעת ב-`is_current` (זה תפקיד
+--      הסנכרון, פר-ליגה).
+--
+--  ⚠ סדר פריסה: **לא** להזין מחזורי יוון לפני שהקוראים שמסתמכים על
+--  «המחזור הנוכחי היחיד» (admin_console / live_data / ingest status)
+--  מקבלים פרמטר ליגה. עד אז הם מחזירים את הליגה הראשונה לפי
+--  `created_at` — דטרמיניסטי, אבל עיוור ליוון.
+-- =====================================================================
+BEGIN;
+
+ALTER TABLE game.gameweeks ADD COLUMN IF NOT EXISTS league_id UUID REFERENCES core.leagues(id);
+
+UPDATE game.gameweeks gw SET league_id = s.league_id
+  FROM core.seasons s WHERE s.id = gw.season_id AND gw.league_id IS DISTINCT FROM s.league_id;
+
+CREATE OR REPLACE FUNCTION game.gameweek_set_league()
+RETURNS TRIGGER LANGUAGE plpgsql AS $t$
+BEGIN
+  SELECT league_id INTO NEW.league_id FROM core.seasons WHERE id = NEW.season_id;
+  RETURN NEW;
+END;
+$t$;
+
+DROP TRIGGER IF EXISTS gameweeks_set_league ON game.gameweeks;
+CREATE TRIGGER gameweeks_set_league
+  BEFORE INSERT OR UPDATE OF season_id ON game.gameweeks
+  FOR EACH ROW EXECUTE FUNCTION game.gameweek_set_league();
+
+DROP INDEX IF EXISTS game.gameweeks_one_current;
+CREATE UNIQUE INDEX IF NOT EXISTS gameweeks_one_current_per_league
+  ON game.gameweeks (league_id) WHERE is_current;
+
+CREATE OR REPLACE FUNCTION game.sync_current_gameweek()
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public
+AS $f$
+DECLARE l RECORD; v_id UUID;
+BEGIN
+  FOR l IN SELECT DISTINCT league_id FROM game.gameweeks WHERE league_id IS NOT NULL LOOP
+    SELECT id INTO v_id FROM game.gameweeks
+     WHERE league_id = l.league_id AND status IN ('open','locked','live','scoring')
+     ORDER BY number DESC LIMIT 1;
+    IF v_id IS NULL THEN
+      SELECT id INTO v_id FROM game.gameweeks
+       WHERE league_id = l.league_id AND status = 'published'
+       ORDER BY number DESC LIMIT 1;
+    END IF;
+    CONTINUE WHEN v_id IS NULL;
+    CONTINUE WHEN EXISTS (SELECT 1 FROM game.gameweeks WHERE id = v_id AND is_current)
+              AND (SELECT count(*) FROM game.gameweeks
+                    WHERE league_id = l.league_id AND is_current) = 1;
+    UPDATE game.gameweeks SET is_current = FALSE
+     WHERE league_id = l.league_id AND is_current AND id <> v_id;
+    UPDATE game.gameweeks SET is_current = TRUE WHERE id = v_id;
+    INSERT INTO game.audit_logs (actor, action, entity, entity_id, new_value)
+    SELECT game.actor_label(), 'sync_current_gameweek', 'gameweek', code, '{}'::jsonb
+      FROM game.gameweeks WHERE id = v_id;
+  END LOOP;
+END;
+$f$;
+REVOKE ALL ON FUNCTION game.sync_current_gameweek() FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION game.auto_advance()
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+DECLARE
+  v_cfg      game.ingest_config%ROWTYPE;
+  g          RECORD;
+  v_actions  JSONB := '[]'::jsonb;
+  v_ready    TEXT;
+  v_total    INT; v_final INT; v_started INT; v_blocks INT; v_missing INT;
+  v_excluded INT;
+  v_was_draft BOOLEAN := FALSE;
+  v_since    TIMESTAMPTZ;
+  v_stable   BOOLEAN;
+  v_current  TEXT;
+BEGIN
+  IF NOT game.can_write_data() THEN RAISE EXCEPTION 'SYSTEM_OR_ADMIN_REQUIRED'; END IF;
+  SELECT * INTO v_cfg FROM game.ingest_config WHERE id;
+  IF NOT COALESCE(v_cfg.enabled, TRUE) THEN
+    RETURN jsonb_build_object('skipped', 'ingest_disabled');
+  END IF;
+
+  FOR g IN
+    SELECT gw.id, gw.code, gw.number, gw.status, gw.lock_at, gw.season_id
+      FROM game.gameweeks gw
+     WHERE gw.status NOT IN ('published','archived')
+     ORDER BY gw.number
+  LOOP
+    /* ★ משחק שנדחה או הופסק **אינו מחזיק את המחזור**. הוא לא ייגמר
+       בתוך המחזור הזה, ו«אין תוצאה» אינה «תיקו» — לכן הוא יוצא
+       מהספירה, והמחזור מתפרסם בלעדיו. המשחק עצמו נשאר בטבלה
+       (לא נמחק ולא מנוקד), והאדמין יכול להעביר אותו למחזור אחר. */
+    SELECT count(*) FILTER (WHERE status NOT IN ('postponed','abandoned')),
+           count(*) FILTER (WHERE status = 'finished'),
+           count(*) FILTER (WHERE status IN ('live','finished')),
+           count(*) FILTER (WHERE status IN ('postponed','abandoned'))
+      INTO v_total, v_final, v_started, v_excluded
+      FROM core.weekly_matches WHERE gameweek_id = g.id;
+
+    CONTINUE WHEN v_total = 0;           -- מחזור בלי משחקים אינו מחזור
+
+    /* ── draft → open ─────────────────────────────────────── */
+    IF g.status = 'draft' AND COALESCE(v_cfg.auto_open_next, TRUE)
+       AND g.lock_at > now()
+       /* ★ חוק יום שני: מחזור נפתח למשחק רק מיום שני 09:00 (אתונה) של
+          השבוע שבו נפתח המשחק הראשון שלו. לא מוקדם יותר. */
+       AND now() >= game.gameweek_publish_at(g.lock_at)
+       /* רק אחרי שהקודם כבר לא תלוי באוויר */
+       AND NOT EXISTS (SELECT 1 FROM game.gameweeks p
+                        WHERE p.number < g.number
+                          AND p.season_id = g.season_id   -- ★ רק אותה עונה/ליגה
+                          AND p.status IN ('open','locked','live','scoring'))
+    THEN
+      UPDATE game.gameweeks SET status = 'open' WHERE id = g.id;
+      g.status := 'open';
+      v_actions := v_actions || jsonb_build_object('gw', g.code, 'action', 'opened');
+
+      INSERT INTO game.audit_logs (actor, action, entity, entity_id, new_value)
+      VALUES (game.actor_label(), 'auto_open_gameweek', 'gameweek', g.code,
+              jsonb_build_object('lockAt', g.lock_at, 'fixtures', v_total));
+    END IF;
+
+    /* ── ★ open → locked ──────────────────────────────────────
+       הדדליין עבר. ההגשה כבר הייתה חסומה בפועל (`submit_lineup`
+       בודק `lock_at` מול שעון השרת), אבל הסטטוס לא אמר את זה —
+       ולכן גם `ingest_should_run` לא ידע שנפתח החלון שבו הקליטה
+       צריכה לעבוד הכי צפוף. */
+    IF g.status IN ('open','draft') AND g.lock_at <= now() THEN
+      /* ★ `draft` כאן = מחזור שהדדליין שלו עבר בלי שנפתח. הוא נשאר
+         טיוטה לנצח (פתיחה דורשת דדליין עתידי), ובכל התקופה הזו
+         הוא לא יכול היה להתנקד ולא להפסיק לחסום. עכשיו הוא נועל
+         ומתקדם כמו כל מחזור — ללא הגשה מאוחרת: `submit_lineup`
+         ממשיך לבדוק `lock_at` מול שעון השרת. */
+      v_was_draft := (g.status = 'draft');
+      UPDATE game.gameweeks SET status = 'locked' WHERE id = g.id;
+      UPDATE game.user_lineups SET status = 'locked'
+       WHERE gameweek_id = g.id AND status = 'submitted';
+      g.status := 'locked';
+      v_actions := v_actions || jsonb_build_object('gw', g.code, 'action', 'locked');
+
+      INSERT INTO game.audit_logs (actor, action, entity, entity_id, new_value)
+      VALUES (game.actor_label(), 'auto_lock_gameweek', 'gameweek', g.code,
+              jsonb_build_object('lockAt', g.lock_at, 'missedOpen', v_was_draft));
+    END IF;
+
+    /* ── ★ locked → live ──────────────────────────────────────
+       המשחק הראשון יצא לדרך. נגזר ממצב המשחקים ולא משעון בלבד:
+       משחק שנדחה בחצי שעה לא אמור להדליק «חי» על מסך ריק. */
+    IF g.status = 'locked' AND v_started > 0 THEN
+      UPDATE game.gameweeks SET status = 'live' WHERE id = g.id;
+      g.status := 'live';
+      v_actions := v_actions || jsonb_build_object('gw', g.code, 'action', 'live');
+    END IF;
+
+    /* ── הכל נגמר → scoring ───────────────────────────────── */
+    IF g.status IN ('open','locked','live') AND v_final = v_total THEN
+      UPDATE game.gameweeks SET status = 'scoring' WHERE id = g.id;
+      g.status := 'scoring';
+      v_actions := v_actions || jsonb_build_object('gw', g.code, 'action', 'scoring',
+                                                   'excluded', v_excluded);
+    END IF;
+
+    /* ── בשל לפרסום? ──────────────────────────────────────── */
+    IF g.status = 'scoring' AND COALESCE(v_cfg.auto_publish, TRUE) THEN
+      v_missing := game.ingest_check_coverage(g.code);
+
+      SELECT count(*) INTO v_blocks FROM game.ingest_alerts
+       WHERE gw_code = g.code AND cleared_at IS NULL AND severity = 'block';
+
+      /* ★ כאן היה התקע. `since` נקרא מטבלה שרק הקליטה כתבה
+         אליה; בלי שורה — NULL, ומחזור שתקוע לנצח. עכשיו
+         מחזור החיים דוגם בעצמו. */
+      v_since  := game.touch_fingerprint(g.code);
+      v_stable := COALESCE(
+        now() - v_since >= make_interval(mins => v_cfg.stable_minutes), FALSE);
+
+      IF v_blocks = 0 AND v_stable THEN
+        v_ready := g.code;
+        v_actions := v_actions || jsonb_build_object('gw', g.code, 'action', 'readyToPublish');
+      ELSE
+        v_actions := v_actions || jsonb_build_object(
+          'gw', g.code, 'action', 'holding',
+          'reason', CASE WHEN v_blocks > 0 THEN 'alerts' ELSE 'not_stable' END,
+          'blocks', v_blocks, 'missingStats', v_missing,
+          'stableSince', v_since);
+
+        /* ★ מחזור שתקוע ב-'scoring' יותר מ-24 שעות אינו «ממתין
+           ליציבות» — הוא תקוע. התרעה, כדי שזה יופיע במסך
+           הקליטה במקום להיעלם. */
+        IF v_since IS NOT NULL AND now() - v_since >= INTERVAL '24 hours' THEN
+          INSERT INTO game.ingest_alerts (gw_code, kind, severity, detail)
+          VALUES (g.code, 'source_down', 'warn',
+                  jsonb_build_object('issue', 'stuck_in_scoring',
+                                     'since', v_since, 'blocks', v_blocks,
+                                     'missingStats', v_missing))
+          ON CONFLICT DO NOTHING;
+        END IF;
+      END IF;
+    END IF;
+  END LOOP;
+
+  PERFORM game.sync_current_gameweek();
+  SELECT gw.code INTO v_current FROM game.gameweeks gw
+    JOIN core.seasons s ON s.id = gw.season_id
+    JOIN core.leagues l ON l.id = s.league_id
+   WHERE gw.is_current ORDER BY l.created_at, l.code LIMIT 1;
+
+  RETURN jsonb_build_object(
+    'actions', v_actions,
+    'readyToPublish', v_ready,
+    'current', v_current,
+    'at', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'));
+END;
+$$;
+
+COMMIT;
+
+SELECT game.sync_current_gameweek() WHERE game.can_write_data();
+
+INSERT INTO game.schema_migrations (version, note) VALUES
+  ('39', '★ מחזור נוכחי אחד לכל ליגה (הכנה ליוון)')
+ON CONFLICT (version) DO NOTHING;
+
+
+-- =====================================================================
+-- ▼▼▼  40_league_reads.sql  —  ★ squads / current_gameweek לפי ליגה + leagues_public
+-- =====================================================================
+
+-- =====================================================================
+--  db/40_league_reads.sql — קריאות ציבוריות לפי ליגה
+-- =====================================================================
+--  `game.squads()` ו-`game.current_gameweek()` היו עיוורות-ליגה: הן
+--  החזירו את העונה/המחזור «הראשונים». עם ליגה שנייה הקליינט חייב
+--  להגיד איזו ליגה הוא רוצה.
+--
+--  ★ תאימות לאחור: בלי פרמטר = הליגה הראשית (הוותיקה ביותר, ישראל)
+--    — אותה תשובה כמו קודם. קליינט ישן ממשיך לעבוד.
+--  ★ `DROP` של הגרסה בלי פרמטרים: אחרת `squads()` ו-
+--    `squads(p_league DEFAULT NULL)` מתנגשות כ-ambiguous ב-PostgREST.
+--  ★ `leagues_public()` מציג רק ליגה פעילה שיש לה מחזור נוכחי —
+--    כך ליגה שנטענה אבל עוד לא נפתחה לא מופיעה בבורר.
+-- =====================================================================
+BEGIN;
+
+DROP FUNCTION IF EXISTS game.squads();
+DROP FUNCTION IF EXISTS game.current_gameweek();
+DROP FUNCTION IF EXISTS game.admin_squads();
+
+CREATE OR REPLACE FUNCTION game.squads(p_league TEXT DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = core, game, public
+AS $$
+DECLARE v_season UUID; v_out JSONB;
+BEGIN
+  /* ★ ליגה מפורשת → העונה הנוכחית שלה. בלי פרמטר → הליגה הראשית
+     (הוותיקה ביותר), בדיוק כמו שהמערכת התנהגה עד עכשיו. */
+  SELECT s.id INTO v_season
+    FROM core.seasons s JOIN core.leagues l ON l.id = s.league_id
+   WHERE p_league IS NULL OR l.code = p_league
+   ORDER BY (p_league IS NULL) DESC, l.created_at, l.code,
+            s.is_current DESC, s.starts_on DESC NULLS LAST
+   LIMIT 1;
+  IF v_season IS NULL THEN
+    RETURN jsonb_build_object('teams', '[]'::jsonb, 'players', '[]'::jsonb);
+  END IF;
+
+  SELECT jsonb_build_object(
+    'season', (SELECT jsonb_build_object(
+                 'code',   l.code,
+                 'nameHe', l.names #>> '{he,full}',
+                 'nameEn', l.names #>> '{en,full}',
+                 'label',  s.label)
+                 FROM core.seasons s JOIN core.leagues l ON l.id = s.league_id
+                WHERE s.id = v_season),
+
+    'teams', COALESCE((
+      SELECT jsonb_agg(jsonb_build_object(
+               'id',         'T' || xt.external_id,
+               'externalId', xt.external_id,
+               'nameHe',     COALESCE(tm.name_he, tm.name_en),
+               'nameEn',     tm.name_en,
+               'nameEl',     tm.names #>> '{el,full}',
+               'short',      COALESCE(NULLIF(tm.short_code, ''), tm.name_he, tm.name_en),
+               'city',       tm.city,
+               'stadium',    tm.stadium
+             ) ORDER BY xt.external_id::INT)
+        FROM core.teams tm
+        JOIN core.v_ext xt ON xt.entity_type = 'team' AND xt.entity_id = tm.id
+        JOIN core.team_seasons ts ON ts.team_id = tm.id AND ts.season_id = v_season
+        -- מזהה חיצוני לא-מספרי היה מפיל את המיון. אין כזה היום,
+        -- ואם יהיה — עדיף לסנן אותו מאשר להפיל את כל הליגה.
+       WHERE xt.external_id ~ '^[0-9]+$'
+    ), '[]'::jsonb),
+
+    'players', COALESCE((
+      SELECT jsonb_agg(jsonb_build_object(
+               'id',            'P' || xp.external_id,
+               'externalId',    xp.external_id,
+               'teamId',        'T' || xt.external_id,
+               'position',      sq.position,
+               'nameHe',        COALESCE(pl.name_he, pl.name_en),
+               'nameEn',        pl.name_en,
+               'nameEl',        pl.names #>> '{el,full}',
+               'shirt',         sq.shirt_number,
+               'tier',          COALESCE(sq.tier, 3),
+               'price',         COALESCE(sq.fantasy_price, 1)::FLOAT8,
+               'overallRank',   sq.overall_rank,
+               'rated',         sq.rated,
+               'nationality',   COALESCE(pl.nationality_he, pl.nationality::TEXT),
+               'isClubCaptain', pl.is_club_captain,
+               'status',        sq.status
+             ) ORDER BY xt.external_id::INT, sq.position, COALESCE(pl.name_he, pl.name_en))
+        FROM core.squads sq
+        JOIN core.players pl ON pl.id = sq.player_id
+        JOIN core.teams   tm ON tm.id = sq.team_id
+        JOIN core.v_ext   xp ON xp.entity_type = 'player' AND xp.entity_id = pl.id
+        JOIN core.v_ext   xt ON xt.entity_type = 'team'   AND xt.entity_id = tm.id
+       WHERE sq.season_id = v_season
+         AND sq.valid_to IS NULL
+         -- ★ פצוע/מורחק **כן** מופיע, עם `status`. שחקן שנעלם
+         --   מהרשימה נראה כמו באג; שחקן מסומן הוא מידע.
+         AND sq.status <> 'left'
+         AND xp.external_id ~ '^[0-9]+$' AND xt.external_id ~ '^[0-9]+$'
+    ), '[]'::jsonb),
+
+    'revision', (SELECT revision FROM game.data_revision WHERE id = 1)
+  ) INTO v_out;
+
+  RETURN v_out;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION game.squads(TEXT) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION game.current_gameweek(p_league TEXT DEFAULT NULL)
+RETURNS TEXT
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+  SELECT gw.code
+    FROM game.gameweeks gw
+    JOIN core.leagues l ON l.id = gw.league_id
+   WHERE gw.is_current AND gw.code IS NOT NULL
+     AND (p_league IS NULL OR l.code = p_league)
+   ORDER BY l.created_at, l.code
+   LIMIT 1;
+$$;
+GRANT EXECUTE ON FUNCTION game.current_gameweek(TEXT) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION game.leagues_public()
+RETURNS JSONB
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+  SELECT COALESCE(jsonb_agg(x ORDER BY (x->>'primary') DESC, x->>'code'), '[]'::jsonb)
+  FROM (
+    SELECT jsonb_build_object(
+      'code',        l.code,
+      'country',     l.country_code,
+      'locale',      l.default_locale,
+      'dir',         l.text_direction,
+      'timezone',    l.timezone,
+      'names',       l.names,
+      'primary',     (l.id = (SELECT id FROM core.leagues ORDER BY created_at, code LIMIT 1)),
+      'currentGameweek', (SELECT gw.code FROM game.gameweeks gw
+                           WHERE gw.league_id = l.id AND gw.is_current LIMIT 1)
+    ) AS x
+    FROM core.leagues l
+   WHERE l.is_active
+     AND EXISTS (SELECT 1 FROM game.gameweeks gw WHERE gw.league_id = l.id AND gw.is_current)
+  ) q;
+$$;
+GRANT EXECUTE ON FUNCTION game.leagues_public() TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION game.admin_squads(p_league TEXT DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = core, game, public
+AS $$
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
+
+  RETURN COALESCE((
+    SELECT jsonb_agg(t ORDER BY (t->>'sort')::INT)
+    FROM (
+      SELECT jsonb_build_object(
+        'teamId', 'T' || xt.external_id,
+        'sort',   xt.external_id::INT,
+        'nameHe', COALESCE(tm.name_he, tm.name_en),
+        'short',  COALESCE(NULLIF(tm.short_code, ''), tm.name_he),
+        'city',   tm.city,
+        'stadium', tm.stadium,
+        'players', COALESCE((
+          SELECT jsonb_agg(jsonb_build_object(
+            'id',       'P' || xp.external_id,
+            'nameHe',   COALESCE(pl.name_he, pl.name_en),
+            'nameEn',   pl.name_en,
+            'position', sq.position,
+            'price',    sq.fantasy_price,
+            'shirt',    sq.shirt_number,
+            'status',   sq.status,
+            'tier',     sq.tier,
+            'overallRank', sq.overall_rank,
+            'nationality', pl.nationality_he,
+            /* בכמה קבוצות הוא פתוח כרגע. 1 = תקין. */
+            'openTeams', (SELECT count(DISTINCT s2.team_id)
+                            FROM core.squads s2
+                           WHERE s2.player_id = sq.player_id AND s2.valid_to IS NULL)
+          ) ORDER BY sq.position, COALESCE(pl.name_he, pl.name_en))
+          FROM core.squads sq
+          JOIN core.players pl  ON pl.id = sq.player_id
+          JOIN core.v_ext  xp   ON xp.entity_type = 'player' AND xp.entity_id = sq.player_id
+          WHERE sq.team_id = tm.id AND sq.valid_to IS NULL
+        ), '[]'::jsonb)
+      ) AS t
+      FROM core.teams tm
+      JOIN core.v_ext xt ON xt.entity_type = 'team' AND xt.entity_id = tm.id
+     WHERE xt.external_id ~ '^[0-9]+$'
+       /* ★ ליגה מפורשת, או (בלי פרמטר) הליגה הראשית — כמו עד היום. */
+       AND tm.id IN (
+         SELECT ts.team_id FROM core.team_seasons ts
+           JOIN core.seasons se ON se.id = ts.season_id AND se.is_current
+           JOIN core.leagues l  ON l.id = se.league_id
+          WHERE (p_league IS NOT NULL AND l.code = p_league)
+             OR (p_league IS NULL AND l.id = (SELECT id FROM core.leagues ORDER BY created_at, code LIMIT 1)))
+    ) q
+  ), '[]'::jsonb);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION game.admin_squads(TEXT) TO authenticated;
+
+UPDATE game.data_revision
+   SET revision = revision + 1, scope = 'migration-40', updated_at = now()
+ WHERE id = 1;
+
+COMMIT;
+
+INSERT INTO game.schema_migrations (version, note) VALUES
+  ('40', '★ squads / current_gameweek לפי ליגה + leagues_public')
+ON CONFLICT (version) DO NOTHING;
+
+
+-- =====================================================================
+-- ▼▼▼  41_seed_greece.sql  —  ★ סגלי הליגה היוונית 2026/27 (457 שחקנים, 14 קבוצות)
+-- =====================================================================
+
+-- =====================================================================
+--  db/41_seed_greece.sql — סגלי הליגה היוונית 2026/27 (נוצר אוטומטית)
+--  מקור: scripts/greece.source.json · מחולל: scripts/build-greece-seed.mjs
+--  אידמפוטנטי. מחיר שנקבע ידנית באדמין מנצח את הסיד (כמו בישראל).
+--  הליגה נטענת **לא-גלויה**: leagues_public() מציג אותה רק כשיש לה
+--  מחזור נוכחי, כלומר אחרי שהקליטה היוונית פתחה מחזור.
+-- =====================================================================
+BEGIN;
+SET LOCAL search_path = core, game, public;
+
+DO $seed$
+DECLARE
+  payload  JSONB := $json${"league":{"id":2,"name_he":"הסופר ליג היוונית","name_en":"Greek Super League","name_el":"Super League Ελλάδας","season":"2026/27"},"teams":[{"team_id":28563,"name_en":"AEK Athens","name_he":"איי אי קיי אתונה","name_el":"ΑΕΚ","short":"AEK","players":[{"id":30403049,"name_en":"Thomas Strakosha","position":"GK","number":1,"price":4,"tier":2,"overall_rank":62,"rated":true},{"id":30299879,"name_en":"Alberto Brignoli","position":"GK","number":91,"price":2,"tier":4,"overall_rank":276,"rated":true},{"id":32251243,"name_en":"Georgios Sarakasidis","position":"GK","number":31,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31798250,"name_en":"Marios Balamotis","position":"GK","number":41,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30637737,"name_en":"Harold Moukoudi","position":"DEF","number":2,"price":5,"tier":1,"overall_rank":30,"rated":true},{"id":31661197,"name_en":"Christos Alexiou","position":"DEF","number":5,"price":4,"tier":2,"overall_rank":97,"rated":true},{"id":31285815,"name_en":"Filipe Relvas","position":"DEF","number":44,"price":4,"tier":2,"overall_rank":42,"rated":true},{"id":30949866,"name_en":"Lazaros Rota","position":"DEF","number":12,"price":4,"tier":2,"overall_rank":45,"rated":true},{"id":31015750,"name_en":"Stavros Pilios","position":"DEF","number":3,"price":4,"tier":2,"overall_rank":72,"rated":true},{"id":30395914,"name_en":"Charalambos Lykogiannis","position":"DEF","number":22,"price":3,"tier":3,"overall_rank":150,"rated":true},{"id":30115180,"name_en":"Domagoj Vida","position":"DEF","number":21,"price":1,"tier":5,"overall_rank":345,"rated":true},{"id":31295674,"name_en":"Martin Georgiev","position":"DEF","number":15,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":32135145,"name_en":"Spyros Christakopoulos","position":"DEF","number":57,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30725695,"name_en":"Aboubakary Koïta","position":"MID","number":11,"price":5,"tier":1,"overall_rank":35,"rated":true},{"id":30547454,"name_en":"Kaan Kairinen","position":"MID","number":6,"price":5,"tier":1,"overall_rank":27,"rated":true},{"id":30762721,"name_en":"Lovro Majer","position":"MID","number":14,"price":5,"tier":1,"overall_rank":5,"rated":true},{"id":30655636,"name_en":"Oleksandr Zubkov","position":"MID","number":10,"price":5,"tier":1,"overall_rank":34,"rated":true},{"id":30617396,"name_en":"Dereck Kutesa","position":"MID","number":7,"price":4,"tier":2,"overall_rank":58,"rated":true},{"id":31412199,"name_en":"Dimitrios Kaloskamis","position":"MID","number":17,"price":4,"tier":2,"overall_rank":76,"rated":true},{"id":31453434,"name_en":"Hakim Sahabo","position":"MID","number":80,"price":4,"tier":2,"overall_rank":78,"rated":true},{"id":30839750,"name_en":"Kervin Arriaga","position":"MID","number":16,"price":4,"tier":2,"overall_rank":85,"rated":true},{"id":30448859,"name_en":"Mijat Gaćinović","position":"MID","number":8,"price":4,"tier":2,"overall_rank":115,"rated":true},{"id":31197823,"name_en":"Milán Vitális","position":"MID","number":27,"price":4,"tier":2,"overall_rank":80,"rated":true},{"id":30574844,"name_en":"Răzvan Marin","position":"MID","number":18,"price":4,"tier":2,"overall_rank":50,"rated":true},{"id":30300916,"name_en":"Joao Mário","position":"MID","number":23,"price":3,"tier":3,"overall_rank":120,"rated":true},{"id":30184639,"name_en":"Petros Mantalos","position":"MID","number":20,"price":3,"tier":3,"overall_rank":217,"rated":true},{"id":30463291,"name_en":"Luka Jović","position":"FWD","number":9,"price":5,"tier":1,"overall_rank":24,"rated":true},{"id":30796504,"name_en":"Barnabás Varga","position":"FWD","number":19,"price":4,"tier":2,"overall_rank":52,"rated":true},{"id":31106943,"name_en":"Zine","position":"FWD","number":90,"price":4,"tier":2,"overall_rank":60,"rated":true},{"id":30833641,"name_en":"Frantzdy Pierrot","position":"FWD","number":null,"price":3,"tier":3,"overall_rank":131,"rated":true},{"id":31814510,"name_en":"Zois Karagyris","position":"FWD","number":27,"price":1,"tier":5,"overall_rank":null,"rated":false}]},{"team_id":28239,"name_en":"Aris Thessaloniki","name_he":"אריס סלוניקי","name_el":"Άρης","short":"ARI","players":[{"id":30863848,"name_en":"Ricardo Velho","position":"GK","number":33,"price":4,"tier":2,"overall_rank":66,"rated":true},{"id":31510886,"name_en":"Lovro Majkić","position":"GK","number":21,"price":3,"tier":3,"overall_rank":211,"rated":true},{"id":32144606,"name_en":"Apostolos Barbopoulos","position":"GK","number":24,"price":1,"tier":5,"overall_rank":352,"rated":true},{"id":30282600,"name_en":"Sokratis Dioudis","position":"GK","number":1,"price":1,"tier":5,"overall_rank":362,"rated":true},{"id":30949350,"name_en":"Boško Šutalo","position":"DEF","number":44,"price":4,"tier":2,"overall_rank":88,"rated":true},{"id":31002682,"name_en":"Jeremy Petris","position":"DEF","number":2,"price":4,"tier":2,"overall_rank":100,"rated":true},{"id":30988119,"name_en":"Noah Fadiga","position":"DEF","number":27,"price":4,"tier":2,"overall_rank":89,"rated":true},{"id":30798608,"name_en":"Omar Richards","position":"DEF","number":3,"price":4,"tier":2,"overall_rank":93,"rated":true},{"id":31883451,"name_en":"Christos Kamtsis","position":"DEF","number":30,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30498313,"name_en":"Fabiano Leismann","position":"DEF","number":4,"price":1,"tier":5,"overall_rank":335,"rated":true},{"id":31759879,"name_en":"Konstantinos Charoupas","position":"DEF","number":41,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":32070406,"name_en":"Matar Thiam","position":"DEF","number":45,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30872965,"name_en":"Benjamín Garré","position":"MID","number":7,"price":4,"tier":2,"overall_rank":46,"rated":true},{"id":30361322,"name_en":"Bruma","position":"MID","number":77,"price":4,"tier":2,"overall_rank":65,"rated":true},{"id":30774625,"name_en":"Fredrik Jensen","position":"MID","number":97,"price":4,"tier":2,"overall_rank":94,"rated":true},{"id":30659201,"name_en":"Manu García","position":"MID","number":5,"price":4,"tier":2,"overall_rank":56,"rated":true},{"id":30872963,"name_en":"Tom Dele-Bashiru","position":"MID","number":20,"price":4,"tier":2,"overall_rank":92,"rated":true},{"id":30764624,"name_en":"Uroš Račić","position":"MID","number":10,"price":4,"tier":2,"overall_rank":68,"rated":true},{"id":30745509,"name_en":"Konstantinos Galanopoulos","position":"MID","number":6,"price":3,"tier":3,"overall_rank":191,"rated":true},{"id":31478007,"name_en":"Mamadou Gning","position":"MID","number":25,"price":3,"tier":3,"overall_rank":223,"rated":true},{"id":30797758,"name_en":"Martin Hongla","position":"MID","number":18,"price":3,"tier":3,"overall_rank":135,"rated":true},{"id":31195276,"name_en":"Migouel Alfarela","position":"MID","number":19,"price":3,"tier":3,"overall_rank":194,"rated":true},{"id":30839476,"name_en":"Othman Boussaid","position":"MID","number":49,"price":3,"tier":3,"overall_rank":122,"rated":true},{"id":30432949,"name_en":"Sebastián Palacios","position":"MID","number":34,"price":3,"tier":3,"overall_rank":188,"rated":true},{"id":31691575,"name_en":"Michalis Voriazidis","position":"MID","number":22,"price":2,"tier":4,"overall_rank":254,"rated":true},{"id":31676366,"name_en":"Diallo Sanoussi","position":"MID","number":14,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30282603,"name_en":"Giannis Gianniotas","position":"MID","number":70,"price":1,"tier":5,"overall_rank":381,"rated":true},{"id":31817325,"name_en":"Sarafianos Papasarafianos","position":"MID","number":29,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30676536,"name_en":"Loren Morón","position":"FWD","number":80,"price":4,"tier":2,"overall_rank":101,"rated":true},{"id":30640492,"name_en":"Rafa Mir","position":"FWD","number":17,"price":4,"tier":2,"overall_rank":49,"rated":true},{"id":30666860,"name_en":"Tino Kadewere","position":"FWD","number":9,"price":4,"tier":2,"overall_rank":107,"rated":true},{"id":30776940,"name_en":"Christian Kouamé","position":"FWD","number":8,"price":3,"tier":3,"overall_rank":117,"rated":true}]},{"team_id":100654,"name_en":"Asteras Aktor","name_he":"אסטרס אקטור","name_el":"Αστέρας Άκτορ","short":"AST","players":[{"id":31571960,"name_en":"Spyros Angelidis","position":"GK","number":71,"price":3,"tier":3,"overall_rank":136,"rated":true},{"id":31861018,"name_en":"Giannis Kriaras","position":"GK","number":51,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30281627,"name_en":"Nikos Papadopoulos","position":"GK","number":1,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31598900,"name_en":"Theofilos Kakadiaris","position":"GK","number":91,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31727422,"name_en":"Vasilios Archontakakis","position":"GK","number":55,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31184453,"name_en":"Vasilios Chatziemmanouil","position":"GK","number":61,"price":1,"tier":5,"overall_rank":326,"rated":true},{"id":31526927,"name_en":"Dimitrios Laskaris","position":"DEF","number":74,"price":3,"tier":3,"overall_rank":193,"rated":true},{"id":30614193,"name_en":"Franz Brorsson","position":"DEF","number":16,"price":3,"tier":3,"overall_rank":164,"rated":true},{"id":31428135,"name_en":"Konstantinos Chrysopoulos","position":"DEF","number":6,"price":3,"tier":3,"overall_rank":202,"rated":true},{"id":31159261,"name_en":"Alex Méndez","position":"DEF","number":28,"price":2,"tier":4,"overall_rank":241,"rated":true},{"id":30780816,"name_en":"Giannis Kotsiras","position":"DEF","number":27,"price":2,"tier":4,"overall_rank":286,"rated":true},{"id":30409193,"name_en":"Issiaga Sylla","position":"DEF","number":4,"price":2,"tier":4,"overall_rank":263,"rated":true},{"id":30494184,"name_en":"Jordan Silva","position":"DEF","number":32,"price":2,"tier":4,"overall_rank":299,"rated":true},{"id":31426698,"name_en":"Konstantinos Pomonis","position":"DEF","number":29,"price":2,"tier":4,"overall_rank":314,"rated":true},{"id":30011175,"name_en":"Panagiotis Deligiannidis","position":"DEF","number":64,"price":2,"tier":4,"overall_rank":321,"rated":true},{"id":31084574,"name_en":"Alexandros Tereziou","position":"DEF","number":17,"price":1,"tier":5,"overall_rank":360,"rated":true},{"id":31814189,"name_en":"Chrysanthos Gezos","position":"DEF","number":null,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30954408,"name_en":"Nikola Šipčić","position":"DEF","number":3,"price":1,"tier":5,"overall_rank":347,"rated":true},{"id":31561078,"name_en":"Antonis Papakanellos","position":"MID","number":44,"price":3,"tier":3,"overall_rank":166,"rated":true},{"id":30260750,"name_en":"Dimitrios Kourbelis","position":"MID","number":21,"price":3,"tier":3,"overall_rank":140,"rated":true},{"id":31109039,"name_en":"Franco Orozco","position":"MID","number":19,"price":3,"tier":3,"overall_rank":179,"rated":true},{"id":30908534,"name_en":"Julián Bartolo","position":"MID","number":7,"price":3,"tier":3,"overall_rank":221,"rated":true},{"id":30834643,"name_en":"Ketu Jih Kalvin","position":"MID","number":11,"price":3,"tier":3,"overall_rank":227,"rated":true},{"id":31368080,"name_en":"Bruno Pérez","position":"MID","number":80,"price":2,"tier":4,"overall_rank":280,"rated":true},{"id":31078491,"name_en":"Eder González","position":"MID","number":10,"price":2,"tier":4,"overall_rank":296,"rated":true},{"id":30851199,"name_en":"Giannis Bouzoukis","position":"MID","number":8,"price":2,"tier":4,"overall_rank":279,"rated":true},{"id":30874302,"name_en":"Adrián Riera","position":"MID","number":23,"price":1,"tier":5,"overall_rank":374,"rated":true},{"id":30556958,"name_en":"Evgeniy Yablonski","position":"MID","number":5,"price":1,"tier":5,"overall_rank":334,"rated":true},{"id":30746607,"name_en":"Julián Chicco","position":"MID","number":14,"price":1,"tier":5,"overall_rank":329,"rated":true},{"id":32209521,"name_en":"Matias Zogu","position":"MID","number":66,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30121774,"name_en":"Nikolaos Kaltsas","position":"MID","number":20,"price":1,"tier":5,"overall_rank":370,"rated":true},{"id":31238739,"name_en":"Ricardinho","position":"FWD","number":39,"price":3,"tier":3,"overall_rank":181,"rated":true},{"id":30961305,"name_en":"Benjamin Mbunga Kimpioka","position":"FWD","number":75,"price":2,"tier":4,"overall_rank":248,"rated":true},{"id":30165709,"name_en":"Federico Macheda","position":"FWD","number":9,"price":2,"tier":4,"overall_rank":295,"rated":true},{"id":31707913,"name_en":"Giannis Gitersos","position":"FWD","number":33,"price":1,"tier":5,"overall_rank":null,"rated":false}]},{"team_id":30187,"name_en":"Atromitos","name_he":"אטרומיטוס","name_el":"Ατρόμητος","short":"ATR","players":[{"id":30490413,"name_en":"Seny Dieng","position":"GK","number":88,"price":3,"tier":3,"overall_rank":149,"rated":true},{"id":30574217,"name_en":"Lefteris Choutesiotis","position":"GK","number":1,"price":2,"tier":4,"overall_rank":275,"rated":true},{"id":30953698,"name_en":"Vasilios Athanasiou","position":"GK","number":31,"price":1,"tier":5,"overall_rank":356,"rated":true},{"id":30819752,"name_en":"Dimitrios Stavropoulos","position":"DEF","number":4,"price":3,"tier":3,"overall_rank":208,"rated":true},{"id":30914839,"name_en":"Lefteris Lyratzis","position":"DEF","number":2,"price":3,"tier":3,"overall_rank":142,"rated":true},{"id":31428562,"name_en":"Mattheos Mountes","position":"DEF","number":12,"price":3,"tier":3,"overall_rank":163,"rated":true},{"id":31289351,"name_en":"Georgios Papadopoulos","position":"DEF","number":16,"price":2,"tier":4,"overall_rank":311,"rated":true},{"id":31085343,"name_en":"Gerasimos Mitoglou","position":"DEF","number":24,"price":2,"tier":4,"overall_rank":304,"rated":true},{"id":30179759,"name_en":"Hördur Magnusson","position":"DEF","number":32,"price":2,"tier":4,"overall_rank":282,"rated":true},{"id":30261654,"name_en":"Jere Uronen","position":"DEF","number":21,"price":2,"tier":4,"overall_rank":270,"rated":true},{"id":31434524,"name_en":"Dimitrios Tsakmakis","position":"DEF","number":44,"price":1,"tier":5,"overall_rank":353,"rated":true},{"id":32209586,"name_en":"Petros Tsagdis","position":"DEF","number":29,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31561233,"name_en":"Stavros Pnevmonidis","position":"MID","number":10,"price":4,"tier":2,"overall_rank":87,"rated":true},{"id":30848335,"name_en":"Cristopher Núnez","position":"MID","number":11,"price":3,"tier":3,"overall_rank":222,"rated":true},{"id":30433311,"name_en":"Dani García","position":"MID","number":14,"price":3,"tier":3,"overall_rank":169,"rated":true},{"id":31080171,"name_en":"Kelvin Ofori","position":"MID","number":97,"price":3,"tier":3,"overall_rank":146,"rated":true},{"id":30866108,"name_en":"Samuel Moutoussamy","position":"MID","number":8,"price":3,"tier":3,"overall_rank":158,"rated":true},{"id":30140819,"name_en":"Steven Zuber","position":"MID","number":7,"price":3,"tier":3,"overall_rank":176,"rated":true},{"id":31429994,"name_en":"Thanasis Karamanis","position":"MID","number":6,"price":3,"tier":3,"overall_rank":201,"rated":true},{"id":31076940,"name_en":"Theocharis Tsingaras","position":"MID","number":5,"price":3,"tier":3,"overall_rank":160,"rated":true},{"id":31065450,"name_en":"Georgios Tzovaras","position":"MID","number":99,"price":2,"tier":4,"overall_rank":257,"rated":true},{"id":31532188,"name_en":"Spyros Abartzidis","position":"MID","number":20,"price":2,"tier":4,"overall_rank":255,"rated":true},{"id":32132001,"name_en":"Anastasios Kotsis","position":"MID","number":30,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31838613,"name_en":"Elton Hoxha","position":"MID","number":17,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31797210,"name_en":"Konstantinos Batos","position":"MID","number":33,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30612027,"name_en":"Sotiris Tsiloulis","position":"MID","number":23,"price":1,"tier":5,"overall_rank":351,"rated":true},{"id":31087743,"name_en":"Juan Perea","position":"FWD","number":9,"price":3,"tier":3,"overall_rank":159,"rated":true},{"id":31683522,"name_en":"Panagiotis Tsantilas","position":"FWD","number":19,"price":3,"tier":3,"overall_rank":145,"rated":true},{"id":30891748,"name_en":"Serginho","position":"FWD","number":70,"price":3,"tier":3,"overall_rank":210,"rated":true},{"id":31807890,"name_en":"Vangelis Paliouras","position":"FWD","number":29,"price":1,"tier":5,"overall_rank":null,"rated":false}]},{"team_id":28675,"name_en":"Iraklis","name_he":"איראקליס","name_el":"Ηρακλής","short":"IRA","players":[{"id":30365306,"name_en":"Georgios Athanasiadis","position":"GK","number":33,"price":1,"tier":5,"overall_rank":330,"rated":true},{"id":31387412,"name_en":"Georgios Karakasidis","position":"GK","number":1,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30369327,"name_en":"Panagiotis Tsintotas","position":"GK","number":16,"price":1,"tier":5,"overall_rank":336,"rated":true},{"id":30595154,"name_en":"Rasmus Lauritsen","position":"DEF","number":44,"price":3,"tier":3,"overall_rank":141,"rated":true},{"id":30800200,"name_en":"Piña","position":"DEF","number":21,"price":2,"tier":4,"overall_rank":260,"rated":true},{"id":30521754,"name_en":"Praxitelis Vouros","position":"DEF","number":2,"price":2,"tier":4,"overall_rank":298,"rated":true},{"id":31089736,"name_en":"Rob Nizet","position":"DEF","number":18,"price":2,"tier":4,"overall_rank":313,"rated":true},{"id":31503661,"name_en":"Vitor Meer","position":"DEF","number":3,"price":2,"tier":4,"overall_rank":278,"rated":true},{"id":30929777,"name_en":"Yohan Roche","position":"DEF","number":69,"price":2,"tier":4,"overall_rank":301,"rated":true},{"id":30725737,"name_en":"Carles Soria","position":"DEF","number":30,"price":1,"tier":5,"overall_rank":342,"rated":true},{"id":31668178,"name_en":"Dani Muñoz","position":"DEF","number":23,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30822532,"name_en":"Giorgos Giannoutsos","position":"DEF","number":94,"price":1,"tier":5,"overall_rank":350,"rated":true},{"id":30470547,"name_en":"Nanú","position":"DEF","number":31,"price":1,"tier":5,"overall_rank":375,"rated":true},{"id":30559577,"name_en":"Soufiane Chakla","position":"DEF","number":4,"price":1,"tier":5,"overall_rank":357,"rated":true},{"id":30980424,"name_en":"Kylian Kaiboué","position":"MID","number":22,"price":3,"tier":3,"overall_rank":151,"rated":true},{"id":30526710,"name_en":"Yoel Bárcenas","position":"MID","number":10,"price":3,"tier":3,"overall_rank":177,"rated":true},{"id":31526937,"name_en":"Georgios Konstantakopoulos","position":"MID","number":null,"price":2,"tier":4,"overall_rank":233,"rated":true},{"id":30530460,"name_en":"Ivi López","position":"MID","number":11,"price":2,"tier":4,"overall_rank":320,"rated":true},{"id":30543278,"name_en":"Jakub Hromada","position":"MID","number":14,"price":2,"tier":4,"overall_rank":322,"rated":true},{"id":30425985,"name_en":"Nemanja Radoja","position":"MID","number":8,"price":2,"tier":4,"overall_rank":306,"rated":true},{"id":31072697,"name_en":"Vasilios Sourlis","position":"MID","number":90,"price":2,"tier":4,"overall_rank":309,"rated":true},{"id":30571296,"name_en":"Xande Silva","position":"MID","number":12,"price":2,"tier":4,"overall_rank":244,"rated":true},{"id":31721197,"name_en":"Carlos Rodriguez","position":"MID","number":6,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30677342,"name_en":"Marco Krainz","position":"MID","number":27,"price":1,"tier":5,"overall_rank":366,"rated":true},{"id":31818168,"name_en":"Nikolaos Anastasiadis","position":"MID","number":17,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31348120,"name_en":"Orestis Tsintonis","position":"MID","number":5,"price":1,"tier":5,"overall_rank":359,"rated":true},{"id":31134337,"name_en":"Panagiotis Panagiotidis","position":"MID","number":20,"price":1,"tier":5,"overall_rank":368,"rated":true},{"id":31670284,"name_en":"Adam Žulevič","position":"FWD","number":97,"price":3,"tier":3,"overall_rank":155,"rated":true},{"id":30727228,"name_en":"Pedro Marques","position":"FWD","number":43,"price":3,"tier":3,"overall_rank":189,"rated":true},{"id":30497796,"name_en":"Elvir Koljić","position":"FWD","number":7,"price":2,"tier":4,"overall_rank":235,"rated":true},{"id":30734060,"name_en":"Kristian Kushta","position":"FWD","number":9,"price":1,"tier":5,"overall_rank":379,"rated":true}]},{"team_id":21585,"name_en":"Kalamata","name_he":"קלמטה","name_el":"Καλαμάτα","short":"KAL","players":[{"id":30215645,"name_en":"Ioannis Gelios","position":"GK","number":1,"price":1,"tier":5,"overall_rank":376,"rated":true},{"id":30435741,"name_en":"Nikola Vasiljević","position":"GK","number":40,"price":1,"tier":5,"overall_rank":355,"rated":true},{"id":31184455,"name_en":"Panagiotis Ginis","position":"GK","number":26,"price":1,"tier":5,"overall_rank":349,"rated":true},{"id":32137149,"name_en":"Pavlos Varelas","position":"GK","number":70,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31292195,"name_en":"Axel Guessand","position":"DEF","number":44,"price":3,"tier":3,"overall_rank":205,"rated":true},{"id":30882068,"name_en":"Julio Alonso","position":"DEF","number":17,"price":3,"tier":3,"overall_rank":197,"rated":true},{"id":31067252,"name_en":"Uroš Ignjatović","position":"DEF","number":29,"price":3,"tier":3,"overall_rank":183,"rated":true},{"id":31526974,"name_en":"Dimitrios Naoumis","position":"DEF","number":null,"price":2,"tier":4,"overall_rank":277,"rated":true},{"id":31320033,"name_en":"Panagiotis Panagiotou","position":"DEF","number":18,"price":2,"tier":4,"overall_rank":250,"rated":true},{"id":31288239,"name_en":"Petros Kaloutsikidis","position":"DEF","number":22,"price":2,"tier":4,"overall_rank":245,"rated":true},{"id":30759276,"name_en":"Rodrigues","position":"DEF","number":97,"price":2,"tier":4,"overall_rank":291,"rated":true},{"id":30900344,"name_en":"Stefanos Stroungis","position":"DEF","number":4,"price":2,"tier":4,"overall_rank":300,"rated":true},{"id":31607522,"name_en":"Alex Perez","position":"DEF","number":3,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30796451,"name_en":"Ilias Chatzitheodoridis","position":"DEF","number":12,"price":1,"tier":5,"overall_rank":343,"rated":true},{"id":31081232,"name_en":"Messemo Junior Bakayoko","position":"DEF","number":19,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31649316,"name_en":"Aarón Martín","position":"MID","number":5,"price":4,"tier":2,"overall_rank":95,"rated":true},{"id":31692887,"name_en":"Argyrios Liatsikouras","position":"MID","number":8,"price":3,"tier":3,"overall_rank":198,"rated":true},{"id":30650234,"name_en":"Arnór Sigurðsson","position":"MID","number":10,"price":3,"tier":3,"overall_rank":134,"rated":true},{"id":31237185,"name_en":"Kenneth Vargas","position":"MID","number":77,"price":3,"tier":3,"overall_rank":168,"rated":true},{"id":30999156,"name_en":"Marcelino Carreazo","position":"MID","number":21,"price":3,"tier":3,"overall_rank":132,"rated":true},{"id":31478000,"name_en":"Djibril Diarra","position":"MID","number":6,"price":2,"tier":4,"overall_rank":305,"rated":true},{"id":31526227,"name_en":"Eugene Frimpong","position":"MID","number":16,"price":2,"tier":4,"overall_rank":315,"rated":true},{"id":31359227,"name_en":"Gonzalo Piñeiro","position":"MID","number":23,"price":2,"tier":4,"overall_rank":303,"rated":true},{"id":30955212,"name_en":"Juan Cataldi","position":"MID","number":7,"price":2,"tier":4,"overall_rank":273,"rated":true},{"id":30947883,"name_en":"Ahmad Mendes Moreira","position":"MID","number":20,"price":1,"tier":5,"overall_rank":341,"rated":true},{"id":31666495,"name_en":"Ben Zidane","position":"MID","number":14,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31814500,"name_en":"Erik Hamza","position":"MID","number":24,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30627510,"name_en":"Josete Miranda","position":"MID","number":11,"price":1,"tier":5,"overall_rank":361,"rated":true},{"id":30839891,"name_en":"Julián Bonetto","position":"MID","number":32,"price":1,"tier":5,"overall_rank":382,"rated":true},{"id":32164027,"name_en":"Stavros Angelis","position":"MID","number":99,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31138511,"name_en":"Jovanny Bolívar","position":"FWD","number":9,"price":3,"tier":3,"overall_rank":156,"rated":true},{"id":30923187,"name_en":"Dawid Kurminowski","position":"FWD","number":91,"price":2,"tier":4,"overall_rank":312,"rated":true},{"id":32137150,"name_en":"Savvas Mouzakis","position":"FWD","number":64,"price":1,"tier":5,"overall_rank":null,"rated":false}]},{"team_id":508099,"name_en":"Kifisia","name_he":"קיפיסיה","name_el":"Κηφισιά","short":"KIF","players":[{"id":30978290,"name_en":"Moisés Ramirez","position":"GK","number":99,"price":3,"tier":3,"overall_rank":138,"rated":true},{"id":30474507,"name_en":"Alexandros Anagnostopoulos","position":"GK","number":15,"price":1,"tier":5,"overall_rank":380,"rated":true},{"id":31783294,"name_en":"Filippos Roberts","position":"GK","number":1,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31782739,"name_en":"Loukas Stamellos","position":"GK","number":null,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30888907,"name_en":"Alex Petkov","position":"DEF","number":5,"price":3,"tier":3,"overall_rank":203,"rated":true},{"id":31525157,"name_en":"Tiago Manso","position":"DEF","number":48,"price":3,"tier":3,"overall_rank":185,"rated":true},{"id":31668201,"name_en":"Clément Jolibois","position":"DEF","number":34,"price":2,"tier":4,"overall_rank":281,"rated":true},{"id":31596411,"name_en":"Jon De Luis","position":"DEF","number":3,"price":2,"tier":4,"overall_rank":236,"rated":true},{"id":31818863,"name_en":"Konstantinos Lampsias","position":"DEF","number":74,"price":2,"tier":4,"overall_rank":316,"rated":true},{"id":31838855,"name_en":"Konstantinos Polykratis","position":"DEF","number":26,"price":2,"tier":4,"overall_rank":231,"rated":true},{"id":32137165,"name_en":"Georgios Zygouras","position":"DEF","number":27,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30276261,"name_en":"Hugo Sousa","position":"DEF","number":33,"price":1,"tier":5,"overall_rank":346,"rated":true},{"id":30938554,"name_en":"Konstantinos Apostolakis","position":"DEF","number":2,"price":1,"tier":5,"overall_rank":365,"rated":true},{"id":31133599,"name_en":"Leroy Abanda","position":"DEF","number":23,"price":1,"tier":5,"overall_rank":328,"rated":true},{"id":31899316,"name_en":"Nektarios Kaloskamis","position":"DEF","number":21,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30924844,"name_en":"Roshon van Eijma","position":"DEF","number":24,"price":1,"tier":5,"overall_rank":372,"rated":true},{"id":31798261,"name_en":"Alexandros Pothas","position":"MID","number":16,"price":3,"tier":3,"overall_rank":224,"rated":true},{"id":30776606,"name_en":"Bernardo Martins","position":"MID","number":8,"price":3,"tier":3,"overall_rank":219,"rated":true},{"id":31050830,"name_en":"Gerson Sousa","position":"MID","number":10,"price":3,"tier":3,"overall_rank":162,"rated":true},{"id":31604258,"name_en":"Giannis Doiranlis","position":"MID","number":4,"price":3,"tier":3,"overall_rank":229,"rated":true},{"id":31103937,"name_en":"Imam Jagne","position":"MID","number":19,"price":3,"tier":3,"overall_rank":214,"rated":true},{"id":31210947,"name_en":"Jeremy Antonisse","position":"MID","number":7,"price":3,"tier":3,"overall_rank":165,"rated":true},{"id":30574060,"name_en":"Ioannis Kousoulos","position":"MID","number":31,"price":2,"tier":4,"overall_rank":310,"rated":true},{"id":30748378,"name_en":"Jordi Mboula","position":"MID","number":11,"price":2,"tier":4,"overall_rank":318,"rated":true},{"id":30623758,"name_en":"Jorge Pombo","position":"MID","number":6,"price":2,"tier":4,"overall_rank":261,"rated":true},{"id":31284538,"name_en":"Konstantinos Roukounakis","position":"MID","number":17,"price":2,"tier":4,"overall_rank":238,"rated":true},{"id":31645376,"name_en":"Michalis Patiras","position":"MID","number":20,"price":2,"tier":4,"overall_rank":284,"rated":true},{"id":31338386,"name_en":"Pavlos Mavroudis","position":"MID","number":null,"price":2,"tier":4,"overall_rank":293,"rated":true},{"id":31418919,"name_en":"Georgios Kyriopoulos","position":"MID","number":18,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31423601,"name_en":"Apostolos Christopoulos","position":"FWD","number":72,"price":3,"tier":3,"overall_rank":207,"rated":true},{"id":31634971,"name_en":"Dimitrios Theodoridis","position":"FWD","number":9,"price":3,"tier":3,"overall_rank":215,"rated":true},{"id":35819209,"name_en":"Patrick Mijic","position":"FWD","number":null,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":32143832,"name_en":"Vangelis Manganas","position":"FWD","number":44,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30304555,"name_en":"Ángelo Sagal","position":"FWD","number":28,"price":1,"tier":5,"overall_rank":332,"rated":true}]},{"team_id":24493,"name_en":"Levadiakos","name_he":"לבדיאקוס","name_el":"Λεβαδειακός","short":"LEV","players":[{"id":31284486,"name_en":"Niv Eliasi","position":"GK","number":55,"price":3,"tier":3,"overall_rank":124,"rated":true},{"id":38586690,"name_en":"Apostolos Tsiliggiris","position":"GK","number":75,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31045800,"name_en":"Lucas Anacker","position":"GK","number":33,"price":1,"tier":5,"overall_rank":377,"rated":true},{"id":31289357,"name_en":"Stelios Vallindras","position":"GK","number":12,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31161609,"name_en":"Alexandru Pantea","position":"DEF","number":2,"price":3,"tier":3,"overall_rank":130,"rated":true},{"id":30955366,"name_en":"Jonathan Panzo","position":"DEF","number":4,"price":3,"tier":3,"overall_rank":121,"rated":true},{"id":30988775,"name_en":"Marios Vichos","position":"DEF","number":3,"price":3,"tier":3,"overall_rank":125,"rated":true},{"id":30291655,"name_en":"Norbert Gyömbér","position":"DEF","number":null,"price":3,"tier":3,"overall_rank":196,"rated":true},{"id":30994411,"name_en":"Panagiotis Liagas","position":"DEF","number":24,"price":3,"tier":3,"overall_rank":126,"rated":true},{"id":31622764,"name_en":"Taxiarchis Filon","position":"DEF","number":22,"price":3,"tier":3,"overall_rank":209,"rated":true},{"id":31426851,"name_en":"Nikolaos Tsaras","position":"DEF","number":95,"price":2,"tier":4,"overall_rank":251,"rated":true},{"id":31065320,"name_en":"Georgios Kornezos","position":"DEF","number":23,"price":1,"tier":5,"overall_rank":373,"rated":true},{"id":30719056,"name_en":"Georgios Manthatis","position":"DEF","number":14,"price":1,"tier":5,"overall_rank":363,"rated":true},{"id":31300381,"name_en":"Giannis Tsivelekidis","position":"DEF","number":37,"price":1,"tier":5,"overall_rank":354,"rated":true},{"id":31025630,"name_en":"Adrian Șut","position":"MID","number":15,"price":4,"tier":2,"overall_rank":57,"rated":true},{"id":30989371,"name_en":"Agustín Urzi","position":"MID","number":11,"price":3,"tier":3,"overall_rank":144,"rated":true},{"id":31585812,"name_en":"Christos Papadopoulos","position":"MID","number":74,"price":3,"tier":3,"overall_rank":184,"rated":true},{"id":30863872,"name_en":"Dimitrios Emmanouilidis","position":"MID","number":17,"price":3,"tier":3,"overall_rank":195,"rated":true},{"id":31366607,"name_en":"Gregorio Rodríguez","position":"MID","number":27,"price":3,"tier":3,"overall_rank":174,"rated":true},{"id":30750828,"name_en":"Ioannis Kosti","position":"MID","number":18,"price":3,"tier":3,"overall_rank":129,"rated":true},{"id":31575953,"name_en":"Konstantinos Goumas","position":"MID","number":20,"price":3,"tier":3,"overall_rank":171,"rated":true},{"id":30339992,"name_en":"Mohamed Elneny","position":"MID","number":6,"price":3,"tier":3,"overall_rank":153,"rated":true},{"id":31190097,"name_en":"Octavian Popescu","position":"MID","number":30,"price":3,"tier":3,"overall_rank":161,"rated":true},{"id":31187008,"name_en":"Georgios Vrakas","position":"MID","number":29,"price":2,"tier":4,"overall_rank":234,"rated":true},{"id":30798149,"name_en":"Juan Bauza","position":"MID","number":7,"price":2,"tier":4,"overall_rank":269,"rated":true},{"id":31596720,"name_en":"Lamarana Jallow","position":"MID","number":19,"price":2,"tier":4,"overall_rank":232,"rated":true},{"id":30625626,"name_en":"Panagiotis Simelidis","position":"MID","number":31,"price":2,"tier":4,"overall_rank":294,"rated":true},{"id":30892618,"name_en":"Georgios Nikas","position":"MID","number":8,"price":1,"tier":5,"overall_rank":339,"rated":true},{"id":31792870,"name_en":"Mahamadou Balde","position":"MID","number":21,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":32130618,"name_en":"Mohamed Ndiaye","position":"MID","number":66,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31280732,"name_en":"David Cobnan","position":"FWD","number":99,"price":3,"tier":3,"overall_rank":148,"rated":true},{"id":30837264,"name_en":"Aliou Badji","position":"FWD","number":25,"price":2,"tier":4,"overall_rank":265,"rated":true},{"id":30463293,"name_en":"Ognjen Ožegović","position":"FWD","number":9,"price":2,"tier":4,"overall_rank":323,"rated":true}]},{"team_id":27753,"name_en":"OFI Crete","name_he":"או אף איי כרתים","name_el":"ΟΦΗ","short":"OFI","players":[{"id":31533544,"name_en":"Klidman Lilo","position":"GK","number":1,"price":3,"tier":3,"overall_rank":175,"rated":true},{"id":31606164,"name_en":"Manouel Kalafatis","position":"GK","number":23,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31106824,"name_en":"Nikos Christogeorgos","position":"GK","number":31,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31011961,"name_en":"Panagiotis Katsikas","position":"GK","number":13,"price":1,"tier":5,"overall_rank":371,"rated":true},{"id":31574181,"name_en":"Konstantinos Kostoulas","position":"DEF","number":5,"price":4,"tier":2,"overall_rank":106,"rated":true},{"id":30865217,"name_en":"Christos Sielis","position":"DEF","number":16,"price":3,"tier":3,"overall_rank":154,"rated":true},{"id":30723574,"name_en":"Dimitrios Nikolaou","position":"DEF","number":43,"price":3,"tier":3,"overall_rank":186,"rated":true},{"id":31240425,"name_en":"Krešimir Krizmanić","position":"DEF","number":2,"price":3,"tier":3,"overall_rank":127,"rated":true},{"id":30543172,"name_en":"Lorenzo Dickmann","position":"DEF","number":24,"price":3,"tier":3,"overall_rank":206,"rated":true},{"id":31225435,"name_en":"Nikolaos Athanasiou","position":"DEF","number":3,"price":3,"tier":3,"overall_rank":123,"rated":true},{"id":31782726,"name_en":"Pavlos Kenourgiakis","position":"DEF","number":90,"price":3,"tier":3,"overall_rank":170,"rated":true},{"id":30604348,"name_en":"Achilleas Poungouras","position":"DEF","number":15,"price":1,"tier":5,"overall_rank":358,"rated":true},{"id":31071487,"name_en":"Borja González","position":"DEF","number":17,"price":1,"tier":5,"overall_rank":331,"rated":true},{"id":37124499,"name_en":"Giorgos Kozyrakis","position":"DEF","number":null,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31668000,"name_en":"Konstantinos Lagoudakis","position":"DEF","number":52,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31844657,"name_en":"Konstantinos Papadakis","position":"DEF","number":77,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31782727,"name_en":"Lefteris Kontekas","position":"DEF","number":44,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30408105,"name_en":"Nikos Marinakis","position":"DEF","number":4,"price":1,"tier":5,"overall_rank":369,"rated":true},{"id":30675600,"name_en":"Aitor Cantalapiedra","position":"MID","number":10,"price":4,"tier":2,"overall_rank":104,"rated":true},{"id":31318668,"name_en":"Giannis Apostolakis","position":"MID","number":21,"price":4,"tier":2,"overall_rank":98,"rated":true},{"id":30307446,"name_en":"Taxiarchis Fountas","position":"MID","number":11,"price":4,"tier":2,"overall_rank":110,"rated":true},{"id":31033314,"name_en":"Thiago Nuss","position":"MID","number":18,"price":4,"tier":2,"overall_rank":102,"rated":true},{"id":30801780,"name_en":"Anastasios Chatzigiovanis","position":"MID","number":7,"price":3,"tier":3,"overall_rank":192,"rated":true},{"id":30784493,"name_en":"Thanasis Androutsos","position":"MID","number":14,"price":3,"tier":3,"overall_rank":182,"rated":true},{"id":31668460,"name_en":"Thiago Romano","position":"MID","number":30,"price":3,"tier":3,"overall_rank":212,"rated":true},{"id":30300618,"name_en":"Andreas Bouchalakis","position":"MID","number":41,"price":2,"tier":4,"overall_rank":259,"rated":true},{"id":30916949,"name_en":"Giorgios Kanellopoulos","position":"MID","number":8,"price":2,"tier":4,"overall_rank":262,"rated":true},{"id":31782716,"name_en":"Athanasios Sitmalidis","position":"MID","number":71,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":38299214,"name_en":"Christos Tsalpatouros","position":"MID","number":83,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31748218,"name_en":"Emmanouil Chnaris","position":"MID","number":91,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31667997,"name_en":"Fotis Koutsoupias","position":"MID","number":79,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":37068887,"name_en":"Thanos Asmarianakis","position":"MID","number":47,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30655165,"name_en":"Zisis Karachalios","position":"MID","number":6,"price":1,"tier":5,"overall_rank":325,"rated":true},{"id":31398146,"name_en":"Giannis Theodosoulakis","position":"FWD","number":46,"price":3,"tier":3,"overall_rank":172,"rated":true},{"id":30574623,"name_en":"Kenan Kodro","position":"FWD","number":19,"price":2,"tier":4,"overall_rank":243,"rated":true},{"id":30559072,"name_en":"Aaron Iseka","position":"FWD","number":9,"price":1,"tier":5,"overall_rank":338,"rated":true},{"id":37535605,"name_en":"Charalambos Antonakakis","position":"FWD","number":74,"price":1,"tier":5,"overall_rank":null,"rated":false}]},{"team_id":28638,"name_en":"Olympiacos","name_he":"אולימפיאקוס","name_el":"Ολυμπιακός","short":"OLY","players":[{"id":30276729,"name_en":"Stefan Ortega","position":"GK","number":1,"price":4,"tier":2,"overall_rank":71,"rated":true},{"id":31683553,"name_en":"Balša Popović","position":"GK","number":31,"price":3,"tier":3,"overall_rank":128,"rated":true},{"id":31818166,"name_en":"Dimitrios Stournaras","position":"GK","number":91,"price":2,"tier":4,"overall_rank":252,"rated":true},{"id":30954962,"name_en":"David Carmo","position":"DEF","number":6,"price":5,"tier":1,"overall_rank":28,"rated":true},{"id":31050165,"name_en":"Lorenzo Pirola","position":"DEF","number":5,"price":5,"tier":1,"overall_rank":10,"rated":true},{"id":30935622,"name_en":"Marcus Holmgren Pedersen","position":"DEF","number":27,"price":5,"tier":1,"overall_rank":39,"rated":true},{"id":30951976,"name_en":"Nair Tiknizyan","position":"DEF","number":71,"price":5,"tier":1,"overall_rank":20,"rated":true},{"id":30719055,"name_en":"Panagiotis Retsos","position":"DEF","number":45,"price":5,"tier":1,"overall_rank":23,"rated":true},{"id":31287837,"name_en":"Bruno Onyemaechi","position":"DEF","number":70,"price":4,"tier":2,"overall_rank":82,"rated":true},{"id":30530197,"name_en":"Manolis Saliakas","position":"DEF","number":2,"price":4,"tier":2,"overall_rank":99,"rated":true},{"id":31457854,"name_en":"Zinedin Smajlović","position":"DEF","number":4,"price":4,"tier":2,"overall_rank":47,"rated":true},{"id":31586560,"name_en":"Athanasios Koutsogoulas","position":"DEF","number":72,"price":2,"tier":4,"overall_rank":237,"rated":true},{"id":31331597,"name_en":"Gustavo Puerta","position":"MID","number":15,"price":5,"tier":1,"overall_rank":12,"rated":true},{"id":31395482,"name_en":"Gustavo Sá","position":"MID","number":8,"price":5,"tier":1,"overall_rank":1,"rated":true},{"id":31326043,"name_en":"Joel Roca","position":"MID","number":73,"price":5,"tier":1,"overall_rank":15,"rated":true},{"id":31114798,"name_en":"Jota Silva","position":"MID","number":20,"price":5,"tier":1,"overall_rank":13,"rated":true},{"id":30671331,"name_en":"Leon Bailey","position":"MID","number":17,"price":5,"tier":1,"overall_rank":6,"rated":true},{"id":31358378,"name_en":"Lorenzo Scipioni","position":"MID","number":16,"price":5,"tier":1,"overall_rank":33,"rated":true},{"id":31131349,"name_en":"Santiago Hezze","position":"MID","number":32,"price":5,"tier":1,"overall_rank":4,"rated":true},{"id":30566644,"name_en":"Chiquinho","position":"MID","number":22,"price":4,"tier":2,"overall_rank":43,"rated":true},{"id":30575225,"name_en":"Gelson Martins","position":"MID","number":10,"price":4,"tier":2,"overall_rank":79,"rated":true},{"id":30201704,"name_en":"Remo Freuler","position":"MID","number":19,"price":4,"tier":2,"overall_rank":67,"rated":true},{"id":31639718,"name_en":"Theofanis Bakoulas","position":"MID","number":21,"price":4,"tier":2,"overall_rank":113,"rated":true},{"id":30711559,"name_en":"Yusuf Yazıcı","position":"MID","number":97,"price":4,"tier":2,"overall_rank":77,"rated":true},{"id":31820535,"name_en":"Christos Filis","position":"MID","number":77,"price":3,"tier":3,"overall_rank":187,"rated":true},{"id":31456983,"name_en":"Armando González","position":"FWD","number":34,"price":5,"tier":1,"overall_rank":18,"rated":true},{"id":31290479,"name_en":"Clayton","position":"FWD","number":90,"price":5,"tier":1,"overall_rank":25,"rated":true},{"id":30953517,"name_en":"Marius Mouandilmadji","position":"FWD","number":99,"price":5,"tier":1,"overall_rank":22,"rated":true},{"id":30884382,"name_en":"Ayoub El Kaabi","position":"FWD","number":9,"price":4,"tier":2,"overall_rank":44,"rated":true},{"id":30209430,"name_en":"Konstantinos Fortounis","position":"FWD","number":7,"price":4,"tier":2,"overall_rank":108,"rated":true},{"id":30643690,"name_en":"Roman Yaremchuk","position":"FWD","number":11,"price":4,"tier":2,"overall_rank":74,"rated":true}]},{"team_id":28619,"name_en":"PAOK","name_he":"פאוק סלוניקי","name_el":"ΠΑΟΚ","short":"PAO","players":[{"id":30873265,"name_en":"Antonis Tsiftsis","position":"GK","number":99,"price":3,"tier":3,"overall_rank":133,"rated":true},{"id":31619612,"name_en":"Dimitrios Monastirlis","position":"GK","number":41,"price":3,"tier":3,"overall_rank":200,"rated":true},{"id":30429697,"name_en":"Jirí Pavlenka","position":"GK","number":1,"price":2,"tier":4,"overall_rank":230,"rated":true},{"id":31288237,"name_en":"Konstantinos Balomenos","position":"GK","number":54,"price":2,"tier":4,"overall_rank":297,"rated":true},{"id":31090333,"name_en":"Diego Costa","position":"DEF","number":19,"price":5,"tier":1,"overall_rank":3,"rated":true},{"id":30324910,"name_en":"Abdul Rahman Baba","position":"DEF","number":21,"price":4,"tier":2,"overall_rank":111,"rated":true},{"id":30607148,"name_en":"Aritz Elustondo","position":"DEF","number":6,"price":4,"tier":2,"overall_rank":112,"rated":true},{"id":30670009,"name_en":"Dimitrios Giannoulis","position":"DEF","number":13,"price":4,"tier":2,"overall_rank":55,"rated":true},{"id":31076939,"name_en":"Giannis Michailidis","position":"DEF","number":5,"price":4,"tier":2,"overall_rank":59,"rated":true},{"id":30744907,"name_en":"Greg Taylor","position":"DEF","number":32,"price":4,"tier":2,"overall_rank":51,"rated":true},{"id":30605252,"name_en":"Jonjoe Kenny","position":"DEF","number":3,"price":4,"tier":2,"overall_rank":84,"rated":true},{"id":30660132,"name_en":"Pantelis Hatzidiakos","position":"DEF","number":4,"price":4,"tier":2,"overall_rank":73,"rated":true},{"id":31707911,"name_en":"Dimitrios Bataoulas","position":"DEF","number":97,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31838872,"name_en":"Giorgos Kosidis","position":"DEF","number":78,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30463268,"name_en":"Andrija Živković","position":"MID","number":14,"price":5,"tier":1,"overall_rank":38,"rated":true},{"id":31124529,"name_en":"Christos Zafeiris","position":"MID","number":20,"price":5,"tier":1,"overall_rank":8,"rated":true},{"id":30643448,"name_en":"Kristijan Jakić","position":"MID","number":18,"price":5,"tier":1,"overall_rank":29,"rated":true},{"id":31574188,"name_en":"Ognjen Ugrešić","position":"MID","number":16,"price":5,"tier":1,"overall_rank":32,"rated":true},{"id":31463448,"name_en":"Tom Louchet","position":"MID","number":23,"price":5,"tier":1,"overall_rank":17,"rated":true},{"id":30478105,"name_en":"Baptiste Santamaría","position":"MID","number":7,"price":4,"tier":2,"overall_rank":91,"rated":true},{"id":31727377,"name_en":"Dimitrios Chatsidis","position":"MID","number":52,"price":4,"tier":2,"overall_rank":103,"rated":true},{"id":30364430,"name_en":"Kiril Despodov","position":"MID","number":77,"price":4,"tier":2,"overall_rank":61,"rated":true},{"id":31189627,"name_en":"Shola Shoretire","position":"MID","number":47,"price":4,"tier":2,"overall_rank":69,"rated":true},{"id":31135782,"name_en":"Taha Abdi Ali","position":"MID","number":22,"price":4,"tier":2,"overall_rank":114,"rated":true},{"id":30358937,"name_en":"Dimitrios Pelkas","position":"MID","number":10,"price":3,"tier":3,"overall_rank":167,"rated":true},{"id":30279477,"name_en":"Soualiho Meité","position":"MID","number":8,"price":3,"tier":3,"overall_rank":137,"rated":true},{"id":31337885,"name_en":"Dimitrios Tsopouroglou","position":"MID","number":33,"price":2,"tier":4,"overall_rank":289,"rated":true},{"id":30130589,"name_en":"Taison","position":"MID","number":11,"price":2,"tier":4,"overall_rank":285,"rated":true},{"id":31792869,"name_en":"Dimitrios Berdos","position":"MID","number":39,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30819696,"name_en":"Mohamed Mady Camara","position":"MID","number":2,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30696932,"name_en":"Simon Banza","position":"FWD","number":24,"price":5,"tier":1,"overall_rank":14,"rated":true},{"id":31792876,"name_en":"Anestis Mythou","position":"FWD","number":56,"price":4,"tier":2,"overall_rank":63,"rated":true},{"id":30819972,"name_en":"Cherif Ndiaye","position":"FWD","number":27,"price":4,"tier":2,"overall_rank":53,"rated":true},{"id":30688287,"name_en":"Fedor Chalov","position":"FWD","number":9,"price":4,"tier":2,"overall_rank":40,"rated":true}]},{"team_id":30200,"name_en":"Panathinaikos","name_he":"פנאתינייקוס","name_el":"Παναθηναϊκός","short":"PAN","players":[{"id":30990996,"name_en":"Iñaki Peña","position":"GK","number":1,"price":4,"tier":2,"overall_rank":54,"rated":true},{"id":30560841,"name_en":"Kostas Kotsaris","position":"GK","number":70,"price":2,"tier":4,"overall_rank":292,"rated":true},{"id":31857608,"name_en":"Christos Geitonas","position":"GK","number":71,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30736344,"name_en":"Lucas Abraham Chávez","position":"GK","number":12,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31050838,"name_en":"Anass Salah-Eddine","position":"DEF","number":5,"price":5,"tier":1,"overall_rank":7,"rated":true},{"id":30690302,"name_en":"Rick van Drongelen","position":"DEF","number":55,"price":5,"tier":1,"overall_rank":26,"rated":true},{"id":31211437,"name_en":"Victor Kristiansen","position":"DEF","number":34,"price":5,"tier":1,"overall_rank":11,"rated":true},{"id":30612755,"name_en":"Davide Calabria","position":"DEF","number":2,"price":4,"tier":2,"overall_rank":41,"rated":true},{"id":31613657,"name_en":"Georgios Katris","position":"DEF","number":3,"price":4,"tier":2,"overall_rank":109,"rated":true},{"id":30518633,"name_en":"Giorgos Kyriakopoulos","position":"DEF","number":77,"price":4,"tier":2,"overall_rank":90,"rated":true},{"id":30188555,"name_en":"Stefan de Vrij","position":"DEF","number":6,"price":4,"tier":2,"overall_rank":70,"rated":true},{"id":30213873,"name_en":"Sverrir Ingi Ingason","position":"DEF","number":15,"price":4,"tier":2,"overall_rank":105,"rated":true},{"id":31318666,"name_en":"Triantafyllos Tsapras","position":"DEF","number":19,"price":4,"tier":2,"overall_rank":96,"rated":true},{"id":30525133,"name_en":"Erik Palmer-Brown","position":"DEF","number":14,"price":3,"tier":3,"overall_rank":139,"rated":true},{"id":31787032,"name_en":"Vasileios Lavdas","position":"DEF","number":56,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31515990,"name_en":"Adriano Jagušić","position":"MID","number":8,"price":5,"tier":1,"overall_rank":19,"rated":true},{"id":31073143,"name_en":"Azzedine Ounahi","position":"MID","number":21,"price":5,"tier":1,"overall_rank":2,"rated":true},{"id":31073402,"name_en":"Facundo Pellistri","position":"MID","number":28,"price":5,"tier":1,"overall_rank":31,"rated":true},{"id":30993022,"name_en":"Imrân Louza","position":"MID","number":26,"price":5,"tier":1,"overall_rank":9,"rated":true},{"id":31680164,"name_en":"Santino Andino Valencia","position":"MID","number":10,"price":5,"tier":1,"overall_rank":16,"rated":true},{"id":31222191,"name_en":"Étienne Camara","position":"MID","number":22,"price":5,"tier":1,"overall_rank":36,"rated":true},{"id":31061612,"name_en":"Kings Kangwa","position":"MID","number":42,"price":4,"tier":2,"overall_rank":48,"rated":true},{"id":30680031,"name_en":"Pedro Chirivella","position":"MID","number":4,"price":4,"tier":2,"overall_rank":64,"rated":true},{"id":31526975,"name_en":"Sotiris Kontouris","position":"MID","number":18,"price":4,"tier":2,"overall_rank":81,"rated":true},{"id":31785059,"name_en":"Giannis Bokos","position":"MID","number":39,"price":3,"tier":3,"overall_rank":204,"rated":true},{"id":31526934,"name_en":"Pavlos Pantelidis","position":"MID","number":17,"price":3,"tier":3,"overall_rank":119,"rated":true},{"id":31280328,"name_en":"Vicente Taborda","position":"MID","number":20,"price":3,"tier":3,"overall_rank":152,"rated":true},{"id":30094550,"name_en":"Moussa Sissoko","position":"MID","number":null,"price":2,"tier":4,"overall_rank":290,"rated":true},{"id":32097464,"name_en":"Panagiotis Biniaris","position":"MID","number":44,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31347804,"name_en":"Elmin Rastoder","position":"FWD","number":74,"price":5,"tier":1,"overall_rank":37,"rated":true},{"id":30717557,"name_en":"Levi García","position":"FWD","number":99,"price":5,"tier":1,"overall_rank":21,"rated":true},{"id":30526230,"name_en":"Cyriel Dessers","position":"FWD","number":9,"price":4,"tier":2,"overall_rank":75,"rated":true},{"id":31318701,"name_en":"Andrews Tetteh","position":"FWD","number":7,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31872021,"name_en":"Iason Nempis","position":"FWD","number":53,"price":1,"tier":5,"overall_rank":null,"rated":false}]},{"team_id":182386,"name_en":"Panetolikos","name_he":"פנטוליקוס","name_el":"Παναιτωλικός","short":"PTL","players":[{"id":31139858,"name_en":"Yevhenii Kucherenko","position":"GK","number":99,"price":3,"tier":3,"overall_rank":190,"rated":true},{"id":30819771,"name_en":"Vasilios Xenopoulos","position":"GK","number":23,"price":2,"tier":4,"overall_rank":324,"rated":true},{"id":31667980,"name_en":"Efthymios Papazois","position":"GK","number":21,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31289416,"name_en":"Michalis Pardalos","position":"GK","number":1,"price":1,"tier":5,"overall_rank":327,"rated":true},{"id":31670587,"name_en":"David Galiatsos","position":"DEF","number":45,"price":3,"tier":3,"overall_rank":228,"rated":true},{"id":31173343,"name_en":"Apostolos Apostolopoulos","position":"DEF","number":65,"price":2,"tier":4,"overall_rank":268,"rated":true},{"id":31461223,"name_en":"Athanasios Prodromitis","position":"DEF","number":5,"price":2,"tier":4,"overall_rank":256,"rated":true},{"id":31167710,"name_en":"Elias Olsson","position":"DEF","number":4,"price":2,"tier":4,"overall_rank":287,"rated":true},{"id":31178049,"name_en":"Giannis Satsias","position":"DEF","number":18,"price":2,"tier":4,"overall_rank":266,"rated":true},{"id":30916990,"name_en":"Konstantinos Thimianis","position":"DEF","number":8,"price":2,"tier":4,"overall_rank":319,"rated":true},{"id":30919741,"name_en":"Lazar Kojić","position":"DEF","number":28,"price":2,"tier":4,"overall_rank":272,"rated":true},{"id":31384034,"name_en":"Nikola Stajić","position":"DEF","number":49,"price":2,"tier":4,"overall_rank":307,"rated":true},{"id":30209439,"name_en":"Charalampos Mavrias","position":"DEF","number":35,"price":1,"tier":5,"overall_rank":337,"rated":true},{"id":30958187,"name_en":"Christian Manrique","position":"DEF","number":15,"price":1,"tier":5,"overall_rank":340,"rated":true},{"id":31015654,"name_en":"Gustav Granath","position":"DEF","number":2,"price":1,"tier":5,"overall_rank":333,"rated":true},{"id":30844782,"name_en":"Amine Bassi","position":"MID","number":10,"price":4,"tier":2,"overall_rank":83,"rated":true},{"id":31204365,"name_en":"Diego Esteban","position":"MID","number":22,"price":3,"tier":3,"overall_rank":199,"rated":true},{"id":31338387,"name_en":"Lampros Smyrlis","position":"MID","number":7,"price":3,"tier":3,"overall_rank":218,"rated":true},{"id":30862645,"name_en":"Moussa Djenepo","position":"MID","number":12,"price":3,"tier":3,"overall_rank":143,"rated":true},{"id":31428047,"name_en":"Vangelis Nikolaou","position":"MID","number":77,"price":3,"tier":3,"overall_rank":220,"rated":true},{"id":30541330,"name_en":"Marvelous Nakamba","position":"MID","number":6,"price":2,"tier":4,"overall_rank":249,"rated":true},{"id":30857707,"name_en":"Novica Eraković","position":"MID","number":44,"price":2,"tier":4,"overall_rank":264,"rated":true},{"id":31782717,"name_en":"Vasilios Rados","position":"MID","number":null,"price":2,"tier":4,"overall_rank":258,"rated":true},{"id":31661173,"name_en":"Adriano Bregu","position":"MID","number":19,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":37133342,"name_en":"Endri Goxhaj","position":"MID","number":25,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31195006,"name_en":"Kwadwo Opoku","position":"MID","number":90,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31457935,"name_en":"Mateo Mejía","position":"FWD","number":9,"price":3,"tier":3,"overall_rank":226,"rated":true},{"id":31388477,"name_en":"Salifou Soumah","position":"FWD","number":11,"price":3,"tier":3,"overall_rank":118,"rated":true},{"id":31053689,"name_en":"Youssouph Badji","position":"FWD","number":20,"price":3,"tier":3,"overall_rank":116,"rated":true},{"id":31067286,"name_en":"Kosta Aleksić","position":"FWD","number":14,"price":2,"tier":4,"overall_rank":283,"rated":true},{"id":32143830,"name_en":"Aristidis Albanis","position":"FWD","number":26,"price":1,"tier":5,"overall_rank":null,"rated":false}]},{"team_id":905256,"name_en":"Volos NFC","name_he":"וולוס","name_el":"Βόλος","short":"VOL","players":[{"id":31897361,"name_en":"Athanasios Papathanasiou-Gerofokas","position":"GK","number":82,"price":2,"tier":4,"overall_rank":302,"rated":true},{"id":30656648,"name_en":"Marios Siabanis","position":"GK","number":1,"price":2,"tier":4,"overall_rank":246,"rated":true},{"id":30198100,"name_en":"Yuri Lodygin","position":"GK","number":12,"price":2,"tier":4,"overall_rank":308,"rated":true},{"id":30255381,"name_en":"Alexei Koşelev","position":"GK","number":55,"price":1,"tier":5,"overall_rank":378,"rated":true},{"id":31435436,"name_en":"Lefteris Tasiouras","position":"DEF","number":72,"price":3,"tier":3,"overall_rank":216,"rated":true},{"id":30699362,"name_en":"Ronaël Pierre-Gabriel","position":"DEF","number":18,"price":3,"tier":3,"overall_rank":157,"rated":true},{"id":31182566,"name_en":"Derek Agyakwa","position":"DEF","number":99,"price":2,"tier":4,"overall_rank":247,"rated":true},{"id":30531931,"name_en":"Giannis Kargas","position":"DEF","number":4,"price":2,"tier":4,"overall_rank":267,"rated":true},{"id":30782154,"name_en":"Hamza Mendyl","position":"DEF","number":37,"price":2,"tier":4,"overall_rank":253,"rated":true},{"id":31667984,"name_en":"Konstantinos Lykourinos","position":"DEF","number":24,"price":2,"tier":4,"overall_rank":271,"rated":true},{"id":31288474,"name_en":"Stefanos Katsikas","position":"DEF","number":28,"price":2,"tier":4,"overall_rank":274,"rated":true},{"id":30720021,"name_en":"Xesc Regis","position":"DEF","number":20,"price":2,"tier":4,"overall_rank":317,"rated":true},{"id":30369322,"name_en":"Anastasios Tsokanis","position":"DEF","number":6,"price":1,"tier":5,"overall_rank":367,"rated":true},{"id":30474502,"name_en":"Georgios Mygas","position":"DEF","number":22,"price":1,"tier":5,"overall_rank":364,"rated":true},{"id":31434534,"name_en":"Hatim Essaoubi","position":"DEF","number":15,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30815187,"name_en":"Yvan Neyou Noupa","position":"MID","number":91,"price":4,"tier":2,"overall_rank":86,"rated":true},{"id":30660148,"name_en":"Dženis Burnić","position":"MID","number":27,"price":3,"tier":3,"overall_rank":147,"rated":true},{"id":30820143,"name_en":"Keidi Bare","position":"MID","number":88,"price":3,"tier":3,"overall_rank":213,"rated":true},{"id":30560847,"name_en":"Lazaros Lamprou","position":"MID","number":7,"price":3,"tier":3,"overall_rank":180,"rated":true},{"id":31200040,"name_en":"Matías González","position":"MID","number":21,"price":3,"tier":3,"overall_rank":225,"rated":true},{"id":30199834,"name_en":"Rémy Cabella","position":"MID","number":5,"price":3,"tier":3,"overall_rank":173,"rated":true},{"id":30566470,"name_en":"Joca","position":"MID","number":10,"price":2,"tier":4,"overall_rank":288,"rated":true},{"id":31337880,"name_en":"Vasilios Grosdis","position":"MID","number":17,"price":2,"tier":4,"overall_rank":239,"rated":true},{"id":32139579,"name_en":"Fabio Refatllari","position":"MID","number":89,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":31803326,"name_en":"Klearchos Vainopoulos","position":"MID","number":33,"price":1,"tier":5,"overall_rank":null,"rated":false},{"id":30890242,"name_en":"Maximiliano Comba","position":"MID","number":8,"price":1,"tier":5,"overall_rank":348,"rated":true},{"id":30564713,"name_en":"Quentin Lecoeuche","position":"MID","number":13,"price":1,"tier":5,"overall_rank":344,"rated":true},{"id":31077671,"name_en":"Gustavo Furtado","position":"FWD","number":11,"price":3,"tier":3,"overall_rank":178,"rated":true},{"id":31665411,"name_en":"Georgios Charalampoglou","position":"FWD","number":49,"price":2,"tier":4,"overall_rank":240,"rated":true},{"id":30776012,"name_en":"Jan Hurtado","position":"FWD","number":9,"price":2,"tier":4,"overall_rank":242,"rated":true},{"id":32139580,"name_en":"Alexandros Garavelas","position":"FWD","number":30,"price":1,"tier":5,"overall_rank":null,"rated":false}]}]}$json$;
+  v_league UUID; v_season UUID; t JSONB; p JSONB; v_team UUID; v_player UUID;
+  v_pos core.position;
+BEGIN
+  INSERT INTO core.leagues (code, country_code, default_locale, text_direction, timezone, names, squad_size)
+  VALUES ('GR_SUPER', 'GR', 'el', 'ltr', 'Europe/Athens',
+          jsonb_build_object(
+            'he', jsonb_build_object('full', payload->'league'->>'name_he'),
+            'en', jsonb_build_object('full', payload->'league'->>'name_en'),
+            'el', jsonb_build_object('full', payload->'league'->>'name_el')), 11)
+  ON CONFLICT (code) DO UPDATE SET names = EXCLUDED.names RETURNING id INTO v_league;
+
+  /* ★ starts_on מוקדם מישראל במכוון: קוראים ישנים בוחרים עונה לפי
+     "is_current ואז starts_on האחרון". ישראל חייבת להישאר ראשונה
+     עד שכולם מקבלים פרמטר ליגה. */
+  INSERT INTO core.seasons (league_id, label, starts_on, ends_on, is_current)
+  VALUES (v_league, payload->'league'->>'season', DATE '2026-07-31', DATE '2027-05-30', TRUE)
+  ON CONFLICT (league_id, label) DO UPDATE SET is_current = TRUE RETURNING id INTO v_season;
+
+  FOR t IN SELECT * FROM jsonb_array_elements(payload->'teams') LOOP
+    SELECT entity_id INTO v_team FROM core.external_refs
+     WHERE provider = 'manual_json' AND entity_type = 'team' AND external_id = t->>'team_id';
+    IF v_team IS NULL THEN
+      INSERT INTO core.teams (country_code, names, short_code)
+      VALUES ('GR', jsonb_build_object(
+                'he', jsonb_build_object('full', t->>'name_he'),
+                'en', jsonb_build_object('full', t->>'name_en'),
+                'el', jsonb_build_object('full', t->>'name_el')), t->>'short')
+      RETURNING id INTO v_team;
+      INSERT INTO core.external_refs (provider, entity_type, external_id, entity_id, payload)
+      VALUES ('manual_json', 'team', t->>'team_id', v_team, t - 'players');
+    ELSE
+      UPDATE core.teams SET names = names || jsonb_build_object(
+               'he', jsonb_build_object('full', t->>'name_he'),
+               'en', jsonb_build_object('full', t->>'name_en'),
+               'el', jsonb_build_object('full', t->>'name_el')) WHERE id = v_team;
+    END IF;
+    INSERT INTO core.team_seasons (team_id, season_id) VALUES (v_team, v_season) ON CONFLICT DO NOTHING;
+    INSERT INTO core.entity_aliases (entity_type, entity_id, locale, alias, source)
+    VALUES ('team', v_team, 'he', t->>'name_he', 'manual_json'),
+           ('team', v_team, 'en', t->>'name_en', 'manual_json'),
+           ('team', v_team, 'el', t->>'name_el', 'manual_json')
+    ON CONFLICT DO NOTHING;
+
+    FOR p IN SELECT * FROM jsonb_array_elements(t->'players') LOOP
+      v_pos := (p->>'position')::core.position;
+      SELECT entity_id INTO v_player FROM core.external_refs
+       WHERE provider = 'manual_json' AND entity_type = 'player' AND external_id = p->>'id';
+      IF v_player IS NULL THEN
+        INSERT INTO core.players (names, nationality, primary_position)
+        VALUES (jsonb_build_object('en', jsonb_build_object('full', p->>'name_en')), NULL, v_pos)
+        RETURNING id INTO v_player;
+        INSERT INTO core.external_refs (provider, entity_type, external_id, entity_id, payload)
+        VALUES ('manual_json', 'player', p->>'id', v_player, p);
+      ELSE
+        UPDATE core.players SET names = names || jsonb_build_object('en', jsonb_build_object('full', p->>'name_en')),
+               primary_position = v_pos, updated_at = now() WHERE id = v_player;
+      END IF;
+      INSERT INTO core.entity_aliases (entity_type, entity_id, locale, alias, source)
+      VALUES ('player', v_player, 'en', p->>'name_en', 'manual_json') ON CONFLICT DO NOTHING;
+
+      INSERT INTO core.squads (season_id, team_id, player_id, shirt_number, position, fantasy_price,
+                               tier, overall_rank, rated, valid_from, status)
+      VALUES (v_season, v_team, v_player, NULLIF(p->>'number','')::smallint, v_pos,
+              (p->>'price')::NUMERIC, (p->>'tier')::smallint, NULLIF(p->>'overall_rank','')::int,
+              (p->>'rated')::boolean, DATE '2026-07-31', 'active')
+      ON CONFLICT (season_id, team_id, player_id, valid_from)
+      DO UPDATE SET shirt_number = EXCLUDED.shirt_number, position = EXCLUDED.position,
+                    fantasy_price = COALESCE(core.squads.fantasy_price, EXCLUDED.fantasy_price),
+                    tier = EXCLUDED.tier, overall_rank = EXCLUDED.overall_rank, rated = EXCLUDED.rated;
+    END LOOP;
+  END LOOP;
+
+END
+$seed$;
+
+UPDATE game.data_revision SET revision = revision + 1, scope = 'seed-greece', updated_at = now() WHERE id = 1;
+COMMIT;
+
+INSERT INTO game.schema_migrations (version, note) VALUES ('41', '★ סגלי הליגה היוונית 2026/27 (457 שחקנים, 14 קבוצות)')
+ON CONFLICT (version) DO NOTHING;
+
+
+-- =====================================================================
+-- ▼▼▼  42_ingest_leagues.sql  —  ★ קליטה לפי ליגה: ingest_sources + ingest_snapshot(league) + tick לכל מקור
+-- =====================================================================
+
+-- =====================================================================
+--  db/42_ingest_leagues.sql · קליטה לפי ליגה
+--
+--  מה זה עושה: מאפשר לצינור הקליטה להזין יותר מליגה אחת.
+--    · game.ingest_sources — לכל ליגה: מזהה תחרות ב-365scores,
+--      קידומת קוד מחזור ('gw-' לישראל, 'gr-' ליוון), ודגל enabled.
+--    · ingest_snapshot — מקבל `league` בגוף (ללא = הליגה הראשית,
+--      בדיוק כמו קודם). עונה ומחזור נבחרים לפי הליגה.
+--    · ingest_tick — פעימה אחת לכל מקור פעיל.
+--    · קישור 365scores ל-14 מועדוני סופרליגה יוון (מזהים מאומתים
+--      מדף הטבלה של תחרות 84).
+--
+--  ★ יוון מוזרמת כבויה (enabled = FALSE). הפעלה = החלטה של מאור:
+--    game.admin_set_ingest_source('GR_SUPER', TRUE). רק אז ייווצרו
+--    מחזורי gr-N, ורק כשמחזור נפתח יופיע בורר הליגות.
+--  אידמפוטנטי.
+-- =====================================================================
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS game.ingest_sources (
+  league_id       UUID PRIMARY KEY REFERENCES core.leagues(id),
+  gw_prefix       TEXT NOT NULL CHECK (gw_prefix ~ '^[a-z]{2,4}-$'),
+  competition_365 INT  NOT NULL,
+  enabled         BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (gw_prefix)
+);
+DO $rls$ BEGIN
+  ALTER TABLE game.ingest_sources ENABLE ROW LEVEL SECURITY;
+  REVOKE ALL ON game.ingest_sources FROM anon, authenticated;
+EXCEPTION WHEN OTHERS THEN NULL; END $rls$;
+
+INSERT INTO game.ingest_sources (league_id, gw_prefix, competition_365, enabled)
+SELECT l.id, 'gw-', 42, TRUE FROM core.leagues l WHERE l.code = 'IL_PREMIER'
+ON CONFLICT (league_id) DO NOTHING;
+INSERT INTO game.ingest_sources (league_id, gw_prefix, competition_365, enabled)
+SELECT l.id, 'gr-', 84, FALSE FROM core.leagues l WHERE l.code = 'GR_SUPER'
+ON CONFLICT (league_id) DO NOTHING;
+
+/* ── קישור קבוצות יוון ל-365scores (מזהים מדף הטבלה, תחרות 84) ── */
+DO $link$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT * FROM (VALUES
+      (8563,'1024'),(8239,'1025'),(80654,'1026'),(10187,'1031'),(8675,'1033'),
+      (1585,'1066'),(488099,'15266'),(4493,'1034'),(7753,'1032'),(8638,'1023'),
+      (8619,'1029'),(10200,'1022'),(162386,'6206'),(885256,'54421')
+    ) AS v(fotmob, s365)
+  LOOP
+    PERFORM core.provider_link('scores365', 'team', r.s365,
+      (SELECT e.entity_id FROM core.external_refs e
+        WHERE e.entity_type = 'team' AND e.external_id = (20000 + r.fotmob)::TEXT
+          AND e.provider = 'manual_json' LIMIT 1));
+  END LOOP;
+EXCEPTION WHEN not_null_violation THEN
+  RAISE NOTICE 'db/42: קבוצות יוון לא נמצאו (db/41 לא רץ?) — דילוג על קישור 365scores';
+END $link$;
+
+CREATE OR REPLACE FUNCTION game.admin_set_ingest_source(p_league TEXT, p_enabled BOOLEAN)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'ADMIN_REQUIRED'; END IF;
+  UPDATE game.ingest_sources s SET enabled = p_enabled, updated_at = now()
+    FROM core.leagues l WHERE l.id = s.league_id AND l.code = p_league;
+  IF NOT FOUND THEN RAISE EXCEPTION 'UNKNOWN_LEAGUE'; END IF;
+  INSERT INTO game.audit_logs (actor, action, entity, entity_id, new_value)
+  VALUES (game.actor_label(), 'admin_set_ingest_source', 'league', p_league,
+          jsonb_build_object('enabled', p_enabled));
+  RETURN jsonb_build_object('league', p_league, 'enabled', p_enabled);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION game.admin_set_ingest_source(TEXT, BOOLEAN) TO authenticated;
+
+CREATE OR REPLACE FUNCTION game.ingest_snapshot(p_source TEXT, p_payload JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = core, game, public
+AS $$
+DECLARE
+  v_run      UUID;
+  v_phase    TEXT := COALESCE(p_payload->>'phase', 'sweep');
+  v_number   SMALLINT := NULLIF(p_payload#>>'{gameweek,number}', '')::SMALLINT;
+  v_gw       UUID;
+  v_code     TEXT;
+  v_season   UUID;
+  r          JSONB;
+  v_home     UUID; v_away UUID; v_team UUID; v_player UUID; v_match UUID;
+  v_kick     TIMESTAMPTZ;
+  v_status   TEXT;
+  v_lock     TIMESTAMPTZ;
+  v_gw_status TEXT;
+  n_fix      INT := 0;
+  n_seen     INT := 0;
+  n_mapped   INT := 0;
+  n_changed  INT := 0;
+  n_unmapped INT := 0;
+  v_problems JSONB := '[]'::jsonb;
+  v_fp       TEXT;
+  v_league   UUID;
+  v_prefix   TEXT := 'gw-';
+BEGIN
+  IF NOT game.can_write_data() THEN RAISE EXCEPTION 'SYSTEM_OR_ADMIN_REQUIRED'; END IF;
+  IF NOT COALESCE((SELECT enabled FROM game.ingest_config WHERE id), TRUE) THEN
+    RETURN jsonb_build_object('skipped', 'ingest_disabled');
+  END IF;
+  IF v_number IS NULL THEN RAISE EXCEPTION 'GAMEWEEK_NUMBER_REQUIRED'; END IF;
+
+  /* ★ ליגה: ללא `league` בגוף = הליגה הראשית (הוותיקה ביותר), כמו תמיד. */
+  SELECT l.id INTO v_league FROM core.leagues l WHERE l.code = p_payload->>'league';
+  IF v_league IS NULL THEN
+    IF p_payload ? 'league' AND NULLIF(p_payload->>'league','') IS NOT NULL THEN
+      RAISE EXCEPTION 'UNKNOWN_LEAGUE';
+    END IF;
+    SELECT l.id INTO v_league FROM core.leagues l ORDER BY l.created_at, l.code LIMIT 1;
+  END IF;
+  SELECT COALESCE(s.gw_prefix, 'gw-') INTO v_prefix
+    FROM game.ingest_sources s WHERE s.league_id = v_league;
+  v_prefix := COALESCE(v_prefix, 'gw-');
+
+  v_code := v_prefix || v_number::TEXT;
+
+  INSERT INTO game.ingest_runs (source, phase, gw_code)
+  VALUES (p_source, v_phase, v_code) RETURNING id INTO v_run;
+
+  /* ── הגולמי נשמר לפני שנוגעים בכלום ─────────────────────── */
+  FOR r IN SELECT * FROM jsonb_array_elements(COALESCE(p_payload->'raw', '[]'::jsonb)) LOOP
+    INSERT INTO core.ingest_raw (run_id, source, kind, external_id, sha256, payload)
+    VALUES (v_run, p_source, COALESCE(r->>'kind','unknown'), r->>'externalId',
+            encode(sha256(convert_to((r->'payload')::TEXT, 'UTF8')), 'hex'),
+            COALESCE(r->'payload', '{}'::jsonb))
+    ON CONFLICT DO NOTHING;
+  END LOOP;
+
+  /* ── המחזור: נמצא או נוצר ────────────────────────────────── */
+  SELECT id, status INTO v_gw, v_gw_status FROM game.gameweeks WHERE code = v_code;
+
+  IF v_gw IS NULL THEN
+    SELECT s.id INTO v_season FROM core.seasons s
+     WHERE s.league_id = v_league
+     ORDER BY s.is_current DESC, s.starts_on DESC NULLS LAST LIMIT 1;
+    IF v_season IS NULL THEN RAISE EXCEPTION 'NO_SEASON'; END IF;
+
+    /* ★ הדדליין לא מומצא. עד שיגיע משחק ראשון הוא רחוק בעתיד,
+       בדיוק כמו ב-`admin_create_gameweek`. מחזור שנולד נעול
+       הוא מחזור שאף אחד לא יכול להגיש אליו ואיש לא יֵדע למה. */
+    INSERT INTO game.gameweeks (season_id, number, code, names, lock_at, first_kickoff_at, status)
+    VALUES (v_season, v_number, v_code,
+            jsonb_build_object('he', jsonb_build_object('full', 'מחזור ' || v_number),
+                               'en', jsonb_build_object('full', 'Gameweek ' || v_number),
+                               'el', jsonb_build_object('full', 'Αγωνιστική ' || v_number)),
+            now() + INTERVAL '365 days', NULL, 'draft')
+    ON CONFLICT (season_id, number) DO UPDATE SET code = EXCLUDED.code
+    RETURNING id, status INTO v_gw, v_gw_status;
+
+    INSERT INTO game.audit_logs (actor, action, entity, entity_id, new_value)
+    VALUES (game.actor_label(), 'ingest_create_gameweek', 'gameweek', v_code,
+            jsonb_build_object('number', v_number, 'source', p_source, 'league', p_payload->>'league'));
+  END IF;
+
+  /* ── משחקים ──────────────────────────────────────────────── */
+  FOR r IN SELECT * FROM jsonb_array_elements(COALESCE(p_payload->'fixtures', '[]'::jsonb)) LOOP
+    v_home := game.ingest_resolve_team(p_source, r#>>'{home,id}', r#>>'{home,nameEn}', r#>>'{home,nameHe}');
+    v_away := game.ingest_resolve_team(p_source, r#>>'{away,id}', r#>>'{away,nameEn}', r#>>'{away,nameHe}');
+
+    IF v_home IS NULL OR v_away IS NULL THEN
+      v_problems := v_problems || jsonb_build_object(
+        'issue', 'קבוצה לא מופתה', 'home', r#>>'{home,nameEn}', 'away', r#>>'{away,nameEn}');
+      CONTINUE;
+    END IF;
+
+    v_kick   := NULLIF(r->>'kickoff','')::TIMESTAMPTZ;
+    v_status := COALESCE(r->>'status', 'scheduled');
+    IF v_status NOT IN ('scheduled','live','finished','postponed','abandoned') THEN
+      v_status := 'scheduled';
+    END IF;
+
+    INSERT INTO core.weekly_matches
+      (gameweek_id, home_team_id, away_team_id, kickoff_at, status, home_goals, away_goals)
+    VALUES (v_gw, v_home, v_away, COALESCE(v_kick, now() + INTERVAL '365 days'),
+            v_status,
+            NULLIF(r->>'homeGoals','')::SMALLINT, NULLIF(r->>'awayGoals','')::SMALLINT)
+    ON CONFLICT (gameweek_id, home_team_id, away_team_id) DO UPDATE SET
+      /* ★ שעת פתיחה מתעדכנת רק כל עוד אפשר להגיש. אחרי הנעילה
+         שינוי שעה הוא שינוי דדליין רטרואקטיבי — כלומר פסילת
+         הגשות שהיו חוקיות. */
+      kickoff_at = CASE WHEN v_gw_status IN ('draft','open') AND v_kick IS NOT NULL
+                        THEN v_kick ELSE core.weekly_matches.kickoff_at END,
+      status     = EXCLUDED.status,
+      home_goals = COALESCE(EXCLUDED.home_goals, core.weekly_matches.home_goals),
+      away_goals = COALESCE(EXCLUDED.away_goals, core.weekly_matches.away_goals)
+    RETURNING id INTO v_match;
+
+    IF r->>'providerId' IS NOT NULL THEN
+      PERFORM core.provider_link(p_source, 'match', r->>'providerId', v_match, NULL);
+    END IF;
+
+    /* משחק שנדחה או נזנח אינו תוצאה. */
+    IF v_status IN ('postponed','abandoned') THEN
+      INSERT INTO game.ingest_alerts (gw_code, kind, severity, detail)
+      VALUES (v_code, 'fixture_not_final', 'block',
+              jsonb_build_object('match', r->>'providerId', 'status', v_status))
+      ON CONFLICT DO NOTHING;
+    END IF;
+
+    n_fix := n_fix + 1;
+  END LOOP;
+
+  /* ── דדליין = פתיחת המשחק הראשון ─────────────────────────── */
+  IF v_gw_status IN ('draft','open') THEN
+    SELECT min(kickoff_at) INTO v_lock FROM core.weekly_matches
+     WHERE gameweek_id = v_gw AND status <> 'postponed';
+
+    IF v_lock IS NOT NULL AND v_lock > now() THEN
+      UPDATE game.gameweeks
+         SET lock_at = v_lock, first_kickoff_at = v_lock
+       WHERE id = v_gw AND lock_at IS DISTINCT FROM v_lock;
+    END IF;
+  END IF;
+
+  /* ── שער נקי נגזר מחדש כשמצב המשחק זז ───────────────────────
+     ★ באג שנתפס בבדיקה 5: סטטיסטיקה שנקלטת בזמן אמת נכתבת
+       כשהמשחק עדיין 'live', ולכן `clean_sheet` יוצא FALSE.
+       אם אחר כך מגיע רק עדכון תוצאה — בלי שורות שחקנים —
+       השער הנקי היה נשאר שקרי לנצח, וכל מגן במשחק 0:2 היה
+       מפסיד 4 נקודות בשקט.
+       החוק אחד, והוא נאכף על כל השורות של המחזור. */
+  UPDATE core.player_match_stats s
+     SET clean_sheet = (m.status = 'finished' AND s.goals_conceded = 0 AND s.minutes > 0),
+         updated_at  = now()
+    FROM core.weekly_matches m
+   WHERE m.id = s.match_id
+     AND m.gameweek_id = v_gw
+     AND s.clean_sheet IS DISTINCT FROM
+         (m.status = 'finished' AND s.goals_conceded = 0 AND s.minutes > 0);
+
+  /* ── סטטיסטיקה אישית ─────────────────────────────────────── */
+  FOR r IN SELECT * FROM jsonb_array_elements(COALESCE(p_payload->'stats', '[]'::jsonb)) LOOP
+    n_seen := n_seen + 1;
+
+    v_match := core.entity_by_provider(p_source, 'match', r->>'matchProviderId');
+    IF v_match IS NULL THEN
+      v_problems := v_problems || jsonb_build_object(
+        'issue', 'משחק לא מופה', 'match', r->>'matchProviderId');
+      CONTINUE;
+    END IF;
+
+    v_team := game.ingest_resolve_team(p_source, r#>>'{team,id}', r#>>'{team,nameEn}', r#>>'{team,nameHe}');
+    IF v_team IS NULL THEN CONTINUE; END IF;
+
+    v_player := game.ingest_resolve_player(
+      p_source, r#>>'{player,id}', v_team,
+      r#>>'{player,nameEn}', r#>>'{player,nameHe}',
+      NULLIF(r#>>'{player,shirt}','')::SMALLINT, r#>>'{player,position}');
+
+    IF v_player IS NULL THEN
+      n_unmapped := n_unmapped + 1;
+      CONTINUE;
+    END IF;
+
+    n_mapped := n_mapped + 1;
+    IF core.apply_player_stat(v_match, v_player, v_team, r, game.actor_label(), 'ingest:' || p_source) THEN
+      n_changed := n_changed + 1;
+    END IF;
+  END LOOP;
+
+  /* ★ ריפוי עצמי (A05): התרעת `source_disagreement` של אותו מקור,
+     על משחק שהמטען הזה בדק מחדש, נסגרת. אם המחלוקת עדיין קיימת —
+     ההתרעה מוזרקת שוב מיד למטה (האינדקס חלקי על cleared_at IS NULL).
+     כך התרעה שנוצרה מתקלה זמנית לא חוסמת מחזור לנצח ואין צורך באדמין. */
+  WITH healed AS (
+    UPDATE game.ingest_alerts a
+       SET cleared_at = now(), cleared_by = 'auto:reverified'
+     WHERE a.cleared_at IS NULL
+       AND a.kind = 'source_disagreement'
+       AND a.detail->>'source' = p_source
+       AND a.detail->>'match' IN (
+             SELECT DISTINCT e->>'matchProviderId'
+               FROM jsonb_array_elements(COALESCE(p_payload->'stats','[]'::jsonb)) e)
+    RETURNING a.id
+  )
+  INSERT INTO game.audit_logs (actor, action, entity, entity_id, new_value)
+  SELECT game.actor_label(), 'auto_clear_alert', 'alert', string_agg(id::TEXT, ','),
+         jsonb_build_object('reason', 'reverified', 'source', p_source)
+    FROM healed HAVING count(*) > 0;
+
+  /* ── התרעות מהמתאם (VAR, כרטיס שבוטל, מקור שנפל) ────────── */
+  FOR r IN SELECT * FROM jsonb_array_elements(COALESCE(p_payload->'alerts', '[]'::jsonb)) LOOP
+    INSERT INTO game.ingest_alerts (gw_code, kind, severity, detail)
+    VALUES (v_code, COALESCE(r->>'kind','unknown'),
+            CASE WHEN r->>'severity' = 'warn' THEN 'warn' ELSE 'block' END,
+            COALESCE(r->'detail','{}'::jsonb))
+    ON CONFLICT DO NOTHING;
+  END LOOP;
+
+  /* ── טביעת אצבע ───────────────────────────────────────────── */
+  v_fp := game.gameweek_fingerprint(v_code);
+
+  INSERT INTO game.gameweek_fingerprints (gameweek_id, fingerprint, since, checked_at)
+  VALUES (v_gw, v_fp, now(), now())
+  ON CONFLICT (gameweek_id) DO UPDATE SET
+    since       = CASE WHEN game.gameweek_fingerprints.fingerprint IS DISTINCT FROM EXCLUDED.fingerprint
+                       THEN now() ELSE game.gameweek_fingerprints.since END,
+    fingerprint = EXCLUDED.fingerprint,
+    checked_at  = now();
+
+  /* ★ שינוי אחרי פרסום — לא משנים ניקוד לבד, מתריעים. */
+  IF EXISTS (SELECT 1 FROM game.gameweek_fingerprints f
+              WHERE f.gameweek_id = v_gw
+                AND f.published_fingerprint IS NOT NULL
+                AND f.published_fingerprint <> v_fp)
+  THEN
+    INSERT INTO game.ingest_alerts (gw_code, kind, severity, detail)
+    VALUES (v_code, 'changed_after_publish', 'warn',
+            jsonb_build_object('fingerprint', v_fp))
+    ON CONFLICT DO NOTHING;
+  END IF;
+
+  UPDATE game.ingest_runs SET
+    finished_at = now(),
+    status = CASE WHEN jsonb_array_length(v_problems) > 0 OR n_unmapped > 0
+                  THEN 'partial' ELSE 'ok' END,
+    fixtures_seen = n_fix, players_seen = n_seen,
+    players_mapped = n_mapped, unmapped_count = n_unmapped,
+    report = jsonb_build_object('changed', n_changed, 'problems', v_problems,
+                                'fingerprint', v_fp)
+  WHERE id = v_run;
+
+  RETURN jsonb_build_object(
+    'runId', v_run, 'gw', v_code, 'league', v_league, 'phase', v_phase,
+    'fixtures', n_fix, 'playersSeen', n_seen, 'playersMapped', n_mapped,
+    'unmapped', n_unmapped, 'changed', n_changed,
+    'fingerprint', v_fp, 'problems', v_problems);
+
+/* ★ אין כאן `EXCEPTION WHEN OTHERS`.
+   בלוק חריגה ב-plpgsql מגלגל אחורה את **כל** עבודת הפונקציה,
+   כולל את שורת הכישלון שהוא עצמו מנסה לכתוב. כלומר "רישום
+   הכישלון" היה נמחק יחד עם הכישלון. הרישום נעשה מבחוץ, בקריאה
+   נפרדת: `game.ingest_log_failure`. */
+END;
+$$;
+
+/* ── הפעימה: בקשה אחת לכל מקור פעיל ── */
+CREATE OR REPLACE FUNCTION game.ingest_tick(p_origin TEXT DEFAULT 'cron')
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public, extensions
+AS $$
+DECLARE
+  v_url   TEXT;
+  v_token TEXT;
+  v_req   BIGINT;
+  v_reqs  JSONB := '[]'::jsonb;
+  s       RECORD;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', TRUE);
+
+  IF NOT game.ingest_should_run() THEN
+    RETURN jsonb_build_object('skipped', 'nothing_to_do');
+  END IF;
+
+  SELECT function_url, token INTO v_url, v_token FROM game.ingest_secrets WHERE id;
+  IF v_url IS NULL OR v_token IS NULL THEN
+    RETURN jsonb_build_object('skipped', 'endpoint_not_configured');
+  END IF;
+
+  FOR s IN
+    SELECT l.code, i.competition_365, i.gw_prefix,
+           (l.created_at = (SELECT min(created_at) FROM core.leagues)) AS is_primary
+      FROM game.ingest_sources i JOIN core.leagues l ON l.id = i.league_id
+     WHERE i.enabled
+     ORDER BY l.created_at, l.code
+  LOOP
+    BEGIN
+      SELECT net.http_post(
+               url     := v_url,
+               headers := jsonb_build_object(
+                            'content-type',   'application/json',
+                            'x-ingest-token', v_token),
+               body    := jsonb_build_object('phase', 'auto', 'league', s.code,
+                                             'competition365', s.competition_365,
+                                             'gwPrefix', s.gw_prefix,
+                                             'primary', s.is_primary),
+               timeout_milliseconds := 55000
+             ) INTO v_req;
+    EXCEPTION WHEN undefined_function OR undefined_table OR invalid_schema_name THEN
+      RETURN jsonb_build_object('skipped', 'pg_net_missing');
+    END;
+
+    INSERT INTO game.ingest_dispatches (request_id, origin)
+    VALUES (v_req, COALESCE(p_origin, 'cron'))
+    ON CONFLICT (request_id) DO NOTHING;
+
+    v_reqs := v_reqs || jsonb_build_object('league', s.code, 'requested', v_req);
+  END LOOP;
+
+  RETURN jsonb_build_object('requests', v_reqs, 'at', now());
+END;
+$$;
+
+INSERT INTO game.schema_migrations (version, note) VALUES ('42', '★ קליטה לפי ליגה: ingest_sources, ingest_snapshot(league), ingest_tick לכל מקור')
+ON CONFLICT (version) DO NOTHING;
+
+COMMIT;
+
+
+-- =====================================================================
 --  סיום
 -- =====================================================================
 DO $done$

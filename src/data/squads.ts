@@ -11,6 +11,7 @@ export interface TeamRow {
   externalId: string;
   nameHe: string;
   nameEn: string;
+  nameEl?: string | null;
   short: string;
   city: string | null;
   stadium: string | null;
@@ -23,6 +24,7 @@ export interface PlayerRow {
   position: Position;
   nameHe: string;
   nameEn: string;
+  nameEl?: string | null;
   shirt: number | null;
   /** דרג 1 (עילית) עד 5 — לתצוגה וסינון בלבד, לא משפיע על הניקוד. */
   tier: 1 | 2 | 3 | 4 | 5;
@@ -40,12 +42,14 @@ export interface PlayerRow {
   isClubCaptain: boolean;
 }
 
+/** ★ מוטבל בזמן ריצה כשנבחרת ליגה אחרת (liveData.applyLiveSquads). */
+export interface LeagueInfo { code: string; nameHe: string; nameEn: string; season: string }
 export const LEAGUE = {
   "code": "IL_PREMIER",
   "nameHe": "ליגת העל בישראל",
   "nameEn": "Israeli Premier League",
   "season": "2026/2027"
-} as const;
+} as LeagueInfo;
 
 /** מספר הקבוצות בליגת העל במציאות. מכאן נגזר החסם על גודל ההרכב. */
 export const LEAGUE_TEAM_COUNT_REAL = 14;

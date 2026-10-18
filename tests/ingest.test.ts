@@ -164,6 +164,15 @@ test('משחק שלם → שורות שחקנים, כולל VAR כהתרעה ח�
 test('מקור גיבוי: כל מה שלא ודאי "הסתיים" נשאר scheduled', () => {
   assert.equal(map365Status({ statusGroup: 4 }), 'finished');
   assert.equal(map365Status({ winner: 1 }), 'finished');
+  /* משחק נדחה: "הסתיים" בלי ניקוד (game 4776089 בסופרליגה היוונית) */
+  const noScore = { statusGroup: 4, gameTimeAndStatusDisplayType: 1, winner: -1,
+    homeCompetitor: { score: -1 }, awayCompetitor: { score: -1 } };
+  assert.equal(map365Status(noScore), 'postponed');
+  assert.equal(map365Status({ ...noScore, statusText: 'Postponed' }), 'postponed');
+  assert.equal(map365Status({ statusGroup: 4, statusText: 'Abandoned' }), 'abandoned');
+  assert.equal(map365Status({ statusGroup: 4, winner: -1,
+    homeCompetitor: { score: 0 }, awayCompetitor: { score: 0 } }), 'finished'); // תיקו 0:0
+  assert.equal(map365Status({ statusGroup: 2, homeCompetitor: { score: -1 }, awayCompetitor: { score: -1 } }), 'scheduled');
   assert.equal(map365Status({ statusGroup: 3 }), 'live');
   assert.equal(map365Status({ statusGroup: 99 }), 'scheduled');
   assert.equal(map365Status({}), 'scheduled');

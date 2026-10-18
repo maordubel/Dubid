@@ -100,6 +100,8 @@ export interface RawBlob {
 
 export interface Snapshot {
   phase: 'fixtures' | 'live' | 'final' | 'sweep' | 'squads';
+  /** קוד ליגה (core.leagues.code). חסר = הליגה הראשית. */
+  league?: string;
   gameweek: { number: number };
   fixtures: Fixture[];
   stats: PlayerStat[];

@@ -37,12 +37,18 @@
  *   שנכנס כדי להגיש לא צריך לעבור דרך הטבלה שלו בדרך.
  */
 import type { CSSProperties, ReactNode } from 'react';
+import { useI18n } from '../lib/i18n/index.tsx';
+import type { DictKey } from '../lib/i18n/dict.ts';
+import { LanguagePicker } from './LanguagePicker.tsx';
+import { LeaguePicker } from './LeaguePicker.tsx';
+import { LEAGUE } from '../data/squads.ts';
+import { displayName as pickDisplayName } from '../lib/i18n/names.ts';
 import { AuthChip } from './AuthChip.tsx';
 import { TeamTag } from './TeamTag.tsx';
 import type { Identity } from '../lib/identity.ts';
 import { DubelCredit } from './DubelCredit.tsx';
 import {
-  GameweekStatus, STATUS_LABEL_HE, deadlineView, msUntilDeadline,
+  GameweekStatus, deadlineView, msUntilDeadline,
   isSubmissionOpen, type Gameweek,
 } from '../lib/gameweek.ts';
 import type { ModeId } from '../lib/events/bus.ts';
@@ -109,6 +115,7 @@ export function Lobby({
   onPlay, onLeagues, onLeaderboard, onAccount, identity = null, nudge,
   gameweekNumber = gameweek.number, roundBrief,
 }: LobbyProps) {
+  const { t, locale } = useI18n();
   /**
    * ★★ הזמן מגיע מבחוץ, נקודה. ★★
    *
@@ -125,7 +132,7 @@ export function Lobby({
    */
   const remaining = msUntilDeadline(gameweek, nowMs);
   const open = isSubmissionOpen(gameweek, nowMs);
-  const view = deadlineView(open ? remaining : 0);
+  const view = deadlineView(open ? remaining : 0, locale);
 
   return (
     <div className="min-h-full" style={{ background: NP.paperDeep }}>
@@ -143,15 +150,20 @@ export function Lobby({
               : null)}
             onOpen={() => onAccount?.()}
           />
+          <LeaguePicker />
           <span className="flex-1" />
           <span className="press-folio">
-            שנה ב׳ · גיליון <span className="num">{gameweekNumber}</span>
+            {t('lobby.edition')} <span className="num">{gameweekNumber}</span>
           </span>
           {entrants ? (
             <span className="press-folio">
-              <b className="num" style={{ color: NP.ink }}>{entrants}</b> משתתפים
+              <b className="num" style={{ color: NP.ink }}>{entrants}</b> {t('lobby.entrants')}
             </span>
           ) : null}
+        </div>
+
+        <div className="relative z-[2] flex justify-end px-3 pt-1">
+          <LanguagePicker />
         </div>
 
         <Rule weight="top" />
@@ -176,10 +188,10 @@ export function Lobby({
             className="font-press text-[44px] font-black leading-[0.94] tracking-[-.02em]"
             style={{ color: NP.ink, textShadow: MISREGISTER }}
           >
-            דוביד
+            {t('lobby.brand')}
           </h1>
           <p className="press-spaced pt-[3px] text-[10.5px]" style={{ color: NP.gold }}>
-            {spaced('מהדורת המחזור')}
+            {spaced(t('lobby.edition2'))}
           </p>
         </div>
 
@@ -201,7 +213,7 @@ export function Lobby({
         {/* ═══════════ הכותרת הראשית — הדדליין ═══════════ */}
         <Headline
           view={view}
-          statusLabel={STATUS_LABEL_HE[gameweek.status]}
+          statusLabel={t(`gw.status.${gameweek.status}` as DictKey)}
           published={gameweek.status === GameweekStatus.Published}
           kicker={content('lobby.hero.kicker')}
         />
@@ -213,7 +225,7 @@ export function Lobby({
         <Ornament />
 
         {/* ═══════════ הכתבות — מצבי המשחק ═══════════ */}
-        <section className="relative z-[2] px-3" aria-label="בחירת מצב משחק">
+        <section className="relative z-[2] px-3" aria-label={t('lobby.modes.aria')}>
           {modes.map((m, i) => (
             <div key={m.id} className={i > 0 ? 'mt-2.5' : ''}>
               <ModeArticle mode={m} open={open} onPlay={() => onPlay(m.id)} />
@@ -227,17 +239,17 @@ export function Lobby({
         {/* ═══════════ שתי עמודות ═══════════ */}
         <Rule weight="hair" className="mt-3" />
         <div className="relative z-[2] grid grid-cols-[1fr_1px_1fr]">
-          <Column title="התוצאות שלי">
-            <LeaderRow label="מחזור" value={String(gameweekNumber)} />
-            <LeaderRow label="נקודות" value={myPoints !== undefined ? String(myPoints) : '—'} />
-            <LeaderRow label="מקום" value={myRank ? String(myRank) : '—'} />
-            <LeaderRow label="ליגות" value={leagueCount ? String(leagueCount) : '—'} />
+          <Column title={t('lobby.myResults')}>
+            <LeaderRow label={t('lobby.round')} value={String(gameweekNumber)} />
+            <LeaderRow label={t('lobby.points')} value={myPoints !== undefined ? String(myPoints) : '—'} />
+            <LeaderRow label={t('lobby.rank')} value={myRank ? String(myRank) : '—'} />
+            <LeaderRow label={t('lobby.leagues')} value={leagueCount ? String(leagueCount) : '—'} />
           </Column>
           <span aria-hidden="true" style={{ background: NP.rule }} />
-          <Column title="לוח המשחקים">
+          <Column title={t('lobby.fixtures')}>
             {fixtures.length === 0 ? (
               <p className="px-2 pt-1 text-[11.5px]" style={{ color: NP.inkFaint }}>
-                הלוח טרם פורסם.
+                {t('lobby.noFixtures')}
               </p>
             ) : fixtures.slice(0, 4).map((f) => (
               <li key={f.id} className="flex items-baseline gap-1.5 px-2 py-[3px] text-[11.5px]">
@@ -258,10 +270,10 @@ export function Lobby({
 
         {/* ═══════════ מדורים ═══════════ */}
         <div className="relative z-[2] grid grid-cols-2 gap-2.5 px-3 pt-3">
-          <SectionTile label="ליגות פרטיות"
-                       hint={leagueCount ? `${leagueCount} ליגות` : 'שחקו מול חברים'}
+          <SectionTile label={t('lobby.private')}
+                       hint={leagueCount ? `${leagueCount} ${t('lobby.leaguesN')}` : t('lobby.privateHint')}
                        onClick={onLeagues} icon={<TileShades />} />
-          <SectionTile label="הדירוג" hint="מי מוביל"
+          <SectionTile label={t('lobby.ranking')} hint={t('lobby.rankingHint')}
                        onClick={onLeaderboard} icon={<TilePodium />} />
         </div>
 
@@ -288,7 +300,7 @@ export function Lobby({
           </p>
           <div className="flex items-center justify-between pt-2.5">
             <span className="press-folio">DUBID.DUBELTEAM.COM</span>
-            <span className="press-folio">עמוד <span className="num">1</span></span>
+            <span className="press-folio">{t('lobby.page')} <span className="num">1</span></span>
           </div>
         </footer>
       </div>
@@ -402,6 +414,7 @@ function Headline({
   published: boolean;
   kicker: string;
 }) {
+  const { t } = useI18n();
   const urgent = view.mode === 'urgent';
   const closed = view.mode === 'closed';
 
@@ -428,7 +441,7 @@ function Headline({
         <>
           <h2 className="font-press pt-1.5 text-[21px] font-black leading-[1.02]"
               style={{ color: NP.ink, textShadow: MISREGISTER }}>
-            {urgent ? 'ננעל בעוד' : 'ההרכבים ננעלים בעוד'}
+            {urgent ? t('lobby.locksIn') : t('lobby.lineupsLockIn')}
           </h2>
           {/* המספר לחוד ובכיוון שלו. עירוב עברית בתוך מספר LTR
               הופך "02:12:38" ל-"402:12:38 ד" ברינדור. */}
@@ -451,8 +464,8 @@ function Headline({
         <h2 className="font-press pt-1.5 text-[25px] font-black leading-[1.05]"
             style={{ color: NP.ink, textShadow: MISREGISTER }}>
           {closed
-            ? (published ? 'התוצאות פורסמו' : 'ההרכבים נעולים')
-            : `ההרכבים ננעלים ${view.value}`}
+            ? (published ? t('lobby.resultsOut') : t('lobby.lineupsLocked'))
+            : `${t('lobby.lineupsLockIn')} ${view.value}`}
         </h2>
       )}
 
@@ -484,6 +497,7 @@ function Headline({
  *   אותו מסך דפוס, הפוך.
  */
 function PressPhoto({ gameweekNumber }: { gameweekNumber: number }) {
+  const { t, locale } = useI18n();
   return (
     <figure className="relative z-[2] px-3 pt-2.5">
       <div
@@ -516,11 +530,11 @@ function PressPhoto({ gameweekNumber }: { gameweekNumber: number }) {
           className="absolute bottom-[5px] px-[7px] py-[1px] text-[9.5px] font-bold"
           style={{ insetInlineStart: 6, background: NP.gold, color: NP.paper, letterSpacing: 1 }}
         >
-          ליגת העל · מחזור <span className="num">{gameweekNumber}</span>
+          {t('lobby.leagueRound', { league: pickDisplayName({ he: LEAGUE.nameHe, en: LEAGUE.nameEn }, locale) })} <span className="num">{gameweekNumber}</span>
         </span>
       </div>
       <figcaption className="px-1 pt-[3px] text-[9.5px] italic" style={{ color: NP.inkFaint }}>
-        מי שמכיר את הליגה — יודע מה קורה בשבת. <b>צילום: ארכיון</b>
+        {t('lobby.caption')} <b>{t('lobby.photo')}</b>
       </figcaption>
     </figure>
   );
@@ -608,6 +622,7 @@ function Figure({
 function ModeArticle({
   mode, open, onPlay,
 }: { mode: LobbyMode; open: boolean; onPlay: () => void }) {
+  const { t: tr, locale } = useI18n();
   const t = modeTheme(mode.id);
   const done = mode.state === 'submitted' || mode.state === 'scored';
   const five = mode.id === 'five';
@@ -626,7 +641,7 @@ function ModeArticle({
         className="block px-2 py-[3px] text-center text-[11px] font-bold"
         style={{ background: t.accent, color: NP.paper, letterSpacing: 2 }}
       >
-        {spaced(mode.title)} · {spaced(t.codeName)}
+        {spaced(mode.title)} · {spaced(tr(`mode.${mode.id}.code` as DictKey))}
       </span>
 
       {/* ---- אפקט הרקע ---- */}
@@ -683,7 +698,7 @@ function ModeArticle({
         <span className="flex items-start gap-2">
           <ModeMark mode={mode.id} size={22} weight={2.8} />
           <span className="min-w-0 flex-1 text-[12.5px] leading-snug" style={{ color: NP.inkDim }}>
-            {content(`mode.${mode.id}.tagline`) || mode.tagline}
+            {(locale === 'he' && content(`mode.${mode.id}.tagline`)) || mode.tagline}
           </span>
         </span>
 
@@ -692,7 +707,7 @@ function ModeArticle({
 
         <span className="mt-1.5 flex items-center justify-between gap-2">
           <span className="text-[12px] font-bold" style={{ color: t.accentLight }}>
-            {statusLine(mode, open)}
+            {statusLine(mode, open, tr)}
           </span>
           <span
             className="font-press shrink-0 px-4 py-1 text-[13.5px] font-bold"
@@ -702,7 +717,7 @@ function ModeArticle({
                 "להמשיך" הוא ניווט; "שחק עכשיו" אומר שיש כאן
                 משחק. זה המסך הראשון, ולרוב האנשים שמגיעים אליו
                 עדיין לא ברור מה בדיוק קורה כאן. */}
-            {done ? 'לצפייה ›' : open ? 'שחק עכשיו ›' : 'נעול'}
+            {done ? tr('lobby.view') : open ? tr('lobby.playNow') : tr('lobby.locked')}
           </span>
         </span>
       </span>
@@ -711,16 +726,16 @@ function ModeArticle({
 }
 
 /** שורת המצב. קצרה בכוונה — היא יושבת ליד כפתור, לא לבד. */
-function statusLine(mode: LobbyMode, open: boolean): string {
+function statusLine(mode: LobbyMode, open: boolean, tr: (k: DictKey, v?: Record<string, string | number>) => string): string {
   if (mode.state === 'scored' && mode.points !== undefined) {
     return mode.rank
-      ? `הוגש · ${mode.points} נק׳ · מקום ${mode.rank}`
-      : `הוגש · ${mode.points} נק׳`;
+      ? tr('status.submittedPtsRank', { pts: mode.points, rank: mode.rank })
+      : tr('status.submittedPts', { pts: mode.points });
   }
-  if (mode.state === 'submitted') return 'ההרכב נעול';
-  if (!open) return 'ההגשות סגורות';
-  if (mode.state === 'draft') return `בטיוטה · ${mode.filled}/${mode.size}`;
-  return 'טרם התחלת';
+  if (mode.state === 'submitted') return tr('status.lineupLocked');
+  if (!open) return tr('status.closed');
+  if (mode.state === 'draft') return tr('status.draft', { filled: mode.filled, size: mode.size });
+  return tr('status.notStarted');
 }
 
 /* ================================================================== */

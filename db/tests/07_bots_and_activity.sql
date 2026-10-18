@@ -150,7 +150,7 @@ BEGIN
              xp.external_id AS ext, COALESCE(sq.fantasy_price, 0) AS price
         FROM core.squads sq
         JOIN core.v_ext xp ON xp.entity_type='player' AND xp.entity_id=sq.player_id
-       WHERE sq.valid_to IS NULL AND sq.status = 'active'
+       WHERE sq.valid_to IS NULL AND sq.season_id = (SELECT s.id FROM core.seasons s JOIN core.leagues l ON l.id = s.league_id WHERE l.code = 'IL_PREMIER' AND s.is_current) AND sq.status = 'active'
        ORDER BY sq.team_id, COALESCE(sq.fantasy_price, 0), xp.external_id
     ) q
      ORDER BY q.price, q.ext

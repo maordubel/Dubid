@@ -117,7 +117,7 @@ BEGIN
     SELECT id, home_team_id FROM core.weekly_matches WHERE gameweek_id = v_gw ORDER BY id
   LOOP
     SELECT player_id INTO v_player FROM core.squads
-     WHERE team_id = v_team AND valid_to IS NULL LIMIT 1;
+     WHERE team_id = v_team AND valid_to IS NULL LIMIT 1;  -- הקבוצה כבר שייכת למחזור, לכן לליגה הנכונה
     IF v_other IS NULL THEN v_other := v_match; CONTINUE; END IF;
     INSERT INTO core.player_match_stats (match_id, player_id, team_id, minutes)
     VALUES (v_match, v_player, v_team, 90) ON CONFLICT DO NOTHING;
@@ -188,7 +188,7 @@ BEGIN
              xp.external_id AS ext, COALESCE(sq.fantasy_price, 0) AS price
         FROM core.squads sq
         JOIN core.v_ext xp ON xp.entity_type='player' AND xp.entity_id=sq.player_id
-       WHERE sq.valid_to IS NULL AND sq.status = 'active'
+       WHERE sq.valid_to IS NULL AND sq.season_id = (SELECT s.id FROM core.seasons s JOIN core.leagues l ON l.id = s.league_id WHERE l.code = 'IL_PREMIER' AND s.is_current) AND sq.status = 'active'
        ORDER BY sq.team_id, COALESCE(sq.fantasy_price, 0), xp.external_id
     ) q ORDER BY q.price, q.ext LIMIT 5
   LOOP

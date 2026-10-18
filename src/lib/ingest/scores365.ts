@@ -47,6 +47,14 @@ const S365_BASE = 'https://webws.365scores.com/web';
  */
 export function map365Status(game: any): FixtureStatus {
   const group = num(game?.statusGroup);
+  /* ★ משחק שנדחה/בוטל מגיע כ-statusGroup 4 ("הסתיים") עם ניקוד -1 לשני
+     הצדדים ובלי מנצח. בלי הבדיקה הזו הוא נחשב 'finished' והמחזור היה
+     מתקדם לניקוד על משחק שלא שוחק. */
+  const text = String(game?.statusText ?? '');
+  const noScore = typeof game?.homeCompetitor?.score === 'number' && game.homeCompetitor.score < 0
+    && typeof game?.awayCompetitor?.score === 'number' && game.awayCompetitor.score < 0;
+  if (/postpon|cancel|abandon|suspend/i.test(text)) return /abandon/i.test(text) ? 'abandoned' : 'postponed';
+  if (group === 4 && noScore && num(game?.winner) <= 0) return 'postponed';
   const ended = game?.gameTimeAndStatusDisplayType === 1
     || group === 4
     || num(game?.winner) > 0;
