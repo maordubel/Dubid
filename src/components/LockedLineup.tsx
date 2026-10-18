@@ -32,7 +32,10 @@
  * אחרי הפרסום — הנקודות של השחקן. אותה משבצת, ולכן ההרכב לא
  * "קופץ" ברגע שהתוצאות נכנסות; הוא רק מתמלא במשמעות.
  */
+import { useState } from 'react';
 import { Pitch } from './Pitch.tsx';
+import { Signed } from './ScoreBreakdown.tsx';
+import { lineText } from '../lib/scoring/labels.ts';
 import { TeamCrest } from './TeamCrest.tsx';
 import { Footballer } from './Footballer.tsx';
 import { PRESS } from '../lib/pressPalette.ts';
@@ -75,6 +78,7 @@ export function LockedLineup({
   /** מספר המחזור — לשיוך המקור בקישור לאופסיידס. */
   gameweekNumber?: number;
 }) {
+  const [picked, setPicked] = useState<string | null>(null);
   const poolById = new Map(pool.map((p) => [p.id, p]));
   const teamById = new Map(teams.map((t) => [t.id, t]));
   const pointsByPlayer = new Map((score?.players ?? []).map((p) => [p.playerId, p.subtotal]));
@@ -141,7 +145,7 @@ export function LockedLineup({
           renderSlot={(slotNo) => {
             const slot = lineup.slots.find((x) => x.slotNo === slotNo);
             if (!slot?.playerId) return null;
-            return (
+            const card = (
               <LockedSlotCard
                 slot={slot}
                 player={poolById.get(slot.playerId)}
@@ -150,9 +154,56 @@ export function LockedLineup({
                 live={live}
               />
             );
+            /* ★ לחיצה על שחקן פותחת את פירוט הניקוד שלו — כמו בפנטזי. */
+            return score ? (
+              <button type="button" onClick={() => setPicked(slot.playerId!)}
+                      aria-label={`פירוט ניקוד: ${poolById.get(slot.playerId)?.nameShort ?? ''}`}
+                      className="block w-full">
+                {card}
+              </button>
+            ) : card;
           }}
         />
       </div>
+
+      {picked && score && (() => {
+        const ps = score.players.find((x) => x.playerId === picked);
+        const pl = poolById.get(picked);
+        if (!ps) return null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-end bg-black/55" onClick={() => setPicked(null)}
+               role="dialog" aria-modal="true">
+            <div className="max-h-[70vh] w-full overflow-y-auto rounded-t-2xl border-t border-gold/30
+                            bg-night-2 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3"
+                 onClick={(e) => e.stopPropagation()}>
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-chalk-dim/40" />
+              <div className="mb-2 flex items-baseline justify-between gap-3">
+                <h3 className="font-press text-base font-black text-chalk">
+                  <bdi>{pl?.name ?? pl?.nameShort ?? picked}</bdi>
+                  {ps.isCaptain && <span className="ms-1.5 rounded bg-armband px-1 text-[10px] text-night">C</span>}
+                </h3>
+                <span dir="ltr" className="num text-2xl font-black text-gold">{ps.subtotal}</span>
+              </div>
+              {ps.lines.length === 0 ? (
+                <p className="py-3 text-sm text-chalk-dim">אין עדיין אירועים לשחקן הזה.</p>
+              ) : (
+                <ul className="divide-y divide-gold/10">
+                  {ps.lines.map((l, i) => (
+                    <li key={i} className="flex items-baseline justify-between gap-2 py-2 text-[13px]">
+                      <span className="text-chalk-2">{lineText(l.reason, l.count)}</span>
+                      <Signed value={l.points} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button type="button" onClick={() => setPicked(null)}
+                      className="tap mt-3 h-11 w-full rounded-full border border-gold/35 text-sm font-bold text-gold-light">
+                סגירה
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── CTA — אותו סרגל תחתון של מסך הבחירה ── */}
       <div className="shrink-0 border-t border-gold/15 bg-night/95 px-4
