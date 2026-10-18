@@ -15,6 +15,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import { BottomNav, SideRail, NAV_HEIGHT_PX, type NavItem } from './BottomNav.tsx';
 import { LogoMark } from './Logo.tsx';
 import { MISREGISTER } from '../lib/pressPalette.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 export interface AppShellProps {
   items: NavItem[];
@@ -37,9 +38,10 @@ export interface AppShellProps {
 export function AppShell({
   items, activeId, onSelect, header, aside, fill = false, children,
 }: AppShellProps) {
+  const { dir } = useI18n();
   return (
     <div
-      dir="rtl"
+      dir={dir}
       style={{ '--nav-h': `${NAV_HEIGHT_PX}px` } as CSSProperties}
       className="tex-wood flex h-[100dvh] w-full overflow-hidden text-chalk"
     >

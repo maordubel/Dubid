@@ -24,6 +24,8 @@ import {
 } from '../lib/identity.ts';
 import { AuthPanel } from './AuthPanel.tsx';
 import { LogoMark } from './Logo.tsx';
+import { LanguagePicker } from './LanguagePicker.tsx';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 type Tab = 'me' | 'move';
 
@@ -35,6 +37,7 @@ export function AccountSheet({
   onShowPass?: () => void;
   hasPass?: boolean;
 }) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('me');
   const [identity, setIdentity] = useState<Identity | null>(currentIdentity());
 
@@ -89,6 +92,11 @@ export function AccountSheet({
           >
             ✕
           </button>
+        </div>
+
+        <div className="mx-4 mt-3 flex items-center justify-between rounded-xl bg-night-2 px-3 py-2">
+          <span className="text-[12px] font-bold text-chalk-dim">{t('lang.label')}</span>
+          <LanguagePicker />
         </div>
 
         <div className="mx-4 mt-3 flex gap-1 rounded-full bg-night-2 p-1 edge-gold">
