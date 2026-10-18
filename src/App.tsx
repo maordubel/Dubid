@@ -71,6 +71,7 @@ import {
   getResults, saveEntry, listEntries, findMyEntry, deleteEntry, subscribeToStore,
   hydrate, startRealtime, storeStatus, errorMessageHe, getGameweekState,
   type LineupEntry,
+  scoringVisible, scoringIsLive,
 } from './lib/store.ts';
 import {
   hydrateLiveData, startLiveDataRealtime, subscribeToLiveData, liveDataVersion,
@@ -853,9 +854,10 @@ function MainApp() {
             lineup={entry.lineup}
             pool={pool}
             teams={teams}
-            score={hasRealResults
+            score={scoringVisible(results)
               ? scoreLineup(entry.lineup, results.performances, results.outcomes, rules, { validate: false })
               : undefined}
+            live={scoringIsLive(results)}
             gameweekLabel={GAMEWEEK.label}
             gameweekNumber={GAMEWEEK.number}
             submittedAt={entry.submittedAt}
@@ -866,7 +868,7 @@ function MainApp() {
                 });
               }
             } : undefined}
-            onViewCard={hasRealResults ? () => setTab('card') : undefined}
+            onViewCard={scoringVisible(results) ? () => setTab('card') : undefined}
             /* ★ אותו כרטיס בדיוק שקפץ אחרי ההגשה, לפי דרישה.
                `buildReveal` מקבל את ההגשה השמורה, ולכן הכרטיס
                תמיד מציג את מה שבאמת נעול — ולא טיוטה שנערכה
@@ -951,7 +953,7 @@ function MainApp() {
         origin={SITE_URL}
       />
     ),
-    board: <PublicBoard />,
+    board: <PublicBoard rulesByMode={rulesByMode} userId={userId} />,
     leaderboard: <Leaderboard rulesByMode={rulesByMode} userId={userId} />,
     rules: <RulesScreen rulesByMode={rulesByMode} />,
   };

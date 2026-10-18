@@ -32,7 +32,7 @@ import { buildLeaderboard, beatPercent, type LeaderboardRow } from '../lib/leade
 import type { TieBreakStage } from '../lib/scoring/ranking.ts';
 import { TEAM_BY_ID, TEAMS, PLAYERS, shortName } from '../data/squads.ts';
 import { GAMEWEEK } from '../data/fixtures.ts';
-import { listEntries, getResults, subscribeToStore, type LineupEntry } from '../lib/store.ts';
+import { listEntries, getResults, subscribeToStore, scoringVisible, scoringIsLive, type LineupEntry } from '../lib/store.ts';
 import type { LineupScore } from '../lib/scoring/types.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import { Table, type Column } from './Table.tsx';
@@ -73,7 +73,7 @@ export function Leaderboard({
   const rules = rulesByMode[mode];
 
   const rows = useMemo<Row[]>(
-    () => (results.published
+    () => (scoringVisible(results)
       ? buildLeaderboard({
           entries, performances: results.performances, outcomes: results.outcomes, rules, userId,
         })
@@ -196,6 +196,9 @@ export function Leaderboard({
           </h2>
           <span className="press-folio">
             {GAMEWEEK.label} · <span className="num">{entries.length}</span> הרכבים
+            {scoringIsLive(results) && (
+              <span className="ms-2 font-black" style={{ color: NP.ink }}>● דירוג זמני — מתעדכן עם כל משחק</span>
+            )}
           </span>
         </div>
         <div aria-hidden="true" style={{ borderTop: `1px solid ${NP.rule}` }} />
@@ -221,7 +224,7 @@ export function Leaderboard({
         })}
       </div>
 
-      {!results.published ? (
+      {!scoringVisible(results) ? (
         /*
          * ★★ מה שהיה כאן, ולמה זה פגע ★★
          *

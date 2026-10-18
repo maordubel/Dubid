@@ -272,6 +272,32 @@ function Chip({
   );
 }
 
+/** בלון ניקוד שחקן. הצבע נגזר מהערך בלבד — לא מגורם חיצוני. */
+export function PointsBubble({ points, live, captain }: { points: number; live: boolean; captain: boolean }) {
+  const tone = points < 0
+    ? { bg: PRESS.red, fg: '#fff' }
+    : points === 0
+      ? { bg: '#D9D3C4', fg: PRESS.ink }
+      : points >= 8
+        ? { bg: '#2E9E55', fg: '#fff' }
+        : { bg: PRESS.mark, fg: PRESS.ink };
+  return (
+    <span
+      dir="ltr"
+      role="img"
+      aria-label={`${points} נקודות${captain ? ' (קפטן)' : ''}${live ? ', חי' : ''}`}
+      title={live ? 'ניקוד חי — עוד יכול לזוז' : 'ניקוד סופי'}
+      className={`num absolute -top-[6%] left-[-8%] z-10 grid min-w-[22px] place-items-center
+                  rounded-full px-1 text-[12px] font-black leading-none
+                  ${live ? 'animate-pulse' : ''}`}
+      style={{ height: 22, background: tone.bg, color: tone.fg,
+               boxShadow: `0 0 0 1.6px ${PRESS.ink}, 0 1px 3px rgba(0,0,0,.35)` }}
+    >
+      {points}
+    </span>
+  );
+}
+
 /**
  * כרטיס שחקן — קריאה בלבד.
  *
@@ -321,23 +347,11 @@ export function LockedSlotCard({
           <TeamCrest teamId={slot.teamId} short={team?.short} size="fluid" />
         </span>
 
-        {/* ★ הנקודות יושבות על הדמות, במקום שבו המחיר יושב במסך
-            הבחירה. אותה פינה בדיוק — ולכן הכרטיס לא משנה גובה
-            כשהתוצאות נכנסות, והמגרש לא מתכווץ. */}
-        {points !== undefined && (
-          <span
-            className="num absolute bottom-[14%] rounded-[2px] px-[3px] text-[9.5px]
-                       font-black leading-[1.5]"
-            dir="ltr"
-            title={live ? 'ניקוד חי — עוד יכול לזוז' : 'ניקוד סופי'}
-            style={live
-              ? { insetInlineStart: '0%', background: PRESS.mark, color: PRESS.ink,
-                  boxShadow: `0 0 0 1.2px ${PRESS.ink}` }
-              : { insetInlineStart: '0%', background: PRESS.ink, color: PRESS.mark }}
-          >
-            {points}
-          </span>
-        )}
+        {/* ★ בלון הנקודות — בהשראת פנטזי: עיגול בפינה העליונה של השחקן,
+            גדול וקריא מרחוק, צבוע לפי הערך: ירוק-צהוב = יום טוב, אפור = כלום,
+            אדום = ניקוד שלילי. בזמן חי הוא עם טבעת פועמת. פינה פיזית (שמאל)
+            כי הדמות והמספר שלה לא מתהפכים ב-RTL. */}
+        {points !== undefined && <PointsBubble points={points} live={live} captain={cap} />}
       </span>
 
       {/* לוחית שם — נייר עם קו מתאר, כמו כותרת קטנה בעיתון */}
