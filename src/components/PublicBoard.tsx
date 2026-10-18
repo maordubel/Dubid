@@ -81,12 +81,12 @@ function Fixture({ f }: { f: BoardFixture }) {
 
       <div className="shrink-0 text-center">
         {hasScore ? (
-          /* ★ flex + dir=rtl ולא טקסט רץ: `1:0` כטקסט נפתר ע״י האלגוריתם הדו-כיווני
+          /* ★ flex + dir=rtl על עטיפה **בלי** `.num` (שמכריח ltr) — `.num` רק על הספרות עצמן. flex ולא טקסט רץ: `1:0` כטקסט נפתר ע״י האלגוריתם הדו-כיווני
              כרצף ספרות שמוצג שמאל→ימין, והשער של הקבוצה הביתית (בצד ימין)
              הופיע בצד שמאל — כלומר התוצאה הפוכה. בפלקס הסדר נקבע לפי הכיוון. */
           <span dir="rtl"
-                className={`num inline-flex items-center gap-1 text-[15px] font-black ${live ? 'text-flare' : 'text-chalk'}`}>
-            <span>{f.homeGoals}</span><span className="opacity-40">:</span><span>{f.awayGoals}</span>
+                className={`inline-flex items-center gap-1 text-[15px] font-black ${live ? 'text-flare' : 'text-chalk'}`}>
+            <span className="num">{f.homeGoals}</span><span className="opacity-40">:</span><span className="num">{f.awayGoals}</span>
           </span>
         ) : (
           <span className="num text-[11px] text-chalk-dim">{kickoffLabel(f.kickoff)}</span>
@@ -237,11 +237,15 @@ export function PublicBoard({ rulesByMode, userId }: {
     <div className="space-y-3">
       {recap && <RecapCard recap={recap} />}
 
+      {/* ★ הטבלה כאן היא טבלת המתמודדים בתחרות שלנו — לא טבלת ליגת העל. */}
+      <section className="-mx-4">
+        <Leaderboard rulesByMode={rulesByMode} userId={userId} />
+      </section>
       {gw && (
         <section>
           <div className="mb-2 flex items-baseline justify-between gap-2">
             <h3 className="font-press text-base font-black text-chalk">
-              {gw.label ?? `מחזור ${gw.number}`}
+              תוצאות · {gw.label ?? `מחזור ${gw.number}`}
             </h3>
             {gw.live && (
               <span className="flex items-center gap-1 text-[11px] font-black text-flare">
@@ -258,10 +262,6 @@ export function PublicBoard({ rulesByMode, userId }: {
         </section>
       )}
 
-      {/* ★ הטבלה כאן היא טבלת המתמודדים בתחרות שלנו — לא טבלת ליגת העל. */}
-      <section className="-mx-4">
-        <Leaderboard rulesByMode={rulesByMode} userId={userId} />
-      </section>
     </div>
   );
 }
