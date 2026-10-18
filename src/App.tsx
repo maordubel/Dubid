@@ -1613,9 +1613,9 @@ export function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet
   const rules = rulesByMode[tab];
   const t = modeTheme(tab === 'five' ? 'five' : 'full');
 
-  const scoring = useMemo(() => scoringRows(rules), [rules]);
-  const captain = useMemo(() => captainRows(rules), [rules]);
-  const differential = useMemo(() => differentialRows(), []);
+  const scoring = useMemo(() => scoringRows(rules), [rules, locale]);
+  const captain = useMemo(() => captainRows(rules), [rules, locale]);
+  const differential = useMemo(() => differentialRows(), [locale]);
   const tiebreak = useMemo(() => tiebreakSteps(rules), [rules, locale]);
   const [sizeA, sizeB] = splitAt(tx('shell.rules.lineupSize', { n: '{n}' }), 'n');
 
