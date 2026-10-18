@@ -30,6 +30,7 @@
  * ★ הקובץ טהור: אין DOM, אין רשת, אין זמן.
  */
 import { DUBEL } from './growth.ts';
+import { tr, type DictKey } from './i18n/dict.ts';
 
 /**
  * ההערות עצמן.
@@ -79,5 +80,10 @@ export const IMPRINT = `${IMPRINT_PREFIX} ${DUBEL.name} · ${IMPRINT_PLACE}`;
  */
 export function pressNote(gameweekNumber: number): string {
   const n = Math.abs(Math.trunc(gameweekNumber || 0));
-  return PRESS_NOTES[n % PRESS_NOTES.length];
+  /* ★ האינדקס זהה בכל השפות; בעברית זה בדיוק PRESS_NOTES[i]. */
+  return tr(`board.press.${n % PRESS_NOTES.length}` as DictKey);
 }
+
+/** שורת בית הדפוס בשפה הפעילה (הקבועים לעיל נשארים בעברית לטסטים). */
+export const imprintPrefix = (): string => tr('board.press.imprintPrefix');
+export const imprintPlace = (): string => tr('board.press.imprintPlace');

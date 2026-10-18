@@ -32,13 +32,15 @@
  */
 import type { CSSProperties } from 'react';
 import { OFFSIDES, offsidesUrl, type Placement, type Promo, type PromoTone } from '../lib/growth.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
+import type { DictKey } from '../lib/i18n/dict.ts';
 
 /** צבע אחד לכל טון. שני ערכים: האור, והדיו שיושב עליו. */
-const TONE: Record<PromoTone, { glow: string; ink: string; label: string }> = {
-  urgent:  { glow: '#FF5B14', ink: '#121110', label: 'חי עכשיו' },
-  revenge: { glow: '#E4002B', ink: '#F6F3EB', label: 'ריוונג׳' },
-  crown:   { glow: '#FFC93C', ink: '#121110', label: 'אלוף המחזור' },
-  calm:    { glow: '#1F7FD1', ink: '#F6F3EB', label: 'אותו חשבון' },
+const TONE: Record<PromoTone, { glow: string; ink: string; label: DictKey }> = {
+  urgent:  { glow: '#FF5B14', ink: '#121110', label: 'shell.tone.urgent' },
+  revenge: { glow: '#E4002B', ink: '#F6F3EB', label: 'shell.tone.revenge' },
+  crown:   { glow: '#FFC93C', ink: '#121110', label: 'shell.tone.crown' },
+  calm:    { glow: '#1F7FD1', ink: '#F6F3EB', label: 'shell.tone.calm' },
 };
 
 export interface OffsidesBannerProps {
@@ -55,12 +57,13 @@ export interface OffsidesBannerProps {
 export function OffsidesBanner({
   promo, placement, gameweekNumber, onDismiss, onOpen, className = '',
 }: OffsidesBannerProps) {
+  const { t } = useI18n();
   const tone = TONE[promo.tone];
   const href = offsidesUrl(promo.id, placement, gameweekNumber);
 
   return (
     <section
-      aria-label="אופסיידס"
+      aria-label={t('shell.offsides')}
       className={`relative overflow-hidden rounded-3xl bg-night-2 ${className}`}
       style={{ '--glow': tone.glow } as CSSProperties}
     >
@@ -95,7 +98,7 @@ export function OffsidesBanner({
         <button
           type="button"
           onClick={onDismiss}
-          aria-label="לא להציג שוב במחזור הזה"
+          aria-label={t('shell.dismissRound')}
           // `end-0` לוגי: ה-× יושב בצד ה"סוף" של הקריאה. אין כאן
           // transform, ולכן אין את באג המירכוז הלוגי.
           className="absolute end-0 top-0 z-10 grid size-11 place-items-center
@@ -121,7 +124,7 @@ export function OffsidesBanner({
                        uppercase tracking-[0.18em]"
             style={{ background: tone.glow, color: tone.ink }}
           >
-            {tone.label}
+            {t(tone.label)}
           </span>
 
           <span className="mt-1.5 block font-display text-[15px] font-black

@@ -9,6 +9,9 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useI18n } from './lib/i18n/index.tsx';
+import { tr, activeLocale } from './lib/i18n/dict.ts';
+import { INTL_TAG, splitAt } from './lib/i18n/lazy.ts';
+import { displayName as pickDisplayName } from './lib/i18n/names.ts';
 import { chooseLeague, selectedLeague } from './lib/league.ts';
 import type { DictKey } from './lib/i18n/dict.ts';
 import { ensureIdentity, storedDisplayName, setDisplayName, subscribeToIdentity, watchAuth,
@@ -54,7 +57,7 @@ import { IconHome, IconLineup, IconArena, IconRanking, IconRules } from './compo
 import { LEAGUE, TEAMS, PLAYERS, shortName, TEAM_BY_ID } from './data/squads.ts';
 import {
   GAMEWEEK, GAMEWEEK_DEADLINE, FIRST_KICKOFF, OPPONENT_BY_TEAM,
-  FIXTURES, kickoffTimeLabel,
+  FIXTURES, kickoffTimeLabel, localizedRoundLabel,
 } from './data/fixtures.ts';
 import { resolveRules, DUBID_5X5, DUBID_5X5_BUDGET } from './lib/scoring/rules.ts';
 import { scoreLineup } from './lib/scoring/engine.ts';
@@ -86,7 +89,6 @@ import type { RuleSet } from './lib/scoring/rules.ts';
 import type { ShareCardData } from './lib/shareCard.ts';
 
 type Mode = 'full' | 'five';
-const MODE_LABEL: Record<Mode, string> = { full: 'הרכב מלא · 11', five: '5 על 5' };
 
 const SITE_URL = DUBID_URL;
 
@@ -101,12 +103,12 @@ const SITE_URL = DUBID_URL;
  * להגיע אליו.
  */
 /** שם המסך בכותרת. מקור אחד, ולא מחרוזת מודבקת בכל ענף. */
-const SCREEN_TITLE: Record<string, string> = {
-  lineup: 'ההרכב',
-  arena: 'הזירה',
-  leaderboard: 'הדירוג',
-  card: 'הכרטיס',
-  rules: 'חוקי המשחק',
+const SCREEN_TITLE: Record<string, DictKey> = {
+  lineup: 'nav.lineup',
+  arena: 'nav.arena',
+  leaderboard: 'lobby.ranking',
+  card: 'shell.screen.card',
+  rules: 'shell.screen.rules',
 };
 
 /**
@@ -209,7 +211,8 @@ function gwCode(): string {
 }
 
 function MainApp() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const leagueName = pickDisplayName({ he: LEAGUE.nameHe, en: LEAGUE.nameEn }, locale);
   const navItems = useMemo(
     () => NAV.map((i) => ({ ...i, label: t(i.label as DictKey) })),
     [t],
@@ -603,7 +606,7 @@ function MainApp() {
     myPoints: myStanding.points,
     myRank: myStanding.rank,
     previous: prevRound,
-  }), [lobbyGameweek, results.published, nowMs, entryFull, entryFive, gwState, myStanding, prevRound]);
+  }), [lobbyGameweek, results.published, nowMs, entryFull, entryFive, gwState, myStanding, prevRound, locale]);
 
   /** לוח המשחקים כפי שהלובי צריך אותו — בלי לחשוף לו את מבנה הדאטה. */
   const lobbyFixtures: LobbyFixture[] = useMemo(
@@ -648,9 +651,9 @@ function MainApp() {
 
     return {
       mode: saved.mode,
-      gameweekLabel: GAMEWEEK.label,
-      leagueLabel: LEAGUE.nameHe,
-      userName: saved.displayName || 'מאמן',
+      gameweekLabel: localizedRoundLabel(GAMEWEEK.label, GAMEWEEK.number),
+      leagueLabel: pickDisplayName({ he: LEAGUE.nameHe, en: LEAGUE.nameEn }, activeLocale()),
+      userName: saved.displayName || tr('shell.coach'),
       lineup: filled.map((sl) => {
         const p = pool.find((x) => x.id === sl.playerId);
         return {
@@ -725,11 +728,13 @@ function MainApp() {
         setPass({
           pretty: p.pretty,
           link: passLink(p.code),
-          userName: p.displayName || displayName || 'מאמן',
+          userName: p.displayName || displayName || tr('shell.coach'),
           teamName: entry?.teamName ?? null,
-          issuedLabel: `הונפק ${new Date().toLocaleDateString('he-IL', {
-            day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Jerusalem',
-          })}`,
+          issuedLabel: tr('shell.pass.issued', {
+            date: new Date().toLocaleDateString(INTL_TAG[activeLocale()], {
+              day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Jerusalem',
+            }),
+          }),
           urlLabel: 'DUBID.DUBELTEAM.COM',
         });
         setHasPass(true);
@@ -766,7 +771,7 @@ function MainApp() {
    */
   useEffect(() => {
     const err = oauthErrorFromUrl();
-    if (err) window.alert(`ההתחברות לא הושלמה: ${err}`);
+    if (err) window.alert(tr('shell.auth.failed', { err }));
   }, []);
 
   useEffect(() => {
@@ -776,11 +781,11 @@ function MainApp() {
       .then((r) => {
         if (r.ok) { window.location.reload(); return; }
         window.alert(r.error === 'TOO_MANY_ATTEMPTS'
-          ? 'יותר מדי ניסיונות. נסו שוב בעוד רבע שעה.'
-          : 'המפתח לא תקף. אפשר להנפיק חדש מהמכשיר שבו אתם מחוברים.');
+          ? tr('shell.key.tooMany')
+          : tr('shell.key.invalid'));
       })
       .catch(() => {
-        window.alert('לא הצלחנו להתחבר לשרת. בדקו חיבור ונסו שוב.');
+        window.alert(tr('shell.key.network'));
       });
   }, []);
 
@@ -871,7 +876,7 @@ function MainApp() {
             gameweekNumber={GAMEWEEK.number}
             submittedAt={entry.submittedAt}
             onUnlock={!results.published ? () => {
-              if (window.confirm('לבטל את ההגשה ולחזור לעריכת ההרכב? ההגשה הנוכחית תימחק.')) {
+              if (window.confirm(tr('shell.unlock.confirm'))) {
                 void deleteEntry(entry.id).catch((e: unknown) => {
                   window.alert(errorMessageHe(e instanceof Error ? e.message : 'NETWORK'));
                 });
@@ -888,7 +893,7 @@ function MainApp() {
         ) : (
           <div className="relative flex min-h-0 flex-1 flex-col">
             {mode === 'full' && resolved.isDemo && capacityIssue && (
-              <DemoBanner message={formatIssue(capacityIssue, 'he')} size={fullRules.constraints.lineupSize} />
+              <DemoBanner message={formatIssue(capacityIssue, locale)} size={fullRules.constraints.lineupSize} />
             )}
 
             {/* ★★ אסור לערוך לפני שהטיוטה חזרה. ★★
@@ -978,7 +983,7 @@ function MainApp() {
       <Splash
         ready={booted}
         onDone={() => setSplashGone(true)}
-        seasonLabel={`${LEAGUE.nameHe} · ${LEAGUE.season}`}
+        seasonLabel={`${leagueName} · ${LEAGUE.season}`}
       />
     )}
     <AppShell
@@ -1003,10 +1008,10 @@ function MainApp() {
       header={
         tab === 'home' ? undefined : (
           <AppHeader
-            title={SCREEN_TITLE[tab] ?? 'דוביד'}
+            title={t(SCREEN_TITLE[tab] ?? 'lobby.brand')}
             subtitle={
               <span className="flex items-center gap-2">
-                <span>{LEAGUE.nameHe} · {GAMEWEEK.label}</span>
+                <span>{leagueName} · {localizedRoundLabel(GAMEWEEK.label, GAMEWEEK.number)}</span>
                 {(tab === 'lineup' || tab === 'card') && <GameStatusBadge status={status} />}
               </span>
             }
@@ -1017,7 +1022,7 @@ function MainApp() {
                   <div className="num text-2xl text-gold">
                     {lu.filled}/{rules.constraints.lineupSize}
                   </div>
-                  <div className="text-[11px] text-chalk-dim">שחקנים</div>
+                  <div className="text-[11px] text-chalk-dim">{t('common.players')}</div>
                 </div>
               ) : undefined
             }
@@ -1092,6 +1097,7 @@ function MainApp() {
  * ההוראה עצמה. למי שזה לא רלוונטי — הפס פשוט לא מופיע.
  */
 function ConnectionStrip() {
+  const { t } = useI18n();
   const [, tick] = useState(0);
   useEffect(() => subscribeToStore(() => tick((n) => n + 1)), []);
   const { live, loading, error } = storeStatus();
@@ -1124,14 +1130,14 @@ function ConnectionStrip() {
           onClick={() => { void hydrate(gwCode(), true); }}
           className="shrink-0 underline underline-offset-2"
         >
-          נסו שוב
+          {t('shell.conn.retry')}
         </button>
       </div>
       {setup && (
         <div className="mt-1 ps-5 text-[10.5px] font-normal opacity-80">
-          עד שזה מסודר, המשחק עובד מקומית — אבל בלי סנכרון בין מכשירים.
+          {t('shell.conn.local')}
           {' '}
-          <a href="#admin" className="underline underline-offset-2">בדיקת מערכת</a>
+          <a href="#admin" className="underline underline-offset-2">{t('shell.conn.check')}</a>
         </div>
       )}
     </div>
@@ -1143,6 +1149,7 @@ function ConnectionStrip() {
 /* ================================================================== */
 
 function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
+  const { t } = useI18n();
   return (
     // shrink-0: המחליף הוא כרום ולא תוכן. בלי זה הוא מתחרה
     // עם המגרש על הגובה שנשאר.
@@ -1157,7 +1164,7 @@ function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
               : 'text-chalk-dim'
           }`}
         >
-          {MODE_LABEL[m]}
+          {t(m === 'five' ? 'shell.mode.five' : 'shell.mode.full')}
         </button>
       ))}
     </div>
@@ -1166,18 +1173,18 @@ function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
 /* ================================================================== */
 
 function DemoBanner({ message, size }: { message: string; size: number }) {
+  const { t } = useI18n();
+  const [bodyA, bodyB] = splitAt(t('shell.demo.body', { size: '{size}' }), 'size');
   return (
     <div
       role="status"
       className="mx-3 mt-3 rounded-2xl border border-armband/30 bg-armband/10 px-4 py-3"
     >
       <div className="flex items-center gap-2 text-sm font-black text-armband">
-        <span aria-hidden>▲</span> מצב הדגמה
+        <span aria-hidden>▲</span> {t('shell.demo.title')}
       </div>
       <p className="mt-1 text-[13px] leading-snug text-chalk-2">
-        {message} עד שיעלו הסגלים החסרים, ההרכב מוקטן ל-
-        <span className="num">{size}</span> שחקנים — הכלל של שחקן אחד מכל קבוצה
-        נשמר במלואו.
+        {message} {bodyA}<span className="num">{size}</span>{bodyB}
       </p>
     </div>
   );
@@ -1226,6 +1233,7 @@ export function SaveEntryModal({
   onSaved: (entry: LineupEntry) => void;
   onCancel: () => void;
 }) {
+  const { t: tx } = useI18n();
   const [name, setName] = useState(() => storedDisplayName());
   const [team, setTeam] = useState('');
   /* ★ מונה ולא `Math.random()` בתוך רינדור: אקראיות שם הייתה
@@ -1275,16 +1283,16 @@ export function SaveEntryModal({
           className="px-3 py-1.5 text-center text-[11px] font-bold"
           style={{ background: t.accent, color: NP.paper, letterSpacing: 2 }}
         >
-          {'רישום לליגה'.split('').join(' ')}
+          {tx('shell.save.banner').split('').join(' ')}
         </div>
 
         <div className="px-4 pb-4 pt-3">
           <h2 className="font-press text-center text-[22px] font-black leading-tight"
               style={{ color: NP.ink, textShadow: MISREGISTER }}>
-            מי מגיש את ההרכב?
+            {tx('shell.save.title')}
           </h2>
           <p className="pt-1 text-center text-[12px] leading-snug" style={{ color: NP.inkDim }}>
-            אחרי ההגשה ההרכב ננעל למחזור. אפשר לבטל הגשה עד הנעילה.
+            {tx('shell.save.sub')}
           </p>
 
           <div className="mt-3" style={{ borderTop: `1px dotted ${NP.rule}` }} />
@@ -1292,13 +1300,13 @@ export function SaveEntryModal({
           {/* ---- שם המאמן ---- */}
           <label className="mt-3 block">
             <span className="text-[11px] font-bold tracking-[2px]" style={{ color: NP.gold }}>
-              שם המאמן
+              {tx('shell.save.coach')}
             </span>
             <input
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="איך יקראו לך בטבלה"
+              placeholder={tx('shell.save.coachPh')}
               disabled={busy}
               maxLength={20}
               className="font-press mt-1 w-full px-3 py-2 text-center text-[17px] font-bold
@@ -1311,9 +1319,9 @@ export function SaveEntryModal({
           <label className="mt-3 block">
             <span className="flex items-baseline justify-between">
               <span className="text-[11px] font-bold tracking-[2px]" style={{ color: NP.gold }}>
-                שם הקבוצה
+                {tx('shell.save.team')}
               </span>
-              <span className="text-[10px]" style={{ color: NP.inkFaint }}>לא חובה</span>
+              <span className="text-[10px]" style={{ color: NP.inkFaint }}>{tx('shell.save.optional')}</span>
             </span>
             <input
               value={team}
@@ -1344,17 +1352,17 @@ export function SaveEntryModal({
               className="tap min-w-0 flex-1 truncate px-2 py-1.5 text-[12px] font-bold"
               style={{ background: t.accent, color: NP.paper }}
             >
-              קח את «{suggestion}»
+              {tx('shell.save.take', { suggestion })}
             </button>
             <button
               type="button"
               disabled={busy}
               onClick={() => setRoll((n) => n + 1)}
-              aria-label="הצעה אחרת"
+              aria-label={tx('shell.save.another')}
               className="tap shrink-0 px-3 py-1.5 text-[12px] font-bold"
               style={{ border: `1px solid ${NP.rule}`, color: NP.inkDim }}
             >
-              עוד אחד ↻
+              {tx('shell.save.anotherBtn')}
             </button>
           </div>
 
@@ -1372,7 +1380,7 @@ export function SaveEntryModal({
                        disabled:opacity-40"
             style={{ background: NP.ink, color: NP.paper }}
           >
-            {busy ? 'שולח לשרת…' : 'נעילת ההרכב'}
+            {busy ? tx('shell.save.sending') : tx('shell.save.lock')}
           </button>
           <button
             type="button"
@@ -1382,7 +1390,7 @@ export function SaveEntryModal({
                        disabled:opacity-40"
             style={{ color: NP.inkFaint }}
           >
-            חזרה לעריכה
+            {tx('shell.save.back')}
           </button>
         </div>
       </form>
@@ -1402,6 +1410,7 @@ function CardScreen({
   ready: boolean;
   entry: LineupEntry | undefined;
 }) {
+  const { t: tx, locale } = useI18n();
   const [showDemo, setShowDemo] = useState(false);
   const results = getResults(gwCode());
   const hasRealResults = results.published && Object.keys(results.performances).length > 0;
@@ -1453,9 +1462,9 @@ function CardScreen({
     }
 
     return {
-      gameweekLabel: GAMEWEEK.label,
-      leagueLabel: LEAGUE.nameHe,
-      userName: entry?.displayName ?? 'האורח',
+      gameweekLabel: localizedRoundLabel(GAMEWEEK.label, GAMEWEEK.number),
+      leagueLabel: pickDisplayName({ he: LEAGUE.nameHe, en: LEAGUE.nameEn }, activeLocale()),
+      userName: entry?.displayName ?? tr('shell.guest'),
       totalPoints: score.totalPoints,
       rank: hasRealResults ? (mine?.rank ?? 0) : 0,
       totalPlayers: hasRealResults ? rows.length : 0,
@@ -1476,7 +1485,7 @@ function CardScreen({
         isCaptain: p.isCaptain,
       })),
     };
-  }, [ready, showDemo, hasRealResults, results, lineup, pool, teams, rules, entry]);
+  }, [ready, showDemo, hasRealResults, results, lineup, pool, teams, rules, entry, locale]);
 
   if (data) {
     return (
@@ -1501,11 +1510,11 @@ function CardScreen({
     <div className="grid h-full place-items-center px-6 text-center">
       <div className="max-w-sm">
         <div className="mx-auto mb-4 h-1 w-16 rounded-full bg-gold" />
-        <h2 className="font-press text-2xl font-black">עוד אין תוצאות למחזור</h2>
+        <h2 className="font-press text-2xl font-black">{tx('shell.card.empty')}</h2>
         <p className="mt-2 text-sm text-chalk-dim">
           {ready
-            ? 'הכרטיס ייווצר אוטומטית ברגע שהמחזור ייסגר והניקוד יחושב.'
-            : 'קודם השלימו את ההרכב — הכרטיס נבנה ממנו.'}
+            ? tx('shell.card.auto')
+            : tx('shell.card.needLineup')}
         </p>
         {ready && (
           <button
@@ -1513,11 +1522,11 @@ function CardScreen({
             className="tap mt-6 rounded-full bg-gold px-6 font-poster text-lg text-night
                        transition-transform duration-200 ease-brand active:scale-[.98]"
           >
-            הצג כרטיס לדוגמה
+            {tx('shell.card.demo')}
           </button>
         )}
         <p className="mt-3 text-[11px] text-chalk-dim">
-          כרטיס לדוגמה מייצר תוצאות מחזור מומצאות כדי להראות איך זה נראה.
+          {tx('shell.card.demoNote')}
         </p>
       </div>
     </div>
@@ -1599,14 +1608,16 @@ function demoGameweek(lineup: ReturnType<typeof useLineup>['lineup']) {
  *   שיחק, והסבר שגוי של הבחירה הנדירה. כולם מתוקנים כאן.
  */
 export function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet> }) {
+  const { t: tx, locale } = useI18n();
   const [tab, setTab] = useState<Mode>('full');
   const rules = rulesByMode[tab];
   const t = modeTheme(tab === 'five' ? 'five' : 'full');
 
-  const scoring = useMemo(() => scoringRows(rules), [rules]);
-  const captain = useMemo(() => captainRows(rules), [rules]);
-  const differential = useMemo(() => differentialRows(), []);
-  const tiebreak = useMemo(() => tiebreakSteps(rules), [rules]);
+  const scoring = useMemo(() => scoringRows(rules), [rules, locale]);
+  const captain = useMemo(() => captainRows(rules), [rules, locale]);
+  const differential = useMemo(() => differentialRows(), [locale]);
+  const tiebreak = useMemo(() => tiebreakSteps(rules), [rules, locale]);
+  const [sizeA, sizeB] = splitAt(tx('shell.rules.lineupSize', { n: '{n}' }), 'n');
 
   return (
     /* ★ `text-chalk` על השורש ולא רק על הפריטים.
@@ -1649,23 +1660,23 @@ export function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet
         style={{ borderColor: `${t.accent}4d`, background: `${t.accent}14` }}
       >
         <h2 className="font-press text-xl font-black" style={{ color: t.accentLight }}>
-          הכלל היחיד שחשוב
+          {tx('shell.rules.oneRule')}
         </h2>
         <p className="mt-1 text-sm text-chalk-2">
           {rules.constraints.maxPlayersPerTeam === 1
-            ? 'שחקן אחד מכל קבוצה. אי אפשר לקחת שניים מאותה קבוצה, גם לא ליום אחד.'
-            : `עד ${rules.constraints.maxPlayersPerTeam} שחקנים מאותה קבוצה.`}
+            ? tx('shell.rules.onePerTeam')
+            : tx('shell.rules.maxPerTeam', { n: rules.constraints.maxPlayersPerTeam })}
         </p>
         <p className="mt-1.5 text-[13px] text-chalk-dim">
-          <span className="num">{rules.constraints.lineupSize}</span> שחקנים בהרכב
+          {sizeA}<span className="num">{rules.constraints.lineupSize}</span>{sizeB}
           {rules.constraints.formationAllowed.length > 0 && (
-            <> · מערכים: <span className="num">{rules.constraints.formationAllowed.join(' · ')}</span></>
+            <> · {tx('shell.rules.formations')} <span className="num">{rules.constraints.formationAllowed.join(' · ')}</span></>
           )}
-          {rules.constraints.requireCaptain && <> · חובה לבחור קפטן</>}
+          {rules.constraints.requireCaptain && <> · {tx('shell.rules.captainReq')}</>}
         </p>
       </section>
 
-      <SectionRule>טבלת הניקוד</SectionRule>
+      <SectionRule>{tx('shell.rules.scoring')}</SectionRule>
       <table className="mt-2 w-full text-sm">
         <tbody>
           {scoring.map((r) => (
@@ -1684,7 +1695,7 @@ export function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet
         </tbody>
       </table>
 
-      <SectionRule>הקפטן הדובידי</SectionRule>
+      <SectionRule>{tx('shell.rules.captain')}</SectionRule>
       <ul className="mt-2 space-y-2 text-sm text-chalk-2">
         {captain.map((r, i) => (
           <li key={`${r.label}-${i}`}>
@@ -1701,9 +1712,9 @@ export function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet
         מורכב מחוקים שמכוונים ל-0 ולכן לעולם לא יכול להכריע.
         עכשיו הרשימה נגזרת מהחוקים, ומדלגת על שלב מת.
       */}
-      <SectionRule>מה קורה בשוויון</SectionRule>
+      <SectionRule>{tx('shell.rules.tie')}</SectionRule>
       <p className="mt-1 text-sm text-chalk-2">
-        לעולם לא הגרלה. יורדים ברשימה עד שנמצא הבדל:
+        {tx('shell.rules.tieIntro')}
       </p>
       <ol className="mt-2 space-y-1.5 text-sm text-chalk-2">
         {tiebreak.map((label, i) => (
@@ -1714,9 +1725,9 @@ export function RulesScreen({ rulesByMode }: { rulesByMode: Record<Mode, RuleSet
         ))}
       </ol>
 
-      <SectionRule>בחירה נדירה</SectionRule>
+      <SectionRule>{tx('shell.rules.rare')}</SectionRule>
       <p className="mt-1 text-sm text-chalk-2">
-        שחקן שמעטים בחרו ושהביא נקודות שווה יותר.
+        {tx('shell.rules.rareNote')}
       </p>
       <table className="mt-2 w-full text-sm">
         <tbody>
@@ -1787,10 +1798,11 @@ function SectionRule({ children }: { children: ReactNode }) {
 function deadlineLabel(iso: string): string {
   try {
     const d = new Date(iso);
-    const day = d.toLocaleDateString('he-IL', {
+    const tag = INTL_TAG[activeLocale()];
+    const day = d.toLocaleDateString(tag, {
       weekday: 'long', timeZone: 'Asia/Jerusalem',
     }).replace(/^יום\s+/, '');
-    const time = d.toLocaleTimeString('he-IL', {
+    const time = d.toLocaleTimeString(tag, {
       hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem',
     });
     return `${day} ${time}`;
@@ -1810,6 +1822,7 @@ function deadlineLabel(iso: string): string {
  *            נשמרת ודורסת אחת־עשרה בחירות שנבנו במכשיר אחר.
  */
 function LineupLoading({ failed }: { failed: boolean }) {
+  const { t } = useI18n();
   return (
     <div
       role="status"
@@ -1819,22 +1832,22 @@ function LineupLoading({ failed }: { failed: boolean }) {
                       text-center edge-gold">
         {failed ? (
           <>
-            <p className="text-[13.5px] font-black text-flare">לא הצלחנו לטעון את ההרכב</p>
+            <p className="text-[13.5px] font-black text-flare">{t('shell.load.failed')}</p>
             <p className="mt-1.5 text-[12px] leading-snug text-chalk-2">
-              כדי לא לדרוס את מה שכבר בנית, העריכה חסומה עד שהחיבור חוזר.
+              {t('shell.load.blocked')}
             </p>
             <button
               onClick={() => window.location.reload()}
               className="tap mt-3 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
                          py-2 font-poster text-[13px] text-gold-ink"
             >
-              ניסיון נוסף
+              {t('shell.load.retry')}
             </button>
           </>
         ) : (
           <>
             <div className="mx-auto h-1 w-12 animate-pulse rounded-full bg-gold/60" />
-            <p className="mt-2.5 text-[12.5px] text-chalk-2">טוען את ההרכב שלך…</p>
+            <p className="mt-2.5 text-[12.5px] text-chalk-2">{t('shell.load.loading')}</p>
           </>
         )}
       </div>

@@ -20,7 +20,8 @@
  */
 import { useState } from 'react';
 import { DUBEL } from '../lib/growth.ts';
-import { IMPRINT_PREFIX, IMPRINT_PLACE } from '../lib/pressNotes.ts';
+import { imprintPrefix, imprintPlace } from '../lib/pressNotes.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
 import { NIGHT_PRESS as NP } from '../lib/pressPalette.ts';
 
 /** שם היסטורי. המקור הוא `DUBEL.site` ב-`lib/growth.ts`. */
@@ -33,6 +34,7 @@ export interface DubelCreditProps {
 }
 
 export function DubelCredit({ variant = 'quiet', className = '' }: DubelCreditProps) {
+  useI18n(); // מנוי לשינוי שפה — הטקסטים נקראים דרך tr()
   if (variant === 'card') {
     return (
       <a
@@ -46,13 +48,13 @@ export function DubelCredit({ variant = 'quiet', className = '' }: DubelCreditPr
         <DubelMark size={34} />
         <span className="min-w-0 flex-1">
           <span className="block text-[10px] tracking-[0.2em]" style={{ color: NP.inkFaint }}>
-            {IMPRINT_PREFIX}
+            {imprintPrefix()}
           </span>
           <span className="font-press block text-[15px] font-black" style={{ color: NP.ink }}>
             {DUBEL.name}
           </span>
           <span className="block text-[10px]" style={{ color: NP.inkFaint }}>
-            {IMPRINT_PLACE}
+            {imprintPlace()}
           </span>
         </span>
         <span aria-hidden style={{ color: NP.gold }}>←</span>
@@ -67,7 +69,7 @@ export function DubelCredit({ variant = 'quiet', className = '' }: DubelCreditPr
     >
       <DubelMark size={20} />
       <span>
-        {IMPRINT_PREFIX}{' '}
+        {imprintPrefix()}{' '}
         <a
           href={DUBEL_URL}
           target="_blank"
@@ -78,7 +80,7 @@ export function DubelCredit({ variant = 'quiet', className = '' }: DubelCreditPr
           {DUBEL.name}
         </a>
         <br />
-        {IMPRINT_PLACE}
+        {imprintPlace()}
       </span>
     </p>
   );

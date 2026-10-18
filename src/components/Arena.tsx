@@ -27,7 +27,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 
-import { standings, inviteUrl, JOIN_ERROR_HE, type MemberGameweek, type StandingRow }
+import { standings, inviteUrl, type MemberGameweek, type StandingRow }
   from '../lib/leagues.ts';
 import {
   createLeague, joinByCode, listMembers, myLeagues,
@@ -40,8 +40,11 @@ import { GAMEWEEK } from '../data/fixtures.ts';
 import { Table, type Column } from './Table.tsx';
 import { ShadesDivider } from './Shades.tsx';
 import { NIGHT_PRESS as NP, MISREGISTER } from '../lib/pressPalette.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
+import type { DictKey } from '../lib/i18n/dict.ts';
 
-const MODE_LABEL: Record<'full' | 'five', string> = { full: 'דוביד 11', five: 'דוביד 5' };
+type TFn = (key: DictKey, vars?: Record<string, string | number>) => string;
+const modeLabel = (t: TFn, m: 'full' | 'five'): string => t(m === 'full' ? 'mode.full.title' : 'mode.five.title');
 
 export interface ArenaProps {
   userId: string;
@@ -51,6 +54,7 @@ export interface ArenaProps {
 }
 
 export function Arena({ userId, displayName, rulesByMode, origin }: ArenaProps) {
+  const { t } = useI18n();
   const [, force] = useState(0);
   // ★ הזירות נטענות מהשרת בכניסה למסך. `subscribeToStore` כבר
   //   מאזין לאותו אירוע שה-hydrate משדר, ולכן אין כאן state נוסף.
@@ -68,7 +72,7 @@ export function Arena({ userId, displayName, rulesByMode, origin }: ArenaProps) 
 
   return (
     <div className="mx-auto max-w-lg px-4 pb-8 pt-3 lg:max-w-3xl">
-      <ArenaMasthead folio={`${leagues.length} ${leagues.length === 1 ? 'זירה' : 'זירות'}`} />
+      <ArenaMasthead folio={`${leagues.length} ${leagues.length === 1 ? t('arena.one') : t('arena.many')}`} />
       {leagues.length > 1 && (
         <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1">
           {leagues.map((l) => (
@@ -114,6 +118,7 @@ export function Arena({ userId, displayName, rulesByMode, origin }: ArenaProps) 
  * ל"מדור" של אותו עמוד ספורט שהמשתמש הגיע ממנו.
  */
 function ArenaMasthead({ folio }: { folio: string }) {
+  const { t } = useI18n();
   return (
     <header className="mb-3">
       <div aria-hidden="true"
@@ -124,7 +129,7 @@ function ArenaMasthead({ folio }: { folio: string }) {
             כמו תקלה. שם המדור אומר את הדבר שחשוב: מול מי. */}
         <h2 className="font-press text-[26px] font-black leading-none"
             style={{ color: NP.ink, textShadow: MISREGISTER }}>
-          זירת החברים
+          {t('arena.masthead')}
         </h2>
         <span className="press-folio">{folio}</span>
       </div>
@@ -138,9 +143,10 @@ function ArenaMasthead({ folio }: { folio: string }) {
 /* ================================================================== */
 
 function ArenaEmpty({ userId, displayName }: { userId: string; displayName: string }) {
+  const { t } = useI18n();
   return (
     <div className="mx-auto max-w-lg px-4 pb-8 pt-3 lg:max-w-3xl">
-      <ArenaMasthead folio="ליגות פרטיות" />
+      <ArenaMasthead folio={t('lobby.private')} />
       {/* ★ תיבת פתיחה בשפת העיתון — קו כפול, לא כרטיס מעוגל.
           היא יושבת ישירות מתחת לכותרת המדור, ושתי שפות צמודות
           זו לזו הן בדיוק מה שהוסר מכל שאר המסכים. */}
@@ -156,11 +162,10 @@ function ArenaEmpty({ userId, displayName }: { userId: string; displayName: stri
         </div>
         <h2 className="mt-3 font-press text-xl font-black text-chalk"
             style={{ textShadow: MISREGISTER }}>
-          זירה
+          {t('arena.emptyTitle')}
         </h2>
         <p className="mx-auto mt-1.5 max-w-xs text-[13px] leading-snug text-chalk-2">
-          טבלה פרטית מול החברים. אותו ניקוד, אותם שוברי שוויון —
-          רק שכאן אתה יודע בדיוק את מי ניצחת.
+          {t('arena.emptyBlurb')}
         </p>
       </div>
 
@@ -187,6 +192,7 @@ function ArenaActions({
   onDone: (id: string) => void;
   compact?: boolean;
 }) {
+  const { t } = useI18n();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -206,10 +212,10 @@ function ArenaActions({
     if (busy) return;
     setBusy(true);
     setError(null);
-    void joinByCode(code, userId, displayName || 'אנונימי')
+    void joinByCode(code, userId, displayName || t('arena.anon'))
       .then((res) => {
         if (!res.ok) {
-          setError(res.error ? JOIN_ERROR_HE[res.error] : 'לא הצלחנו לצרף');
+          setError(res.error ? t(`arena.join.${res.error}` as DictKey) : t('arena.joinFailed'));
           return;
         }
         setCode('');
@@ -225,7 +231,7 @@ function ArenaActions({
       {/* ── הצטרפות: הפעולה הראשית. רוב האנשים מגיעים עם קוד ── */}
       <form onSubmit={submitJoin} className="rounded-2xl border border-gold/15 bg-night-2 p-4">
         <label htmlFor="arena-code" className="block text-[12px] font-black text-chalk">
-          יש לך קוד זירה?
+          {t('arena.haveCode')}
         </label>
         <div className="mt-2 flex gap-2">
           <input
@@ -251,7 +257,7 @@ function ArenaActions({
                        px-5 font-poster text-base text-gold-ink transition-transform
                        duration-200 ease-brand active:scale-[.98] disabled:opacity-40"
           >
-            {busy ? '…' : 'להצטרף'}
+            {busy ? '…' : t('arena.join')}
           </button>
         </div>
         {error && <p role="alert" className="mt-2 text-[12px] font-bold text-flare">{error}</p>}
@@ -265,7 +271,7 @@ function ArenaActions({
                      text-[13px] font-black text-chalk-2 transition-colors duration-200
                      ease-brand hover:border-gold/25 hover:text-chalk"
         >
-          או לפתוח זירה חדשה
+          {t('arena.openNew')}
         </button>
       ) : (
         <form
@@ -275,7 +281,7 @@ function ArenaActions({
             setBusy(true);
             setError(null);
             void createLeague({
-              name, mode, ownerId: userId, ownerName: displayName || 'אנונימי',
+              name, mode, ownerId: userId, ownerName: displayName || t('arena.anon'),
             })
               .then((lg) => { setCreating(false); setName(''); onDone(lg.id); })
               .catch((err: unknown) =>
@@ -285,13 +291,13 @@ function ArenaActions({
           className="mt-2.5 rounded-2xl border border-gold/15 bg-night-2 p-4"
         >
           <label htmlFor="arena-name" className="block text-[12px] font-black text-chalk">
-            שם הזירה
+            {t('arena.name')}
           </label>
           <input
             id="arena-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="הקבוצה של העבודה"
+            placeholder={t('arena.namePlaceholder')}
             maxLength={40}
             className="mt-2 h-12 w-full rounded-xl bg-night px-3 text-[15px] text-chalk
                        placeholder:text-chalk-dim focus:outline-none focus:ring-2 focus:ring-gold"
@@ -308,7 +314,7 @@ function ArenaActions({
                               mode === m ? 'bg-gold text-night' : 'text-chalk-dim'
                             }`}
               >
-                {MODE_LABEL[m]}
+                {modeLabel(t, m)}
               </button>
             ))}
           </div>
@@ -316,7 +322,7 @@ function ArenaActions({
               ודוביד 11 לטבלה תחרותית אחת. הרכב של 5 והרכב של 11
               לא צוברים באותו סולם. */}
           <p className="mt-1.5 text-[11px] text-chalk-dim">
-            זירה שייכת למצב אחד. אי אפשר להשוות ניקוד של 5 מול 11.
+            {t('arena.oneMode')}
           </p>
 
           <div className="mt-3 flex gap-2">
@@ -324,14 +330,14 @@ function ArenaActions({
               type="submit"
               className="tap h-11 flex-1 rounded-xl bg-gold font-poster text-base text-night"
             >
-              לפתוח
+              {t('arena.create')}
             </button>
             <button
               type="button"
               onClick={() => setCreating(false)}
               className="tap h-11 rounded-xl px-4 text-[13px] font-black text-chalk-dim"
             >
-              ביטול
+              {t('arena.cancel')}
             </button>
           </div>
         </form>
@@ -352,6 +358,7 @@ function ArenaTable({
   rules: RuleSet;
   origin: string;
 }) {
+  const { t } = useI18n();
   const members = listMembers(league.id);
   const results = getResults(GAMEWEEK.id);
 
@@ -392,21 +399,21 @@ function ArenaTable({
       ),
     },
     {
-      key: 'name', header: 'שחקן', primary: true,
+      key: 'name', header: t('board.lb.colPlayer'), primary: true,
       render: (r) => (
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate font-bold">{r.displayName}</span>
           {r.userId === userId && (
             <span className="shrink-0 rounded bg-gold/20 px-1.5 py-0.5 text-[9px]
                              font-black text-gold">
-              אתה
+              {t('arena.you')}
             </span>
           )}
         </span>
       ),
     },
     {
-      key: 'record', header: 'מאזן', numeric: true,
+      key: 'record', header: t('arena.colRecord'), numeric: true,
       render: (r) => (
         <span dir="ltr" className="num text-[13px] text-chalk-2">
           {r.record.wins}-{r.record.losses}
@@ -414,7 +421,7 @@ function ArenaTable({
       ),
     },
     {
-      key: 'total', header: 'נק׳', primary: true, numeric: true, width: '3.5rem',
+      key: 'total', header: t('board.lb.colPts'), primary: true, numeric: true, width: '3.5rem',
       render: (r) => <span className="num text-base text-gold">{r.totalPoints}</span>,
     },
   ];
@@ -429,10 +436,10 @@ function ArenaTable({
           rows={rows}
           rowKey={(r) => r.userId}
           highlight={(r) => r.userId === userId}
-          caption={`טבלת ${league.name}`}
+          caption={t('arena.tableOf', { name: league.name })}
           empty={
             <p className="px-4 py-8 text-center text-[13px] text-chalk-dim">
-              עוד אין תוצאות. הטבלה תתמלא ברגע שהמחזור ינוקד.
+              {t('arena.noResults')}
             </p>
           }
         />
@@ -440,7 +447,7 @@ function ArenaTable({
 
       {!results.published && (
         <p className="mt-2.5 text-center text-[11.5px] text-chalk-dim">
-          המחזור עוד לא נוקד. עד אז כולם באותו מקום.
+          {t('arena.notScored')}
         </p>
       )}
     </>
@@ -449,12 +456,13 @@ function ArenaTable({
 
 /** חץ תנועה. `null` = אין מחזור קודם, ולכן אין מה להשוות. */
 function Movement({ value }: { value: number | null }) {
+  const { t } = useI18n();
   if (value === null || value === 0) return null;
   const up = value > 0;
   return (
     <span
       className={`text-[10px] font-black ${up ? 'text-tartan-green' : 'text-flare'}`}
-      aria-label={up ? `עלה ${value}` : `ירד ${-value}`}
+      aria-label={up ? t('arena.rose', { n: value }) : t('arena.fell', { n: -value })}
     >
       {up ? '▲' : '▼'}
       <span className="num">{Math.abs(value)}</span>
@@ -476,11 +484,12 @@ function InviteCard({
   origin: string;
   memberCount: number;
 }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const url = inviteUrl(origin, league.code);
 
   const copy = async () => {
-    const text = `בוא לזירה "${league.name}" בדוביד — קוד ${league.code}\n${url}`;
+    const text = `${t('arena.inviteText', { name: league.name, code: league.code })}\n${url}`;
     try {
       if (navigator.share) {
         await navigator.share({ text });
@@ -500,12 +509,12 @@ function InviteCard({
         <div className="min-w-0">
           <h2 className="truncate font-press text-lg font-black text-chalk">{league.name}</h2>
           <p className="text-[11px] text-chalk-dim">
-            {MODE_LABEL[league.mode as 'full' | 'five']} ·{' '}
-            <span className="num">{memberCount}</span> משתתפים
+            {modeLabel(t, league.mode as 'full' | 'five')} ·{' '}
+            <span className="num">{memberCount}</span> {t('arena.members')}
           </p>
         </div>
         <div className="shrink-0 text-end">
-          <div className="text-[9px] uppercase tracking-[0.18em] text-chalk-dim">קוד</div>
+          <div className="text-[9px] uppercase tracking-[0.18em] text-chalk-dim">{t('arena.code')}</div>
           <div dir="ltr" className="num text-xl tracking-[0.18em] text-gold">{league.code}</div>
         </div>
       </div>
@@ -515,7 +524,7 @@ function InviteCard({
         className="tap mt-3 h-11 w-full rounded-xl bg-night font-black text-[13px] text-chalk
                    transition-colors duration-200 ease-brand hover:bg-night-3"
       >
-        {copied ? 'הועתק ✓' : 'לשלוח הזמנה'}
+        {copied ? t('arena.copied') : t('arena.invite')}
       </button>
     </div>
   );

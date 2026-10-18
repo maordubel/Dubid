@@ -25,6 +25,7 @@
 import { useEffect, useState } from 'react';
 
 import { BrandDraw, drawDuration } from './BrandDraw.tsx';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 /** אחרי זה יורדים, מוכן או לא. */
 const HARD_CEILING_MS = 3200;
@@ -39,7 +40,8 @@ export interface SplashProps {
   seasonLabel?: string;
 }
 
-export function Splash({ ready, onDone, seasonLabel = 'ליגת העל 2026/27' }: SplashProps) {
+export function Splash({ ready, onDone, seasonLabel }: SplashProps) {
+  const { t, dir } = useI18n();
   const [drawn, setDrawn] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
@@ -63,7 +65,7 @@ export function Splash({ ready, onDone, seasonLabel = 'ליגת העל 2026/27' 
 
   return (
     <div
-      dir="rtl"
+      dir={dir}
       aria-hidden={leaving}
       className={`tex-wood fixed inset-0 z-[100] grid place-items-center
                   transition-opacity duration-500 ease-brand
@@ -88,7 +90,7 @@ export function Splash({ ready, onDone, seasonLabel = 'ליגת העל 2026/27' 
           pace="intro"
           delay={120}
           onDone={() => setDrawn(true)}
-          alt="דוביד שווייצר"
+          alt={t('shell.splash.alt')}
         />
 
         {/* ★ הכיתוב נכנס **אחרי** שהיד הניחה את העט.
@@ -101,7 +103,7 @@ export function Splash({ ready, onDone, seasonLabel = 'ליגת העל 2026/27' 
             animationDelay: `${drawDuration('intro', 120)}ms`,
           }}
         >
-          {seasonLabel}
+          {seasonLabel ?? t('shell.splash.season')}
         </p>
 
         {/* ★ החוט הדק. מופיע רק אם הרשת איטית — כלומר בדיוק

@@ -27,7 +27,7 @@
  * ששאר המוצר משתמש בו. גלילה אופקית בטבלת ליגה בנייד היא הדרך
  * להבטיח שאיש לא יראה את עמודת הנקודות.
  */
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 
 import {
   publicBoard, gameweekRecap, errorMessageHe,
@@ -37,21 +37,34 @@ import { Leaderboard } from './Leaderboard.tsx';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import { TeamCrest } from './TeamCrest.tsx';
 import { NIGHT_PRESS as NP } from '../lib/pressPalette.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
+import { LOCALE_META, type Locale } from '../lib/i18n/locales.ts';
+import { TEAM_BY_ID } from '../data/squads.ts';
+import { localizedRoundLabel } from '../data/fixtures.ts';
+import type { DictKey } from '../lib/i18n/dict.ts';
+
+/** ממלא {placeholders} בצמתי React — כדי לשמור על עיצוב חלקי משפט. */
+function fill(text: string, parts: Record<string, ReactNode>): ReactNode[] {
+  return text.split(/(\{\w+\})/).map((seg, i) => {
+    const m = /^\{(\w+)\}$/.exec(seg);
+    return m && m[1] in parts ? <Fragment key={i}>{parts[m[1]]}</Fragment> : seg;
+  });
+}
 
 /* ------------------------------------------------------------------ */
 
-function kickoffLabel(iso: string): string {
+function kickoffLabel(iso: string, locale: Locale): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('he-IL', {
+  return d.toLocaleString(LOCALE_META[locale].intl, {
     weekday: 'short', day: '2-digit', month: '2-digit',
     hour: '2-digit', minute: '2-digit',
   });
 }
 
-const STATUS_HE: Record<BoardFixture['status'], string> = {
-  scheduled: '', live: 'חי', finished: 'הסתיים',
-  postponed: 'נדחה', abandoned: 'הופסק',
+const STATUS_KEY: Record<BoardFixture['status'], DictKey | null> = {
+  scheduled: null, live: 'board.pb.live', finished: 'board.pb.finished',
+  postponed: 'board.pb.postponed', abandoned: 'board.pb.abandoned',
 };
 
 /* ------------------------------------------------------------------ */
@@ -59,6 +72,9 @@ const STATUS_HE: Record<BoardFixture['status'], string> = {
 /* ------------------------------------------------------------------ */
 
 function Fixture({ f }: { f: BoardFixture }) {
+  const { t, locale } = useI18n();
+  const homeName = TEAM_BY_ID.get(f.home)?.nameHe ?? f.homeNameHe;
+  const awayName = TEAM_BY_ID.get(f.away)?.nameHe ?? f.awayNameHe;
   const live = f.status === 'live';
   const done = f.status === 'finished';
   const off = f.status === 'postponed' || f.status === 'abandoned';
@@ -73,9 +89,9 @@ function Fixture({ f }: { f: BoardFixture }) {
       {live && <span className="absolute inset-y-0 start-0 w-[3px] bg-flare" />}
 
       <div className="flex min-w-0 flex-1 items-center gap-1.5">
-        <TeamCrest teamId={f.home} short={f.homeNameHe} size={20} />
+        <TeamCrest teamId={f.home} short={homeName} size={20} />
         <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold text-chalk">
-          <bdi>{f.homeNameHe}</bdi>
+          <bdi>{homeName}</bdi>
         </span>
       </div>
 
@@ -89,22 +105,22 @@ function Fixture({ f }: { f: BoardFixture }) {
             <span className="num">{f.homeGoals}</span><span className="opacity-40">:</span><span className="num">{f.awayGoals}</span>
           </span>
         ) : (
-          <span className="num text-[11px] text-chalk-dim">{kickoffLabel(f.kickoff)}</span>
+          <span className="num text-[11px] text-chalk-dim">{kickoffLabel(f.kickoff, locale)}</span>
         )}
         {(live || done || off) && (
           <span className={`block text-[9.5px] font-black ${
             live ? 'text-flare' : off ? 'text-armband' : 'text-chalk-dim'}`}>
             {live && <span className="me-1 inline-block size-1.5 animate-pulse rounded-full bg-flare" />}
-            {STATUS_HE[f.status]}
+            {STATUS_KEY[f.status] ? t(STATUS_KEY[f.status]!) : ''}
           </span>
         )}
       </div>
 
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
         <span className="min-w-0 flex-1 truncate text-end text-[12.5px] font-bold text-chalk">
-          <bdi>{f.awayNameHe}</bdi>
+          <bdi>{awayName}</bdi>
         </span>
-        <TeamCrest teamId={f.away} short={f.awayNameHe} size={20} />
+        <TeamCrest teamId={f.away} short={awayName} size={20} />
       </div>
     </li>
   );
@@ -115,35 +131,38 @@ function Fixture({ f }: { f: BoardFixture }) {
 /* ------------------------------------------------------------------ */
 
 function RecapCard({ recap }: { recap: Recap }) {
+  const { t } = useI18n();
   /* ★ מי שלא הגיש מקבל תוכן, לא ריק. */
   if (!recap.hasEntry) {
     if (!recap.top) return null;
     return (
       <section className="rounded-2xl border border-gold/15 bg-night-2 p-4">
-        <h3 className="text-sm font-black text-chalk">המחזור הזה</h3>
+        <h3 className="text-sm font-black text-chalk">{t('board.pb.thisRound')}</h3>
         <p className="mt-1.5 text-[12.5px] leading-snug text-chalk-2">
-          <span className="num font-black text-gold">{recap.entries}</span> מאמנים הגישו.
-          המוביל: <b className="text-chalk">{recap.top.name}</b> עם{' '}
-          <span className="num font-black text-gold">{recap.top.points}</span> נקודות.
+          {fill(t('board.pb.recapLine', { n: '{n}', name: '{name}', pts: '{pts}' }), {
+            n: <span className="num font-black text-gold">{recap.entries}</span>,
+            name: <b className="text-chalk">{recap.top.name}</b>,
+            pts: <span className="num font-black text-gold">{recap.top.points}</span>,
+          })}
         </p>
         <p className="mt-1 text-[11.5px] text-chalk-dim">
-          לא הגשת הפעם — המחזור הבא ייפתח מעצמו, ואפשר להיכנס מראש.
+          {t('board.pb.notSubmitted')}
         </p>
       </section>
     );
   }
 
   const cells: Array<[string, string, string | null]> = [
-    ['הניקוד שלך', String(recap.points ?? 0), null],
-    ['מקום', recap.rank ? `#${recap.rank}` : '—', `מתוך ${recap.entries}`],
-    ['ניצחת', recap.beatPercent !== null && recap.beatPercent !== undefined
-      ? `${recap.beatPercent}%` : '—', 'מהמשתתפים'],
+    [t('board.pb.yourScore'), String(recap.points ?? 0), null],
+    [t('lobby.rank'), recap.rank ? `#${recap.rank}` : '—', t('board.pb.outOf', { n: recap.entries })],
+    [t('board.pb.youBeat'), recap.beatPercent !== null && recap.beatPercent !== undefined
+      ? `${recap.beatPercent}%` : '—', t('board.pb.ofPlayers')],
   ];
 
   const picks: Array<[string, Recap['best']]> = [
-    ['הבחירה של המחזור', recap.best],
-    ['הקפטן', recap.captain],
-    ['שלא הצדיקה', recap.worst],
+    [t('board.pb.bestPick'), recap.best],
+    [t('board.pb.captain'), recap.captain],
+    [t('board.pb.worstPick'), recap.worst],
   ];
 
   return (
@@ -152,7 +171,7 @@ function RecapCard({ recap }: { recap: Recap }) {
       style={{ borderColor: NP.rule, background: NP.paper }}
     >
       <h3 className="font-press text-base font-black" style={{ color: NP.ink }}>
-        הסיכום שלך
+        {t('board.pb.yourRecap')}
       </h3>
 
       <div className="mt-3 grid grid-cols-3 gap-2">
@@ -188,6 +207,7 @@ export function PublicBoard({ rulesByMode, userId }: {
   rulesByMode: Record<'full' | 'five', RuleSet>;
   userId?: string;
 }) {
+  const { t } = useI18n();
   const [board, setBoard] = useState<Board | null>(null);
   const [recap, setRecap] = useState<Recap | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -228,7 +248,7 @@ export function PublicBoard({ rulesByMode, userId }: {
     );
   }
   if (!board) {
-    return <p className="py-10 text-center text-sm text-chalk-dim">טוען…</p>;
+    return <p className="py-10 text-center text-sm text-chalk-dim">{t('board.pb.loading')}</p>;
   }
 
   const gw = board.gameweek;
@@ -245,12 +265,12 @@ export function PublicBoard({ rulesByMode, userId }: {
         <section>
           <div className="mb-2 flex items-baseline justify-between gap-2">
             <h3 className="font-press text-base font-black text-chalk">
-              תוצאות · {gw.label ?? `מחזור ${gw.number}`}
+              {t('board.pb.results')} · {localizedRoundLabel(gw.label, gw.number)}
             </h3>
             {gw.live && (
               <span className="flex items-center gap-1 text-[11px] font-black text-flare">
                 <span className="inline-block size-1.5 animate-pulse rounded-full bg-flare" />
-                מחזור חי
+                {t('board.pb.liveRound')}
               </span>
             )}
           </div>

@@ -24,6 +24,8 @@ import { PRESS } from '../lib/pressPalette.ts';
 import { modeTheme } from '../lib/modeTheme.ts';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import type { Lineup, LineupSlot, Position } from '../lib/scoring/types.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
+import type { DictKey } from '../lib/i18n/dict.ts';
 
 export interface PoolPlayer {
   id: string;
@@ -44,8 +46,8 @@ export interface TeamMeta {
   color?: string;
 }
 
-const POSITION_LABEL: Record<Position, string> = {
-  GK: 'שוער', DEF: 'הגנה', MID: 'קישור', FWD: 'התקפה',
+const POSITION_KEY: Record<Position, DictKey> = {
+  GK: 'lineup.pos.GK', DEF: 'lineup.pos.DEF', MID: 'lineup.pos.MID', FWD: 'lineup.pos.FWD',
 };
 
 export interface SquadPickerProps {
@@ -82,12 +84,13 @@ export function SquadPicker(props: SquadPickerProps) {
     opponentShortByTeam, pricing, budget, onVice, onFormation, droppedNames,
     mode = 'full',
   } = props;
+  const { t, locale } = useI18n();
   const [picking, setPicking] = useState<LineupSlot | null>(null);
   const [sheet, setSheet] = useState<'teams' | 'formation' | 'budget' | null>(null);
 
   /** הודעה חולפת אחת. עדיפה על ערימת התראות שדוחפת את המגרש. */
   const notice = droppedNames && droppedNames.length > 0
-    ? `המערך השתנה — ירדו: ${droppedNames.join(', ')}`
+    ? t('lineup.picker.formationChanged', { names: droppedNames.join(', ') })
     : null;
 
   // ★ מקור אמת אחד לעלות. חושב כאן ולא מתקבל כ-prop, כי אחרת
@@ -193,7 +196,7 @@ export function SquadPicker(props: SquadPickerProps) {
                             notice ? 'bg-armband/90 text-night' : 'bg-flare/90 text-white'
                           }`}
             >
-              {notice ?? formatIssue(issues[0], 'he')}
+              {notice ?? formatIssue(issues[0], locale)}
             </p>
           </div>
         )}
@@ -204,18 +207,18 @@ export function SquadPicker(props: SquadPickerProps) {
                      transition-transform duration-200 ease-brand active:scale-[.98]
                      disabled:bg-night-3 disabled:text-chalk-dim"
         >
-          {ready ? 'נעילת ההרכב' : `נותרו ${rules.constraints.lineupSize - filled} שחקנים`}
+          {ready ? t('lineup.picker.lock') : t('lineup.picker.remaining', { n: rules.constraints.lineupSize - filled })}
         </button>
       </div>
 
       {/* ---- גיליונות הבקרה ---- */}
       {sheet === 'teams' && (
-        <ControlSheet title="כיסוי קבוצות" onClose={() => setSheet(null)}>
+        <ControlSheet title={t('lineup.picker.coverage')} onClose={() => setSheet(null)}>
           <TeamCoverageGrid coverage={coverage} teamById={teamById} />
         </ControlSheet>
       )}
       {sheet === 'formation' && onFormation && (
-        <ControlSheet title="טקטיקה — בחירת מערך" onClose={() => setSheet(null)}>
+        <ControlSheet title={t('lineup.picker.tactics')} onClose={() => setSheet(null)}>
           <FormationPicker
             options={formationsFor(rules.constraints.lineupSize)}
             value={lineup.formation}
@@ -224,7 +227,7 @@ export function SquadPicker(props: SquadPickerProps) {
         </ControlSheet>
       )}
       {sheet === 'budget' && budget !== undefined && (
-        <ControlSheet title="תקציב" onClose={() => setSheet(null)}>
+        <ControlSheet title={t('lineup.picker.budget')} onClose={() => setSheet(null)}>
           <BudgetDetail budget={budget} spent={spent} filled={filled}
                         size={rules.constraints.lineupSize} />
         </ControlSheet>
@@ -278,12 +281,13 @@ function ControlBar({
   canChangeFormation: boolean;
   onOpen: (sheet: 'teams' | 'formation' | 'budget') => void;
 }) {
+  const { t } = useI18n();
   const used = coverage.filter((c) => c.filled).length;
 
   return (
     <div className="shrink-0 border-b border-gold/15 bg-night px-2.5 py-2">
       <div className="mx-auto flex max-w-3xl items-stretch gap-2">
-        <Chip label="קבוצות" onClick={() => onOpen('teams')}>
+        <Chip label={t('lineup.picker.teams')} onClick={() => onOpen('teams')}>
           <span className="num" dir="ltr">{used}/{coverage.length}</span>
         </Chip>
 
@@ -303,7 +307,7 @@ function ControlBar({
         <button
           onClick={() => onOpen('formation')}
           disabled={!canChangeFormation}
-          aria-label={`טקטיקה ${formation} — החלפת מערך`}
+          aria-label={t('lineup.picker.tacticsAria', { formation })}
           className="tap flex flex-[1.35] items-center justify-center gap-2 rounded-xl border
                      border-gold/45 bg-gold/10 px-2 py-1.5 text-gold
                      transition-colors duration-200 ease-brand
@@ -311,12 +315,12 @@ function ControlBar({
                      disabled:text-chalk-dim"
         >
           <span className="flex flex-col items-start leading-none">
-            <span className="text-[9px] font-bold tracking-wide opacity-80">טקטיקה</span>
+            <span className="text-[9px] font-bold tracking-wide opacity-80">{t('lineup.picker.tactic')}</span>
             <span className="num text-sm font-black leading-tight" dir="ltr">{formation}</span>
           </span>
           {canChangeFormation && (
             <span className="flex items-center gap-0.5">
-              <span className="text-[9.5px] font-black">החלף</span>
+              <span className="text-[9.5px] font-black">{t('lineup.picker.change')}</span>
               <svg viewBox="0 0 24 24" className="size-3" fill="none" stroke="currentColor"
                    strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M9 6l6 6-6 6" />
@@ -331,6 +335,12 @@ function ControlBar({
       </div>
     </div>
   );
+}
+
+/** משפט עם ערך בתוך <span class=num> — מפצלים סביב {n}. */
+function withNum(tpl: string, n: string | number, cls = '') {
+  const [a, b = ''] = tpl.split('{n}');
+  return <>{a}<span className={`num ${cls}`.trim()} dir="ltr">{n}</span>{b}</>;
 }
 
 function Chip({
@@ -389,6 +399,7 @@ function BudgetHud({
   size: number;
   onOpen: () => void;
 }) {
+  const { t } = useI18n();
   const remaining = budget - spent;
   const over = remaining < 0;
   const left = size - filled;
@@ -398,7 +409,7 @@ function BudgetHud({
   return (
     <button
       onClick={onOpen}
-      aria-label={`תקציב — נותרו ${remaining.toFixed(1)} מיליון מתוך ${budget}. פתיחת הפירוט`}
+      aria-label={t('lineup.picker.budgetAria', { left: remaining.toFixed(1), budget })}
       className="absolute z-10 flex flex-col justify-center rounded-[3px] px-1.5 text-start
                  transition-transform duration-200 ease-brand active:scale-[.97]"
       style={{
@@ -426,7 +437,7 @@ function BudgetHud({
           className="text-[8px] font-black"
           style={{ color: over ? PRESS.red : 'rgba(18,16,14,.6)' }}
         >
-          {over ? 'חריגה' : 'נותר'}
+          {over ? t('lineup.picker.over') : t('lineup.picker.left')}
         </span>
       </span>
 
@@ -450,10 +461,10 @@ function BudgetHud({
         style={{ color: over ? PRESS.red : 'rgba(18,16,14,.66)' }}
       >
         {over
-          ? 'צריך לפנות מקום'
+          ? t('lineup.picker.freeUp')
           : perPlayer !== null
-            ? <>עד <span className="num" dir="ltr">{perPlayer.toFixed(1)}M</span> לשחקן</>
-            : <>מתוך <span className="num" dir="ltr">{budget}M</span></>}
+            ? withNum(t('lineup.picker.perPlayer'), `${perPlayer.toFixed(1)}M`)
+            : withNum(t('lineup.picker.outOf'), `${budget}M`)}
       </span>
     </button>
   );
@@ -530,6 +541,7 @@ function TeamCoverageGrid({
 function BudgetDetail({
   budget, spent, filled, size,
 }: { budget: number; spent: number; filled: number; size: number }) {
+  const { t } = useI18n();
   const remaining = budget - spent;
   const over = remaining < 0;
   const left = size - filled;
@@ -546,12 +558,12 @@ function BudgetDetail({
         />
       </div>
       <dl className="space-y-1.5 text-sm">
-        <Row label="תקציב" value={`${budget}M€`} />
-        <Row label="נוצל" value={`${spent.toFixed(1)}M€`} />
-        <Row label={over ? 'חריגה' : 'נותר'} value={`${remaining.toFixed(1)}M€`} accent={over} />
+        <Row label={t('lineup.picker.budget')} value={`${budget}M€`} />
+        <Row label={t('lineup.picker.spent')} value={`${spent.toFixed(1)}M€`} />
+        <Row label={over ? t('lineup.picker.over') : t('lineup.picker.left')} value={`${remaining.toFixed(1)}M€`} accent={over} />
         {perPlayer !== null && !over && (
           <Row
-            label={`עד כמה לכל אחד מ-${left} הנותרים`}
+            label={t('lineup.picker.perRemaining', { left })}
             value={`${perPlayer.toFixed(1)}M€`}
           />
         )}
@@ -600,6 +612,7 @@ function SlotCard({
   onCaptain: () => void;
   onVice?: () => void;
 }) {
+  const { t } = useI18n();
   if (!player) {
     /* ★ משבצת ריקה — אותה דמות, במתאר מקווקו.
        חולצה ריקה ודמות ריקה הן שתי שפות; הדמות היא זו שאומרת
@@ -607,7 +620,7 @@ function SlotCard({
     return (
       <button
         onClick={onPick}
-        aria-label={`הוסף ${POSITION_LABEL[slot.position]}`}
+        aria-label={t('lineup.picker.add', { pos: t(POSITION_KEY[slot.position]) })}
         className="tap flex w-full flex-col items-center gap-1
                    transition-transform duration-200 ease-brand active:scale-95"
       >
@@ -622,7 +635,7 @@ function SlotCard({
                      text-center text-[9px] font-black"
           style={{ borderColor: 'rgba(18,16,14,.45)', background: 'rgba(239,243,230,.72)', color: PRESS.ink }}
         >
-          {POSITION_LABEL[slot.position]}
+          {t(POSITION_KEY[slot.position])}
         </span>
       </button>
     );
@@ -647,7 +660,7 @@ function SlotCard({
       */}
       <button
         onClick={onPick}
-        aria-label={`החלף את ${player.nameShort}`}
+        aria-label={t('lineup.picker.swap', { name: player.nameShort })}
         className="relative grid w-[86%] max-w-[62px] place-items-center"
       >
         <Footballer
@@ -707,7 +720,7 @@ function SlotCard({
       <div className="flex w-full items-center justify-center gap-[3px]">
         <MarkButton
           label="C"
-          title={cap ? 'הסר קפטן' : 'קפטן ×3'}
+          title={cap ? t('lineup.picker.removeCaptain') : t('lineup.picker.captainX3')}
           active={cap}
           activeBg={PRESS.red}
           onClick={onCaptain}
@@ -715,7 +728,7 @@ function SlotCard({
         {onVice && (
           <MarkButton
             label="V"
-            title={vice ? 'הסר סגן' : 'סגן'}
+            title={vice ? t('lineup.picker.removeVice') : t('lineup.picker.vice')}
             active={vice}
             activeBg="#2F6FA8"
             onClick={onVice}
@@ -724,7 +737,7 @@ function SlotCard({
         )}
         <MarkButton
           label="✕"
-          title="הסר שחקן"
+          title={t('lineup.picker.removePlayer')}
           active={false}
           activeBg={PRESS.red}
           onClick={onClear}
@@ -794,6 +807,7 @@ function PlayerSheet({
   /** תקציב פנוי. undefined = אין אילוץ תקציב במצב הזה. */
   remaining?: number;
 }) {
+  const { t, locale } = useI18n();
   const [query, setQuery] = useState('');
   /**
    * ★ שתי דרכים למצוא שחקן, ושתיהן לגיטימיות:
@@ -860,7 +874,7 @@ function PlayerSheet({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`בחירת ${POSITION_LABEL[slot.position]}`}
+        aria-label={t('lineup.picker.pick', { pos: t(POSITION_KEY[slot.position]) })}
         onClick={(e) => e.stopPropagation()}
         className="max-h-[86dvh] w-full overflow-hidden rounded-t-3xl bg-night-2
                    pb-[env(safe-area-inset-bottom)] motion-safe:animate-slideUp
@@ -871,18 +885,18 @@ function PlayerSheet({
         <div className="px-4 py-3">
           <div className="flex items-baseline justify-between">
             <h2 className="font-press text-lg font-black">
-              בחירת {POSITION_LABEL[slot.position]}
+              {t('lineup.picker.pick', { pos: t(POSITION_KEY[slot.position]) })}
             </h2>
             <span className="text-xs text-chalk-dim">
-              <span dir="ltr" className="num">{available}</span> זמינים
+              <span dir="ltr" className="num">{available}</span> {t('lineup.picker.available')}
             </span>
           </div>
 
           <p className="mt-1 text-[11px] text-chalk-dim">
-            שחקנים מקבוצה שכבר בחרת מוצגים מואפרים — שחקן אחד מכל קבוצה.
+            {t('lineup.picker.oneTeamNote')}
             {remaining !== undefined && (
               <>
-                {' '}נותרו <span dir="ltr" className="num text-gold">{remaining.toFixed(1)}</span>M€.
+                {' '}{withNum(t('lineup.picker.leftM'), remaining.toFixed(1), 'text-gold')}
               </>
             )}
           </p>
@@ -891,8 +905,8 @@ function PlayerSheet({
               יותר. "לפי קבוצה" קיימת למי שחושב קודם על המשחקים. */}
           <div className="mt-3 flex gap-1 rounded-full bg-night p-1">
             {([
-              ['players', 'לפי שחקן'],
-              ['teams', 'לפי קבוצה'],
+              ['players', t('lineup.picker.byPlayer')],
+              ['teams', t('lineup.picker.byTeam')],
             ] as const).map(([id, label]) => (
               <button
                 key={id}
@@ -910,7 +924,7 @@ function PlayerSheet({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="חיפוש שחקן או קבוצה…"
+            placeholder={t('lineup.picker.search')}
             inputMode="search"
             enterKeyHint="search"
             autoComplete="off"
@@ -938,7 +952,7 @@ function PlayerSheet({
             className="tap mx-4 mb-2 flex items-center gap-1.5 rounded-full bg-night px-3 py-1.5
                        text-xs font-black text-chalk-dim"
           >
-            <span aria-hidden>→</span> כל הקבוצות
+            <span aria-hidden>→</span> {t('lineup.picker.allTeams')}
             <span className="text-chalk">· {teamById.get(openTeam)?.name}</span>
           </button>
         )}
@@ -1003,12 +1017,12 @@ function PlayerSheet({
                     <span className="mt-0.5 block truncate text-[11.5px] text-chalk-dim">
                       {block.blocked
                         ? occupant
-                          ? `כבר בחרת את ${occupant}`
-                          : block.reasonHe
+                          ? t('lineup.picker.alreadyPicked', { name: occupant })
+                          : (locale === 'he' ? block.reasonHe : locale === 'el' ? block.reasonEl : block.reasonEn)
                         : tooExpensive
-                          ? `חסרים ${((p.price ?? 0) - (remaining ?? 0)).toFixed(1)}M€`
+                          ? t('lineup.picker.short', { n: ((p.price ?? 0) - (remaining ?? 0)).toFixed(1) })
                           : opponentShortByTeam?.[p.teamId]
-                            ? `נגד ${opponentShortByTeam[p.teamId]}`
+                            ? t('lineup.picker.vs', { opp: opponentShortByTeam[p.teamId] })
                             : team?.name}
                     </span>
                   </span>
@@ -1063,6 +1077,7 @@ function TeamGrid({
   opponentShortByTeam?: Record<string, string>;
   onPick: (teamId: string) => void;
 }) {
+  const { t: tt } = useI18n();
   const counts = useMemo(() => {
     const m = new Map<string, number>();
     for (const p of pool) {
@@ -1100,10 +1115,10 @@ function TeamGrid({
               </span>
               <span className="text-[10px] font-bold" style={{ color: kit.ink, opacity: 0.75 }}>
                 {block.blocked
-                  ? 'תפוס'
+                  ? tt('lineup.picker.taken')
                   : opponentShortByTeam?.[t.id]
-                    ? `נגד ${opponentShortByTeam[t.id]}`
-                    : `${n} שחקנים`}
+                    ? tt('lineup.picker.vs', { opp: opponentShortByTeam[t.id] })
+                    : tt('lineup.picker.nPlayers', { n })}
               </span>
             </button>
           </li>

@@ -44,6 +44,8 @@ import { modeTheme } from '../lib/modeTheme.ts';
 import type { ModeId } from '../lib/modeTheme.ts';
 import type { PoolPlayer, TeamMeta } from './SquadPicker.tsx';
 import type { Lineup, LineupScore, LineupSlot, Position } from '../lib/scoring/types.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
+import { LOCALE_META } from '../lib/i18n/locales.ts';
 
 export function LockedLineup({
   lineup, pool, teams, score, gameweekLabel, submittedAt, onUnlock, onViewCard,
@@ -80,6 +82,7 @@ export function LockedLineup({
   gameweekNumber?: number;
 }) {
   const [picked, setPicked] = useState<string | null>(null);
+  const { t, locale } = useI18n();
   const poolById = new Map(pool.map((p) => [p.id, p]));
   const teamById = new Map(teams.map((t) => [t.id, t]));
   const pointsByPlayer = new Map((score?.players ?? []).map((p) => [p.playerId, p.subtotal]));
@@ -87,7 +90,7 @@ export function LockedLineup({
 
   // אזור הזמן ננעל על ישראל ולא נגזר מהמכשיר — אותו באג שתוקן
   // ב-`data/fixtures.ts`, ומאותה סיבה.
-  const submittedLabel = new Date(submittedAt).toLocaleString('he-IL', {
+  const submittedLabel = new Date(submittedAt).toLocaleString(LOCALE_META[locale].intl, {
     day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
     timeZone: 'Asia/Jerusalem',
   });
@@ -104,7 +107,7 @@ export function LockedLineup({
       <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto px-3 py-2
                       [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Chip tone="lock">
-          <LockIcon /> נעול
+          <LockIcon /> {t('lineup.locked.chip')}
         </Chip>
         {/* ★ תגית "חי" — רק כשהמספרים באמת זזים.
             היא לא מוצגת לפני שיש ניקוד ולא אחרי שהמחזור נסגר,
@@ -113,11 +116,11 @@ export function LockedLineup({
         <Chip>{gameweekLabel}</Chip>
         {captainName && (
           <Chip tone="captain">
-            קפטן · <bdi>{captainName}</bdi>
+            {t('lineup.locked.captain')} · <bdi>{captainName}</bdi>
           </Chip>
         )}
         <Chip>
-          הוגש <span dir="ltr" className="num">{submittedLabel}</span>
+          {t('lineup.locked.submitted')} <span dir="ltr" className="num">{submittedLabel}</span>
         </Chip>
 
         {score && (
@@ -126,7 +129,7 @@ export function LockedLineup({
             <span dir="ltr" className="num text-[15px] leading-none text-gold-light">
               {score.totalPoints}
             </span>
-            <span className="text-[10px] font-bold text-chalk-dim">נק׳</span>
+            <span className="text-[10px] font-bold text-chalk-dim">{t('lineup.rival.pts')}</span>
           </span>
         )}
       </div>
@@ -160,7 +163,7 @@ export function LockedLineup({
             /* ★ לחיצה על שחקן פותחת את פירוט הניקוד שלו — כמו בפנטזי. */
             return score ? (
               <button type="button" onClick={() => setPicked(slot.playerId!)}
-                      aria-label={`פירוט ניקוד: ${poolById.get(slot.playerId)?.nameShort ?? ''}`}
+                      aria-label={t('lineup.locked.detailAria', { name: poolById.get(slot.playerId)?.nameShort ?? '' })}
                       className="block w-full">
                 {card}
               </button>
@@ -188,7 +191,7 @@ export function LockedLineup({
                 <span dir="ltr" className="num text-2xl font-black text-gold">{ps.subtotal}</span>
               </div>
               {ps.lines.length === 0 ? (
-                <p className="py-3 text-sm text-chalk-dim">אין עדיין אירועים לשחקן הזה.</p>
+                <p className="py-3 text-sm text-chalk-dim">{t('lineup.locked.noEvents')}</p>
               ) : (
                 <ul className="divide-y divide-gold/10">
                   {ps.lines.map((l, i) => (
@@ -201,7 +204,7 @@ export function LockedLineup({
               )}
               <button type="button" onClick={() => setPicked(null)}
                       className="tap mt-3 h-11 w-full rounded-full border border-gold/35 text-sm font-bold text-gold-light">
-                סגירה
+                {t('lineup.close')}
               </button>
             </div>
           </div>
@@ -233,7 +236,7 @@ export function LockedLineup({
                        transition-colors duration-200 ease-brand active:bg-gold/10"
           >
             <ShareIcon />
-            שיתוף ההרכב — סטורי, וואטסאפ או קישור
+            {t('lineup.locked.share')}
           </button>
         )}
 
@@ -244,7 +247,7 @@ export function LockedLineup({
                        font-poster text-xl text-gold-ink transition-transform
                        duration-200 ease-brand active:scale-[.98]"
           >
-            {live ? 'הניקוד שלי — חי' : 'לצפייה בכרטיס המלא'}
+            {live ? t('lineup.locked.myScoreLive') : t('lineup.locked.viewCard')}
           </button>
         ) : onUnlock ? (
           <>
@@ -252,8 +255,7 @@ export function LockedLineup({
                 "ביטול הגשה" נשמע הרסני. מי שלא יודע שאפשר להגיש
                 שוב — לא ילחץ, וייתקע עם הרכב שהוא כבר לא רוצה. */}
             <p className="mb-2 text-center text-[11px] leading-snug text-chalk-dim">
-              ההרכב נעול עד הדדליין. אפשר לבטל, לערוך, ולהגיש שוב —
-              כמה פעמים שרוצים.
+              {t('lineup.locked.unlockNote')}
             </p>
             <button
               onClick={onUnlock}
@@ -261,7 +263,7 @@ export function LockedLineup({
                          font-bold text-flare transition-colors duration-200 ease-brand
                          active:bg-flare/10"
             >
-              ביטול הגשה ועריכה מחדש
+              {t('lineup.locked.unlock')}
             </button>
           </>
         ) : (
@@ -269,7 +271,7 @@ export function LockedLineup({
             {/* ★ ההבטחה הישנה הייתה "בסיום המחזור". היא כבר לא
                 נכונה: הניקוד נכנס עם כל משחק שנגמר, וההבטחה
                 צריכה להגיד את זה — אחרת אף אחד לא יחזור לבדוק. */}
-            הניקוד נכנס עם כל משחק ומתעדכן כאן מעצמו.
+            {t('lineup.locked.autoScore')}
           </p>
         )}
 
@@ -290,6 +292,7 @@ export function LockedLineup({
  * המגרש, ולכן העין קושרת בין התגית לבין מה שהיא מדברת עליו.
  */
 function LiveChip() {
+  const { t } = useI18n();
   return (
     <span
       className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1
@@ -302,7 +305,7 @@ function LiveChip() {
         className="inline-block size-[7px] animate-pulse rounded-full"
         style={{ background: PRESS.mark }}
       />
-      חי
+      {t('lineup.locked.live')}
     </span>
   );
 }
@@ -362,6 +365,7 @@ function EventGlyph({ kind }: { kind: EventBadge['kind'] }) {
 
 /** בלון ניקוד שחקן. הצבע נגזר מהערך בלבד — לא מגורם חיצוני. */
 export function PointsBubble({ points, live, captain }: { points: number; live: boolean; captain: boolean }) {
+  const { t } = useI18n();
   const tone = points < 0
     ? { bg: PRESS.red, fg: '#fff' }
     : points === 0
@@ -373,8 +377,8 @@ export function PointsBubble({ points, live, captain }: { points: number; live: 
     <span
       dir="ltr"
       role="img"
-      aria-label={`${points} נקודות${captain ? ' (קפטן)' : ''}${live ? ', חי' : ''}`}
-      title={live ? 'ניקוד חי — עוד יכול לזוז' : 'ניקוד סופי'}
+      aria-label={`${t('lineup.bubble.pts', { n: points })}${captain ? ` (${t('lineup.locked.captain')})` : ''}${live ? `, ${t('lineup.locked.live')}` : ''}`}
+      title={live ? t('lineup.bubble.live') : t('lineup.bubble.final')}
       className={`num absolute -top-[6%] left-[-8%] z-10 grid min-w-[22px] place-items-center
                   rounded-full px-1 text-[12px] font-black leading-none
                   ${live ? 'animate-pulse' : ''}`}

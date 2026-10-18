@@ -88,7 +88,7 @@ test('★ ההודעה במסך ההרכב עוגנת ל-CTA ולא למרחק �
 
 test('כפתור הנעילה נשאר אחרון בזרימה ולא נגלל', () => {
   const src = code(picker);
-  const cta = src.indexOf('נעילת ההרכב');
+  const cta = src.indexOf("t('lineup.picker.lock')");
   assert.ok(cta > 0, 'כפתור הנעילה נעלם מהמסך');
 
   // הכפתור יושב ב-shrink-0 בתחתית עמודה בגובה מלא. אם הוא היה
@@ -122,11 +122,11 @@ test('★★ כפתור הצעת השם לא יכול להרחיב את מודל
    * הבאג חוזר בשקט ברגע שמישהו מוסיף מילה למאגר השמות.
    */
   const src = code(app);
-  const btn = src.slice(src.indexOf('קח את «'), src.indexOf('קח את «') + 40);
+  const btn = src.slice(src.indexOf("tx('shell.save.take'"), src.indexOf("tx('shell.save.take'") + 40);
   assert.ok(btn.length > 0, 'כפתור ההצעה נעלם מהמודל');
 
   const row = src.slice(src.indexOf('onClick={() => setTeam(suggestion)}') - 400,
-                        src.indexOf('קח את «'));
+                        src.indexOf("tx('shell.save.take'"));
   assert.ok(row.includes('min-w-0'), 'כפתור ההצעה חייב min-w-0 (אחרת הוא מרחיב את המודל)');
   assert.ok(row.includes('truncate'), 'כפתור ההצעה חייב truncate');
 });

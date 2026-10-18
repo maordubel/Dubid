@@ -6,7 +6,7 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { DEFAULT_LOCALE, dirOf, isLocale, type Locale } from './locales.ts';
-import { translate, type DictKey } from './dict.ts';
+import { translate, setActiveLocale, type DictKey } from './dict.ts';
 import { setDisplayLocale } from '../liveData.ts';
 
 // ★ בלי הקידומת `dubid.` — purgeLocalGameData מוחק כל מפתח כזה בכל החלפת epoch.
@@ -33,6 +33,7 @@ const I18nContext = createContext<Ctx>({
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, set] = useState<Locale>(readStored);
+  setActiveLocale(locale);
 
   useEffect(() => {
     document.documentElement.lang = locale;

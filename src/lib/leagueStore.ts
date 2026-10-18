@@ -38,6 +38,7 @@ import { JoinError } from './leagues.ts';
 import type { ModeId } from './events/bus.ts';
 import { supabase } from './supabase.ts';
 import { ensureIdentity } from './identity.ts';
+import { tr } from './i18n/dict.ts';
 
 /* ================================================================== */
 /* תמונת המצב                                                          */
@@ -157,15 +158,16 @@ function errorCode(err: unknown): string {
   return known ?? 'NETWORK';
 }
 
+/* ★ getters: הטקסט נקרא בזמן הרינדור, בשפה הפעילה. */
 export const LEAGUE_ERROR_HE: Record<string, string> = {
-  LEAGUE_NOT_FOUND: 'לא נמצאה זירה עם הקוד הזה.',
-  LEAGUE_FULL: 'הזירה מלאה.',
-  ALREADY_MEMBER: 'כבר הצטרפת לזירה הזו.',
-  LEAGUE_CLOSED: 'הזירה סגורה להצטרפות.',
-  OWNER_CANNOT_LEAVE: 'מייסד לא יכול לצאת מהזירה שלו.',
-  AUTH_REQUIRED: 'צריך זהות פעילה. רעננו את הדף.',
-  CODE_COLLISION: 'קרתה תקלה ביצירת הקוד. נסו שוב.',
-  NETWORK: 'אין חיבור לשרת. נסו שוב בעוד רגע.',
+  get LEAGUE_NOT_FOUND() { return tr('arena.err.LEAGUE_NOT_FOUND'); },
+  get LEAGUE_FULL() { return tr('arena.err.LEAGUE_FULL'); },
+  get ALREADY_MEMBER() { return tr('arena.err.ALREADY_MEMBER'); },
+  get LEAGUE_CLOSED() { return tr('arena.err.LEAGUE_CLOSED'); },
+  get OWNER_CANNOT_LEAVE() { return tr('arena.err.OWNER_CANNOT_LEAVE'); },
+  get AUTH_REQUIRED() { return tr('arena.err.AUTH_REQUIRED'); },
+  get CODE_COLLISION() { return tr('arena.err.CODE_COLLISION'); },
+  get NETWORK() { return tr('arena.err.NETWORK'); },
 };
 
 export function leagueMessageHe(code: string): string {
@@ -190,7 +192,7 @@ export async function createLeague(input: {
 }): Promise<PrivateLeague> {
   await ensureIdentity();
   const { data, error } = await supabase.rpc('create_league', {
-    p_name: input.name.trim().slice(0, 40) || 'הזירה שלי',
+    p_name: input.name.trim().slice(0, 40) || tr('arena.defaultName'),
     p_mode: input.mode,
     p_max_members: input.maxMembers ?? null,
   });

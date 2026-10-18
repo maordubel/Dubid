@@ -44,6 +44,8 @@
  * פעמיים בשני מסכים.
  */
 
+import { tr } from './i18n/dict.ts';
+
 export type ModeId = 'five' | 'full';
 
 export interface ModeTheme {
@@ -90,31 +92,31 @@ export interface ModeTheme {
 export const MODE_THEME: Record<ModeId, ModeTheme> = {
   five: {
     id: 'five',
-    name: 'דוביד 5',
-    codeName: 'הרחוב',
-    tagline: 'בחרו 5. נצחו את כולם.',
-    atmosphere: 'חמישה שמות, תקציב אחד, ואפס מקום להתחבא.',
+    get name() { return tr('mode.five.title'); },
+    get codeName() { return tr('mode.five.code'); },
+    get tagline() { return tr('mode.five.tag'); },
+    get atmosphere() { return tr('shell.mode.atmoFive'); },
     accent: '#C9613A',
     accentDeep: '#7A3520',
     accentLight: '#E89A6E',
     surface: '#1A100B',
     lineupSize: 5,
     budget: 15,
-    entryLabel: 'דקה אחת',
+    get entryLabel() { return tr('shell.mode.entryFive'); },
   },
   full: {
     id: 'full',
-    name: 'דוביד 11',
-    codeName: 'הליגה',
-    tagline: 'בנו הרכב. שלטו בליגה.',
-    atmosphere: 'אחד־עשר, מערך, קפטן. מי שמכיר את הליגה — מנצח.',
+    get name() { return tr('mode.full.title'); },
+    get codeName() { return tr('mode.full.code'); },
+    get tagline() { return tr('mode.full.tag'); },
+    get atmosphere() { return tr('shell.mode.atmoFull'); },
     accent: '#3E8E63',
     accentDeep: '#12301F',
     accentLight: '#78C69A',
     surface: '#0D1A12',
     lineupSize: 11,
     budget: null,
-    entryLabel: 'חמש דקות',
+    get entryLabel() { return tr('shell.mode.entryFull'); },
   },
 };
 
@@ -190,5 +192,5 @@ export function modeTexture(id: ModeId): Record<string, string> {
  */
 export function modeConstraintLabel(id: ModeId, teamCount: number): string {
   const t = MODE_THEME[id];
-  return `${t.lineupSize} מתוך ${teamCount} קבוצות`;
+  return tr('shell.mode.constraint', { n: t.lineupSize, teams: teamCount });
 }

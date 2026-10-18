@@ -41,7 +41,10 @@
 import {
   CARD_W, CARD_H, F_DISPLAY, F_POSTER, F_UI,
   PALETTE, roundRect, halftone, clip,
+  cardDir, isRtlCard, trailAlign, leadAlign, fitFont,
 } from './shareCard.ts';
+import { tr, activeLocale } from './i18n/dict.ts';
+import { LOCALE_META } from './i18n/locales.ts';
 import { PRESS } from './pressPalette.ts';
 import { encodeQr, drawQrToCanvas } from './qr.ts';
 
@@ -108,6 +111,7 @@ export function drawPassCard(
   logo: HTMLImageElement | null,
 ): void {
   /* ---------------- הרקע ---------------- */
+  ctx.direction = cardDir();
   ctx.fillStyle = PALETTE.night;
   ctx.fillRect(0, 0, CARD_W, CARD_H);
   halftone(ctx, 0, 0, CARD_W, CARD_H, PALETTE.toto, 26, 'denserDown', 0.1);
@@ -153,7 +157,7 @@ export function drawPassCard(
     ctx.fillStyle = PALETTE.chalk;
     ctx.font = `700 96px ${F_DISPLAY}`;
     ctx.textAlign = 'center';
-    ctx.fillText('דוביד', CARD_W / 2, cardY - 60);
+    ctx.fillText(tr('share.brand'), CARD_W / 2, cardY - 60);
   }
 
   ctx.textAlign = 'center';
@@ -167,19 +171,25 @@ export function drawPassCard(
   ctx.textAlign = 'center';
   ctx.fillStyle = '#6E6558';
   ctx.font = `700 27px ${F_UI}`;
-  ctx.fillText('כ ר ט י ס   ה מ נ ו י', CARD_W / 2, y);
+  ctx.fillText(wide(tr('pass.card.kicker')), CARD_W / 2, y);
 
   y += 82;
   misprint(ctx, () => {
     ctx.textAlign = 'center';
     ctx.font = `700 78px ${F_DISPLAY}`;
-    ctx.fillText('הכניסה שלך', CARD_W / 2, y);
+    const title = tr('pass.card.title');
+    fitFont(ctx, title, cardW - 140);
+    ctx.fillText(title, CARD_W / 2, y);
   }, PRESS.ink);
 
   y += 46;
   ctx.fillStyle = '#5C5348';
   ctx.font = `400 30px ${F_UI}`;
-  ctx.fillText('כל מכשיר · בלי סיסמה · בלי הרשמה', CARD_W / 2, y);
+  {
+    const line = tr('pass.card.tagline');
+    fitFont(ctx, line, cardW - 120);
+    ctx.fillText(line, CARD_W / 2, y);
+  }
 
   /* ---------------- בעל הכרטיס ---------------- */
   y += 74;
@@ -190,12 +200,12 @@ export function drawPassCard(
   y += 56;
   ctx.fillStyle = '#6E6558';
   ctx.font = `700 26px ${F_UI}`;
-  ctx.fillText('שם המאמן', CARD_W / 2, y);
+  ctx.fillText(tr('acct.nameTitle'), CARD_W / 2, y);
 
   y += 52;
   ctx.fillStyle = PRESS.ink;
   ctx.font = `700 54px ${F_DISPLAY}`;
-  ctx.fillText(clip(ctx, d.userName || 'מאמן', cardW - 200), CARD_W / 2, y);
+  ctx.fillText(clip(ctx, d.userName || tr('acct.coachDefault'), cardW - 200), CARD_W / 2, y);
 
   if (d.teamName) {
     y += 42;
@@ -212,7 +222,7 @@ export function drawPassCard(
   y += 78;
   ctx.fillStyle = '#6E6558';
   ctx.font = `700 26px ${F_UI}`;
-  ctx.fillText('ה מ פ ת ח   ש ל ך', CARD_W / 2, y);
+  ctx.fillText(wide(tr('pass.card.key')), CARD_W / 2, y);
 
   y += 26;
   const keyH = 118;
@@ -270,22 +280,23 @@ export function drawPassCard(
        על מסך שגיאה במקום כרטיס. */
     ctx.fillStyle = '#6E6558';
     ctx.font = `400 26px ${F_UI}`;
-    ctx.fillText('הקלידו את המפתח באתר', CARD_W / 2, y + 40);
+    ctx.fillText(tr('pass.card.typeKey'), CARD_W / 2, y + 40);
   }
 
   y += qrSize + 56;
   ctx.fillStyle = '#5C5348';
   ctx.font = `400 28px ${F_UI}`;
-  ctx.fillText('סרקו — ותיכנסו ישירות', CARD_W / 2, y);
+  ctx.fillText(tr('pass.card.scan'), CARD_W / 2, y);
 
   /* ---------------- תחתית הכרטיס ---------------- */
   const footY = cardY + cardH - 54;
   ctx.fillStyle = '#7B7264';
   ctx.font = `400 24px ${F_UI}`;
-  ctx.textAlign = 'right';
-  ctx.fillText(d.issuedLabel, CARD_W - cardX - 56, footY);
-  ctx.textAlign = 'left';
-  ctx.fillText('שמרו לעצמכם', cardX + 56, footY);
+  const rtl = isRtlCard();
+  ctx.textAlign = leadAlign();
+  ctx.fillText(d.issuedLabel, rtl ? CARD_W - cardX - 56 : cardX + 56, footY);
+  ctx.textAlign = trailAlign();
+  ctx.fillText(tr('pass.card.keep'), rtl ? cardX + 56 : CARD_W - cardX - 56, footY);
 
   /*
    * ★ כאן ישב חותם, והוא ירד.
@@ -300,8 +311,11 @@ export function drawPassCard(
   ctx.textAlign = 'center';
   ctx.fillStyle = PALETTE.chalkDim;
   ctx.font = `400 28px ${F_UI}`;
-  ctx.fillText('מי שיש לו את הכרטיס — נכנס לחשבון.', CARD_W / 2, CARD_H - 132);
-  ctx.fillText('כדאי לשמור אותו רק אצלך.', CARD_W / 2, CARD_H - 92);
+  for (const [line, dy] of [[tr('pass.card.warn1'), 132], [tr('pass.card.warn2'), 92]] as const) {
+    ctx.font = `400 28px ${F_UI}`;
+    fitFont(ctx, line, CARD_W - 120);
+    ctx.fillText(line, CARD_W / 2, CARD_H - dy);
+  }
 }
 
 /* ================================================================== */
@@ -360,14 +374,29 @@ export async function renderPassCard(
  */
 export function buildPassMessage(d: PassCardData): string {
   return [
-    `הכרטיס שלי בדוביד ⚽ (${d.userName})`,
-    `מפתח: ${d.pretty}`,
+    tr('pass.msg.title', { name: d.userName }),
+    tr('pass.msg.key', { key: d.pretty }),
     '',
     d.link,
   ].join('\n');
 }
 
 /** שם הקובץ שנשמר. עברית בשם קובץ שוברת בחלק מהמכשירים. */
+/** "הונפק 18.10.2026" — התאריך לפי אזור הזמן של המשחק ושפת המסך. */
+export function passIssuedLabel(date: Date = new Date()): string {
+  return tr('pass.card.issued', {
+    date: date.toLocaleDateString(LOCALE_META[activeLocale()].intl, {
+      day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Jerusalem',
+    }),
+  });
+}
+
+/** אותיות מרווחות: מילים מופרדות ב-3 רווחים, אותיות ברווח אחד. */
+function wide(s: string): string {
+  return s.toLocaleUpperCase(activeLocale()).split(' ')
+    .map((w) => w.split('').join(' ')).join('   ');
+}
+
 export function passFileName(): string {
   return `dubid-pass-${new Date().toISOString().slice(0, 10)}.png`;
 }

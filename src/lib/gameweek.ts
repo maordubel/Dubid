@@ -150,6 +150,15 @@ export const STATUS_LABEL_HE: Record<GameweekStatusValue, string> = {
   archived:  'ארכיון',
 };
 
+/** תווית סטטוס בשפה נתונה (ברירת מחדל: עברית). */
+export function statusLabel(s: GameweekStatusValue, locale: Locale = 'he'): string {
+  return translate(`board.gw.${s}` as DictKey, locale);
+}
+/** הפעולה הראשית לפי סטטוס, בשפה נתונה. */
+export function statusCta(s: GameweekStatusValue, locale: Locale = 'he'): string {
+  return translate(`board.gw.cta.${s}` as DictKey, locale);
+}
+
 /**
  * הפעולה הראשית שהמשתמש אמור לעשות עכשיו.
  * הברִיף: "לכל מסך חשוב פעולה ראשית אחת ברורה".
@@ -198,11 +207,11 @@ export function countdown(ms: number): Countdown {
 }
 
 /** תווית ימים בעברית, או ריק. */
-export function daysLabel(days: number): string {
+export function daysLabel(days: number, locale: Locale = 'he'): string {
   if (days <= 0) return '';
-  if (days === 1) return 'עוד יום';
-  if (days === 2) return 'עוד יומיים';
-  return `עוד ${days} ימים`;
+  if (days === 1) return translate('board.gw.daysOne', locale);
+  if (days === 2) return translate('board.gw.daysTwo', locale);
+  return translate('board.gw.daysN', locale, { n: days });
 }
 
 /* ================================================================== */

@@ -23,6 +23,22 @@
 import { encodeQr, drawQrToCanvas } from './qr.ts';
 import { PRESS } from './pressPalette.ts';
 import type { Position } from './scoring/types.ts';
+import { activeLocale, tr } from './i18n/dict.ts';
+import { dirOf } from './i18n/locales.ts';
+
+/* ---- כיוון הכרטיס: נגזר משפת המסך הפעילה ---- */
+export const cardDir = (): 'rtl' | 'ltr' => dirOf(activeLocale());
+export const isRtlCard = (): boolean => cardDir() === 'rtl';
+/** נקודה במרחק `off` מהקצה שבו מתחילה הקריאה, בתוך תיבה [x, x+w]. */
+export const leadX = (x: number, w: number, off: number): number =>
+  isRtlCard() ? x + w - off : x + off;
+/** כנ"ל מהקצה שבו הקריאה נגמרת. */
+export const trailX = (x: number, w: number, off: number): number =>
+  isRtlCard() ? x + off : x + w - off;
+export const leadAlign = (): CanvasTextAlign => (isRtlCard() ? 'right' : 'left');
+export const trailAlign = (): CanvasTextAlign => (isRtlCard() ? 'left' : 'right');
+/** כותרות מרווחות־אותיות: בעברית ללא שינוי, בלטינית/יוונית באותיות גדולות. */
+export const wideCase = (s: string): string => s.toLocaleUpperCase(activeLocale());
 
 export const CARD_W = 1080;
 export const CARD_H = 1920;
@@ -252,7 +268,7 @@ export function drawShareCard(
   logo?: CanvasImageSource | null,
 ): void {
   ctx.save();
-  ctx.direction = 'rtl';
+  ctx.direction = cardDir();
   ctx.textBaseline = 'alphabetic';
   ctx.clearRect(0, 0, CARD_W, CARD_H);
 
@@ -300,7 +316,7 @@ function drawMasthead(
     ctx.textAlign = 'center';
     ctx.fillStyle = PRESS.ink;
     ctx.font = `900 116px ${F_DISPLAY}`;
-    ctx.fillText('דוביד', CARD_W / 2, 232);
+    ctx.fillText(tr('share.brand'), CARD_W / 2, 232);
   }
 
   ctx.textAlign = 'center';
@@ -326,14 +342,16 @@ function drawMasthead(
   ctx.fillStyle = PRESS.ink;
   ctx.font = `900 70px ${F_DISPLAY}`;
   withSpacing(ctx, '6px', () => {
-    ctx.fillText('תוצאות המחזור', CARD_W / 2, by + 71);
+    const title = tr('share.title');
+    fitFont(ctx, title, bw - 40);
+    ctx.fillText(title, CARD_W / 2, by + 71);
   });
 
   ctx.font = `700 31px ${F_UI}`;
   ctx.fillStyle = PRESS.ink;
   ctx.fillText(
     clip(ctx,
-      [d.modeLabel, d.gameweekLabel, d.leagueLabel ?? 'ליגת העל']
+      [d.modeLabel, d.gameweekLabel, d.leagueLabel ?? tr('share.defaultLeague')]
         .filter(Boolean).join('  ·  '),
       bw - 40),
     CARD_W / 2, by + bh + 40,
@@ -363,11 +381,11 @@ function drawScoreBlock(ctx: CanvasRenderingContext2D, d: ShareCardData) {
   ctx.fillText(label, cx - 3, 745);
   ctx.fillStyle = PRESS.ink;
   ctx.fillText(label, cx, 742);
-  ctx.direction = 'rtl';
+  ctx.direction = cardDir();
 
   ctx.font = `900 42px ${F_DISPLAY}`;
   ctx.fillStyle = PRESS.ink;
-  withSpacing(ctx, '4px', () => ctx.fillText('נקודות במחזור', cx, 794));
+  withSpacing(ctx, '4px', () => ctx.fillText(tr('share.pointsRound'), cx, 794));
 
   /* ── חותמת המקום ──
      מוטה, כמו חותמת שהוטבעה על הנייר. ישרה היא רכיב ממשק. */
@@ -387,7 +405,7 @@ function drawScoreBlock(ctx: CanvasRenderingContext2D, d: ShareCardData) {
     ctx.textAlign = 'center';
     ctx.fillStyle = top3 ? PRESS.red : PRESS.ink;
     ctx.font = `900 40px ${F_DISPLAY}`;
-    ctx.fillText(`מקום ${d.rank} מתוך ${d.totalPlayers}`, 0, 14);
+    ctx.fillText(tr('share.rankOf', { rank: d.rank, total: d.totalPlayers }), 0, 14);
     ctx.restore();
   }
 }
@@ -405,10 +423,10 @@ function fmtMultiplier(n: number | undefined): string {
  */
 function drawBreakdown(ctx: CanvasRenderingContext2D, d: ShareCardData) {
   const items: Array<[string, number]> = [
-    ['אישי', d.breakdown.personal],
-    ['תוצאה', d.breakdown.result],
-    [`קפטן ×${fmtMultiplier(d.captainMultiplier)}`, d.breakdown.captain],
-    ['וירטואלי', d.breakdown.virtual],
+    [tr('share.bd.personal'), d.breakdown.personal],
+    [tr('share.bd.result'), d.breakdown.result],
+    [tr('share.bd.captain', { m: fmtMultiplier(d.captainMultiplier) }), d.breakdown.captain],
+    [tr('share.bd.virtual'), d.breakdown.virtual],
   ];
   const gap = 14;
   const total = CARD_W - 128;
@@ -416,8 +434,8 @@ function drawBreakdown(ctx: CanvasRenderingContext2D, d: ShareCardData) {
   const y = 926, h = 116;
 
   items.forEach(([label, value], i) => {
-    // RTL: הפריט הראשון בימין.
-    const x = CARD_W - 64 - w - i * (w + gap);
+    // RTL: הפריט הראשון בימין. LTR: בשמאל.
+    const x = isRtlCard() ? CARD_W - 64 - w - i * (w + gap) : 64 + i * (w + gap);
 
     ctx.fillStyle = PRESS.card;
     ctx.fillRect(x, y, w, h);
@@ -430,7 +448,7 @@ function drawBreakdown(ctx: CanvasRenderingContext2D, d: ShareCardData) {
     ctx.font = `400 50px ${F_POSTER}`;
     ctx.fillStyle = PRESS.ink;
     ctx.fillText(formatPoints(value), x + w / 2, y + 66);
-    ctx.direction = 'rtl';
+    ctx.direction = cardDir();
 
     ctx.font = `700 23px ${F_UI}`;
     ctx.fillStyle = 'rgba(18,16,14,.62)';
@@ -441,9 +459,7 @@ function drawBreakdown(ctx: CanvasRenderingContext2D, d: ShareCardData) {
 /* ---------------- 5 · טבלת הציונים ---------------- */
 const ROW_ORDER: Position[] = ['GK', 'DEF', 'MID', 'FWD'];
 
-const POS_HE: Record<Position, string> = {
-  GK: 'שוער', DEF: 'הגנה', MID: 'קישור', FWD: 'חלוץ',
-};
+const posLabel = (p: Position): string => tr(`share.pos.${p}`);
 
 /**
  * ★ טבלה בשתי עמודות, ובכוונה.
@@ -460,7 +476,7 @@ function drawRatings(ctx: CanvasRenderingContext2D, d: ShareCardData): { bottom:
     const pa = ROW_ORDER.indexOf(a.position);
     const pb = ROW_ORDER.indexOf(b.position);
     // עמדה, ואז ניקוד יורד, ואז שם — מיון יציב לחלוטין.
-    return pa - pb || b.points - a.points || a.name.localeCompare(b.name, 'he');
+    return pa - pb || b.points - a.points || a.name.localeCompare(b.name, activeLocale());
   });
 
   const x = 64, y = 1094, w = CARD_W - 128;
@@ -474,19 +490,19 @@ function drawRatings(ctx: CanvasRenderingContext2D, d: ShareCardData): { bottom:
   /* כותרת הטבלה — פס דיו דק עם שתי מילים. */
   ctx.fillStyle = PRESS.ink;
   ctx.fillRect(x, y - 44, w, 34);
-  ctx.textAlign = 'right';
+  ctx.textAlign = leadAlign();
   ctx.fillStyle = PRESS.paper;
   ctx.font = `700 22px ${F_UI}`;
-  withSpacing(ctx, '3px', () => ctx.fillText('הציונים', x + w - 12, y - 20));
-  ctx.textAlign = 'left';
+  withSpacing(ctx, '3px', () => ctx.fillText(tr('share.ratings'), leadX(x, w, 12), y - 20));
+  ctx.textAlign = trailAlign();
   ctx.font = `700 20px ${F_UI}`;
-  ctx.fillText('POINTS', x + 12, y - 20);
+  ctx.fillText(tr('share.pointsCol'), trailX(x, w, 12), y - 20);
 
   players.forEach((p, i) => {
     const col = twoCols && i >= perCol ? 1 : 0;
     const row = twoCols ? i % perCol : i;
-    // RTL: העמודה הראשונה בימין.
-    const cx = col === 0 ? x + w - colW : x;
+    // RTL: העמודה הראשונה בימין. LTR: בשמאל.
+    const cx = (col === 0) === isRtlCard() ? x + w - colW : x;
     const cy = y + row * rowH;
     drawRatingRow(ctx, cx, cy, colW, rowH, p);
   });
@@ -523,27 +539,27 @@ function drawRatingRow(
   ctx.textAlign = 'center';
   ctx.font = `700 17px ${F_UI}`;
   ctx.fillStyle = dim;
-  ctx.fillText(POS_HE[p.position], x + w - 34, y + 36);
+  ctx.fillText(posLabel(p.position), leadX(x, w, 34), y + 36);
 
   /* השם. */
-  ctx.textAlign = 'right';
+  ctx.textAlign = leadAlign();
   ctx.font = `700 27px ${F_UI}`;
   ctx.fillStyle = ink;
   const nameMax = w - 190;
-  ctx.fillText(clip(ctx, p.name, nameMax), x + w - 66, y + 33);
+  ctx.fillText(clip(ctx, p.name, nameMax), leadX(x, w, 66), y + 33);
 
   /* הקבוצה, שורה שנייה קטנה. */
   ctx.font = `700 18px ${F_UI}`;
   ctx.fillStyle = dim;
-  ctx.fillText(clip(ctx, p.teamShort, nameMax), x + w - 66, y + 52);
+  ctx.fillText(clip(ctx, p.teamShort, nameMax), leadX(x, w, 66), y + 52);
 
   /* הניקוד, בקצה השני. */
-  ctx.textAlign = 'left';
+  ctx.textAlign = trailAlign();
   ctx.direction = 'ltr';
   ctx.font = `400 40px ${F_POSTER}`;
   ctx.fillStyle = ink;
-  ctx.fillText(formatPoints(p.points), x + 14, y + 44);
-  ctx.direction = 'rtl';
+  ctx.fillText(formatPoints(p.points), trailX(x, w, 14), y + 44);
+  ctx.direction = cardDir();
 }
 
 /* ---------------- 6 · שם המאמן ---------------- */
@@ -563,7 +579,7 @@ function drawCoach(ctx: CanvasRenderingContext2D, d: ShareCardData, y: number) {
 
   ctx.fillStyle = 'rgba(18,16,14,.6)';
   ctx.font = `700 20px ${F_UI}`;
-  withSpacing(ctx, '2px', () => ctx.fillText(spaced('המאמן'), CARD_W / 2, y + 28));
+  withSpacing(ctx, '2px', () => ctx.fillText(spaced(wideCase(tr('share.coach'))), CARD_W / 2, y + 28));
 
   ctx.fillStyle = PRESS.ink;
   ctx.font = `900 44px ${F_DISPLAY}`;
@@ -584,7 +600,10 @@ function drawStub(ctx: CanvasRenderingContext2D, d: ShareCardData) {
 
   const qr = encodeQr(d.url, 'H');
   const qrSize = 178;
-  const qrX = CARD_W - 84 - qrSize;
+  const qrX = isRtlCard() ? CARD_W - 84 - qrSize : 84;
+  /* קצה הטקסט שליד ה-QR, ולאן הוא מתרחב */
+  const textMax = CARD_W - 84 - qrSize - 34 - 64;
+  const textX = isRtlCard() ? qrX - 34 : qrX + qrSize + 34;
   drawQrToCanvas(ctx, qr, qrX, y, qrSize, {
     dark: PRESS.ink, light: PRESS.card, margin: 2,
   });
@@ -592,15 +611,20 @@ function drawStub(ctx: CanvasRenderingContext2D, d: ShareCardData) {
   ctx.lineWidth = 2;
   ctx.strokeRect(qrX, y, qrSize, qrSize);
 
-  ctx.textAlign = 'right';
+  ctx.textAlign = leadAlign();
   ctx.fillStyle = PRESS.ink;
   ctx.font = `900 44px ${F_DISPLAY}`;
-  ctx.fillText('תשחק מולי במחזור הבא', qrX - 34, y + 54);
+  const cta = tr('share.cta');
+  fitFont(ctx, cta, textMax);
+  ctx.fillText(cta, textX, y + 54);
 
-  ctx.font = `700 27px ${F_UI}`;
   ctx.fillStyle = 'rgba(18,16,14,.66)';
-  ctx.fillText(`סרוק, בחר ${d.lineup.length} שחקנים —`, qrX - 34, y + 100);
-  ctx.fillText('אחד מכל קבוצה. זהו הכלל.', qrX - 34, y + 138);
+  [[tr('share.scan1', { n: d.lineup.length }), 100], [tr('share.scan2'), 138]]
+    .forEach(([line, dy]) => {
+      ctx.font = `700 27px ${F_UI}`;
+      fitFont(ctx, line as string, textMax);
+      ctx.fillText(line as string, textX, y + (dy as number));
+    });
 
   /* רצועת הכתובת — אדומה, כמו המאסטהד. */
   const barY = CARD_H - 112, barH = 62;
@@ -616,7 +640,7 @@ function drawStub(ctx: CanvasRenderingContext2D, d: ShareCardData) {
   ctx.font = `400 42px ${F_POSTER}`;
   ctx.fillStyle = PRESS.ink;
   ctx.fillText(d.urlLabel ?? 'DUBID.DUBELTEAM.COM', CARD_W / 2, barY + 45);
-  ctx.direction = 'rtl';
+  ctx.direction = cardDir();
 }
 
 /* ---------------- 8 · "לא סופי" ---------------- */
@@ -641,9 +665,9 @@ function drawProvisionalStamp(ctx: CanvasRenderingContext2D) {
   ctx.textAlign = 'center';
   ctx.fillStyle = PRESS.red;
   ctx.font = `900 29px ${F_DISPLAY}`;
-  withSpacing(ctx, '2px', () => ctx.fillText('לא סופי', 0, -2));
+  withSpacing(ctx, '2px', () => ctx.fillText(tr('share.provisional'), 0, -2));
   ctx.font = `700 18px ${F_UI}`;
-  ctx.fillText('המחזור עדיין חי', 0, 24);
+  ctx.fillText(clip(ctx, tr('share.provisionalSub'), w - 24), 0, 24);
 
   ctx.restore();
 }
@@ -725,6 +749,16 @@ export function spaced(s: string): string {
 /* ---------------- עזרים ---------------- */
 export function formatPoints(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+/** מכווץ את הגופן הנוכחי עד שהטקסט נכנס (לא פחות מ-60%). טקסט שנכנס לא משתנה. */
+export function fitFont(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  const w = ctx.measureText(text).width;
+  if (!(w > maxWidth)) return;
+  const m = /(\d+(?:\.\d+)?)px/.exec(ctx.font);
+  if (!m) return;
+  const size = Math.max(Math.floor(+m[1] * (maxWidth / w)), Math.floor(+m[1] * 0.6));
+  ctx.font = ctx.font.replace(/(\d+(?:\.\d+)?)px/, `${size}px`);
 }
 
 export function clip(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {

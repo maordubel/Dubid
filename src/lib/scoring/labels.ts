@@ -9,6 +9,7 @@
  *   בשביל זה כל שורה כאן קיימת.
  */
 import { Reason, type ReasonCode } from './types.ts';
+import { DICT, tr, type DictKey } from '../i18n/dict.ts';
 
 export interface ReasonLabel {
   he: string;
@@ -43,9 +44,16 @@ export const ACTION_LABELS: Record<string, string> = {
 /** התווית המלאה לשורת ניקוד, כולל הסטטיסטיקה שמאחוריה. */
 export function lineLabel(reason: ReasonCode, meta?: Record<string, unknown>): string {
   if (reason === Reason.Action && typeof meta?.stat === 'string') {
-    return ACTION_LABELS[meta.stat] ?? meta.stat;
+    const k = `score.act.${meta.stat}`;
+    return k in DICT ? tr(k as DictKey) : (ACTION_LABELS[meta.stat] ?? meta.stat);
   }
-  return REASON_LABELS[reason]?.he ?? reason;
+  const rk = `score.reason.${reason}`;
+  return rk in DICT ? tr(rk as DictKey) : (REASON_LABELS[reason]?.he ?? reason);
+}
+
+/** שם קבוצת הניקוד בשפה הפעילה. */
+export function groupLabel(g: ReasonGroup): string {
+  return tr(`score.group.${g}` as DictKey);
 }
 
 export type ReasonGroup =

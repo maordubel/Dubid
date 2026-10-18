@@ -16,6 +16,7 @@ import { BottomNav, SideRail, NAV_HEIGHT_PX, type NavItem } from './BottomNav.ts
 import { LogoMark } from './Logo.tsx';
 import { MISREGISTER } from '../lib/pressPalette.ts';
 import { useI18n } from '../lib/i18n/index.tsx';
+import { tr } from '../lib/i18n/dict.ts';
 
 export interface AppShellProps {
   items: NavItem[];
@@ -136,14 +137,15 @@ export function AppHeader({
 /* ------------------------------------------------------------------ */
 
 export const DUBID_NAV: NavItem[] = [
-  { id: 'lineup', label: 'ההרכב', icon: '◎' },
-  { id: 'players', label: 'שחקנים', icon: '▦' },
-  { id: 'league', label: 'הליגה', icon: '⚑' },
-  { id: 'card', label: 'הכרטיס', icon: '◐' },
-  { id: 'more', label: 'עוד', icon: '☰' },
+  { id: 'lineup', get label() { return tr('nav.lineup'); }, icon: '◎' },
+  { id: 'players', get label() { return tr('common.players'); }, icon: '▦' },
+  { id: 'league', get label() { return tr('shell.nav.league'); }, icon: '⚑' },
+  { id: 'card', get label() { return tr('shell.screen.card'); }, icon: '◐' },
+  { id: 'more', get label() { return tr('shell.nav.more'); }, icon: '☰' },
 ];
 
 export function DubidApp({ screens }: { screens: Record<string, ReactNode> }) {
+  const { t } = useI18n();
   const [tab, setTab] = useState('lineup');
   return (
     <AppShell
@@ -152,10 +154,10 @@ export function DubidApp({ screens }: { screens: Record<string, ReactNode> }) {
       onSelect={setTab}
       header={
         <AppHeader
-          title="מחזור 7"
+          title={t('shell.roundN', { n: 7 })}
           subtitle={
             <>
-              נעילה בעוד{' '}
+              {t('shell.lockIn')}{' '}
               <span dir="ltr" className="num text-flare">02:14:38</span>
             </>
           }

@@ -20,13 +20,15 @@ import { useEffect, useState } from 'react';
 import {
   currentIdentity, subscribeToIdentity, ensureIdentity, redeemAccessCode,
   setDisplayName, storedDisplayName, myProfile, setAvatar, AVATAR_POOL,
-  signOut, type Identity, type CoachProfile,
+  signOut, redeemErrorMessage, serverUnreachableMessage,
+  type Identity, type CoachProfile,
 } from '../lib/identity.ts';
 import { AuthPanel } from './AuthPanel.tsx';
 import { LogoMark } from './Logo.tsx';
 import { LanguagePicker } from './LanguagePicker.tsx';
 import { LeaguePicker } from './LeaguePicker.tsx';
 import { useI18n } from '../lib/i18n/index.tsx';
+import { LOCALE_META } from '../lib/i18n/locales.ts';
 
 type Tab = 'me' | 'move';
 
@@ -77,7 +79,7 @@ export function AccountSheet({
     >
       <div
         role="dialog"
-        aria-label="פרופיל המאמן"
+        aria-label={t('acct.title')}
         onClick={(e) => e.stopPropagation()}
         className="tex-wood max-h-[92dvh] w-full max-w-lg animate-slideUp overflow-y-auto
                    rounded-t-3xl border-t border-gold/25 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
@@ -85,10 +87,10 @@ export function AccountSheet({
         <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gold/15
                         bg-night/85 px-4 py-3 backdrop-blur">
           <LogoMark size={28} />
-          <h2 className="flex-1 font-press text-lg font-black text-chalk">פרופיל המאמן</h2>
+          <h2 className="flex-1 font-press text-lg font-black text-chalk">{t('acct.title')}</h2>
           <button
             onClick={onClose}
-            aria-label="סגירה"
+            aria-label={t('acct.close')}
             className="tap grid size-9 place-items-center rounded-full text-chalk-dim"
           >
             ✕
@@ -110,7 +112,7 @@ export function AccountSheet({
                 חושב "מכשיר חדש" — הוא חושב "איפה השמירה שלי". */}
           {/* ★ שתי לשוניות, לא שלוש. ראו את ההערה על הסרת
               לשונית אופסיידס בתחתית הקובץ. */}
-          {([['me', 'פרופיל המאמן'], ['move', 'הכרטיס שלי']] as const)
+          {([['me', t('acct.title')], ['move', t('acct.tab.card')]] as const)
             .map(([id, label]) => (
               <button
                 key={id}
@@ -181,6 +183,7 @@ export function AccountSheet({
 function ProfileTab({
   identity, onShowPass,
 }: { identity: Identity | null; onShowPass?: () => void }) {
+  const { t, locale } = useI18n();
   const [p, setP] = useState<CoachProfile | null>(null);
   const [name, setName] = useState(storedDisplayName());
   const [saved, setSaved] = useState(false);
@@ -215,7 +218,7 @@ function ProfileTab({
         <div className="flex items-center gap-3">
           <button
             onClick={() => setPickAvatar((v) => !v)}
-            aria-label="שינוי אווטאר"
+            aria-label={t('acct.avatarChange')}
             className="tap grid size-16 shrink-0 place-items-center rounded-2xl bg-night
                        text-3xl ring-1 ring-inset ring-gold/30"
           >
@@ -224,7 +227,7 @@ function ProfileTab({
 
           <div className="min-w-0 flex-1">
             <h3 className="font-press truncate text-[19px] font-black leading-tight text-chalk">
-              {p?.displayName || name || 'מאמן'}
+              {p?.displayName || name || t('acct.coachDefault')}
             </h3>
             {p?.username && (
               <p className="truncate text-[12px] text-chalk-dim">
@@ -239,19 +242,19 @@ function ProfileTab({
                   className={`rounded px-1.5 py-px text-[9.5px] font-black ${
                     guest ? 'bg-chalk/10 text-chalk-dim' : 'bg-gold/20 text-gold'}`}
                 >
-                  {guest ? 'אורח' : 'חשבון קבוע'}
+                  {guest ? t('acct.guest') : t('acct.permanent')}
                 </span>
               )}
               {p?.hasPass && (
                 <span className="rounded bg-gold/12 px-1.5 py-px text-[9.5px] font-black text-gold">
-                  יש כרטיס
+                  {t('acct.hasPass')}
                 </span>
               )}
               {p && (
                 <span className="text-[10.5px] text-chalk-dim">
-                  מאמן מאז{' '}
+                  {t('acct.since')}{' '}
                   <span className="num">
-                    {new Date(p.memberSince).toLocaleDateString('he-IL', {
+                    {new Date(p.memberSince).toLocaleDateString(LOCALE_META[locale].intl, {
                       month: '2-digit', year: 'numeric', timeZone: 'Asia/Jerusalem',
                     })}
                   </span>
@@ -289,17 +292,16 @@ function ProfileTab({
         כהישג — וזה מה שהמסך הזה אמור לעשות.
       */}
       <section className="grid grid-cols-4 gap-2">
-        <Metric label="מחזורים" value={p?.played ?? 0} />
-        <Metric label="נקודות" value={p?.totalPoints ?? null} />
-        <Metric label="שיא" value={p?.bestPoints ?? null} />
-        <Metric label="מקום הכי טוב" value={p?.bestRank ?? null} prefix="#" />
+        <Metric label={t('acct.m.rounds')} value={p?.played ?? 0} />
+        <Metric label={t('acct.m.points')} value={p?.totalPoints ?? null} />
+        <Metric label={t('acct.m.best')} value={p?.bestPoints ?? null} />
+        <Metric label={t('acct.m.bestRank')} value={p?.bestRank ?? null} prefix="#" />
       </section>
 
       {p && p.played === 0 && (
         <p className="rounded-xl border border-gold/15 bg-night-2 px-3 py-3 text-center
                       text-[12px] leading-snug text-chalk-dim">
-          עוד לא הגשת הרכב. ברגע שתגיש, המחזור יופיע כאן —
-          וההיסטוריה שלך מתחילה להצטבר.
+          {t('acct.noEntries')}
         </p>
       )}
 
@@ -308,10 +310,10 @@ function ProfileTab({
         <section className="overflow-hidden rounded-2xl border border-gold/15 bg-night-2">
           <div className="flex items-baseline justify-between border-b border-gold/15 px-4 py-2.5">
             <span className="text-[11px] font-black tracking-[2px] text-gold">
-              ההיסטוריה שלי
+              {t('acct.history')}
             </span>
             <span className="text-[10.5px] text-chalk-dim">
-              <span className="num">{p.played}</span> הגשות
+              <span className="num">{p.played}</span> {t('acct.submissions')}
             </span>
           </div>
           <ul>
@@ -325,8 +327,8 @@ function ProfileTab({
                     {h.teamName || h.gwLabel}
                   </span>
                   <span className="block truncate text-[10.5px] text-chalk-dim">
-                    {h.gwLabel} · {h.mode === 'five' ? 'דוביד 5' : 'דוביד 11'}
-                    {h.rank && <> · מקום <span className="num">{h.rank}</span></>}
+                    {h.gwLabel} · {h.mode === 'five' ? t('mode.five.title') : t('mode.full.title')}
+                    {h.rank && <> · {t('acct.rankWord')} <span className="num">{h.rank}</span></>}
                   </span>
                 </span>
                 {/* ★ מקף ולא אפס. מחזור שלא נוקד הוא "עוד לא",
@@ -342,16 +344,16 @@ function ProfileTab({
 
       {/* ═══════════ השם ═══════════ */}
       <section className="rounded-2xl bg-night-2 p-4 edge-gold">
-        <h3 className="text-sm font-black text-chalk">שם המאמן</h3>
+        <h3 className="text-sm font-black text-chalk">{t('acct.nameTitle')}</h3>
         <p className="mt-1 text-[12px] leading-snug text-chalk-2">
-          זה מה שמופיע בטבלה ובכרטיס השיתוף.
+          {t('acct.nameHint')}
         </p>
         <div className="mt-2.5 flex gap-2">
           <input
             value={name}
             onChange={(e) => { setName(e.target.value); setSaved(false); }}
             maxLength={20}
-            placeholder="איך יקראו לך בטבלה"
+            placeholder={t('acct.namePh')}
             className="min-w-0 flex-1 rounded-xl border border-gold/25 bg-night px-3 py-2.5
                        text-chalk outline-none focus:border-gold"
           />
@@ -366,7 +368,7 @@ function ProfileTab({
             className="tap shrink-0 rounded-xl bg-gold px-4 text-[13px] font-black
                        text-gold-ink disabled:opacity-40"
           >
-            {saved ? 'נשמר ✓' : 'שמירה'}
+            {saved ? t('acct.saved') : t('acct.save')}
           </button>
         </div>
       </section>
@@ -376,7 +378,7 @@ function ProfileTab({
         <section>
           <div className="mb-2.5">
             <h3 className="font-press text-[15px] font-black text-chalk">
-              שמירת החשבון
+              {t('acct.saveTitle')}
             </h3>
             {/*
               ★ הניסוח הזה עבר כמה גרסאות, וזו הנקודה.
@@ -391,13 +393,13 @@ function ProfileTab({
             */}
             <p className="mt-1 text-[12.5px] leading-snug text-chalk-2">
               {p && p.played > 0
-                ? `כבר יש כאן ${p.played} הגשות שלך. הן חיות בדפדפן הזה בלבד — חשבון שומר אותן לתמיד.`
-                : 'עכשיו אתם משחקים כאורח, וזה בסדר גמור. רק שימו לב: הזהות הזו חיה בדפדפן הזה בלבד.'}
+                ? t('acct.saveHintPlayed', { n: p.played })
+                : t('acct.saveHintNew')}
             </p>
           </div>
           <AuthPanel />
           <p className="mt-2.5 text-center text-[11px] text-chalk-dim">
-            לא רוצים עכשיו? פשוט סגרו — הכל ממשיך לעבוד.
+            {t('acct.skipHint')}
           </p>
         </section>
       )}
@@ -410,14 +412,14 @@ function ProfileTab({
             className="tap w-full rounded-xl border border-gold/25 py-2.5 text-[13px]
                        font-bold text-gold-light"
           >
-            {p?.hasPass ? 'הכרטיס שלי' : 'קבלת כרטיס מנוי'}
+            {p?.hasPass ? t('acct.tab.card') : t('acct.passGet')}
           </button>
         )}
 
         {p?.referralCode && (
           <div className="rounded-xl bg-night-2 px-3 py-2.5 edge-gold">
             <div className="flex items-baseline gap-2">
-              <span className="flex-1 text-[11px] text-chalk-dim">קוד ההפניה שלי</span>
+              <span className="flex-1 text-[11px] text-chalk-dim">{t('acct.refCode')}</span>
               <span className="num text-[13px] font-black text-gold" dir="ltr">
                 {p.referralCode}
               </span>
@@ -431,7 +433,7 @@ function ProfileTab({
             className="tap w-full rounded-xl border border-flare/30 py-2.5 text-[12.5px]
                        font-bold text-flare"
           >
-            יציאה מהחשבון
+            {t('acct.signOut')}
           </button>
         )}
       </section>
@@ -458,6 +460,7 @@ function Metric({
 function MoveTab({
   onDone, onShowPass, hasPass,
 }: { onDone: () => void; onShowPass?: () => void; hasPass?: boolean }) {
+  const { t } = useI18n();
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -467,11 +470,9 @@ function MoveTab({
     void redeemAccessCode(input)
       .then((r) => {
         if (r.ok) { window.location.reload(); onDone(); return; }
-        setError(r.error === 'TOO_MANY_ATTEMPTS'
-          ? 'יותר מדי ניסיונות. נסו שוב בעוד רבע שעה.'
-          : 'המפתח לא תקף. בדקו שהעתקתם אותו במלואו.');
+        setError(redeemErrorMessage(r.error));
       })
-      .catch(() => setError('לא הצלחנו להתחבר לשרת. בדקו חיבור ונסו שוב.'))
+      .catch(() => setError(serverUnreachableMessage()))
       .finally(() => setBusy(false));
   };
 
@@ -492,10 +493,9 @@ function MoveTab({
       */}
       {onShowPass && (
         <section className="rounded-2xl bg-night-2 p-4 edge-gold">
-          <h3 className="text-sm font-black text-chalk">כרטיס המנוי שלי</h3>
+          <h3 className="text-sm font-black text-chalk">{t('acct.passCardTitle')}</h3>
           <p className="mt-1 text-[12px] leading-snug text-chalk-2">
-            תמונה עם מפתח קבוע ו-QR. שומרים בגלריה או שולחים לעצמכם
-            בוואטסאפ, ונכנסים איתה מכל מכשיר — בלי סיסמה ובלי הרשמה.
+            {t('acct.passCardBody')}
           </p>
 
           {hasPass && (
@@ -504,8 +504,7 @@ function MoveTab({
                ששמור בגלריה ללא תקף. עדיף שידע לפני ולא אחרי. */
             <p className="mt-2 rounded-lg border border-armband/30 bg-armband/10 px-2.5 py-2
                           text-[11.5px] leading-snug text-armband">
-              כבר יש לכם כרטיס. הנפקת חדש תבטל את הישן — אם שמרתם
-              אותו, הוא יפסיק לעבוד.
+              {t('acct.passHasWarn')}
             </p>
           )}
 
@@ -514,16 +513,15 @@ function MoveTab({
             className="tap mt-3 w-full rounded-full bg-gradient-to-b from-gold-light to-gold
                        py-2.5 font-poster text-gold-ink"
           >
-            {hasPass ? 'הנפקת כרטיס חדש' : 'קבלת הכרטיס שלי'}
+            {hasPass ? t('acct.passIssueNew') : t('acct.passGetMine')}
           </button>
         </section>
       )}
 
       <section className="rounded-2xl bg-night-2 p-4 edge-gold">
-        <h3 className="text-sm font-black text-chalk">יש לי כרטיס</h3>
+        <h3 className="text-sm font-black text-chalk">{t('acct.haveTitle')}</h3>
         <p className="mt-1 text-[12px] leading-snug text-chalk-2">
-          הקלידו את המפתח מהכרטיס, או סרקו את ה-QR שעליו. ההרכבים,
-          שם הקבוצה והזירות שלכם יעברו למכשיר הזה.
+          {t('acct.haveBody')}
         </p>
         <input
           value={input}
@@ -540,7 +538,7 @@ function MoveTab({
           className="tap mt-3 w-full rounded-full border border-gold/35 py-2.5
                      font-poster text-gold-light disabled:opacity-40"
         >
-          {busy ? 'בודק…' : 'כניסה עם הכרטיס'}
+          {busy ? t('acct.checking') : t('acct.enterWithPass')}
         </button>
       </section>
 

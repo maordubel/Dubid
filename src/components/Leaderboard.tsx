@@ -40,19 +40,24 @@ import { RivalLineup } from './RivalLineup.tsx';
 import type { PoolPlayer, TeamMeta } from './SquadPicker.tsx';
 import { modeTheme } from '../lib/modeTheme.ts';
 import { NIGHT_PRESS as NP, MISREGISTER } from '../lib/pressPalette.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
+import { displayName } from '../lib/i18n/names.ts';
+import type { DictKey } from '../lib/i18n/dict.ts';
 
-const MODE_LABEL: Record<'full' | 'five', string> = { full: 'דוביד 11', five: 'דוביד 5' };
+type TFn = (key: DictKey, vars?: Record<string, string | number>) => string;
+
+const modeLabel = (t: TFn, m: 'full' | 'five'): string => t(m === 'full' ? 'mode.full.title' : 'mode.five.title');
 
 /** מה שבר את השוויון — בשפה שמסבירה, לא בקוד. */
-const TIEBREAK_LABEL: Record<TieBreakStage, string> = {
-  total:        '',
-  captain:      'הוכרע לפי הקפטן',
-  differential: 'הוכרע לפי בחירות נדירות',
-  goals:        'הוכרע לפי שערים',
-  assists:      'הוכרע לפי בישולים',
-  clean_sheets: 'הוכרע לפי שערים נקיים',
-  other:        'הוכרע לפי תרומה נוספת',
-  submitted_at: 'הוכרע לפי זמן ההגשה',
+const TIEBREAK_KEY: Record<TieBreakStage, DictKey | null> = {
+  total:        null,
+  captain:      'board.lb.tb.captain',
+  differential: 'board.lb.tb.differential',
+  goals:        'board.lb.tb.goals',
+  assists:      'board.lb.tb.assists',
+  clean_sheets: 'board.lb.tb.cleanSheets',
+  other:        'board.lb.tb.other',
+  submitted_at: 'board.lb.tb.submittedAt',
 };
 
 type Row = LeaderboardRow<LineupEntry>;
@@ -64,6 +69,7 @@ export function Leaderboard({
   /** מי אני — כדי להדגיש ולעגן את השורה שלי. */
   userId?: string;
 }) {
+  const { t, locale } = useI18n();
   const [, tick] = useState(0);
   useEffect(() => subscribeToStore(() => tick((n) => n + 1)), []);
   const [mode, setMode] = useState<'full' | 'five'>('five');
@@ -95,17 +101,17 @@ export function Leaderboard({
   const [open, setOpen] = useState<Row | null>(null);
 
   const teams: TeamMeta[] = useMemo(
-    () => TEAMS.map((t) => ({ id: t.id, short: t.short, name: t.nameHe })), []);
+    () => TEAMS.map((tm) => ({ id: tm.id, short: tm.short, name: displayName({ he: tm.nameHe, en: tm.nameEn, el: tm.nameEl }, locale) })), [locale]);
   const pool: PoolPlayer[] = useMemo(
     () => PLAYERS.map((p) => ({
       id: p.id,
       teamId: p.teamId,
       position: p.position,
-      name: p.nameHe,
-      nameShort: shortName(p.nameHe),
+      name: displayName({ he: p.nameHe, en: p.nameEn, el: p.nameEl }, locale),
+      nameShort: locale === 'he' ? shortName(p.nameHe) : displayName({ he: p.nameHe, en: p.nameEn, el: p.nameEl }, locale),
       shirt: p.shirt,
       price: p.price,
-    })), []);
+    })), [locale]);
 
   const me = rows.find((r) => r.isMe);
   // ★ אם אני מחוץ ל-20 הראשונים, אני עדיין רואה את עצמי — מעוגן בנפרד.
@@ -122,7 +128,7 @@ export function Leaderboard({
     },
     {
       key: 'name',
-      header: 'שחקן',
+      header: t('board.lb.colPlayer'),
       primary: true,
       render: (r) => (
         <div className="min-w-0">
@@ -134,15 +140,15 @@ export function Leaderboard({
             {r.entry.teamName || r.entry.displayName}
             {r.isMe && (
               <span className="ms-1.5 rounded bg-gold px-1.5 py-px text-[10px] font-black text-night">
-                אני
+                {t('board.lb.me')}
               </span>
             )}
           </div>
           <div className="truncate text-[11px] text-chalk-dim">
             {r.entry.teamName ? `${r.entry.displayName} · ` : ''}
-            {captainLabel(r.score)}
-            {r.tied && r.brokenBy && r.brokenBy !== 'total'
-              ? ` · ${TIEBREAK_LABEL[r.brokenBy]}`
+            {captainLabel(t, r.score)}
+            {r.tied && r.brokenBy && TIEBREAK_KEY[r.brokenBy]
+              ? ` · ${t(TIEBREAK_KEY[r.brokenBy]!)}`
               : ''}
           </div>
         </div>
@@ -150,7 +156,7 @@ export function Leaderboard({
     },
     {
       key: 'captain',
-      header: 'קפטן',
+      header: t('board.lb.colCaptain'),
       primary: false,
       numeric: true,
       width: '4.5rem',
@@ -158,7 +164,7 @@ export function Leaderboard({
     },
     {
       key: 'diff',
-      header: 'נדיר',
+      header: t('board.lb.colRare'),
       primary: false,
       numeric: true,
       width: '4.5rem',
@@ -171,7 +177,7 @@ export function Leaderboard({
     },
     {
       key: 'total',
-      header: 'נק׳',
+      header: t('board.lb.colPts'),
       primary: true,
       numeric: true,
       width: '4.5rem',
@@ -192,12 +198,12 @@ export function Leaderboard({
         <div className="flex items-baseline justify-between gap-3 py-2">
           <h2 className="font-press text-[26px] font-black leading-none"
               style={{ color: NP.ink, textShadow: MISREGISTER }}>
-            דירוג חכמים
+            {t('board.lb.title')}
           </h2>
           <span className="press-folio">
-            {GAMEWEEK.label} · <span className="num">{entries.length}</span> הרכבים
+            {GAMEWEEK.label} · <span className="num">{entries.length}</span> {t('board.lb.lineups')}
             {scoringIsLive(results) && (
-              <span className="ms-2 font-black" style={{ color: NP.ink }}>● דירוג זמני — מתעדכן עם כל משחק</span>
+              <span className="ms-2 font-black" style={{ color: NP.ink }}>{t('board.lb.provisional')}</span>
             )}
           </span>
         </div>
@@ -218,7 +224,7 @@ export function Leaderboard({
                 ? { background: mt.accent, color: NP.paper }
                 : { border: `1px solid ${NP.rule}`, color: NP.inkFaint }}
             >
-              {MODE_LABEL[m]}
+              {modeLabel(t, m)}
             </button>
           );
         })}
@@ -251,10 +257,10 @@ export function Leaderboard({
               <RankBadge rank={me.rank} tied={me.tied} />
               <div className="min-w-0 flex-1">
                 <div className="text-[11px] font-black uppercase tracking-wide text-gold">
-                  התוצאה שלך
+                  {t('board.lb.yourResult')}
                 </div>
                 <div className="truncate text-sm font-bold text-chalk">
-                  ניצחת {beatPercent(me.rank, rows.length)}% מהשחקנים
+                  {t('board.lb.beat', { pct: beatPercent(me.rank, rows.length) })}
                 </div>
               </div>
               <div className="num text-2xl font-black text-gold" dir="ltr">
@@ -269,8 +275,8 @@ export function Leaderboard({
             rowKey={(r) => r.entry.id}
             highlight={(r) => r.isMe}
             onRowClick={setOpen}
-            caption={`${MODE_LABEL[mode]} · ${rows.length} משתתפים · לחיצה פותחת הרכב`}
-            empty={`עדיין אין הרכבים מוגשים ב"${MODE_LABEL[mode]}".`}
+            caption={t('board.lb.caption', { mode: modeLabel(t, mode), n: rows.length })}
+            empty={t('board.lb.empty', { mode: modeLabel(t, mode) })}
           />
 
           {/* ★ מתחת לטבלה ולא מעליה.
@@ -322,6 +328,7 @@ export function Leaderboard({
 export function ParticipantList({
   entries, userId, mode,
 }: { entries: LineupEntry[]; userId?: string; mode: 'full' | 'five' }) {
+  const { t } = useI18n();
   if (entries.length === 0) {
     /* ★ אותה שפה כמו שאר העמוד: תיבה מרובעת בקו העימוד, לא
        כרטיס אפליקציה מעוגל מתחת לכותרת עיתון. */
@@ -329,9 +336,9 @@ export function ParticipantList({
       <div className="px-4 py-8 text-center"
            style={{ border: `1px solid ${NP.rule}`, background: NP.card }}>
         <div className="mx-auto mb-3 h-1 w-12" style={{ background: NP.gold }} />
-        <p className="font-press font-black text-chalk">אף אחד עוד לא הגיש</p>
+        <p className="font-press font-black text-chalk">{t('board.lb.noneYet')}</p>
         <p className="mt-1 text-sm text-chalk-dim">
-          תהיה הראשון ב{MODE_LABEL[mode]} — השם שלך יופיע כאן מיד.
+          {t('board.lb.beFirst', { mode: modeLabel(t, mode) })}
         </p>
       </div>
     );
@@ -342,10 +349,10 @@ export function ParticipantList({
       <div className="flex items-baseline justify-between px-4 py-2.5"
            style={{ borderBottom: `1px solid ${NP.rule}` }}>
         <span className="text-[11px] font-black tracking-[2px]" style={{ color: NP.gold }}>
-          כבר בפנים
+          {t('board.lb.alreadyIn')}
         </span>
         <span className="text-[11px] text-chalk-dim">
-          הדירוג ייפתח עם פרסום התוצאות
+          {t('board.lb.opensWithResults')}
         </span>
       </div>
       <ul>
@@ -363,7 +370,7 @@ export function ParticipantList({
                   {e.teamName || e.displayName}
                   {isMe && (
                     <span className="ms-1.5 rounded bg-gold px-1.5 py-px text-[10px]
-                                     font-black text-night">אני</span>
+                                     font-black text-night">{t('board.lb.me')}</span>
                   )}
                 </span>
                 {e.teamName && (
@@ -375,7 +382,7 @@ export function ParticipantList({
               {/* ★ "מוכן" ולא ניקוד. אין עדיין ניקוד, ומספר מומצא
                   ברגע הזה היה הופך רשימה כנה לטבלה משקרת. */}
               <span className="shrink-0 text-[11px] font-bold text-chalk-dim">
-                {e.hidden ? 'ההרכב סגור' : 'ההרכב שלך'}
+                {e.hidden ? t('board.lb.lineupHidden') : t('board.lb.lineupYours')}
               </span>
             </li>
           );
@@ -386,9 +393,10 @@ export function ParticipantList({
 }
 
 function RankBadge({ rank, tied }: { rank: number; tied: boolean }) {
+  const { t } = useI18n();
   return (
     <div
-      title={tied ? 'שוויון' : undefined}
+      title={tied ? t('board.lb.tie') : undefined}
       className={`num flex h-8 w-8 shrink-0 items-center justify-center rounded-full
                   text-sm font-black ${
                     rank === 1
@@ -404,7 +412,7 @@ function RankBadge({ rank, tied }: { rank: number; tied: boolean }) {
   );
 }
 
-function captainLabel(score: LineupScore): string {
+function captainLabel(t: TFn, score: LineupScore): string {
   const c = score.players.find((p) => p.isCaptain);
-  return c ? `קפטן: ${TEAM_BY_ID.get(c.teamId)?.short ?? ''} · ${c.subtotal}` : '';
+  return c ? `${t('board.lb.captainLabel')}: ${TEAM_BY_ID.get(c.teamId)?.short ?? ''} · ${c.subtotal}` : '';
 }

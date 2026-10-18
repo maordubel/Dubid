@@ -5,9 +5,14 @@
  */
 import type { Locale } from './locales.ts';
 
-type Entry = Record<Locale, string>;
+export type Entry = Record<Locale, string>;
 
-export const DICT = {
+import { DICT_SHELL } from './dict.shell.ts';
+import { DICT_LINEUP } from './dict.lineup.ts';
+import { DICT_BOARD } from './dict.board.ts';
+import { DICT_ACCOUNT } from './dict.account.ts';
+
+const CORE = {
   'nav.home':        { he: 'בית',    en: 'Home',     el: 'Αρχική' },
   'nav.lineup':      { he: 'ההרכב',  en: 'Lineup',   el: 'Ενδεκάδα' },
   'nav.ranking':     { he: 'דירוג',  en: 'Ranking',  el: 'Κατάταξη' },
@@ -86,6 +91,9 @@ export const DICT = {
   'lobby.leagueRound':   { he: '{league} · מחזור', en: '{league} · Round', el: '{league} · Αγωνιστική' },
 } as const satisfies Record<string, Entry>;
 
+/** המילון המלא = ליבה + מודולי אזור (כל אחד בקובץ משלו כדי למנוע התנגשויות). */
+export const DICT = { ...CORE, ...DICT_SHELL, ...DICT_LINEUP, ...DICT_BOARD, ...DICT_ACCOUNT } as const;
+
 export type DictKey = keyof typeof DICT;
 
 export function translate(
@@ -95,3 +103,11 @@ export function translate(
   const raw = e[locale] || e.en || e.he;
   return vars ? raw.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`)) : raw;
 }
+
+/* שפה פעילה לקוד שאינו רכיב React (תוויות, כרטיסי שיתוף, הודעות).
+   נקבעת ע"י I18nProvider בכל רינדור, ולכן קוד שנקרא בזמן רינדור רואה את השפה הנכונה. */
+let active: Locale = 'he';
+export const setActiveLocale = (l: Locale) => { active = l; };
+export const activeLocale = (): Locale => active;
+export const tr = (key: DictKey, vars?: Record<string, string | number>): string =>
+  translate(key, active, vars);

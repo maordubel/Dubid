@@ -10,6 +10,7 @@
 import type { GameweekStory as Story, StoryPick } from '../lib/story.ts';
 import { TEAM_BY_ID } from '../data/squads.ts';
 import { Jersey } from './Jersey.tsx';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 export function GameweekStory({
   story, label, playerName, onNext,
@@ -20,6 +21,7 @@ export function GameweekStory({
   playerName: (playerId: string) => string;
   onNext?: () => void;
 }) {
+  const { t } = useI18n();
   const up = (story.rankDelta ?? 0) > 0;
 
   return (
@@ -37,7 +39,7 @@ export function GameweekStory({
           <div className="num mt-1 text-7xl font-black leading-none text-gold" dir="ltr">
             {story.totalPoints}
           </div>
-          <div className="mt-0.5 text-xs font-bold text-chalk-dim">נקודות</div>
+          <div className="mt-0.5 text-xs font-bold text-chalk-dim">{t('story.points')}</div>
 
           {/* תנועת דירוג — הדרמה */}
           {story.rankDelta !== null && story.rankDelta !== 0 && (
@@ -50,13 +52,13 @@ export function GameweekStory({
             >
               <span aria-hidden="true">{up ? '↑' : '↓'}</span>
               <span className="num" dir="ltr">{Math.abs(story.rankDelta)}</span>
-              <span>{up ? 'מקומות למעלה' : 'מקומות למטה'}</span>
+              <span>{up ? t('story.up') : t('story.down')}</span>
             </div>
           )}
           {story.rankDelta === null && (
             <div className="mt-3 inline-block rounded-full bg-night-3 px-3 py-1
                             text-sm font-black text-chalk-dim">
-              המחזור הראשון שלך
+              {t('story.first')}
             </div>
           )}
         </div>
@@ -64,11 +66,11 @@ export function GameweekStory({
         {/* ---------- דירוג ואחוזון ---------- */}
         <div className="grid grid-cols-2 divide-x divide-x-reverse divide-gold/15
                         border-t border-gold/15">
-          <Stat label="המקום שלך" value={`#${story.rank}`} sub={`מתוך ${story.entrants}`} />
+          <Stat label={t('story.yourRank')} value={`#${story.rank}`} sub={t('story.outOf', { n: story.entrants })} />
           <Stat
-            label="ניצחת"
+            label={t('story.beat')}
             value={`${story.beatPct}%`}
-            sub="מהשחקנים"
+            sub={t('story.ofPlayers')}
             accent={story.beatPct >= 50}
           />
         </div>
@@ -78,26 +80,26 @@ export function GameweekStory({
       <div className="mt-4 space-y-2">
         {story.captain && (
           <PickRow
-            title={story.captainTransferred ? 'הסרט עבר לסגן' : 'הקפטן שלך'}
+            title={story.captainTransferred ? t('story.capToVice') : t('story.yourCaptain')}
             pick={story.captain}
             playerName={playerName}
             tone={story.captain.points >= 10 ? 'good' : story.captain.points <= 2 ? 'bad' : 'flat'}
           />
         )}
         {story.bestPick && (
-          <PickRow title="הבחירה הכי טובה" pick={story.bestPick} playerName={playerName} tone="good" />
+          <PickRow title={t('story.bestPick')} pick={story.bestPick} playerName={playerName} tone="good" />
         )}
         {story.worstPick && (
-          <PickRow title="הבחירה שכאבה" pick={story.worstPick} playerName={playerName} tone="bad" />
+          <PickRow title={t('story.worstPick')} pick={story.worstPick} playerName={playerName} tone="bad" />
         )}
         {story.differentialPoints > 0 && (
           <div className="flex items-center justify-between gap-3 rounded-2xl border
                           border-tekhelet/30 bg-tekhelet/10 px-4 py-3">
             <div>
               <div className="text-[11px] font-black uppercase tracking-wide text-tekhelet">
-                בחירה נדירה
+                {t('story.rare')}
               </div>
-              <div className="text-sm text-chalk">מצאת שחקן שרוב הליגה פספסה</div>
+              <div className="text-sm text-chalk">{t('story.rareText')}</div>
             </div>
             <div className="num text-xl font-black text-tekhelet" dir="ltr">
               +{story.differentialPoints}
@@ -115,7 +117,7 @@ export function GameweekStory({
                      font-black text-night transition-transform duration-200
                      ease-brand active:scale-[0.98]"
         >
-          המחזור הבא ←
+          {t('story.next')}
         </button>
       )}
     </div>

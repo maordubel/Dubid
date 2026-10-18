@@ -34,6 +34,7 @@
  */
 import { useState } from 'react';
 import { NUDGE_DISMISS_KEY } from '../lib/nudge.ts';
+import { useI18n } from '../lib/i18n/index.tsx';
 
 export function readDismissed(): number | null {
   try {
@@ -52,6 +53,7 @@ export function RegisterNudge({
   published: boolean;
   onOpen: () => void;
 }) {
+  const { t } = useI18n();
   const [gone, setGone] = useState(false);
   if (gone) return null;
 
@@ -62,7 +64,7 @@ export function RegisterNudge({
 
   return (
     <section
-      aria-label="שמירת החשבון"
+      aria-label={t('shell.nudge.aria')}
       className="relative overflow-hidden rounded-2xl bg-night-2 edge-gold"
     >
       <span
@@ -74,7 +76,7 @@ export function RegisterNudge({
       <button
         type="button"
         onClick={dismiss}
-        aria-label="לא להציג שוב במחזור הזה"
+        aria-label={t('shell.dismissRound')}
         className="absolute end-0 top-0 grid size-10 place-items-center text-chalk-dim
                    transition-colors hover:text-chalk"
       >
@@ -90,11 +92,11 @@ export function RegisterNudge({
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-black leading-tight text-chalk">
             {published
-              ? 'התוצאה שלכם שמורה בדפדפן הזה בלבד'
-              : 'ההרכב שלכם שמור בדפדפן הזה בלבד'}
+              ? t('shell.nudge.result')
+              : t('shell.nudge.lineup')}
           </p>
           <p className="mt-0.5 text-[11.5px] leading-snug text-chalk-2">
-            חשבון לוקח חצי דקה, ושומר הכל גם אם תחליפו מכשיר.
+            {t('shell.nudge.body')}
           </p>
         </div>
 
@@ -105,7 +107,7 @@ export function RegisterNudge({
                      px-3.5 py-2 text-[12px] font-black text-gold-ink
                      transition-transform duration-200 ease-brand active:scale-[.97]"
         >
-          שמירה
+          {t('shell.nudge.save')}
         </button>
       </div>
     </section>
