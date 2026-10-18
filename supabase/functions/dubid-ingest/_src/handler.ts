@@ -65,7 +65,7 @@ import { reconcileFixtures } from '../../../../src/lib/ingest/reconcile.ts';
 import type { Alert, Fixture, RawBlob, Snapshot, SquadMeta } from '../../../../src/lib/ingest/types.ts';
 
 /** מזהה בנייה — מופיע ב-ping, כדי לדעת איזו גרסה באמת פרוסה. */
-const BUILD = 'dubid-ingest/3';
+const BUILD = 'dubid-ingest/4';
 
 const CORS = {
   'Access-Control-Allow-Origin': Deno.env.get('APP_ORIGIN') ?? 'https://dubid.dubelteam.com',
@@ -358,13 +358,21 @@ Deno.serve(async (req) => {
     return json({ ok: true, version: BUILD, probe: results });
   }
 
+  /* ★ ליגה: ללא `league` = הליגה הראשית (ישראל), בדיוק כמו קודם.
+     ליגה משנית (יוון) רצה על 365scores בלבד — אין לה מקור ראשי. */
+  const league: string | null = typeof body?.league === 'string' && body.league ? body.league : null;
+  const isPrimary = league === null || body?.primary === true;
+  const gwPrefix: string = typeof body?.gwPrefix === 'string' && body.gwPrefix ? body.gwPrefix : 'gw-';
+  const gwCode = (n: number) => `${gwPrefix}${n}`;
+  const leaguePart = league ? { league } : {};
+
   const http = makeHttp();
   const primary = createSofascore(http, {
     tournamentId: Number(Deno.env.get('SOFASCORE_TOURNAMENT') ?? 266),
     seasonId: Number(Deno.env.get('SOFASCORE_SEASON') ?? 96740),
   });
   const backup = createScores365(http, {
-    competitionId: Number(Deno.env.get('SCORES365_COMPETITION') ?? 42),
+    competitionId: Number(body?.competition365 ?? Deno.env.get('SCORES365_COMPETITION') ?? 42),
   });
 
   let round: number | null = Number.isInteger(body?.round) ? body.round : null;
@@ -375,7 +383,11 @@ Deno.serve(async (req) => {
     let source = primary;
     let usedBackup = false;
 
-    if (round === null) {
+    if (!isPrimary) {
+      usedBackup = true;
+      source = backup as unknown as typeof primary;
+      if (round === null) round = await backup.currentRound();
+    } else if (round === null) {
       try {
         round = await primary.currentRound();
       } catch (err) {
@@ -403,7 +415,7 @@ Deno.serve(async (req) => {
       source = backup as unknown as typeof primary;
       await logFailure(supabase, {
         p_source: 'sofascore', p_phase: 'fixtures',
-        p_gw_code: `gw-${round}`, p_error: String(err),
+        p_gw_code: gwCode(round!), p_error: String(err),
       });
       ({ fixtures, raw } = await backup.round(round!));
     }
@@ -434,7 +446,7 @@ Deno.serve(async (req) => {
         const { data: fb, error: fbErr } = await supabase.rpc('ingest_snapshot', {
           p_source: backup.name,
           p_payload: {
-            phase: 'sweep', gameweek: { number: round! },
+            phase: 'sweep', ...leaguePart, gameweek: { number: round! },
             fixtures: b.fixtures, stats: bs.stats, alerts: bs.alerts,
             raw: [...b.raw, ...bs.raw],
           } satisfies Snapshot,
@@ -444,7 +456,7 @@ Deno.serve(async (req) => {
       } catch (err) {
         await logFailure(supabase, {
           p_source: 'scores365', p_phase: 'sweep',
-          p_gw_code: `gw-${round}`, p_error: `stats fallback: ${String(err)}`,
+          p_gw_code: gwCode(round!), p_error: `stats fallback: ${String(err)}`,
         });
       }
     }
@@ -467,6 +479,7 @@ Deno.serve(async (req) => {
     /* ── 4. כתיבה — קריאה אחת, טרנזקציה אחת ────────────────── */
     const snapshot: Snapshot = {
       phase: phase === 'auto' ? 'sweep' : (phase as Snapshot['phase']),
+      ...leaguePart,
       gameweek: { number: round! },
       fixtures, stats, alerts, raw,
     };
@@ -514,6 +527,7 @@ Deno.serve(async (req) => {
           p_source: usedBackup ? backup.name : primary.name,
           p_payload: {
             phase: 'fixtures',
+            ...leaguePart,
             gameweek: { number: round! + 1 },
             fixtures: next.fixtures,
             stats: [], alerts: [], raw: next.raw,
@@ -596,7 +610,7 @@ Deno.serve(async (req) => {
     await logFailure(supabase, {
       p_source: 'dubid-ingest',
       p_phase: phase === 'auto' ? 'sweep' : String(phase),
-      p_gw_code: round ? `gw-${round}` : null,
+      p_gw_code: round ? gwCode(round) : null,
       p_error: String(err),
     });
 
