@@ -213,10 +213,39 @@ function toTier(raw: unknown): 1 | 2 | 3 | 4 | 5 {
 let displayLocale: Locale = DEFAULT_LOCALE;
 let lastSquads: SquadsPayload | null = null;
 
+/** קיצור קבוצה: בעברית כמו בשרת; באנגלית/יוונית — 3 אותיות משם הקבוצה אם הקיצור עברי. */
+function localizedShort(
+  t: { short?: string | null; nameHe: string; nameEn?: string | null; nameEl?: string | null }, l: Locale,
+): string {
+  const base = t.short || t.nameHe;
+  if (l === 'he' || !/[\u0590-\u05FF]/.test(base)) return base;
+  const nm = (l === 'el' ? t.nameEl : null) || t.nameEn;
+  return nm ? nm.replace(/[^\p{L}]/gu, '').slice(0, 3).toUpperCase() || base : base;
+}
+
+/** צילום הזרע הסטטי כפי שהוא (עברית) — כדי שהחלפת שפה תהיה הפיכה גם בלי שרת. */
+const seedTeams = TEAMS.map((t) => ({ ...t }));
+const seedPlayers = PLAYERS.map((p) => ({ ...p }));
+
+function relocalizeSeed(): void {
+  seedTeams.forEach((s, i) => {
+    const t = TEAMS[i];
+    if (!t || t.id !== s.id) return;
+    t.nameHe = displayName({ he: s.nameHe, en: s.nameEn, el: s.nameEl }, displayLocale) || s.nameHe;
+    t.short = localizedShort(s, displayLocale);
+  });
+  seedPlayers.forEach((s, i) => {
+    const p = PLAYERS[i];
+    if (!p || p.id !== s.id) return;
+    p.nameHe = displayName({ he: s.nameHe, en: s.nameEn, el: s.nameEl }, displayLocale) || s.nameHe;
+  });
+}
+
 export function setDisplayLocale(l: Locale): void {
   if (l === displayLocale) return;
   displayLocale = l;
-  if (lastSquads && applyLiveSquads(lastSquads)) notify();
+  if (lastSquads) { if (applyLiveSquads(lastSquads)) notify(); return; }
+  if (!state.fromServer) { relocalizeSeed(); notify(); }
 }
 
 export function applyLiveSquads(payload: SquadsPayload): boolean {
@@ -236,7 +265,7 @@ export function applyLiveSquads(payload: SquadsPayload): boolean {
     nameHe: displayName({ he: t.nameHe, en: t.nameEn, el: t.nameEl }, displayLocale) || t.nameHe,
     nameEn: t.nameEn ?? t.nameHe,
     nameEl: t.nameEl ?? null,
-    short: displayLocale === 'el' && t.nameEl ? t.nameEl.slice(0, 3).toUpperCase() : (t.short || t.nameHe),
+    short: localizedShort(t, displayLocale),
     city: t.city,
     stadium: t.stadium,
   }));
