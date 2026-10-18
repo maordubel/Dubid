@@ -15362,7 +15362,7 @@ BEGIN
   END IF;
 
   FOR s IN
-    SELECT l.code, i.competition_365,
+    SELECT l.code, i.competition_365, i.gw_prefix,
            (l.created_at = (SELECT min(created_at) FROM core.leagues)) AS is_primary
       FROM game.ingest_sources i JOIN core.leagues l ON l.id = i.league_id
      WHERE i.enabled
@@ -15376,6 +15376,7 @@ BEGIN
                             'x-ingest-token', v_token),
                body    := jsonb_build_object('phase', 'auto', 'league', s.code,
                                              'competition365', s.competition_365,
+                                             'gwPrefix', s.gw_prefix,
                                              'primary', s.is_primary),
                timeout_milliseconds := 55000
              ) INTO v_req;
