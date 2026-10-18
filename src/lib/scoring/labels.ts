@@ -97,7 +97,35 @@ export function labelFor(reason: ReasonCode): ReasonLabel {
  * "שערים ×2" קריא יותר מ-"goal, count: 2" — וזה כל ההבדל בין
  * לוח מחוונים למשחק.
  */
-export function lineText(reason: ReasonCode, count?: number): string {
-  const label = labelFor(reason).he;
+export function lineText(reason: ReasonCode, count?: number, meta?: Record<string, unknown>): string {
+  const label = lineLabel(reason, meta);
   return count && count > 1 ? `${label} ×${count}` : label;
+}
+
+/**
+ * ★ תגיות אירוע ליד שחקן (שער, בישול, כרטיס…) — בהשראת פנטזי.
+ * נגזר אך ורק משורות הניקוד, כלומר מאותו מקור שהניקוד עצמו; שום חישוב נוסף.
+ * רק אירועים שאדם מזהה במבט: לא "בעיטות" ולא "דקות".
+ */
+export type EventKind = 'goal' | 'assist' | 'yellow' | 'red' | 'ownGoal' | 'penMissed' | 'save' | 'cleanSheet';
+export interface EventBadge { kind: EventKind; count: number }
+
+const BADGE_OF: Partial<Record<ReasonCode, EventKind>> = {
+  [Reason.Goal]: 'goal', [Reason.Assist]: 'assist',
+  [Reason.Yellow]: 'yellow', [Reason.Red]: 'red',
+  [Reason.OwnGoal]: 'ownGoal', [Reason.PenaltyMissed]: 'penMissed',
+  [Reason.PenaltySaved]: 'save', [Reason.CleanSheet]: 'cleanSheet',
+};
+
+const BADGE_ORDER: readonly EventKind[] =
+  ['goal', 'assist', 'cleanSheet', 'save', 'penMissed', 'yellow', 'red', 'ownGoal'];
+
+export function eventBadges(lines: ReadonlyArray<{ reason: ReasonCode; count?: number }>): EventBadge[] {
+  const acc = new Map<EventKind, number>();
+  for (const l of lines) {
+    const k = BADGE_OF[l.reason];
+    if (!k) continue;
+    acc.set(k, (acc.get(k) ?? 0) + Math.max(1, l.count ?? 1));
+  }
+  return BADGE_ORDER.filter((k) => acc.has(k)).map((k) => ({ kind: k, count: acc.get(k)! }));
 }

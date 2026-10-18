@@ -133,7 +133,7 @@ export function ScoreBreakdown({
                   {p.lines.map((l, i) => (
                     <li key={i} className="flex items-baseline justify-between gap-2 text-[11px]">
                       <span className="text-chalk-dim">
-                        {lineText(l.reason, l.count)}
+                        {lineText(l.reason, l.count, l.meta)}
                         {l.reason === 'differential' && l.meta
                           ? ` · רק ${(l.meta as { selectionPct: number }).selectionPct}% בחרו בו`
                           : ''}

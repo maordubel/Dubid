@@ -35,7 +35,8 @@
 import { useState } from 'react';
 import { Pitch } from './Pitch.tsx';
 import { Signed } from './ScoreBreakdown.tsx';
-import { lineText } from '../lib/scoring/labels.ts';
+import { lineText, eventBadges, type EventBadge } from '../lib/scoring/labels.ts';
+import type { ScoreLine } from '../lib/scoring/types.ts';
 import { TeamCrest } from './TeamCrest.tsx';
 import { Footballer } from './Footballer.tsx';
 import { PRESS } from '../lib/pressPalette.ts';
@@ -82,6 +83,7 @@ export function LockedLineup({
   const poolById = new Map(pool.map((p) => [p.id, p]));
   const teamById = new Map(teams.map((t) => [t.id, t]));
   const pointsByPlayer = new Map((score?.players ?? []).map((p) => [p.playerId, p.subtotal]));
+  const linesByPlayer = new Map((score?.players ?? []).map((p) => [p.playerId, p.lines]));
 
   // אזור הזמן ננעל על ישראל ולא נגזר מהמכשיר — אותו באג שתוקן
   // ב-`data/fixtures.ts`, ומאותה סיבה.
@@ -151,6 +153,7 @@ export function LockedLineup({
                 player={poolById.get(slot.playerId)}
                 team={teamById.get(slot.teamId)}
                 points={pointsByPlayer.get(slot.playerId)}
+                lines={linesByPlayer.get(slot.playerId)}
                 live={live}
               />
             );
@@ -323,6 +326,40 @@ function Chip({
   );
 }
 
+/** פס תגיות אירוע: שער, בישול, כרטיסים… עד שלוש, והשאר "+". פינה פיזית ימנית-תחתונה. */
+function EventStrip({ badges }: { badges: EventBadge[] }) {
+  if (badges.length === 0) return null;
+  const shown = badges.slice(0, 3);
+  const more = badges.length - shown.length;
+  return (
+    <span dir="ltr" className="absolute bottom-[10%] right-[-10%] z-10 flex flex-col items-end gap-px"
+          aria-hidden="true">
+      {shown.map((b) => (
+        <span key={b.kind} className="flex items-center gap-px rounded-full px-[3px] text-[9px]
+                                       font-black leading-[13px]"
+              style={{ background: PRESS.paper, color: PRESS.ink, boxShadow: `0 0 0 1px ${PRESS.ink}` }}>
+          <EventGlyph kind={b.kind} />
+          {b.count > 1 && <span className="num">{b.count}</span>}
+        </span>
+      ))}
+      {more > 0 && <span className="num text-[9px] font-black" style={{ color: PRESS.onGrass }}>+{more}</span>}
+    </span>
+  );
+}
+
+function EventGlyph({ kind }: { kind: EventBadge['kind'] }) {
+  switch (kind) {
+    case 'goal':       return <span>⚽</span>;
+    case 'assist':     return <span>👟</span>;
+    case 'save':       return <span>🧤</span>;
+    case 'cleanSheet': return <span>🛡️</span>;
+    case 'yellow':     return <span className="inline-block h-[9px] w-[7px] rounded-[1px]" style={{ background: '#F5C518', boxShadow: '0 0 0 .8px #12100E' }} />;
+    case 'red':        return <span className="inline-block h-[9px] w-[7px] rounded-[1px]" style={{ background: '#D6342A', boxShadow: '0 0 0 .8px #12100E' }} />;
+    case 'ownGoal':    return <span style={{ color: '#D6342A' }}>⚽OG</span>;
+    case 'penMissed':  return <span style={{ color: '#D6342A' }}>✖P</span>;
+  }
+}
+
 /** בלון ניקוד שחקן. הצבע נגזר מהערך בלבד — לא מגורם חיצוני. */
 export function PointsBubble({ points, live, captain }: { points: number; live: boolean; captain: boolean }) {
   const tone = points < 0
@@ -357,8 +394,10 @@ export function PointsBubble({ points, live, captain }: { points: number; live: 
  *   לשנות גם את השני, אחרת שני המסכים יתחילו להיפרד שוב.
  */
 export function LockedSlotCard({
-  slot, player, team, points, live = false,
+  slot, player, team, points, lines, live = false,
 }: {
+  /** שורות הניקוד של השחקן — מהן נגזרות תגיות האירוע. */
+  lines?: ScoreLine[];
   slot: LineupSlot;
   player?: PoolPlayer;
   team?: TeamMeta;
@@ -403,6 +442,7 @@ export function LockedSlotCard({
             אדום = ניקוד שלילי. בזמן חי הוא עם טבעת פועמת. פינה פיזית (שמאל)
             כי הדמות והמספר שלה לא מתהפכים ב-RTL. */}
         {points !== undefined && <PointsBubble points={points} live={live} captain={cap} />}
+        {lines && <EventStrip badges={eventBadges(lines)} />}
       </span>
 
       {/* לוחית שם — נייר עם קו מתאר, כמו כותרת קטנה בעיתון */}
