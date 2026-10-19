@@ -320,3 +320,14 @@ export function takeParkedGuest(storageKey: string): { access_token: string; ref
     return v?.access_token && v.refresh_token ? { access_token: v.access_token, refresh_token: v.refresh_token } : null
   } catch { return null }
 }
+
+/** The neutral fixture list (core.fixtures), optionally for one FAN LIFE club. Window ≤ 120 days. */
+export type Fixture = {
+  id: string; kickoff_at: string | null; status: 'scheduled' | 'live' | 'finished' | 'postponed' | 'cancelled'; venue: string | null
+  home: { team_id: string; name_en: string | null; name_he: string | null; club: string | null }
+  away: { team_id: string; name_en: string | null; name_he: string | null; club: string | null }
+  score: [number, number] | null
+}
+export function fixtures(client: SharedClient | null | undefined, q: { club?: string | null; from?: string | null; to?: string | null } = {}) {
+  return call<{ fixtures: Fixture[] }>(client, 'fixtures', { p_club: q.club ?? null, p_from: q.from ?? null, p_to: q.to ?? null })
+}
