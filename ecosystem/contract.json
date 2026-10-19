@@ -1,14 +1,14 @@
 {
   "$comment": "Dubel Team football ecosystem contract. This file is IDENTICAL in all four repos (fanlife, Offsides, Dubid, The-Worker). Change it in one repo => copy the same bytes to the other three in the same round. Bump version + updated.",
-  "version": 2,
+  "version": 3,
   "updated": "2026-10-19",
   "plan": "Project doc: claude/ecosystem-master-plan.md (claude.ai Project 'Football Master')",
   "supabase": {
     "project": "afxpjfxwpdjvlmuoawda",
-    "projectName": "Dubid",
+    "projectName": "Football Master",
     "region": "eu-central-1",
     "legacy": {
-      "pqdzqpettxuuyngxbpxn": "OFFSIDES' current production DB. Not in the same Supabase org. Moves into schema `offsides` on the shared project in phase 4. Until then OFFSIDES runs there."
+      "pqdzqpettxuuyngxbpxn": "OFFSIDES' current production DB (org maor@har-tov.com's Org, Git-connected to maordubel/Offsides). Moves into schema `offsides` on Football Master in phase 4."
     },
     "authSiteUrlOwner": "dubid",
     "authRules": [
@@ -41,7 +41,7 @@
     },
     "dubid": {
       "repo": "maordubel/Dubid",
-      "role": "game",
+      "role": "companion",
       "domain": "dubid.dubelteam.com",
       "stack": "vite-react19",
       "writes": [
@@ -52,18 +52,28 @@
     },
     "offsides": {
       "repo": "maordubel/Offsides",
-      "role": "game",
+      "role": "companion",
       "domain": "offsides.dubelteam.com",
       "stack": "vite-react18",
       "writes": [
         "pqdz public.* (today)",
         "offsides (after phase 4)"
       ]
+    },
+    "fuckyou": {
+      "repo": "maordubel/FuckYou",
+      "role": "side-experience",
+      "domain": "fuckyou.dubelteam.com",
+      "stack": "next14",
+      "writes": [
+        "(own schema when it needs one)"
+      ],
+      "note": "derby days only"
     }
   },
   "schemas": {
     "core": {
-      "owner": "dubid",
+      "owner": "dubid today → contract (step 2 of the data engine)",
       "readers": "all",
       "what": "football facts: leagues, seasons, teams, players, squads, matches, external_refs, entity_aliases"
     },
@@ -163,7 +173,9 @@
     "6. Football identity: every team/player an app shows must be resolvable to core via core.external_refs (phase 3).",
     "7. Domains: all apps live under *.dubelteam.com (SSO cookie scope, phase 2).",
     "8. Ownership of shared things: identity, membership, leads and the reward ledger belong to the contract (schema shared), never to one app. An app reads them only through the RPCs above.",
-    "9. Every app registers its own future migrations in shared.schema_migrations under its own app id."
+    "9. Every app registers its own future migrations in shared.schema_migrations under its own app id.",
+    "10. The universe map lives in shared.apps / shared.app_moments. A cross-app link carries its moment (campaign '<moment>' or '<moment>-<x>'); a new app or moment is a row, not code.",
+    "11. DUBID and OFFSIDES never parse a provider themselves: they read through ecosystem/feed and, once core is shared, through core views only."
   ],
   "sharedApi": {
     "module": "ecosystem/sdk.ts (byte-identical in all four repos)",
@@ -175,12 +187,88 @@
       "shared.handoff_create(source, target, club, campaign)": "authenticated (30/hour) or service_role (servers)",
       "shared.handoff_open(token)": "anon — the link was followed",
       "shared.handoff_claim(token, app)": "authenticated — first touch wins",
-      "shared.grant_reward / claim_reward": "existing ledger, now all four apps"
+      "shared.grant_reward / claim_reward": "existing ledger, now all four apps",
+      "shared.universe()": "anon — the public map: apps, roles, moments"
     },
     "views": {
       "shared.v_handoff_funnel": "service_role only",
-      "shared.v_app_reach": "service_role only"
+      "shared.v_app_reach": "service_role only",
+      "shared.v_moment_funnel": "service_role only"
     },
     "handoffParam": "eh"
+  },
+  "vision": {
+    "name": "FAN LIFE UNIVERSE — The Smart Connection Engine",
+    "line": "Same club. Different journeys. One universe.",
+    "hub": {
+      "app": "fanlife",
+      "modules": [
+        "Daily Terrace",
+        "Fan Passport",
+        "Matchday Bridge",
+        "Memory Trail",
+        "Arcade (13 gates, LIFE, Legends Manager)",
+        "Living Archive"
+      ]
+    },
+    "companions": "Different products, the same heart: a smart companion, never a replacement.",
+    "source": "owner's diagram, 19.10.2026; the database copy is shared.apps + shared.app_moments (ecosystem/sql/0002_universe.sql)"
+  },
+  "moments": [
+    [
+      "fanlife",
+      "dubid",
+      "before_round"
+    ],
+    [
+      "dubid",
+      "fanlife",
+      "back_to_story"
+    ],
+    [
+      "dubid",
+      "offsides",
+      "next_moment"
+    ],
+    [
+      "offsides",
+      "dubid",
+      "next_moment"
+    ],
+    [
+      "fanlife",
+      "offsides",
+      "kickoff_live"
+    ],
+    [
+      "offsides",
+      "fanlife",
+      "back_to_story"
+    ],
+    [
+      "fanlife",
+      "theworker",
+      "go_deeper"
+    ],
+    [
+      "theworker",
+      "fanlife",
+      "bring_depth_back"
+    ],
+    [
+      "fanlife",
+      "fuckyou",
+      "derby_only"
+    ],
+    [
+      "fuckyou",
+      "fanlife",
+      "back_to_story"
+    ]
+  ],
+  "feed": {
+    "module": "ecosystem/feed/ (byte-identical) — the ONE data-reading engine of DUBID and OFFSIDES (and the hub later): provider adapters sofascore, scores365 (+ api-football, thesportsdb next)",
+    "writer": "core.ingest_snapshot (step 3) via edge fn feed-ingest; games react to core.fixture_signals with their own cron",
+    "plan": "Project doc claude/football-data-engine.md"
   }
 }

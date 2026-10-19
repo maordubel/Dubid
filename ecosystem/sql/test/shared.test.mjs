@@ -11,6 +11,7 @@ import assert from 'node:assert/strict'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const sql = readFileSync(join(here, '..', '0001_shared_identity.sql'), 'utf8')
+const sql2 = readFileSync(join(here, '..', '0002_universe.sql'), 'utf8')
 const db = new PGlite()
 
 await db.exec(`
@@ -36,6 +37,10 @@ await db.exec(`
 
 await db.exec(sql)
 await db.exec(sql) // idempotent
+await db.exec(sql2)
+await db.exec(sql2) // idempotent
+await db.exec(sql)  // 0001 re-run after 0002 must not undo it
+await db.exec(sql2)
 console.log('ran twice: ok')
 
 const A = '00000000-0000-0000-0000-00000000000a'
@@ -123,4 +128,26 @@ assert.deepEqual([Number(f.created), Number(f.opened), Number(f.claimed)], [1, 1
 // ledger widened
 await db.exec(`insert into shared.reward_grants (source_app, target_app) values ('fanlife','theworker')`)
 console.log('flow: ok')
+
+// 0002 · the universe
+const u = await one('anon', null, `select shared.universe()`)
+assert.deepEqual(u.apps.map(a => a.id), ['fanlife', 'dubid', 'offsides', 'theworker', 'fuckyou'])
+assert.equal(u.apps.find(a => a.id === 'fanlife').role, 'hub')
+assert.ok(u.moments.some(m => m.from === 'fanlife' && m.to === 'dubid' && m.moment === 'before_round'))
+assert.ok(await denied('anon', `select * from shared.apps`))
+assert.ok(await denied('authenticated', `insert into shared.app_moments values ('fanlife','dubid','x_y_z','x')`))
+r = await one('authenticated', A, `select shared.handoff_create('fanlife','fuckyou',null,'derby_only-banner')`)
+assert.equal(r.ok, false) // A is rate-limited by now — use the service role
+r = await one('service_role', null, `select shared.handoff_create('fanlife','fuckyou',null,'derby_only-banner')`)
+assert.equal(r.moment, 'derby_only')
+r = await one('service_role', null, `select shared.handoff_create('fanlife','dubid',null,'promo-7')`)
+assert.equal(r.moment, null)
+assert.equal((await one('service_role', null, `select shared.handoff_create('fanlife','nobody',null,null)`)).error, 'bad_route')
+assert.equal((await one('authenticated', B, `select shared.app_touch('fuckyou')`)).ok, true)
+await db.exec(`update shared.apps set status = 'paused' where id = 'fuckyou'`)
+assert.equal((await one('authenticated', B, `select shared.app_touch('fuckyou')`)).error, 'bad_app')
+await db.exec(`update shared.apps set status = 'live' where id = 'fuckyou'`)
+assert.ok((await db.query(`select * from shared.v_moment_funnel where moment = 'derby_only'`)).rows.length === 1)
+await assert.rejects(db.exec(`insert into shared.reward_grants (source_app, target_app) values ('nobody','dubid')`))
+console.log('universe: ok')
 console.log('ALL OK')
