@@ -1,10 +1,10 @@
 /**
  * i18n/locales.ts — השפות הנתמכות, כיוון הכתיבה ופורמט תאריכים.
- * עברית היא ברירת המחדל ולכן אפליקציה ללא בחירה נראית בדיוק כמו קודם.
+ * אנגלית היא ברירת המחדל לביקור ראשון; מי שבחר שפה — הבחירה נשמרת ב-`ui.locale`.
  */
 export const LOCALES = ['he', 'en', 'el'] as const;
 export type Locale = (typeof LOCALES)[number];
-export const DEFAULT_LOCALE: Locale = 'he';
+export const DEFAULT_LOCALE: Locale = 'en';
 
 export const LOCALE_META: Record<Locale, { dir: 'rtl' | 'ltr'; native: string; intl: string }> = {
   he: { dir: 'rtl', native: 'עברית', intl: 'he-IL' },

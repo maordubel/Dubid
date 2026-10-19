@@ -128,6 +128,7 @@ test('ה-manifest תקין ומצביע על אייקונים שקיימים', (
 test('index.html כולל viewport-fit=cover, אחרת safe-area מחזיר 0', () => {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
   assert.match(html, /viewport-fit=cover/);
-  assert.match(html, /<html lang="he" dir="rtl">/);
+  assert.match(html, /<html lang="en" dir="ltr">/);
+  assert.match(html, /ui\.locale/);   // שפה שמורה נקבעת לפני הציור הראשון
   assert.match(html, /\/src\/main\.tsx/);
 });

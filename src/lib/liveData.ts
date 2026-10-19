@@ -46,7 +46,7 @@ import { supabase } from './supabase.ts';
 import { selectedLeague } from './league.ts';
 import { displayName } from './i18n/names.ts';
 import { tr } from './i18n/dict.ts';
-import { DEFAULT_LOCALE, type Locale } from './i18n/locales.ts';
+import { type Locale } from './i18n/locales.ts';
 import {
   LEAGUE, TEAMS, PLAYERS, TEAM_BY_ID, PLAYERS_BY_TEAM,
   type TeamRow, type PlayerRow,
@@ -210,7 +210,7 @@ function toTier(raw: unknown): 1 | 2 | 3 | 4 | 5 {
  * הישן — כלומר בדיוק הבאג שאנחנו מתקנים, רק במקום אחר.
  */
 /** שפת התצוגה של שמות. נקבעת מ-I18nProvider; שינוי → החלה מחדש של הסגל האחרון. */
-let displayLocale: Locale = DEFAULT_LOCALE;
+let displayLocale: Locale = 'he';   // ★ שפת הזרע הסטטי — לא קשור לברירת המחדל של הממשק
 let lastSquads: SquadsPayload | null = null;
 
 /** קיצור קבוצה: בעברית כמו בשרת; באנגלית/יוונית — 3 אותיות משם הקבוצה אם הקיצור עברי. */
