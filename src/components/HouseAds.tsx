@@ -43,6 +43,7 @@ import {
 import { adsAll, trackAd } from '../lib/adsStore.ts';
 import type { Placement } from '../lib/growth.ts';
 import { useI18n } from '../lib/i18n/index.tsx';
+import { trackedClick } from '../lib/ecosystem.ts';
 
 /** `noopener` הוא אבטחה ולא נימוס: בלעדיו הדף הנפתח מקבל גישה
  *  ל-`window.opener` שלנו. */
@@ -115,7 +116,7 @@ export function HouseBanner({
       href={houseUrl(ad, placement, gameweekNumber)}
       target="_blank"
       rel={LINK_REL}
-      onClick={() => trackAd(ad.id, placement, 'click')}
+      onClick={(e) => { trackAd(ad.id, placement, 'click'); trackedClick(e, houseUrl(ad, placement, gameweekNumber), `dubid-house-${ad.id}`); }}
       className={`group relative flex items-stretch gap-0 overflow-hidden rounded-xl
                   border transition-colors duration-200 ease-brand ${className}`}
       style={{ borderColor: 'rgba(216,178,92,.22)', background: 'rgba(216,178,92,.045)' }}
@@ -204,7 +205,7 @@ export function HouseStrip({
       href={houseUrl(ad, placement, gameweekNumber)}
       target="_blank"
       rel={LINK_REL}
-      onClick={() => trackAd(ad.id, placement, 'click')}
+      onClick={(e) => { trackAd(ad.id, placement, 'click'); trackedClick(e, houseUrl(ad, placement, gameweekNumber), `dubid-house-${ad.id}`); }}
       className={`flex items-center justify-center gap-1.5 text-[11px] leading-snug
                   text-chalk-dim ${className}`}
     >

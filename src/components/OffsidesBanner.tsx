@@ -33,6 +33,7 @@
 import type { CSSProperties } from 'react';
 import { OFFSIDES, offsidesUrl, type Placement, type Promo, type PromoTone } from '../lib/growth.ts';
 import { useI18n } from '../lib/i18n/index.tsx';
+import { trackedClick } from '../lib/ecosystem.ts';
 import type { DictKey } from '../lib/i18n/dict.ts';
 
 /** צבע אחד לכל טון. שני ערכים: האור, והדיו שיושב עליו. */
@@ -112,7 +113,7 @@ export function OffsidesBanner({
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={() => onOpen?.(promo)}
+        onClick={(e) => { onOpen?.(promo); trackedClick(e, href, `dubid-ofs-${promo.id}-${placement}`); }}
         className="tap relative flex items-center gap-3.5 px-4 py-4 text-start
                    transition-transform duration-200 ease-brand active:scale-[.99]"
       >

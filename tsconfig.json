@@ -21,6 +21,6 @@
     "resolveJsonModule": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "vite.config.ts", "tailwind.config.ts"],
+  "include": ["src", "tests", "ecosystem/sdk.ts", "vite.config.ts", "tailwind.config.ts"],
   "exclude": ["supabase", "node_modules", "dist"]
 }
