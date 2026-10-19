@@ -15,7 +15,9 @@
       "One auth.users for every app.",
       "No app adds triggers on auth.users. Profiles are created lazily by each app's own ensure_* RPC.",
       "Every app adds only its own Redirect URLs; never change the Site URL without updating every app.",
-      "Sign-out is local (scope:'local') so leaving one app never signs the user out of the others."
+      "SSO: a real account's session is ONE cookie, sb-afxpjfxwpdjvlmuoawda-auth-token, on .dubelteam.com, in @supabase/ssr format. Next apps set cookieOptions.domain = ssoCookieDomain(host); other apps use ssoStorage() from ecosystem/sdk.ts. Host-only on localhost and previews.",
+      "Anonymous sessions are never shared: a guest belongs to the app that created it. When a real account arrives, the app parks its guest (takeParkedGuest) and moves the guest's progress with its own merge (DUBID: issue_merge_token → claim_pass).",
+      "Sign-out uses scope 'local': it ends the session in THIS browser — every app on this browser at once (one cookie) — and never other devices."
     ]
   },
   "apps": {

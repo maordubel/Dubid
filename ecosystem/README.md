@@ -5,7 +5,8 @@ Byte-identical in every repo (fanlife, Dubid, Offsides, The-Worker, FuckYou). Ow
 | path | what |
 |---|---|
 | `contract.json` | who owns what: apps, roles, schemas, prefixes, moments, rules |
-| `sdk.ts` | the one client for schema `shared`: touch, handoff (leads), universe |
+| `sdk.ts` | the one client for schema `shared`: touch, handoff (leads), universe, club ids, SSO storage |
+| `test/sso.test.mjs` | proves the SSO cookie is byte-compatible with @supabase/ssr |
 | `feed/` | the one football data-reading engine (provider adapters) |
 | `sql/NNNN_*.sql` | shared SQL (0001 identity + handoff, 0002 universe, 0003 exact club ids), applied once and in order to Football Master; `sql/test/shared.test.mjs` proves it on PGlite |
 
