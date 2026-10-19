@@ -37,6 +37,7 @@ import {
 import { JoinError } from './leagues.ts';
 import type { ModeId } from './events/bus.ts';
 import { supabase } from './supabase.ts';
+import { selectedLeague } from './league.ts';
 import { ensureIdentity } from './identity.ts';
 import { tr } from './i18n/dict.ts';
 
@@ -92,8 +93,12 @@ export function hydrateLeagues(force = false): Promise<void> {
       if (error) throw error;
 
       const payload = (data ?? {}) as { leagues?: PrivateLeague[]; members?: LeagueMember[] };
-      snap.leagues = payload.leagues ?? [];
-      snap.members = payload.members ?? [];
+      /* ★ כל ליגה = עולם משלה: זירה פרטית שייכת לליגה אחת ונראית רק בה. */
+      const world = selectedLeague();
+      const inWorld = (l: PrivateLeague) => (world ? l.world === world : l.worldPrimary !== false);
+      snap.leagues = (payload.leagues ?? []).filter(inWorld);
+      const ids = new Set(snap.leagues.map((l) => l.id));
+      snap.members = (payload.members ?? []).filter((m) => ids.has(m.leagueId));
       snap.live = true;
     } catch {
       snap.live = false;
@@ -195,6 +200,7 @@ export async function createLeague(input: {
     p_name: input.name.trim().slice(0, 40) || tr('arena.defaultName'),
     p_mode: input.mode,
     p_max_members: input.maxMembers ?? null,
+    p_world: selectedLeague(),
   });
   if (error) throw new Error(errorCode(error));
 
@@ -231,7 +237,7 @@ export async function joinByCode(
   }
 
   try {
-    const { error } = await supabase.rpc('join_league', { p_code: norm });
+    const { error } = await supabase.rpc('join_league', { p_code: norm, p_world: selectedLeague() });
     if (error) throw error;
   } catch (err) {
     const code2 = errorCode(err);
@@ -241,6 +247,7 @@ export async function joinByCode(
     }
     if (code2 === 'LEAGUE_FULL')   return { ok: false, error: JoinError.Full };
     if (code2 === 'LEAGUE_CLOSED') return { ok: false, error: JoinError.Closed };
+    if (code2 === 'WRONG_LEAGUE')  return { ok: false, error: JoinError.OtherLeague };
     return { ok: false, error: JoinError.NotFound };
   }
 
@@ -276,6 +283,8 @@ export interface LeaguePeek {
   status: 'active' | 'closed';
   members: number;
   maxMembers: number | null;
+  world?: string | null;
+  worldPrimary?: boolean;
 }
 
 export async function peekByCode(code: string): Promise<LeaguePeek | null> {

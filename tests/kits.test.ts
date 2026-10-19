@@ -52,3 +52,16 @@ test('כל 14 קבוצות הסופר ליג היוונית מקבלות ערכ�
     assert.notEqual(teamColor(id).primary, DEFAULT_TEAM_COLOR.primary);
   }
 });
+
+test('כל 40 קבוצות אנגליה וספרד מקבלות ערכה משלהן, וכל מזהה תואם לסיד', async () => {
+  const { readFileSync } = await import('node:fs');
+  for (const f of ['db/45_seed_england.sql', 'db/46_seed_spain.sql']) {
+    const sql = readFileSync(f, 'utf8');
+    const ids = [...sql.matchAll(/"team_id":(\d+)/g)].map((m) => 'T' + m[1]);
+    assert.equal(ids.length, 20, f);
+    for (const id of ids) {
+      assert.ok(TEAM_COLORS[id], `חסרה ערכה ל-${id} (${f})`);
+      assert.notEqual(teamColor(id).primary, DEFAULT_TEAM_COLOR.primary);
+    }
+  }
+});

@@ -93,6 +93,7 @@ export const DICT_BOARD = {
   'arena.join.already_member':   { he: 'אתם כבר חברים בליגה הזו.', en: "You're already a member of this league.", el: 'Είσαι ήδη μέλος αυτής της λίγκας.' },
   'arena.join.invalid_code':     { he: 'הקוד לא תקין. שישה תווים, בלי אפס ובלי האות O.', en: 'Invalid code. Six characters, no zero and no letter O.', el: 'Μη έγκυρος κωδικός. Έξι χαρακτήρες, χωρίς μηδέν και χωρίς το γράμμα O.' },
 
+  'arena.join.other_league':     { he: 'הקוד שייך לזירה בליגה אחרת. עברו לליגה הזו כדי להצטרף.', en: 'This code belongs to an arena in another league. Switch to that league to join.', el: 'Ο κωδικός ανήκει σε αρένα άλλης λίγκας. Άλλαξε λίγκα για να μπεις.' },
   'arena.err.LEAGUE_NOT_FOUND':    { he: 'לא נמצאה זירה עם הקוד הזה.', en: 'No arena found with this code.', el: 'Δεν βρέθηκε αρένα με αυτόν τον κωδικό.' },
   'arena.err.LEAGUE_FULL':         { he: 'הזירה מלאה.', en: 'This arena is full.', el: 'Η αρένα είναι γεμάτη.' },
   'arena.err.ALREADY_MEMBER':      { he: 'כבר הצטרפת לזירה הזו.', en: "You've already joined this arena.", el: 'Έχεις ήδη μπει σε αυτή την αρένα.' },
