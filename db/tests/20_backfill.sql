@@ -22,7 +22,7 @@ INSERT INTO auth.users (id, email, is_anonymous) VALUES
   ('f3400000-0000-0000-0000-000000000001', 'backfill@dubid.test', FALSE);
 SET dubid.test_uid = 'f3400000-0000-0000-0000-000000000001';
 SELECT game.ensure_profile('מנהל ההשלמה');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 
 /* ★ בלי נקודת קצה `lifecycle_tick` חוזרת מוקדם עם
    `endpoint_not_configured` ואינה מגיעה כלל לשלב ההשלמה —

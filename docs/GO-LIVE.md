@@ -61,7 +61,7 @@ npm run build
 ## שלב 4 · אתה נכנס ראשון
 
 ▸ `https://dubid.dubelteam.com/admin`
-▸ סיסמה: **`hapoelTA14!`**
+▸ סיסמה: נקבעת ב-SQL Editor, לא בריפו
 
 ✔ נכנסת → הכל עובד.
 

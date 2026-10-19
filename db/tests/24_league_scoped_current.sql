@@ -8,7 +8,7 @@ INSERT INTO auth.users (id, email, is_anonymous) VALUES
   ('f3800000-0000-0000-0000-000000000001', 'leaguecur@dubid.test', FALSE);
 SET dubid.test_uid = 'f3800000-0000-0000-0000-000000000001';
 SELECT game.ensure_profile('בודק ליגות');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 
 DO $$
 DECLARE

@@ -164,7 +164,7 @@ VALUES ('d3000000-0000-0000-0000-000000000001', 'admin9@x.test', FALSE);
 
 SET dubid.test_uid = 'd3000000-0000-0000-0000-000000000001';
 SELECT game.ensure_profile('מנהל תשע');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 
 DO $$
 DECLARE n_before INT; n_after INT;

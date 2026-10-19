@@ -25,7 +25,7 @@ END $$;
 DO $$
 DECLARE r JSONB;
 BEGIN
-  r := game.claim_admin('hapoelTA14!');
+  r := game.claim_admin('test-admin-pass');
   IF NOT (r->>'ok')::BOOLEAN THEN RAISE EXCEPTION 'FAIL 2: %', r; END IF;
   -- ★ זה הלב: אותה פעולה גם פתחה את המסך וגם נתנה הרשאה במסד.
   IF NOT game.is_admin() THEN RAISE EXCEPTION 'FAIL 2b: לא קיבל is_admin'; END IF;
@@ -81,7 +81,7 @@ BEGIN
 
   -- ★ ננעל גם מול הסיסמה **הנכונה**. אחרת הנעילה חסרת ערך:
   --   תוקף שמנחש היה פשוט ממשיך.
-  r := game.claim_admin('hapoelTA14!');
+  r := game.claim_admin('test-admin-pass');
   IF (r->>'ok')::BOOLEAN THEN RAISE EXCEPTION 'FAIL 6b: הנעילה נעקפה'; END IF;
 END $$;
 \echo '  ✓ 6  חמישה ניסיונות → נעילה, גם מול הסיסמה הנכונה'

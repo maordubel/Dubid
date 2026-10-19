@@ -62,7 +62,8 @@ ALTER TABLE game.admin_secrets ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON game.admin_secrets FROM anon, authenticated;
 
 /**
- * SHA-256 של `hapoelTA14!`.
+ * ★ אין סיסמה בריפו. התקנה חדשה נזרעת ב-hash אקראי שאי אפשר לנחש,
+ *   והסיסמה האמיתית נקבעת רק מתוך ה-SQL Editor (ראו למטה).
  *
  * ★ למה ה-hash מופיע כאן ולא הסיסמה: כדי שהקובץ הזה יוכל לחיות
  *   ב-git. מי שקורא את הריפו לא מקבל את הסיסמה.
@@ -74,12 +75,10 @@ REVOKE ALL ON game.admin_secrets FROM anon, authenticated;
  *            rotated_at  = now()
  *      WHERE id = 'primary';
  *
- *   ⚠ אחרי החלפה — לעדכן גם את `ADMIN_PIN_HASH` ב-`src/lib/store.ts`,
- *     אחרת השער המקומי ידחה סיסמה שהשרת מקבל.
  */
 INSERT INTO game.admin_secrets (id, secret_hash, label)
 VALUES ('primary',
-        '15a4edaa167df3c9656a9d3dacb527f795dfd2007bc2e0247a27eaeefc8343bf',
+        encode(gen_random_bytes(32), 'hex'),
         'סיסמת צוות · מחזור 2')
 ON CONFLICT (id) DO NOTHING;
 

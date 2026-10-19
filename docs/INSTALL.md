@@ -213,7 +213,7 @@ https://dubid.dubelteam.com/admin
 
 בפיתוח: `http://localhost:5173/admin`
 
-**סיסמה:** `hapoelTA14!`
+**סיסמה:** נקבעת ב-SQL Editor (ראו db/12_admin_access.sql). לא נשמרת בריפו.
 
 הכתובת הישנה `#admin` ממשיכה לעבוד — לא שברתי אותה.
 

@@ -22,7 +22,7 @@ INSERT INTO auth.users (id, email, is_anonymous) VALUES
 
 SET dubid.test_uid = 'd1000000-0000-0000-0000-000000000001';
 SELECT game.ensure_profile('מנהל שבע');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 
 -- מחזור פתוח לבדיקה
 SELECT game.admin_set_status('gw-2', 'open');

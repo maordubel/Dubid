@@ -23,7 +23,7 @@ INSERT INTO auth.users (id, email, is_anonymous) VALUES
 
 SET dubid.test_uid = 'f3100000-0000-0000-0000-000000000001';
 SELECT game.ensure_profile('מנהל מחזור החיים');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 
 -- מנקים שאריות
 DELETE FROM game.ingest_alerts WHERE gw_code = 'gw-2';

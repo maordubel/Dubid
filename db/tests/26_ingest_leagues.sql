@@ -7,7 +7,7 @@ INSERT INTO auth.users (id, email, is_anonymous) VALUES
   ('f3900000-0000-0000-0000-000000000001', 'ingleague@dubid.test', FALSE);
 SET dubid.test_uid = 'f3900000-0000-0000-0000-000000000001';
 SELECT game.ensure_profile('בודק קליטה');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 
 DO $$
 DECLARE r JSONB; r2 JSONB; v_gw RECORD; n_il INT; n_before INT; p JSONB;
