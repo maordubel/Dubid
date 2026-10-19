@@ -7,6 +7,7 @@ import { PromoBanner } from './components/PromoBanner.tsx';
 import { purgeLocalGameData } from './lib/store.ts';
 import { startClockSync } from './lib/serverTime.ts';
 import { fetchServerTime } from './lib/supabase.ts';
+import { bootEcosystem } from './lib/ecosystem.ts';
 import './styles/index.css';
 
 /* ★ לפני שהאפליקציה עולה: מוחקים כל שריד של דאטת משחק מהמכשיר.
@@ -17,6 +18,9 @@ import './styles/index.css';
 
    ⚠ סשן ההזדהות (`sb-*`) לא נמחק — הוא הזהות, לא הדאטה. */
 purgeLocalGameData();
+
+/* Shared layer: count a landing handoff (?eh=), then touch/claim once per identity. Never blocks. */
+bootEcosystem();
 
 /* ★ בדיקת יכולת אחת, פעם אחת, לפני הרינדור הראשון.
  *

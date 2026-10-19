@@ -36,6 +36,7 @@ import {
   type Placement, type PromoId,
 } from '../lib/growth.ts';
 import { useI18n } from '../lib/i18n/index.tsx';
+import { trackedClick } from '../lib/ecosystem.ts';
 
 /* ================================================================== */
 /* משותף                                                               */
@@ -82,7 +83,7 @@ export function OffsidesHero({
       href={href(placement, promo, gameweekNumber)}
       target="_blank"
       rel={LINK_REL}
-      onClick={onOpen}
+      onClick={(e) => { onOpen?.(); trackedClick(e, href(placement, promo, gameweekNumber), `dubid-ofs-${promo}-${placement}`); }}
       aria-label={`${t('shell.offsides')} — ${headline ?? OFFSIDES.name}`}
       className={`group relative block overflow-hidden rounded-3xl bg-night-2
                   transition-transform duration-200 ease-brand active:scale-[.99]
@@ -192,7 +193,7 @@ export function OffsidesInline({
         href={href(placement, promo, gameweekNumber)}
         target="_blank"
         rel={LINK_REL}
-        onClick={onOpen}
+        onClick={(e) => { onOpen?.(); trackedClick(e, href(placement, promo, gameweekNumber), `dubid-ofs-${promo}-${placement}`); }}
         className="inline-flex items-baseline gap-1 font-black text-gold-light
                    underline decoration-gold/40 underline-offset-2
                    transition-colors hover:text-gold hover:decoration-gold"
@@ -234,7 +235,7 @@ export function OffsidesRail({
       href={href(placement, promo, gameweekNumber)}
       target="_blank"
       rel={LINK_REL}
-      onClick={onOpen}
+      onClick={(e) => { onOpen?.(); trackedClick(e, href(placement, promo, gameweekNumber), `dubid-ofs-${promo}-${placement}`); }}
       className={`tap group flex items-center gap-2.5 rounded-2xl bg-night-2/70 px-3 py-2
                   ring-1 ring-inset ring-chalk/10 transition-colors duration-200
                   hover:ring-gold/30 ${className}`}

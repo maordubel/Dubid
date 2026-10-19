@@ -12,6 +12,7 @@ import { capped, delayOf, eligible, isOwn, outbound, pageOf, pickBanner, showOf 
 import { SEED_DOC } from '../lib/promo/seed.ts';
 import type { Banner, Page, PromoDoc, Seen } from '../lib/promo/types.ts';
 import { useI18n } from '../lib/i18n/index.tsx';
+import { trackedClick } from '../lib/ecosystem.ts';
 
 const REMOTE = 'https://fanlife.dubelteam.com/api/promo/public';
 const KEY = 'dubid.promo.v2';
@@ -123,6 +124,7 @@ export function PromoBanner() {
       onPointerEnter={() => { hold.current = true; }} onPointerLeave={() => { hold.current = false; }}
       onFocusCapture={() => { hold.current = true; }} onBlurCapture={() => { hold.current = false; }}>
       <a className="promo-link" href={outbound(shown, PAGE)}
+        onClick={(e) => { if (!isOwn(shown)) trackedClick(e, outbound(shown, PAGE), `dubid-promo-${shown.id}`); }}
         {...(isOwn(shown) ? {} : { target: '_blank', rel: 'noopener noreferrer sponsored' })}
         aria-label={shown.alt || shown.name}>
         <img src={shown.img1x} srcSet={`${shown.img1x} 1x, ${shown.img2x} 2x`} width={320} height={50}
