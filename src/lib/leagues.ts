@@ -58,6 +58,9 @@ export interface PrivateLeague {
   status: 'active' | 'closed';
   /** תקרת משתתפים. null = ללא הגבלה. */
   maxMembers: number | null;
+  /** קוד הליגה (עולם) שהזירה שייכת לה. */
+  world?: string | null;
+  worldPrimary?: boolean;
 }
 
 export interface LeagueMember {
@@ -129,6 +132,7 @@ export const JoinError = {
   Full: 'league_full',
   AlreadyMember: 'already_member',
   InvalidCode: 'invalid_code',
+  OtherLeague: 'other_league',
 } as const;
 export type JoinErrorValue = (typeof JoinError)[keyof typeof JoinError];
 
@@ -139,6 +143,7 @@ export const JOIN_ERROR_HE: Record<JoinErrorValue, string> = {
   get league_full() { return tr('arena.join.league_full'); },
   get already_member() { return tr('arena.join.already_member'); },
   get invalid_code() { return tr('arena.join.invalid_code'); },
+  get other_league() { return tr('arena.join.other_league'); },
 };
 
 export interface JoinResult {
