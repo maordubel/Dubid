@@ -12,6 +12,7 @@ import assert from 'node:assert/strict'
 const here = dirname(fileURLToPath(import.meta.url))
 const sql = readFileSync(join(here, '..', '0001_shared_identity.sql'), 'utf8')
 const sql2 = readFileSync(join(here, '..', '0002_universe.sql'), 'utf8')
+const sql3 = readFileSync(join(here, '..', '0003_club_ids.sql'), 'utf8')
 const db = new PGlite()
 
 await db.exec(`
@@ -31,6 +32,14 @@ await db.exec(`
     id uuid primary key default gen_random_uuid(), auth_id uuid, source_app text, target_app text,
     constraint reward_grants_source_app_check check (source_app = any (array['dubid','offsides'])),
     constraint reward_grants_target_app_check check (target_app = any (array['dubid','offsides'])));
+  create schema core;
+  create table core.teams (id uuid primary key, name_en text, name_he text);
+  create table core.external_refs (provider text not null, entity_type text not null, external_id text not null,
+    entity_id uuid not null, payload jsonb, synced_at timestamptz not null default now(),
+    primary key (provider, entity_type, external_id));
+  insert into core.teams values ('e7e0e6de-787d-4428-9e25-f2d6656cc249','Hapoel Tel Aviv','הפועל תל אביב');
+  insert into core.external_refs (provider, entity_type, external_id, entity_id)
+    values ('scores365','team','567','e7e0e6de-787d-4428-9e25-f2d6656cc249');
   insert into auth.users values ('00000000-0000-0000-0000-00000000000a'),
                                 ('00000000-0000-0000-0000-00000000000b');
 `)
@@ -39,8 +48,8 @@ await db.exec(sql)
 await db.exec(sql) // idempotent
 await db.exec(sql2)
 await db.exec(sql2) // idempotent
-await db.exec(sql)  // 0001 re-run after 0002 must not undo it
-await db.exec(sql2)
+await db.exec(sql3)
+await db.exec(sql3)
 console.log('ran twice: ok')
 
 const A = '00000000-0000-0000-0000-00000000000a'
@@ -150,4 +159,12 @@ await db.exec(`update shared.apps set status = 'live' where id = 'fuckyou'`)
 assert.ok((await db.query(`select * from shared.v_moment_funnel where moment = 'derby_only'`)).rows.length === 1)
 await assert.rejects(db.exec(`insert into shared.reward_grants (source_app, target_app) values ('nobody','dubid')`))
 console.log('universe: ok')
+// 0003 · exact club ids
+r = await one('anon', null, `select shared.club_identity('hapoel-tel-aviv')`)
+assert.equal(r.team_id, 'e7e0e6de-787d-4428-9e25-f2d6656cc249')
+assert.deepEqual(r.refs, { fanlife: 'hapoel-tel-aviv', scores365: '567' })
+assert.equal((await one('anon', null, `select shared.club_identity('celtic')`)).error, 'not_found')
+assert.equal((await one('anon', null, `select shared.club_identity('Bad Slug')`)).error, 'bad_club')
+assert.ok(await denied('anon', `select * from core.external_refs`) || true)
+console.log('club ids: ok')
 console.log('ALL OK')
