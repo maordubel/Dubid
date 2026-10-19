@@ -15,7 +15,9 @@
       "One auth.users for every app.",
       "No app adds triggers on auth.users. Profiles are created lazily by each app's own ensure_* RPC.",
       "Every app adds only its own Redirect URLs; never change the Site URL without updating every app.",
-      "Sign-out is local (scope:'local') so leaving one app never signs the user out of the others."
+      "SSO: a real account's session is ONE cookie, sb-afxpjfxwpdjvlmuoawda-auth-token, on .dubelteam.com, in @supabase/ssr format. Next apps set cookieOptions.domain = ssoCookieDomain(host); other apps use ssoStorage() from ecosystem/sdk.ts. Host-only on localhost and previews.",
+      "Anonymous sessions are never shared: a guest belongs to the app that created it. When a real account arrives, the app parks its guest (takeParkedGuest) and moves the guest's progress with its own merge (DUBID: issue_merge_token → claim_pass).",
+      "Sign-out uses scope 'local': it ends the session in THIS browser — every app on this browser at once (one cookie) — and never other devices."
     ]
   },
   "apps": {
@@ -176,7 +178,8 @@
     "9. Every app registers its own future migrations in shared.schema_migrations under its own app id.",
     "10. The universe map lives in shared.apps / shared.app_moments. A cross-app link carries its moment (campaign '<moment>' or '<moment>-<x>'); a new app or moment is a row, not code.",
     "11. DUBID and OFFSIDES never parse a provider themselves: they read through ecosystem/feed and, once core is shared, through core views only.",
-    "12. A club has one exact id across the universe: the core.teams uuid. An app's own name for it (FAN LIFE slug, provider id) is a row in core.external_refs, linked through a provider id, never a name. Ask shared.club_identity(slug)."
+    "12. A club has one exact id across the universe: the core.teams uuid. An app's own name for it (FAN LIFE slug, provider id) is a row in core.external_refs, linked through a provider id, never a name. Ask shared.club_identity(slug).",
+    "13. Fixtures: every app reads core.fixtures (via shared.fixtures) and reacts to core.fixture_signals with its own cursor. core.weekly_matches is DUBID's gameweek schedule, not a shared table. Only core.publish_fixture writes core.fixtures."
   ],
   "sharedApi": {
     "module": "ecosystem/sdk.ts (byte-identical in every repo)",
@@ -190,7 +193,10 @@
       "shared.handoff_claim(token, app)": "authenticated — first touch wins",
       "shared.grant_reward / claim_reward": "existing ledger, now all four apps",
       "shared.universe()": "anon — the public map: apps, roles, moments",
-      "shared.club_identity(slug)": "anon — the exact ids of a FAN LIFE club: core.teams uuid + every provider ref (ecosystem/sql/0003_club_ids.sql)"
+      "shared.club_identity(slug)": "anon — the exact ids of a FAN LIFE club: core.teams uuid + every provider ref (ecosystem/sql/0003_club_ids.sql)",
+      "shared.fixtures(club, from, to)": "anon — the neutral fixture list (core.fixtures), optionally for one FAN LIFE club; window ≤120 days (ecosystem/sql/0004_fixtures.sql)",
+      "shared.fixture_signals_since(cursor, limit)": "service_role — what changed (created / kickoff_moved / status / score / removed) after a game's own cursor",
+      "core.publish_fixture(...) / core.unpublish_fixture(id)": "service_role — the one write path into core.fixtures; DUBID publishes from a trigger on core.weekly_matches (db/49)"
     },
     "views": {
       "shared.v_handoff_funnel": "service_role only",

@@ -13,6 +13,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const sql = readFileSync(join(here, '..', '0001_shared_identity.sql'), 'utf8')
 const sql2 = readFileSync(join(here, '..', '0002_universe.sql'), 'utf8')
 const sql3 = readFileSync(join(here, '..', '0003_club_ids.sql'), 'utf8')
+const sql4 = readFileSync(join(here, '..', '0004_fixtures.sql'), 'utf8')
 const db = new PGlite()
 
 await db.exec(`
@@ -37,7 +38,12 @@ await db.exec(`
   create table core.external_refs (provider text not null, entity_type text not null, external_id text not null,
     entity_id uuid not null, payload jsonb, synced_at timestamptz not null default now(),
     primary key (provider, entity_type, external_id));
+  create table core.leagues (id uuid primary key);
+  create table core.seasons (id uuid primary key);
+  insert into core.leagues values ('11111111-1111-1111-1111-111111111111');
+  insert into core.seasons values ('22222222-2222-2222-2222-222222222222');
   insert into core.teams values ('e7e0e6de-787d-4428-9e25-f2d6656cc249','Hapoel Tel Aviv','הפועל תל אביב');
+  insert into core.teams values ('33333333-3333-3333-3333-333333333333','Maccabi Haifa','מכבי חיפה');
   insert into core.external_refs (provider, entity_type, external_id, entity_id)
     values ('scores365','team','567','e7e0e6de-787d-4428-9e25-f2d6656cc249');
   insert into auth.users values ('00000000-0000-0000-0000-00000000000a'),
@@ -50,6 +56,8 @@ await db.exec(sql2)
 await db.exec(sql2) // idempotent
 await db.exec(sql3)
 await db.exec(sql3)
+await db.exec(sql4)
+await db.exec(sql4)
 console.log('ran twice: ok')
 
 const A = '00000000-0000-0000-0000-00000000000a'
@@ -167,4 +175,30 @@ assert.equal((await one('anon', null, `select shared.club_identity('celtic')`)).
 assert.equal((await one('anon', null, `select shared.club_identity('Bad Slug')`)).error, 'bad_club')
 assert.ok(await denied('anon', `select * from core.external_refs`) || true)
 console.log('club ids: ok')
+// 0004 · neutral fixtures + signals
+const F = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+const pub = (status, hg, ag, ko = '2026-10-25 18:00+00') => db.query(
+  `select core.publish_fixture($1,'11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222',
+     'e7e0e6de-787d-4428-9e25-f2d6656cc249','33333333-3333-3333-3333-333333333333',$2::timestamptz,'Bloomfield',$3,$4::smallint,$5::smallint)`, [F, ko, status, hg, ag])
+await pub('scheduled', null, null); await pub('scheduled', null, null)
+const kinds = async () => (await db.query(`select kind from core.fixture_signals where fixture_id=$1 order by id`, [F])).rows.map((r) => r.kind)
+assert.deepEqual(await kinds(), ['created'], 'a repeat publish signals nothing')
+await pub('live', 0, 0); await pub('live', 1, 0); await pub('finished', 1, 0)
+assert.deepEqual(await kinds(), ['created', 'status', 'score', 'score', 'status'])
+await pub('finished', 1, 0, '2026-10-25 19:00+00')
+assert.deepEqual((await kinds()).at(-1), 'kickoff_moved')
+r = await one('anon', null, `select shared.fixtures('hapoel-tel-aviv', '2026-10-01', '2026-11-01')`)
+assert.equal(r.ok, true); assert.equal(r.fixtures.length, 1)
+assert.equal(r.fixtures[0].home.club, 'hapoel-tel-aviv'); assert.deepEqual(r.fixtures[0].score, [1, 0])
+assert.equal((await one('anon', null, `select shared.fixtures('celtic', '2026-10-01', '2026-11-01')`)).fixtures.length, 0)
+assert.equal((await one('anon', null, `select shared.fixtures(null, '2026-01-01', '2026-12-31')`)).error, 'bad_window')
+assert.ok(await denied('anon', `select core.publish_fixture(gen_random_uuid(),null,null,null,null,null,null,null,null,null)`))
+assert.ok(await denied('authenticated', `select shared.fixture_signals_since(0)`))
+assert.ok(await denied('anon', `select * from core.fixtures`))
+assert.ok(await denied('anon', `select * from core.fixture_signals`))
+await assert.rejects(db.query(`delete from core.fixture_signals`))
+r = (await db.query(`select shared.fixture_signals_since(0, 2) j`)).rows[0].j
+assert.equal(r.signals.length, 2); assert.equal(r.cursor, r.signals[1].id)
+await db.query(`select core.unpublish_fixture($1)`, [F]); assert.equal((await kinds()).at(-1), 'removed')
+console.log('fixtures: ok')
 console.log('ALL OK')

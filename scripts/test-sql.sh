@@ -17,6 +17,12 @@ for pass in 1 2; do
   $P -f db/RUN-ALL.sql >/dev/null
   echo "RUN-ALL pass $pass ok"
 done
+# The shared layer (ecosystem/sql, byte-identical in every repo), twice — then 49 again, now that 0004 exists.
+for pass in 1 2; do
+  for f in ecosystem/sql/[0-9][0-9][0-9][0-9]_*.sql; do $P -f "$f" >/dev/null; done
+done
+$P -f db/49_publish_fixtures.sql >/dev/null
+echo "ecosystem sql ok"
 # Test-only admin password (the real one lives only in production, never in git).
 $P -c "UPDATE game.admin_secrets SET secret_hash = encode(digest('test-admin-pass','sha256'),'hex') WHERE id = 'primary'" >/dev/null
 

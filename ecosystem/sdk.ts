@@ -178,3 +178,156 @@ export async function arrived(client: SharedClient | null | undefined, app: AppI
 export function clubIdentity(client: SharedClient | null | undefined, slug: string) {
   return call<{ club: string; team_id: string; name_en: string | null; name_he: string | null; refs: Record<string, string> }>(client, 'club_identity', { p_slug: slug })
 }
+
+/* ── SSO: one account across *.dubelteam.com ─────────────────────────────────
+ * Every app on Football Master reads ONE session cookie on the parent domain,
+ * in exactly the format @supabase/ssr writes ("base64-" + base64url(JSON),
+ * chunked at 3180 chars as <name>.0, <name>.1 …). Next apps get it by giving
+ * @supabase/ssr `cookieOptions: { domain: ssoCookieDomain(host) }`; a plain
+ * supabase-js app (DUBID) passes `ssoStorage()` as `auth.storage`.
+ *
+ * Anonymous sessions are NEVER shared: a guest stays a guest of the app that
+ * made it (in that app's localStorage). Only a real account crosses apps.
+ * When a real account appears while the app still holds a local guest, the
+ * guest session is parked under `<key>.guest` so the app can carry the guest's
+ * progress over (DUBID: issue a merge token as the guest, claim it as the user).
+ */
+export const SSO_PARENT = '.dubelteam.com'
+export const SSO_REF = 'afxpjfxwpdjvlmuoawda'
+export const SSO_COOKIE = `sb-${SSO_REF}-auth-token`
+const CHUNK = 3180
+const B64 = 'base64-'
+
+/** The cookie domain for this host: the parent domain in production, host-only elsewhere (localhost, previews). */
+export function ssoCookieDomain(hostname: string): string | undefined {
+  const h = hostname.toLowerCase()
+  return h === 'dubelteam.com' || h.endsWith(SSO_PARENT) ? SSO_PARENT : undefined
+}
+
+function b64urlEncode(s: string): string {
+  const bytes = new TextEncoder().encode(s)
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+function b64urlDecode(s: string): string {
+  const pad = s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)
+  const bin = atob(pad)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return new TextDecoder().decode(bytes)
+}
+
+type Jar = { read: () => Record<string, string>; write: (name: string, value: string, maxAge: number) => void }
+
+function documentJar(domain: string | undefined): Jar {
+  return {
+    read() {
+      const out: Record<string, string> = {}
+      for (const part of (typeof document === 'undefined' ? '' : document.cookie).split(';')) {
+        const i = part.indexOf('=')
+        if (i < 1) continue
+        const k = part.slice(0, i).trim()
+        if (!(k in out)) { try { out[k] = decodeURIComponent(part.slice(i + 1).trim()) } catch { /* skip */ } }
+      }
+      return out
+    },
+    write(name, value, maxAge) {
+      if (typeof document === 'undefined') return
+      const secure = typeof location !== 'undefined' && location.protocol === 'https:' ? '; Secure' : ''
+      document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax${domain ? `; Domain=${domain}` : ''}${secure}`
+    },
+  }
+}
+
+/** The JSON of the shared session, or null. */
+export function readSsoCookie(jar: Pick<Jar, 'read'>, name = SSO_COOKIE): string | null {
+  const all = jar.read()
+  let raw: string | null = all[name] ?? null
+  if (!raw) {
+    const parts: string[] = []
+    for (let i = 0; ; i++) { const part = all[`${name}.${i}`]; if (!part) break; parts.push(part) }
+    raw = parts.length ? parts.join('') : null
+  }
+  if (!raw) return null
+  try { return raw.startsWith(B64) ? b64urlDecode(raw.slice(B64.length)) : raw } catch { return null }
+}
+
+function writeSsoCookie(jar: Jar, json: string | null, name = SSO_COOKIE) {
+  const existing = Object.keys(jar.read()).filter((k) => k === name || k.startsWith(`${name}.`))
+  const keep = new Set<string>()
+  if (json) {
+    const enc = B64 + b64urlEncode(json)
+    if (enc.length <= CHUNK) { jar.write(name, enc, 400 * 864e2); keep.add(name) } else {
+      for (let i = 0, n = 0; i < enc.length; i += CHUNK, n++) { jar.write(`${name}.${n}`, enc.slice(i, i + CHUNK), 400 * 864e2); keep.add(`${name}.${n}`) }
+    }
+  }
+  for (const k of existing) if (!keep.has(k)) jar.write(k, '', 0)
+}
+
+function isRealSession(json: string | null): boolean {
+  if (!json) return false
+  try {
+    const s = JSON.parse(json) as { access_token?: string; user?: { is_anonymous?: boolean } }
+    return !!s?.access_token && !!s.user && s.user.is_anonymous !== true
+  } catch { return false }
+}
+
+/**
+ * supabase-js `auth.storage` for an app that is not on @supabase/ssr.
+ * The app's own `storageKey` keeps guests and non-session values (PKCE
+ * verifier) local; a real session lives in the shared cookie.
+ */
+export function ssoStorage(opts: { storageKey: string; hostname?: string; jar?: Jar; local?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null } ) {
+  const host = opts.hostname ?? (typeof location !== 'undefined' ? location.hostname : '')
+  const jar = opts.jar ?? documentJar(ssoCookieDomain(host))
+  const local = opts.local !== undefined ? opts.local : storage()
+  const key = opts.storageKey
+  const guestKey = `${key}.guest`
+  return {
+    getItem(k: string): string | null {
+      const mine = (() => { try { return local?.getItem(k) ?? null } catch { return null } })()
+      if (k !== key) return mine
+      const shared = readSsoCookie(jar)
+      if (isRealSession(shared)) {
+        if (mine && !isRealSession(mine)) { try { local?.setItem(guestKey, mine); local?.removeItem(k) } catch { /* */ } }
+        return shared
+      }
+      return mine
+    },
+    setItem(k: string, v: string): void {
+      if (k === key && isRealSession(v)) {
+        writeSsoCookie(jar, v)
+        try { local?.removeItem(k) } catch { /* */ }
+        return
+      }
+      try { local?.setItem(k, v) } catch { /* */ }
+    },
+    removeItem(k: string): void {
+      try { local?.removeItem(k) } catch { /* */ }
+      if (k === key && isRealSession(readSsoCookie(jar))) writeSsoCookie(jar, null)
+    },
+  }
+}
+
+/** A guest session parked by `ssoStorage` when a real account arrived; read once, then forgotten. */
+export function takeParkedGuest(storageKey: string): { access_token: string; refresh_token: string } | null {
+  const s = storage()
+  try {
+    const raw = s?.getItem(`${storageKey}.guest`)
+    s?.removeItem(`${storageKey}.guest`)
+    const v = raw ? JSON.parse(raw) as { access_token?: string; refresh_token?: string } : null
+    return v?.access_token && v.refresh_token ? { access_token: v.access_token, refresh_token: v.refresh_token } : null
+  } catch { return null }
+}
+
+/** The neutral fixture list (core.fixtures), optionally for one FAN LIFE club. Window ≤ 120 days. */
+export type Fixture = {
+  id: string; kickoff_at: string | null; status: 'scheduled' | 'live' | 'finished' | 'postponed' | 'cancelled'; venue: string | null
+  home: { team_id: string; name_en: string | null; name_he: string | null; club: string | null }
+  away: { team_id: string; name_en: string | null; name_he: string | null; club: string | null }
+  score: [number, number] | null
+}
+export function fixtures(client: SharedClient | null | undefined, q: { club?: string | null; from?: string | null; to?: string | null } = {}) {
+  return call<{ fixtures: Fixture[] }>(client, 'fixtures', { p_club: q.club ?? null, p_from: q.from ?? null, p_to: q.to ?? null })
+}

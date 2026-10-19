@@ -55,6 +55,8 @@
  * אמיתית היא הבטחה שהמוצר לא יכול לקיים.
  */
 import { supabase, DUBID_PROJECT, OFFSIDES_PROJECT } from './supabase.ts';
+import { createClient } from '@supabase/supabase-js';
+import { takeParkedGuest } from '../../ecosystem/sdk.ts';
 /* ★ כתובת אחת לכל המוצר. קבוע שני היה נשאר מאחור ביום שהדומיין
    ישתנה, וכל הכרטיסים שכבר שמורים אצל משתמשים היו מצביעים לשם. */
 import { DUBID_URL } from './growth.ts';
@@ -691,6 +693,7 @@ async function stashMergeToken(): Promise<void> {
  *   כבר לא מצפה לו.
  */
 export async function finishPendingMerge(): Promise<number> {
+  await carryParkedGuest();
   const token = peekMergeToken();
   if (!token) return 0;
 
@@ -726,6 +729,37 @@ export async function finishPendingMerge(): Promise<number> {
     /* שגיאת רשת — האסימון נשאר, והניסיון הבא יתפוס אותו. */
     return 0;
   }
+}
+
+/**
+ * ★ SSO: אורח שהתחבר במקום אחר.
+ *
+ * כשחשבון אמיתי מגיע מאפליקציה אחרת (העוגייה המשותפת), `ssoStorage`
+ * מחנה את סשן האורח המקומי בצד. כאן, **בתור האורח**, מנפיקים אסימון
+ * העברה — ואז `claim_pass` רגיל מעביר את ההרכבים לחשבון. אותו מנגנון
+ * בדיוק כמו התחברות מתוך דוביד; שום מכונה חדשה.
+ */
+async function carryParkedGuest(): Promise<void> {
+  try {
+    await supabase.auth.getSession();            // ensures the storage was read (and the guest parked)
+    const guest = takeParkedGuest('dubid.auth.v1');
+    if (!guest) return;
+    const asGuest = createClient(DUBID_PROJECT.url, DUBID_PROJECT.key, {
+      db: { schema: 'game' },
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+    const { error } = await asGuest.auth.setSession(guest);
+    if (error) return;
+    const { data: has } = await asGuest.rpc('has_anything');
+    if (has === true) {
+      const { data: token } = await asGuest.rpc('issue_merge_token');
+      if (typeof token === 'string') {
+        try { sessionStorage.setItem(MERGE_KEY, token); } catch { /* מצב פרטי */ }
+        try { localStorage.setItem(MERGE_KEY, JSON.stringify({ t: token, at: Date.now() })); } catch { /* מצב פרטי */ }
+      }
+    }
+    await asGuest.auth.signOut({ scope: 'local' }).catch(() => {});
+  } catch { /* לא חוסם: הכרטיס עדיין מחזיר את הדאטה */ }
 }
 
 /**

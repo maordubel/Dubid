@@ -34,6 +34,14 @@ LANGUAGE sql STABLE AS $$
   SELECT NULLIF(current_setting('dubid.test_uid', TRUE), '')::UUID;
 $$;
 
+/* ★ קיימת ב-Supabase; השכבה המשותפת (ecosystem/sql) קוראת ממנה is_anonymous. */
+CREATE OR REPLACE FUNCTION auth.jwt() RETURNS JSONB
+LANGUAGE sql STABLE AS $$
+  SELECT COALESCE(NULLIF(current_setting('request.jwt.claims', TRUE), '')::JSONB,
+                  jsonb_build_object('is_anonymous',
+                    (SELECT u.is_anonymous FROM auth.users u WHERE u.id = auth.uid())));
+$$;
+
 CREATE OR REPLACE FUNCTION auth.role() RETURNS TEXT
 LANGUAGE sql STABLE AS $$ SELECT 'authenticated'::TEXT $$;
 

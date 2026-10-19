@@ -36,6 +36,7 @@
  * לקוח שאפשר לשכנע לכתוב לאחד מהם.
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { ssoStorage } from '../../ecosystem/sdk.ts';
 
 /* ------------------------------------------------------------------ */
 /* תצורה                                                               */
@@ -163,6 +164,10 @@ export const supabase: SupabaseClient<any, 'game'> = createClient(
     autoRefreshToken: true,
     detectSessionInUrl: true,
     storageKey: 'dubid.auth.v1',
+    /* ★ SSO (ecosystem): חשבון אמיתי נשמר בעוגייה המשותפת של
+       ‎*.dubelteam.com — אותו חשבון ב-FAN LIFE וב-THE WORKER.
+       אורח נשאר מקומי ב-localStorage ולא עובר לאפליקציה אחרת. */
+    storage: typeof window === 'undefined' ? undefined : ssoStorage({ storageKey: 'dubid.auth.v1' }),
   },
   global: { headers: { 'x-client-info': 'dubid-web' } },
   });
