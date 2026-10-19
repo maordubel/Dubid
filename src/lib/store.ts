@@ -39,6 +39,7 @@
  * קבוצה). עדכון אופטימי היה מראה למשתמש "נשמר" ואז מוחק לו את
  * ההרכב. במשחק תחרותי זה בלתי נסלח — ולכן המסך מחכה לתשובה.
  */
+import { selectedLeague } from './league.ts';
 import type { Lineup, PlayerPerformance, TeamOutcome } from './scoring/types.ts';
 import { supabase } from './supabase.ts';
 import { hydrateAds } from './adsStore.ts';
@@ -1813,8 +1814,10 @@ export interface HistoryRow {
 
 /** זיכרון המחזורים שעברו — נגיש גם לאורח. */
 export async function gameweekHistory(limit = 20): Promise<HistoryRow[]> {
+  /* ★ ארכיון לפי ליגה: בליגה הראשית אין פרמטר (התנהגות קיימת). */
+  const lg = selectedLeague();
   const { data, error } = await supabase.rpc('history_summary', {
-    p_mode: null, p_limit: limit,
+    p_mode: null, p_limit: limit, ...(lg ? { p_league: lg } : {}),
   });
   if (error) throw new Error(errorCode(error));
   return (data ?? []) as HistoryRow[];

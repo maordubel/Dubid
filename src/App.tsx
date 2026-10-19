@@ -47,6 +47,7 @@ function passOfferedBefore(): boolean {
 }
 import { LockedLineup } from './components/LockedLineup.tsx';
 import { Splash } from './components/Splash.tsx';
+import { LeagueGateHost } from './components/LeagueGate.tsx';
 import { RevealShare } from './components/RevealShare.tsx';
 import type { RevealCardData } from './lib/revealCard.ts';
 import { modeTheme } from './lib/modeTheme.ts';
@@ -986,6 +987,8 @@ function MainApp() {
         seasonLabel={`${leagueName} · ${LEAGUE.season}`}
       />
     )}
+    {/* ★ שער הליגות — אחרי מסך הפתיחה; רק כשיש יותר מליגה אחת. */}
+    {splashGone && <LeagueGateHost />}
     <AppShell
       // רק מסך הבנייה מנהל גובה בעצמו. שאר המסכים נגללים כרגיל.
       // ★ שני המצבים של מסך ההרכב הם עמודה בגובה קבוע.

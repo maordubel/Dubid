@@ -89,6 +89,26 @@ const CORE = {
   'mode.five.code':      { he: 'הרחוב', en: 'The Street', el: 'Ο Δρόμος' },
   'mode.full.code':      { he: 'הליגה', en: 'The League', el: 'Η Λίγκα' },
   'lobby.leagueRound':   { he: '{league} · מחזור', en: '{league} · Round', el: '{league} · Αγωνιστική' },
+  /* ---- מסך בחירת ליגה ---- */
+  'gate.title':     { he: 'באיזו ליגה משחקים?', en: 'Pick your league', el: 'Διάλεξε πρωτάθλημα' },
+  'gate.sub':       { he: 'כל ליגה היא משחק נפרד: מחזורים, טבלה, דירוג והיסטוריה משלה.', en: 'Each league is its own game: its own rounds, table, ranking and history.', el: 'Κάθε πρωτάθλημα είναι ξεχωριστό παιχνίδι: δικές του αγωνιστικές, βαθμολογία, κατάταξη και ιστορικό.' },
+  'gate.play':      { he: 'כניסה', en: 'Enter', el: 'Είσοδος' },
+  'gate.here':      { he: 'אתם כאן', en: "You're here", el: 'Είσαι εδώ' },
+  'gate.soon':      { he: 'בקרוב', en: 'Coming soon', el: 'Σύντομα' },
+  'gate.soonNote':  { he: 'המחזור הראשון נפתח ביום שני.', en: 'The first round opens on Monday.', el: 'Η πρώτη αγωνιστική ανοίγει τη Δευτέρα.' },
+  'gate.round':     { he: 'מחזור {n}', en: 'Round {n}', el: 'Αγωνιστική {n}' },
+  'gate.open':      { he: 'פתוח להגשה', en: 'Open', el: 'Ανοιχτό' },
+  'gate.locked':    { he: 'נעול', en: 'Locked', el: 'Κλειδωμένο' },
+  'gate.live':      { he: 'בשידור חי', en: 'Live', el: 'Ζωντανά' },
+  'gate.final':     { he: 'הסתיים', en: 'Final', el: 'Ολοκληρώθηκε' },
+  'gate.prep':      { he: 'בהכנה', en: 'Preparing', el: 'Σε προετοιμασία' },
+  'gate.locksIn':   { he: 'ננעל בעוד {t}', en: 'Locks in {t}', el: 'Κλειδώνει σε {t}' },
+  'gate.entrants':  { he: '{n} משתתפים', en: '{n} players', el: '{n} παίκτες' },
+  'gate.close':     { he: 'סגירה', en: 'Close', el: 'Κλείσιμο' },
+  'gate.switch':    { he: 'החלפת ליגה', en: 'Switch league', el: 'Αλλαγή πρωταθλήματος' },
+  'gate.dur.d':     { he: '{d} י׳ {h} ש׳', en: '{d}d {h}h', el: '{d}μ {h}ω' },
+  'gate.dur.h':     { he: '{h} ש׳ {m} ד׳', en: '{h}h {m}m', el: '{h}ω {m}λ' },
+  'gate.dur.m':     { he: '{m} ד׳', en: '{m}m', el: '{m}λ' },
 } as const satisfies Record<string, Entry>;
 
 /** המילון המלא = ליבה + מודולי אזור (כל אחד בקובץ משלו כדי למנוע התנגשויות). */

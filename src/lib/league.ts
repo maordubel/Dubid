@@ -13,6 +13,7 @@ import { supabase } from './supabase.ts';
 import type { Locale } from './i18n/locales.ts';
 
 const KEY = 'ui.league';
+const CHOSEN = 'ui.league.chosen';   // ★ הבחירה הוצגה פעם אחת — לא מציגים שוב את שער הליגות
 
 export function selectedLeague(): string | null {
   try {
@@ -21,7 +22,16 @@ export function selectedLeague(): string | null {
   } catch { return null; }
 }
 
+export function hasChosenLeague(): boolean {
+  try { return localStorage.getItem(CHOSEN) === '1'; } catch { return true; }
+}
+
+export function markLeagueChosen(): void {
+  try { localStorage.setItem(CHOSEN, '1'); } catch { /* מצב פרטי */ }
+}
+
 export function chooseLeague(code: string | null, primary: boolean): void {
+  markLeagueChosen();
   try {
     if (!code || primary) localStorage.removeItem(KEY);
     else localStorage.setItem(KEY, code);
@@ -38,6 +48,12 @@ export interface PublicLeague {
   names: Partial<Record<Locale, { full?: string }>>;
   primary: boolean;
   currentGameweek: string | null;
+  /** יש מחזור נוכחי → אפשר להיכנס. אחרת כרטיס «בקרוב». */
+  live?: boolean;
+  round?: number | null;
+  status?: string | null;
+  lockAt?: string | null;
+  entrants?: number;
 }
 
 export async function fetchLeagues(): Promise<PublicLeague[]> {
