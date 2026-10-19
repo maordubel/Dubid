@@ -21,7 +21,24 @@ export const openLeagueGate = () => window.dispatchEvent(new Event(OPEN_EVENT));
 
 /* ───────── דגלים — מצוירים, לא אמוג׳י (ב-Windows אמוג׳י דגל הוא שתי אותיות) ───────── */
 function Flag({ country }: { country: string }) {
-  if (country === 'GR') {
+  if (country === 'EN_PL') {
+    return (
+      <svg viewBox="0 0 54 36" className="h-full w-full" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
+        <rect width="54" height="36" fill="#fff" />
+        <rect x="23" width="8" height="36" fill="#CE1124" />
+        <rect y="14" width="54" height="8" fill="#CE1124" />
+      </svg>
+    );
+  }
+  if (country === 'ES_LALIGA') {
+    return (
+      <svg viewBox="0 0 54 36" className="h-full w-full" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
+        <rect width="54" height="36" fill="#AA151B" />
+        <rect y="9" width="54" height="18" fill="#F1BF00" />
+      </svg>
+    );
+  }
+  if (country === 'GR_SUPER') {
     return (
       <svg viewBox="0 0 54 36" className="h-full w-full" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
         <rect width="54" height="36" fill="#0D5EAF" />
@@ -45,7 +62,7 @@ function Flag({ country }: { country: string }) {
   );
 }
 
-const ACCENT: Record<string, string> = { IL: '#2F6BD8', GR: '#1F7BD6' };
+const ACCENT: Record<string, string> = { IL_PREMIER: '#2F6BD8', GR_SUPER: '#1F7BD6', EN_PL: '#7B2CBF', ES_LALIGA: '#E0452B' };
 
 function fmtDur(ms: number, tt: (k: any, v?: any) => string): string {
   const m = Math.max(0, Math.floor(ms / 60000));
@@ -71,7 +88,7 @@ function Card({ l, active, onPick }: { l: PublicLeague; active: boolean; onPick:
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
 
   const live = l.live !== false && !!l.currentGameweek;
-  const accent = ACCENT[l.country] ?? '#D8B25C';
+  const accent = ACCENT[l.code] ?? '#D8B25C';
   const st = l.status ?? '';
   const lockMs = l.lockAt ? Date.parse(l.lockAt) - now : NaN;
   const statusLabel =
@@ -96,7 +113,7 @@ function Card({ l, active, onPick }: { l: PublicLeague; active: boolean; onPick:
       {/* הדגל כרצועה מטושטשת שנשפכת אל הכרטיס */}
       <div aria-hidden="true" className="absolute inset-y-0 end-0 w-[62%] opacity-[0.55] transition group-hover:opacity-75"
            style={{ WebkitMaskImage: 'linear-gradient(to left,#000 30%,transparent)', maskImage: 'linear-gradient(to left,#000 30%,transparent)' }}>
-        <div className="h-full w-full scale-125 blur-[2px]"><Flag country={l.country} /></div>
+        <div className="h-full w-full scale-125 blur-[2px]"><Flag country={l.code} /></div>
       </div>
       <div aria-hidden="true" className="absolute inset-0"
            style={{ background: `linear-gradient(115deg, #0C0A08 38%, ${accent}22 100%)` }} />
@@ -104,7 +121,7 @@ function Card({ l, active, onPick }: { l: PublicLeague; active: boolean; onPick:
       <div className="relative z-[1] flex h-full flex-col justify-between gap-5 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="h-[34px] w-[51px] overflow-hidden rounded-[5px] ring-1 ring-white/40 shadow-lg">
-            <Flag country={l.country} />
+            <Flag country={l.code} />
           </div>
           <span className="rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wider"
                 style={{ background: live ? `${accent}33` : '#ffffff14', color: live ? '#BFD6FF' : '#C6B99F', border: `1px solid ${live ? accent : '#ffffff22'}` }}>
@@ -202,7 +219,7 @@ export function LeagueGateHost() {
   useEffect(() => {
     const code = selectedLeague();
     const l = leagues.find((x) => (code ? x.code === code : x.primary));
-    if (l) document.documentElement.dataset.league = l.country; else delete document.documentElement.dataset.league;
+    if (l) document.documentElement.dataset.league = l.code; else delete document.documentElement.dataset.league;
   }, [leagues]);
 
   if (leagues.length < 2) return null;

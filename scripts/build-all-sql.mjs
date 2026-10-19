@@ -61,6 +61,9 @@ const FILES = [
   ['42_ingest_leagues.sql',    '★ קליטה לפי ליגה: ingest_sources + ingest_snapshot(league) + tick לכל מקור'],
   ['43_league_safe_readers.sql','★ קוראי מחזור נוכחי בטוחים לשתי ליגות'],
   ['44_league_gate.sql','★ מסך כניסה לליגות + ארכיון מופרד'],
+  ['45_seed_england.sql','★ סגלי הפרמיירליג 2026/27 (599 שחקנים, 20 קבוצות)'],
+  ['46_seed_spain.sql','★ סגלי לה ליגה 2026/27 (566 שחקנים, 20 קבוצות)'],
+  ['47_ingest_eng_esp.sql','★ קליטת אנגליה וספרד: ingest_sources + קישור 365scores'],
 ];
 
 const bar = '=' .repeat(69);

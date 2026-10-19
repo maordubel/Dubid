@@ -1,5 +1,5 @@
 /**
- * data/teamColors.ts — ערכות הצבע של מועדוני ליגת העל והסופר ליג היוונית.
+ * data/teamColors.ts — ערכות הצבע של מועדוני ליגת העל, הסופר ליג היוונית, הפרמיירליג ולה ליגה.
  *
  * ★ למה זה חשוב מספיק בשביל קובץ משלו
  *
@@ -110,6 +110,51 @@ const KITS: Record<string, TeamKit> = {
   T508099: { primary: '#B3122B', secondary: '#B3122B', trim: W, pattern: 'plain' },
   // וולוס — כחול, שוליים אדומים
   T905256: { primary: '#183F8F', secondary: '#183F8F', trim: '#D0103A', pattern: 'plain' },
+
+  /* ───────── פרמיירליג 2026/27 ─────────
+     מזהה = T + (20000 + FotMob). צבעי זהות המועדון, לא ערכות רשמיות. */
+  T28678: { primary: '#D0102A', secondary: K,         trim: K, pattern: 'stripes' },   // בורנמות'
+  T29825: { primary: '#EF0107', secondary: W,         trim: W, pattern: 'sleeves' },   // ארסנל
+  T30252: { primary: '#7B003C', secondary: '#95BFE5', trim: '#95BFE5', pattern: 'sleeves' }, // אסטון וילה
+  T29937: { primary: '#E30613', secondary: W,         trim: K, pattern: 'stripes' },   // ברנטפורד
+  T30204: { primary: '#0057B8', secondary: W,         trim: W, pattern: 'stripes' },   // ברייטון
+  T28455: { primary: '#034694', secondary: '#034694', trim: W, pattern: 'plain' },     // צ'לסי
+  T28669: { primary: '#59B5E8', secondary: '#59B5E8', trim: W, pattern: 'plain' },     // קובנטרי
+  T29826: { primary: '#1B458F', secondary: '#C4122E', trim: '#C4122E', pattern: 'stripes' }, // קריסטל פאלאס
+  T28668: { primary: '#003399', secondary: '#003399', trim: W, pattern: 'plain' },     // אברטון
+  T29879: { primary: '#F4F4F4', secondary: '#F4F4F4', trim: K, pattern: 'plain' },     // פולהאם
+  T28667: { primary: '#F5A12D', secondary: K,         trim: K, pattern: 'stripes' },   // האל סיטי
+  T29902: { primary: '#0044AA', secondary: '#0044AA', trim: W, pattern: 'plain' },     // איפסוויץ'
+  T28463: { primary: '#F4F4F4', secondary: '#F4F4F4', trim: '#1D428A', pattern: 'plain' }, // לידס
+  T28650: { primary: '#C8102E', secondary: '#C8102E', trim: W, pattern: 'plain' },     // ליברפול
+  T28456: { primary: '#6CABDD', secondary: '#6CABDD', trim: W, pattern: 'plain' },     // מנצ'סטר סיטי
+  T30260: { primary: '#DA291C', secondary: '#DA291C', trim: W, pattern: 'plain' },     // מנצ'סטר יונייטד
+  T30261: { primary: '#F2F2F2', secondary: K,         trim: K, pattern: 'stripes' },   // ניוקאסל
+  T30203: { primary: '#DD0000', secondary: '#DD0000', trim: W, pattern: 'plain' },     // נוטינגהאם פורסט
+  T28472: { primary: '#EB172B', secondary: W,         trim: K, pattern: 'stripes' },   // סנדרלנד
+  T28586: { primary: '#F4F4F4', secondary: '#F4F4F4', trim: '#132257', pattern: 'plain' }, // טוטנהאם
+
+  /* ───────── לה ליגה 2026/27 ───────── */
+  T28634: { primary: '#A50044', secondary: '#004D98', trim: '#EDBB00', pattern: 'stripes' }, // ברצלונה
+  T29906: { primary: '#CB3524', secondary: W,         trim: '#272E61', pattern: 'stripes' }, // אתלטיקו מדריד
+  T28633: { primary: '#F4F4F4', secondary: '#F4F4F4', trim: '#C9A24A', pattern: 'plain' },   // ריאל מדריד
+  T28603: { primary: '#0BB363', secondary: W,         trim: W, pattern: 'stripes' },   // ריאל בטיס
+  T28560: { primary: '#0067B1', secondary: W,         trim: W, pattern: 'stripes' },   // ריאל סוסיאדד
+  T28302: { primary: '#F4F4F4', secondary: '#F4F4F4', trim: '#D4021D', pattern: 'plain' }, // סביליה
+  T29866: { primary: '#0761AF', secondary: W,         trim: W, pattern: 'stripes' },   // אלאבס
+  T29910: { primary: '#8AC3EE', secondary: '#8AC3EE', trim: '#E5254F', pattern: 'plain' }, // סלטה ויגו
+  T29783: { primary: '#005CA9', secondary: W,         trim: W, pattern: 'stripes' },   // דפורטיבו
+  T28371: { primary: '#D91A21', secondary: '#D91A21', trim: '#0A346F', pattern: 'plain' }, // אוסאסונה
+  T28315: { primary: '#EE2523', secondary: W,         trim: K, pattern: 'stripes' },   // אתלטיק בילבאו
+  T30205: { primary: '#FBE122', secondary: '#FBE122', trim: '#005187', pattern: 'plain' }, // ויאריאל
+  T28558: { primary: '#007FC8', secondary: W,         trim: W, pattern: 'stripes' },   // אספניול
+  T28370: { primary: '#F4F4F4', secondary: '#E53027', trim: '#E53027', pattern: 'sash' },  // ראיו ואייקאנו
+  T28305: { primary: '#005999', secondary: '#005999', trim: W, pattern: 'plain' },     // חטאפה
+  T28696: { primary: '#00A050', secondary: '#00A050', trim: W, pattern: 'plain' },     // ראסינג סנטאנדר
+  T28581: { primary: '#B8132D', secondary: '#1D3F8C', trim: W, pattern: 'stripes' },   // לבאנטה
+  T30268: { primary: '#F4F4F4', secondary: '#00753B', trim: '#00753B', pattern: 'sash' }, // אלצ'ה
+  T30267: { primary: '#F4F4F4', secondary: '#F4F4F4', trim: '#F29F05', pattern: 'plain' }, // ולנסיה
+  T29864: { primary: '#2F7DC0', secondary: W,         trim: W, pattern: 'stripes' },   // מלגה
 };
 
 const DEFAULT_KIT: TeamKit = {
