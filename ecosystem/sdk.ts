@@ -12,14 +12,39 @@
  * build links (`appUrl`) but must not call these RPCs with its own client.
  */
 
-export type AppId = 'fanlife' | 'theworker' | 'dubid' | 'offsides'
-export const APPS: readonly AppId[] = ['fanlife', 'theworker', 'dubid', 'offsides']
+export type AppId = 'fanlife' | 'theworker' | 'dubid' | 'offsides' | 'fuckyou'
+export const APPS: readonly AppId[] = ['fanlife', 'dubid', 'offsides', 'theworker', 'fuckyou']
+
+/** FAN LIFE UNIVERSE — the owner's vision (19.10.2026). Mirrors shared.apps / shared.app_moments. */
+export type AppRole = 'hub' | 'companion' | 'club-edition' | 'side-experience'
+export const ROLE: Record<AppId, AppRole> = {
+  fanlife: 'hub', dubid: 'companion', offsides: 'companion', theworker: 'club-edition', fuckyou: 'side-experience',
+}
+/** The named moment that carries a person from one app to another. */
+export type Moment = 'before_round' | 'back_to_story' | 'next_moment' | 'kickoff_live' | 'go_deeper' | 'bring_depth_back' | 'derby_only'
+export const MOMENTS: readonly { from: AppId; to: AppId; moment: Moment }[] = [
+  { from: 'fanlife', to: 'dubid', moment: 'before_round' },
+  { from: 'dubid', to: 'fanlife', moment: 'back_to_story' },
+  { from: 'dubid', to: 'offsides', moment: 'next_moment' },
+  { from: 'offsides', to: 'dubid', moment: 'next_moment' },
+  { from: 'fanlife', to: 'offsides', moment: 'kickoff_live' },
+  { from: 'offsides', to: 'fanlife', moment: 'back_to_story' },
+  { from: 'fanlife', to: 'theworker', moment: 'go_deeper' },
+  { from: 'theworker', to: 'fanlife', moment: 'bring_depth_back' },
+  { from: 'fanlife', to: 'fuckyou', moment: 'derby_only' },
+  { from: 'fuckyou', to: 'fanlife', moment: 'back_to_story' },
+]
+/** The moment of a route, if the universe names one. */
+export function momentOf(from: AppId, to: AppId): Moment | null {
+  return MOMENTS.find(m => m.from === from && m.to === to)?.moment ?? null
+}
 
 export const APP_URL: Record<AppId, string> = {
   fanlife: 'https://fanlife.dubelteam.com',
   theworker: 'https://theworker.dubelteam.com',
   dubid: 'https://dubid.dubelteam.com',
   offsides: 'https://offsides.dubelteam.com',
+  fuckyou: 'https://fuckyou.dubelteam.com',
 }
 
 /** The query parameter a handoff travels in. */
@@ -68,7 +93,8 @@ export function updatePerson(client: SharedClient | null | undefined, p: { displ
   })
 }
 
-export type HandoffInput = { from: AppId; to: AppId; club?: string | null; campaign?: string | null; path?: string }
+/** `moment` defaults to the universe's moment for the route; the server records it from the campaign prefix. */
+export type HandoffInput = { from: AppId; to: AppId; club?: string | null; campaign?: string | null; moment?: Moment | null; path?: string }
 
 /** A plain link to another app (no tracking). */
 export function appUrl(to: AppId, path = '/'): string {
@@ -89,7 +115,9 @@ export function handoffUrl(to: AppId, token: string, path = '/'): string {
  */
 export async function createHandoff(client: SharedClient | null | undefined, h: HandoffInput): Promise<string> {
   const club = h.club && SLUG.test(h.club) ? h.club : null
-  const campaign = h.campaign && CAMPAIGN.test(h.campaign) ? h.campaign : null
+  const moment = h.moment === undefined ? momentOf(h.from, h.to) : h.moment
+  const raw = moment ? (h.campaign ? `${moment}-${h.campaign}` : moment) : (h.campaign ?? null)
+  const campaign = raw && CAMPAIGN.test(raw.slice(0, 60)) ? raw.slice(0, 60) : null
   const r = await call<{ token: string }>(client, 'handoff_create', { p_source: h.from, p_target: h.to, p_club: club, p_campaign: campaign })
   return r.ok ? handoffUrl(h.to, r.token, h.path) : appUrl(h.to, h.path)
 }
@@ -132,6 +160,11 @@ export async function claimHandoff(client: SharedClient | null | undefined, app:
   const r = await call<{ again: boolean; source_app: AppId; club: string | null; campaign: string | null }>(client, 'handoff_claim', { p_token: kept.token, p_app: app })
   if (r.ok || r.error === 'not_found') { try { s?.removeItem(STASH_KEY) } catch { /* */ } }
   return r
+}
+
+/** The public map of the universe (apps + moments), as the database holds it. */
+export function universe(client: SharedClient | null | undefined) {
+  return call<{ apps: { id: AppId; role: AppRole; name: string; url: string; promise: string; status: string }[]; moments: { from: AppId; to: AppId; moment: Moment; label: string }[] }>(client, 'universe')
 }
 
 /** The usual sequence once a session is known: touch, then claim. */

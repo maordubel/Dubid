@@ -2,11 +2,11 @@
  * ⚠ נוצר אוטומטית — אל תערכו כאן.
  *
  * נבנה על ידי scripts/bundle-edge.mjs מתוך:
- *   src/lib/ingest/types.ts
- *   src/lib/ingest/derive.ts
- *   src/lib/ingest/sofascore.ts
- *   src/lib/ingest/scores365.ts
- *   src/lib/ingest/reconcile.ts
+ *   ecosystem/feed/types.ts
+ *   ecosystem/feed/derive.ts
+ *   ecosystem/feed/sofascore.ts
+ *   ecosystem/feed/scores365.ts
+ *   ecosystem/feed/reconcile.ts
  *   supabase/functions/dubid-ingest/_src/handler.ts
  *
  * ★ קובץ אחד בכוונה. פריסה דרך ה-Dashboard היא הדבקה אחת:
@@ -17,10 +17,11 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-/* ── src/lib/ingest/types.ts ──────────────────────── */
+/* ── ecosystem/feed/types.ts ──────────────────────── */
 
+// ecosystem/feed — byte-identical in every repo of the universe; owned by the contract; no provider field name outside its adapter file
 /**
- * src/lib/ingest/types.ts — החוזה הקנוני של הקליטה.
+ * ecosystem/feed/types.ts — החוזה הקנוני של הקליטה.
  *
  * ★ הכלל היחיד של הקובץ הזה: **שום שם שדה של ספק לא מופיע בו.**
  *
@@ -164,10 +165,11 @@ export const emptySnapshot = (round: number, phase: Snapshot['phase']): Snapshot
   raw: [],
 });
 
-/* ── src/lib/ingest/derive.ts ──────────────────────── */
+/* ── ecosystem/feed/derive.ts ──────────────────────── */
 
+// ecosystem/feed — byte-identical in every repo of the universe; owned by the contract; no provider field name outside its adapter file
 /**
- * src/lib/ingest/derive.ts — גזירות משותפות לכל המתאמים.
+ * ecosystem/feed/derive.ts — גזירות משותפות לכל המתאמים.
  *
  * ★ למה זה לא יושב בתוך המתאם
  *
@@ -246,10 +248,11 @@ export function isoFromUnix(seconds: unknown): string | null {
   return new Date(n * 1000).toISOString();
 }
 
-/* ── src/lib/ingest/sofascore.ts ──────────────────────── */
+/* ── ecosystem/feed/sofascore.ts ──────────────────────── */
 
+// ecosystem/feed — byte-identical in every repo of the universe; owned by the contract; no provider field name outside its adapter file
 /**
- * src/lib/ingest/sofascore.ts — המתאם הראשי.
+ * ecosystem/feed/sofascore.ts — המתאם הראשי.
  *
  * ★ כל שם שדה של הספק נמצא בקובץ הזה ורק בו.
  *   בדיקה לפני פריסה: חיפוש של 'onTargetScoringAttempt' או
@@ -695,10 +698,11 @@ export function createSofascore(http: Http, cfg: SofascoreConfig): Provider {
   };
 }
 
-/* ── src/lib/ingest/scores365.ts ──────────────────────── */
+/* ── ecosystem/feed/scores365.ts ──────────────────────── */
 
+// ecosystem/feed — byte-identical in every repo of the universe; owned by the contract; no provider field name outside its adapter file
 /**
- * src/lib/ingest/scores365.ts — מתאם הגיבוי.
+ * ecosystem/feed/scores365.ts — מתאם הגיבוי.
  *
  * ★ שלושה תפקידים, ולא ארבעה:
  *
@@ -1118,10 +1122,11 @@ export function createScores365(http: Http, cfg: Scores365Config): Provider & {
   };
 }
 
-/* ── src/lib/ingest/reconcile.ts ──────────────────────── */
+/* ── ecosystem/feed/reconcile.ts ──────────────────────── */
 
+// ecosystem/feed — byte-identical in every repo of the universe; owned by the contract; no provider field name outside its adapter file
 /**
- * src/lib/ingest/reconcile.ts — מה קורה כששני מקורות לא מסכימים.
+ * ecosystem/feed/reconcile.ts — מה קורה כששני מקורות לא מסכימים.
  *
  * ★ למה בכלל שני מקורות
  *
@@ -1244,7 +1249,7 @@ export function hebrewByShirt(
  *   עוד נקודת כשל שקטה.
  *
  *   לכן `index.ts` שנפרס הוא **קובץ בודד ומלא**, בלי שום ייבוא
- *   יחסי. מקור האמת נשאר `src/lib/ingest/` + הקובץ הזה, וה-
+ *   יחסי. מקור האמת נשאר `ecosystem/feed/` + הקובץ הזה, וה-
  *   `index.ts` נבנה מהם על ידי `scripts/bundle-edge.mjs`.
  *
  * ★ `phase: "ping"` — בדיקה שלא נוגעת ברשת ולא במסד. אם היא

@@ -36,7 +36,7 @@
  *   עוד נקודת כשל שקטה.
  *
  *   לכן `index.ts` שנפרס הוא **קובץ בודד ומלא**, בלי שום ייבוא
- *   יחסי. מקור האמת נשאר `src/lib/ingest/` + הקובץ הזה, וה-
+ *   יחסי. מקור האמת נשאר `ecosystem/feed/` + הקובץ הזה, וה-
  *   `index.ts` נבנה מהם על ידי `scripts/bundle-edge.mjs`.
  *
  * ★ `phase: "ping"` — בדיקה שלא נוגעת ברשת ולא במסד. אם היא
@@ -59,10 +59,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 /* ★ הייבוא הזה נמחק בבנייה (`scripts/bundle-edge.mjs`) והמודולים
    מוטמעים בקובץ אחד. הוא נשאר כאן כדי שאפשר יהיה לקרוא את
    הקובץ ולעקוב אחרי המקור. */
-import { createSofascore } from '../../../../src/lib/ingest/sofascore.ts';
-import { createScores365 } from '../../../../src/lib/ingest/scores365.ts';
-import { reconcileFixtures } from '../../../../src/lib/ingest/reconcile.ts';
-import type { Alert, Fixture, RawBlob, Snapshot, SquadMeta } from '../../../../src/lib/ingest/types.ts';
+import { createSofascore } from '../../../../ecosystem/feed/sofascore.ts';
+import { createScores365 } from '../../../../ecosystem/feed/scores365.ts';
+import { reconcileFixtures } from '../../../../ecosystem/feed/reconcile.ts';
+import type { Alert, Fixture, RawBlob, Snapshot, SquadMeta } from '../../../../ecosystem/feed/types.ts';
 
 /** מזהה בנייה — מופיע ב-ping, כדי לדעת איזו גרסה באמת פרוסה. */
 const BUILD = 'dubid-ingest/4';
