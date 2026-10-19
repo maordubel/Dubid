@@ -60,6 +60,7 @@ const FILES = [
   ['41_seed_greece.sql',       '★ סגלי הליגה היוונית 2026/27 (457 שחקנים, 14 קבוצות)'],
   ['42_ingest_leagues.sql',    '★ קליטה לפי ליגה: ingest_sources + ingest_snapshot(league) + tick לכל מקור'],
   ['43_league_safe_readers.sql','★ קוראי מחזור נוכחי בטוחים לשתי ליגות'],
+  ['44_league_gate.sql','★ מסך כניסה לליגות + ארכיון מופרד'],
 ];
 
 const bar = '=' .repeat(69);
