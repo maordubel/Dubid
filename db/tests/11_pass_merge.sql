@@ -28,7 +28,7 @@ INSERT INTO auth.users (id, email, is_anonymous) VALUES
 -- מחזור פתוח
 SET dubid.test_uid = 'd5000000-0000-0000-0000-000000000003';
 SELECT game.ensure_profile('מנהל אחת עשרה');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 SELECT game.admin_set_status('gw-2', 'open');
 SELECT game.admin_set_deadline('gw-2', now() + interval '2 days');
 

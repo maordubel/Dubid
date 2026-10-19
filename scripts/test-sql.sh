@@ -17,6 +17,8 @@ for pass in 1 2; do
   $P -f db/RUN-ALL.sql >/dev/null
   echo "RUN-ALL pass $pass ok"
 done
+# Test-only admin password (the real one lives only in production, never in git).
+$P -c "UPDATE game.admin_secrets SET secret_hash = encode(digest('test-admin-pass','sha256'),'hex') WHERE id = 'primary'" >/dev/null
 
 fail=0
 for f in db/tests/[0-9][0-9]_*.sql; do

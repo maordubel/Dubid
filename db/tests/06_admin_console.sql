@@ -25,7 +25,7 @@ INSERT INTO auth.users (id, email, is_anonymous) VALUES
 
 SET dubid.test_uid = 'c1000000-0000-0000-0000-000000000001';
 SELECT game.ensure_profile('מנהל');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 
 SET dubid.test_uid = 'c1000000-0000-0000-0000-000000000002';
 SELECT game.ensure_profile('שחקן');

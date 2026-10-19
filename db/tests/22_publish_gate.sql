@@ -21,7 +21,7 @@ INSERT INTO auth.users (id, email, is_anonymous) VALUES
   ('f3600000-0000-0000-0000-000000000001', 'gate@dubid.test', FALSE);
 SET dubid.test_uid = 'f3600000-0000-0000-0000-000000000001';
 SELECT game.ensure_profile('בודק שער הפרסום');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 
 UPDATE game.ingest_config SET enabled = TRUE, auto_publish = TRUE,
                               auto_open_next = TRUE, stable_minutes = 45;

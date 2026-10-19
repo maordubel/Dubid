@@ -31,7 +31,7 @@ INSERT INTO auth.users (id, email, is_anonymous) VALUES
 
 SET dubid.test_uid = 'd2400000-0000-0000-0000-000000000001';
 SELECT game.ensure_profile('מנהל המחזור החי');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 
 -- מצב פתיחה נקי: מחזור פתוח, דדליין בעתיד.
 SELECT game.admin_set_status('gw-2', 'open');

@@ -19,7 +19,7 @@ INSERT INTO auth.users (id, email, is_anonymous) VALUES
 
 SET dubid.test_uid = 'a3000000-0000-0000-0000-000000000001';
 SELECT game.ensure_profile('מנהל השווי');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 
 -- =====================================================================
 -- 1 — תמחור: חמש מדרגות, ודירוג יחסי ולא ערך מוחלט

@@ -25,7 +25,7 @@ INSERT INTO auth.users (id, email, is_anonymous) VALUES
 
 SET dubid.test_uid = 'e2600000-0000-0000-0000-000000000001';
 SELECT game.ensure_profile('מנהל הקליטה');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 
 -- מנקים שאריות של ריצות קודמות
 DELETE FROM game.ingest_alerts   WHERE gw_code = 'gw-77';

@@ -212,7 +212,7 @@ END $$;
 -- ---------------------------------------------------------------------
 SET dubid.test_uid = 'd4000000-0000-0000-0000-000000000002';
 SELECT game.ensure_profile('מנהל עשר');
-SELECT game.claim_admin('hapoelTA14!');
+SELECT game.claim_admin('test-admin-pass');
 
 DO $$
 DECLARE v JSONB;

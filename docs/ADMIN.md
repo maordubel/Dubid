@@ -1,6 +1,6 @@
 # לוח הניהול — המדריך
 
-הכתובת: **`dubid.dubelteam.com/admin`** · הסיסמה: `hapoelTA14!`
+הכתובת: **`dubid.dubelteam.com/admin`** · הסיסמה: אצל הבעלים בלבד (לא בריפו)
 
 ---
 
