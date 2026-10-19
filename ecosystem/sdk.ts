@@ -173,3 +173,8 @@ export async function arrived(client: SharedClient | null | undefined, app: AppI
   const c = await claimHandoff(client, app)
   return { touch: t, claim: c }
 }
+
+/** The exact ids of a FAN LIFE club across the universe (core.teams uuid + provider refs). */
+export function clubIdentity(client: SharedClient | null | undefined, slug: string) {
+  return call<{ club: string; team_id: string; name_en: string | null; name_he: string | null; refs: Record<string, string> }>(client, 'club_identity', { p_slug: slug })
+}
