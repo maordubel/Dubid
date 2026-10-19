@@ -1,5 +1,5 @@
 /**
- * data/teamColors.ts — ערכות הצבע של מועדוני ליגת העל.
+ * data/teamColors.ts — ערכות הצבע של מועדוני ליגת העל והסופר ליג היוונית.
  *
  * ★ למה זה חשוב מספיק בשביל קובץ משלו
  *
@@ -77,6 +77,39 @@ const KITS: Record<string, TeamKit> = {
   T13: { primary: '#C8102E', secondary: '#C8102E', trim: K, pattern: 'plain' },
   // לבן, שרוולים כחולים
   T14: { primary: '#F4F4F4', secondary: '#1C4E9C', trim: '#1C4E9C', pattern: 'sleeves' },
+
+  /* ───────── הסופר ליג היוונית ─────────
+     מזהי הקבוצות = T + מזהה ספק הסגלים (db/41). הצבעים לפי זהות המועדון
+     (לא ערכות רשמיות). ★ זמני עד אימות מול ערכות 2026/27: Levadiakos,
+     Panetolikos, Kifisia, Volos, Atromitos. */
+  // פנתינייקוס — ירוק, שוליים לבנים
+  T30200:  { primary: '#00843D', secondary: '#00843D', trim: W, pattern: 'plain' },
+  // אולימפיאקוס — פסים אנכיים אדום-לבן
+  T28638:  { primary: '#E4032E', secondary: W,         trim: W, pattern: 'stripes' },
+  // איי אי קיי — צהוב, שוליים שחורים
+  T28563:  { primary: '#FFD100', secondary: '#FFD100', trim: K, pattern: 'plain' },
+  // פאוק — פסים שחור-לבן
+  T28619:  { primary: '#F2F2F2', secondary: K,         trim: K, pattern: 'stripes' },
+  // אריס — צהוב, שוליים שחורים
+  T28239:  { primary: '#F7D117', secondary: '#F7D117', trim: K, pattern: 'plain' },
+  // אסטראס אקטור — צהוב, שרוולים כחולים
+  T100654: { primary: '#F2C800', secondary: '#1B3C8C', trim: '#1B3C8C', pattern: 'sleeves' },
+  // אטרומיטוס — כחול כהה, שוליים לבנים
+  T30187:  { primary: '#1B3A8A', secondary: '#1B3A8A', trim: W, pattern: 'plain' },
+  // אוֹ.אֶף.אִי — לבן, שוליים שחורים
+  T27753:  { primary: '#F4F4F4', secondary: '#F4F4F4', trim: K, pattern: 'plain' },
+  // איראקליס — תכלת-לבן
+  T28675:  { primary: '#2A7BD6', secondary: '#2A7BD6', trim: W, pattern: 'plain' },
+  // לבדיאקוס — פסים שחור-אדום
+  T24493:  { primary: '#1A1A1A', secondary: '#C8102E', trim: W, pattern: 'stripes' },
+  // קלמטה — פסים כחול-לבן
+  T21585:  { primary: '#F4F4F4', secondary: '#1B4FA0', trim: '#1B4FA0', pattern: 'stripes' },
+  // פנאיטוליקוס — כחול, שוליים צהובים
+  T182386: { primary: '#1C4E9C', secondary: '#1C4E9C', trim: '#F5C518', pattern: 'plain' },
+  // קיפיסיה — אדום כהה, שוליים לבנים
+  T508099: { primary: '#B3122B', secondary: '#B3122B', trim: W, pattern: 'plain' },
+  // וולוס — כחול, שוליים אדומים
+  T905256: { primary: '#183F8F', secondary: '#183F8F', trim: '#D0103A', pattern: 'plain' },
 };
 
 const DEFAULT_KIT: TeamKit = {
