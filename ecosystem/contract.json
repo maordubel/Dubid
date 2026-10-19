@@ -1,0 +1,68 @@
+{
+  "$comment": "Dubel Team football ecosystem contract. This file is IDENTICAL in all four repos (fanlife, Offsides, Dubid, The-Worker). Change it in one repo => copy the same bytes to the other three in the same round. Bump version + updated.",
+  "version": 1,
+  "updated": "2026-10-19",
+  "plan": "Project doc: claude/ecosystem-master-plan.md (claude.ai Project 'Football Master')",
+
+  "supabase": {
+    "project": "afxpjfxwpdjvlmuoawda",
+    "projectName": "Dubid",
+    "region": "eu-central-1",
+    "legacy": {
+      "pqdzqpettxuuyngxbpxn": "OFFSIDES' current production DB. Not in the same Supabase org. Moves into schema `offsides` on the shared project in phase 4. Until then OFFSIDES runs there."
+    },
+    "authSiteUrlOwner": "dubid",
+    "authRules": [
+      "One auth.users for every app.",
+      "No app adds triggers on auth.users. Profiles are created lazily by each app's own ensure_* RPC.",
+      "Every app adds only its own Redirect URLs; never change the Site URL without updating every app.",
+      "Sign-out is local (scope:'local') so leaving one app never signs the user out of the others."
+    ]
+  },
+
+  "apps": {
+    "fanlife":   { "repo": "maordubel/fanlife",     "role": "hub",            "domain": "fanlife.dubelteam.com",   "stack": "next14", "writes": ["public.worker_*", "hub (planned)"] },
+    "theworker": { "repo": "maordubel/The-Worker",  "role": "club-edition",   "domain": "theworker.dubelteam.com", "stack": "next14", "writes": ["public.worker_* (through fanlife RPCs only)"], "club": "hapoel-tel-aviv" },
+    "dubid":     { "repo": "maordubel/Dubid",       "role": "game",           "domain": "dubid.dubelteam.com",     "stack": "vite-react19", "writes": ["game", "core (ingest owner until phase 3)", "shared.reward_grants via shared.grant_reward"] },
+    "offsides":  { "repo": "maordubel/Offsides",    "role": "game",           "domain": "offsides.dubelteam.com",  "stack": "vite-react18", "writes": ["pqdz public.* (today)", "offsides (after phase 4)"] }
+  },
+
+  "schemas": {
+    "core":   { "owner": "dubid",   "readers": "all", "what": "football facts: leagues, seasons, teams, players, squads, matches, external_refs, entity_aliases" },
+    "game":   { "owner": "dubid",   "readers": ["dubid", "fanlife (RPC game.current_gameweek, game.gameweek_state only)"] },
+    "shared": { "owner": "contract", "readers": "all", "what": "reward_grants ledger, integration_health. Changes need all four repos updated." },
+    "hub":    { "owner": "fanlife", "status": "planned (phase 2)", "what": "person profile, favourite club, consents, app_membership, leads, attribution, handoff" },
+    "offsides": { "owner": "offsides", "status": "planned (phase 4)" },
+    "public.worker_*": { "owner": "fanlife", "readers": ["fanlife", "theworker"], "rule": "Only fanlife adds migrations. The-Worker mirrors the files byte-for-byte and never writes its own." },
+    "public.{arenas,bets,profiles,questions,system_configs}": { "owner": "frozen", "rule": "Legacy stubs from the first shared-project attempt. Do not use, do not drop until phase 4 decides." }
+  },
+
+  "prefixes": {
+    "edgeFunctions": { "dubid": "dubid-*", "offsides": "sync-fixtures*, hyper-responder, sync-team-logos, momentum-odds, match-autopilot, daily-streak, duel-push, fb-post", "fanlife": "none (GitHub Actions + Vercel routes)" },
+    "cron": { "dubid": "dubid-*", "offsides": "offside-*", "fanlife": "GitHub Actions" },
+    "migrations": {
+      "fanlife": "supabase/migrations/<yyyymmddhhmmss>_worker_<name>.sql",
+      "theworker": "mirror of fanlife's worker_* files only",
+      "dubid": "db/NN_<name>.sql + generated db/RUN-ALL.sql",
+      "offsides": "supabase/patch-v<version>-<name>.sql (normalised in phase 4)"
+    }
+  },
+
+  "crossAppLinks": [
+    { "from": "dubid", "to": "fanlife", "how": "GET https://fanlife.dubelteam.com/api/promo/public (CORS *)", "status": "live" },
+    { "from": "fanlife", "to": "dubid", "how": "RPC game.current_gameweek / game.gameweek_state with anon key", "status": "live" },
+    { "from": "dubid", "to": "fanlife", "how": "scripts/announce reads public.worker_fanlife_files['final-whistle/destination.json'] with service role", "status": "live, VIOLATION: cross-app table read; replace with shared view in phase 2" },
+    { "from": "dubid", "to": "offsides", "how": "edge fn link-offsides verifies an Offsides token; rewards via shared.reward_grants -> offsides public.dubid_rewards", "status": "live (two projects)" },
+    { "from": "fanlife", "to": "dubid|offsides", "how": "promo banners (lib/promo/seed.ts)", "status": "live; becomes hub.handoff in phase 5" }
+  ],
+
+  "rules": [
+    "1. An app writes only to schemas it owns. Cross-app reads go through views/RPCs in core, hub or shared.",
+    "2. Currencies never mix. Value crosses apps only through shared.reward_grants.",
+    "3. Before any DB change: read the live object (pg_get_functiondef / list_tables) — never rebuild a live function from a repo file.",
+    "4. Never deploy a migration or edge function whose prefix belongs to another app.",
+    "5. A change to contract.json, shared or core is a four-repo change: same round, same contract version.",
+    "6. Football identity: every team/player an app shows must be resolvable to core via core.external_refs (phase 3).",
+    "7. Domains: all apps live under *.dubelteam.com (SSO cookie scope, phase 2)."
+  ]
+}
