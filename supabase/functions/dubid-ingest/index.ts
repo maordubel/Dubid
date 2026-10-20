@@ -827,7 +827,8 @@ export function statNumber(raw: unknown): number {
   return m ? Number(m[0]) : 0;
 }
 
-const S365_KNOWN_EVENTS = new Set(['Goal', 'Yellow Card', 'Red Card', 'Substitution', 'Woodwork']);
+/* 'Goal Disallowed' (VAR) הוא שער שלא נספר — אין לו השפעה על ניקוד, לכן אינו התרעה. */
+const S365_KNOWN_EVENTS = new Set(['Goal', 'Yellow Card', 'Red Card', 'Substitution', 'Woodwork', 'Goal Disallowed']);
 
 interface PlayerTally {
   goals: number; assists: number; own: number; yellow: number; red: number; missedPen: number;

@@ -126,3 +126,14 @@ test('מחזור ישן נמצא בעמודים הקודמים, ועונה קו�
   assert.deepEqual(r6.fixtures.map((f) => f.providerId), ['60']);
   assert.ok(!seen.some((u) => u.endsWith('p=2')), 'מחזור 5 נמצא בעמוד 1 — לא ממשיכים אחורה');
 });
+
+test('שער שנפסל ב-VAR אינו unknown_event ואינו נספר', () => {
+  const fx: any = { providerId: 'x1' };
+  const game = {
+    homeCompetitor: { id: 1, score: 0 }, awayCompetitor: { id: 2, score: 0 },
+    events: [{ eventType: { name: 'Goal Disallowed', subTypeName: 'Var' }, playerId: 10, competitorId: 1, gameTime: 33, order: 1 }],
+    members: [],
+  };
+  const r = mapGameStats(fx, game);
+  assert.equal(r.alerts.filter((a: any) => a.kind === 'unknown_event').length, 0);
+});
