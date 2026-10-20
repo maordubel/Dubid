@@ -27,7 +27,7 @@
       "core",
       "offsides"
     ],
-    "exposedSchemasNote": "Set in the database: ALTER ROLE authenticator SET pgrst.db_schemas (overrides the dashboard list). Adding a schema means updating that line AND the dashboard list."
+    "exposedSchemasNote": "Set in the dashboard (Integrations → Data API → Settings → Exposed schemas). Never set pgrst.db_schemas on the authenticator role: it silently overrides the dashboard."
   },
   "apps": {
     "fanlife": {
