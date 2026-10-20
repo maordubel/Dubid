@@ -1,14 +1,14 @@
 {
   "$comment": "Dubel Team football ecosystem contract. This file is IDENTICAL in all four repos (fanlife, Offsides, Dubid, The-Worker). Change it in one repo => copy the same bytes to the other three in the same round. Bump version + updated.",
   "version": 3,
-  "updated": "2026-10-19",
+  "updated": "2026-10-20",
   "plan": "Project doc: claude/ecosystem-master-plan.md (claude.ai Project 'Football Master')",
   "supabase": {
     "project": "afxpjfxwpdjvlmuoawda",
     "projectName": "Football Master",
     "region": "eu-central-1",
     "legacy": {
-      "pqdzqpettxuuyngxbpxn": "OFFSIDES' current production DB (org maor@har-tov.com's Org, Git-connected to maordubel/Offsides). Moves into schema `offsides` on Football Master in phase 4."
+      "pqdzqpettxuuyngxbpxn": "OFFSIDES' former DB (org maor@har-tov.com's Org). Migrated to schema `offsides` on Football Master on 2026-10-20 (structure, 437 functions, data, 227 users). Kept read-only until the owner retires it."
     },
     "authSiteUrlOwner": "dubid",
     "authRules": [
@@ -18,7 +18,16 @@
       "SSO: a real account's session is ONE cookie, sb-afxpjfxwpdjvlmuoawda-auth-token, on .dubelteam.com, in @supabase/ssr format. Next apps set cookieOptions.domain = ssoCookieDomain(host); other apps use ssoStorage() from ecosystem/sdk.ts. Host-only on localhost and previews.",
       "Anonymous sessions are never shared: a guest belongs to the app that created it. When a real account arrives, the app parks its guest (takeParkedGuest) and moves the guest's progress with its own merge (DUBID: issue_merge_token → claim_pass).",
       "Sign-out uses scope 'local': it ends the session in THIS browser — every app on this browser at once (one cookie) — and never other devices."
-    ]
+    ],
+    "exposedSchemas": [
+      "public",
+      "graphql_public",
+      "shared",
+      "game",
+      "core",
+      "offsides"
+    ],
+    "exposedSchemasNote": "Set in the database: ALTER ROLE authenticator SET pgrst.db_schemas (overrides the dashboard list). Adding a schema means updating that line AND the dashboard list."
   },
   "apps": {
     "fanlife": {
@@ -58,8 +67,7 @@
       "domain": "offsides.dubelteam.com",
       "stack": "vite-react18",
       "writes": [
-        "pqdz public.* (today)",
-        "offsides (after phase 4)"
+        "offsides.* (schema on Football Master)"
       ]
     },
     "fuckyou": {
@@ -94,7 +102,9 @@
     },
     "offsides": {
       "owner": "offsides",
-      "status": "planned (phase 4)"
+      "readers": "offsides app via PostgREST (db.schema='offsides'); realtime on profiles, broadcasts, matches, events, arenas, bets, flash_questions, flash_answers",
+      "profiles": "offsides.ensure_profile() — lazy, no auth trigger; anonymous users get none",
+      "status": "live (2026-10-20)"
     },
     "public.worker_*": {
       "owner": "fanlife",
@@ -113,19 +123,19 @@
   "prefixes": {
     "edgeFunctions": {
       "dubid": "dubid-*",
-      "offsides": "sync-fixtures*, hyper-responder, sync-team-logos, momentum-odds, match-autopilot, daily-streak, duel-push, fb-post",
+      "offsides": "offsides-* (hyper-responder, match-autopilot, momentum-odds, sync-team-logos, notify-send, daily-streak, duel-push, fb-post). The unprefixed sync-fixtures-index, sync-team-logos, momentum-odds on Football Master are leftovers of the first attempt and are not called.",
       "fanlife": "none (GitHub Actions + Vercel routes)"
     },
     "cron": {
       "dubid": "dubid-*",
-      "offsides": "offside-*",
+      "offsides": "offsides:*",
       "fanlife": "GitHub Actions"
     },
     "migrations": {
       "fanlife": "supabase/migrations/<yyyymmddhhmmss>_worker_<name>.sql",
       "theworker": "mirror of fanlife's worker_* files only",
       "dubid": "db/NN_<name>.sql + generated db/RUN-ALL.sql",
-      "offsides": "supabase/patch-v<version>-<name>.sql (normalised in phase 4)"
+      "offsides": "supabase/migrations/<yyyymmddhhmmss>_offsides_<name>.sql (schema offsides)"
     }
   },
   "crossAppLinks": [
@@ -150,7 +160,7 @@
     {
       "from": "dubid",
       "to": "offsides",
-      "how": "edge fn link-offsides verifies an Offsides token; rewards via shared.reward_grants -> offsides public.dubid_rewards",
+      "how": "edge fn link-offsides verifies an Offsides token; rewards via shared.reward_grants -> offsides.dubid_rewards",
       "status": "live (two projects)"
     },
     {
