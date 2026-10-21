@@ -1827,7 +1827,7 @@ Deno.serve(async (req) => {
   /* -------- 1. חוקי הניקוד של הליגה, בגרסה שהייתה בתוקף -------- */
   const { data: gw, error: gwErr } = await supabase
     .from('gameweeks')
-    .select('id, code, number, season_id, seasons(league_id, leagues(code))')
+    .select('id, code, number, season_id, league_id')
     .eq('id', gameweekId)
     .single();
   if (gwErr || !gw) return json({ error: 'gameweek_not_found' }, 404);
@@ -1840,7 +1840,10 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: 'read_failed', what: 'fingerprint', detail: fpErr?.message }, 500);
   }
 
-  const leagueId = (gw as any).seasons?.league_id;
+  /* ★ league_id נמצא על game.gameweeks עצמה (db/39). השאילתה הקודמת השתמשה ב-embed
+     seasons(leagues(...)) — PostgREST לא מוצא יחס בין סכימות (PGRST200), ולכן כל ניקוד
+     אוטומטי החזיר 404 gameweek_not_found. */
+  const leagueId = (gw as any).league_id;
   const { data: rulesetRow, error: rulesetErr } = await supabase
     .from('scoring_rulesets')
     .select('id, version, rules')

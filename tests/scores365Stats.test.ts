@@ -137,3 +137,27 @@ test('שער שנפסל ב-VAR אינו unknown_event ואינו נספר', () =
   const r = mapGameStats(fx, game);
   assert.equal(r.alerts.filter((a: any) => a.kind === 'unknown_event').length, 0);
 });
+
+test('שער עצמי: הכיוון נבחר לפי התוצאה הסופית, בשני הסימונים של הספק', () => {
+  const mk = (competitorId: number) => ({
+    homeCompetitor: { id: 1, score: 1 }, awayCompetitor: { id: 2, score: 0 },
+    events: [{ eventType: { name: 'Goal', subTypeName: 'Own Goal' }, playerId: 20, competitorId, gameTime: 12, order: 1 }],
+    members: [],
+  });
+  const fx: any = { providerId: 'og' };
+  for (const c of [1, 2]) {
+    const r = mapGameStats(fx, mk(c));
+    assert.equal(r.alerts.filter((a: any) => a.kind === 'source_disagreement').length, 0, `competitorId=${c}`);
+  }
+  /* ובלה ליגה: 7-2 עם שער עצמי של האורחת (competitorId = המארחת הנהנית) */
+  const r2 = mapGameStats(fx, {
+    homeCompetitor: { id: 1, score: 7 }, awayCompetitor: { id: 2, score: 2 },
+    events: [
+      ...Array.from({ length: 6 }, (_, i) => ({ eventType: { name: 'Goal', subTypeName: '' }, playerId: 30 + i, competitorId: 1, gameTime: 5 + i, order: i + 1 })),
+      { eventType: { name: 'Goal', subTypeName: 'Own Goal' }, playerId: 40, competitorId: 1, gameTime: 60, order: 7 },
+      ...[0, 1].map((i) => ({ eventType: { name: 'Goal', subTypeName: '' }, playerId: 50 + i, competitorId: 2, gameTime: 70 + i, order: 8 + i })),
+    ],
+    members: [],
+  });
+  assert.equal(r2.alerts.filter((a: any) => a.kind === 'source_disagreement').length, 0);
+});
