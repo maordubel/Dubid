@@ -872,6 +872,7 @@ export function mapGameStats(
   const onAt = new Map<number, number>();   // שחקן → דקת כניסה
   const offAt = new Map<number, number>();  // שחקן → דקת יציאה
   const unknown = new Set<string>();
+  const ownEvents: Array<{ competitorId: number; minute: number }> = [];
 
   const sorted = [...events].sort((a, b) => num(a?.order) - num(b?.order));
   for (const e of sorted) {
@@ -884,9 +885,11 @@ export function mapGameStats(
       const own = /own/i.test(sub);
       if (own) t(pid).own += 1; else t(pid).goals += 1;
       for (const a of e?.extraPlayers ?? []) if (!own) t(num(a)).assists += 1;
-      /* ★ למי נזקף שער עצמי — לא ידוע מדגימה; נקבע לפי התוצאה בהמשך. */
-      const credited = own ? (e.competitorId === homeId ? awayId : homeId) : e.competitorId;
-      goalsFor.get(credited)?.push(minute);
+      /* ★ למי נזקף שער עצמי: בלה ליגה (בארסה 7-2, 20.10.2026) competitorId של
+         אירוע שער עצמי הוא **הצד שנהנה** מהשער. כדי לא להסתמך על הנחה, שני
+         הכיוונים נבדקים מול התוצאה הסופית אחרי הלולאה (resolveOwnGoals). */
+      if (own) ownEvents.push({ competitorId: e.competitorId, minute });
+      else goalsFor.get(e.competitorId)?.push(minute);
     } else if (type === 'Yellow Card') {
       t(pid).yellow += 1;
     } else if (type === 'Red Card') {
@@ -907,6 +910,29 @@ export function mapGameStats(
       kind: 'unknown_event', severity: 'warn',
       detail: { source: 'scores365', match: fixture.providerId, kinds: [...unknown] },
     });
+  }
+
+  /* ── שערים עצמיים: בוחרים את הכיוון שמתאים לתוצאה הסופית ─────────
+     A = ה-competitorId הוא הנהנה (ברירת מחדל, כך נצפה). B = הוא הקבוצה של
+     המבקיע. בלי תוצאה תקינה — A. דטרמיניסטי, בלי אקראיות. */
+  {
+    const hs0 = game.homeCompetitor.score;
+    const as0 = game.awayCompetitor.score;
+    const fix = (flip: boolean) => {
+      const h = [...goalsFor.get(homeId)!]; const a = [...goalsFor.get(awayId)!];
+      for (const o of ownEvents) {
+        const ben = flip ? (o.competitorId === homeId ? awayId : homeId) : o.competitorId;
+        (ben === homeId ? h : a).push(o.minute);
+      }
+      return { h, a };
+    };
+    const A = fix(false);
+    const scoreOk = typeof hs0 === 'number' && typeof as0 === 'number' && hs0 >= 0 && as0 >= 0;
+    const useFlip = scoreOk && !(A.h.length === hs0 && A.a.length === as0)
+      && (() => { const B = fix(true); return B.h.length === hs0 && B.a.length === as0; })();
+    const pick = useFlip ? fix(true) : A;
+    goalsFor.set(homeId, pick.h);
+    goalsFor.set(awayId, pick.a);
   }
 
   /* ── הצלבה: סכום השערים חייב להיות שווה לתוצאה ──────────────── */
