@@ -16369,7 +16369,7 @@ COMMIT;
 --     ingest_snapshot / auto_advance נחתכו תחת עומס (המסד משותף ל-OFFSIDES
 --     עם עשרות cron בדקה). 60s לפונקציות הכבדות בלבד.
 --  2. game.ingest_housekeeping(): ניקוי אוטומטי של התרעות מיושנות —
---       · כל התראה פתוחה של מחזור שפורסם/הסתיים
+--       · כל התראה פתוחה של מחזור שפורסם או שעדיין draft (נקלט מחדש כשייפתח)
 --       · 'Goal Disallowed/Var' (אירוע מוכר, נשאר בהיסטוריה של התראות ישנות)
 --       · source_down ישן מ-3 שעות (אם עדיין למטה — הקליטה הבאה מעלה שוב)
 --     לעולם לא נוגעת בהתראת block של מחזור פעיל.
@@ -16395,7 +16395,7 @@ BEGIN
      AND (
           (a.gw_code IS NOT NULL AND EXISTS (
              SELECT 1 FROM game.gameweeks g
-              WHERE g.code = a.gw_code AND g.status IN ('published','finished')))
+              WHERE g.code = a.gw_code AND g.status IN ('published','finished','draft')))
        OR (a.kind = 'unknown_event' AND a.severity <> 'block'
            AND a.detail::text LIKE '%Goal Disallowed/Var%')
        OR (a.kind = 'source_down' AND a.severity <> 'block'
