@@ -1,7 +1,7 @@
 {
   "$comment": "Dubel Team football ecosystem contract. This file is IDENTICAL in all four repos (fanlife, Offsides, Dubid, The-Worker). Change it in one repo => copy the same bytes to the other three in the same round. Bump version + updated.",
-  "version": 3,
-  "updated": "2026-10-20",
+  "version": 4,
+  "updated": "2026-10-25",
   "plan": "Project doc: claude/ecosystem-master-plan.md (claude.ai Project 'Football Master')",
   "supabase": {
     "project": "afxpjfxwpdjvlmuoawda",
@@ -118,6 +118,14 @@
     "public.{arenas,bets,profiles,questions,system_configs}": {
       "owner": "frozen",
       "rule": "Legacy stubs from the first shared-project attempt. Do not use, do not drop until phase 4 decides."
+    },
+    "marketing": {
+      "owner": "fanlife",
+      "readers": "none — server only (pg_cron → marketing.dispatch(), SECURITY DEFINER). Not exposed to the Data API, no grants to anon/authenticated.",
+      "what": "DUBEL TEAM social plan: posts (30 days × 8 slots, 08:00–22:00 Israel time), settings (meta, copy pools, telegram chat). Match slots resolve the real fixture from core.fixtures at send time; the owner gets each post (hook, caption, link, hashtags, visual brief) on Telegram.",
+      "secrets": "Vault: telegram_bot_token (the owner adds it in Dashboard → Vault).",
+      "sql": "fanlife: supabase/marketing/0001..0004 (0002 generated from scripts/marketing/content.py)",
+      "status": "live (2026-10-25)"
     }
   },
   "prefixes": {
@@ -129,7 +137,7 @@
     "cron": {
       "dubid": "dubid-*",
       "offsides": "offsides:*",
-      "fanlife": "GitHub Actions"
+      "fanlife": "GitHub Actions; pg_cron marketing:* (marketing:telegram, every 2 minutes)"
     },
     "migrations": {
       "fanlife": "supabase/migrations/<yyyymmddhhmmss>_worker_<name>.sql",
