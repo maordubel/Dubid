@@ -528,12 +528,14 @@ export function formationForSize(size: number): string {
 }
 
 export function resolveRules(teamsAvailable: number, base: RuleSet = IL_PREMIER): ResolvedRules {
-  const required = base.constraints.lineupSize * base.constraints.maxPlayersPerTeam;
+  /* ★ מינימום מועדונים שונים = ceil(גודל / מכסה), לא גודל × מכסה. */
+  const required = Math.ceil(base.constraints.lineupSize / base.constraints.maxPlayersPerTeam);
   if (teamsAvailable >= required) {
     return { rules: base, isDemo: false, teamsAvailable, teamsRequired: required, missingTeams: 0 };
   }
 
-  const size = Math.max(5, Math.floor(teamsAvailable / base.constraints.maxPlayersPerTeam));
+  const size = Math.max(5, Math.min(base.constraints.lineupSize,
+    teamsAvailable * base.constraints.maxPlayersPerTeam));
   return {
     rules: {
       ...base,
@@ -615,8 +617,18 @@ export function checkLeagueCapacity(
   teamsAvailable: number,
   rules: RuleSet,
 ): ValidationIssue | null {
-  const required = rules.constraints.lineupSize * rules.constraints.maxPlayersPerTeam;
-  if (teamsAvailable >= required) return null;
+  const { lineupSize, maxPlayersPerTeam } = rules.constraints;
+  /* ★ מינימום מועדונים שונים = ceil(גודל / מכסה). הכפל (גודל × מכסה) היה שגוי
+     כשהמכסה גדולה מ-1 (פלייאוף: 11 שחקנים, עד 2 למועדון → 6 מועדונים, לא 22). */
+  if (!Number.isInteger(lineupSize) || lineupSize < 1
+      || !Number.isInteger(maxPlayersPerTeam) || maxPlayersPerTeam < 1) {
+    return {
+      code: ErrorCode.NotEnoughTeams,
+      params: { required: NaN, size: lineupSize, available: teamsAvailable, missing: NaN },
+    };
+  }
+  const required = Math.ceil(lineupSize / maxPlayersPerTeam);
+  if (teamsAvailable * maxPlayersPerTeam >= lineupSize) return null;
   return {
     code: ErrorCode.NotEnoughTeams,
     params: {

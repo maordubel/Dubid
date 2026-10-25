@@ -63,8 +63,18 @@ export function checkLeagueCapacity(
   teamsAvailable: number,
   rules: RuleSet,
 ): ValidationIssue | null {
-  const required = rules.constraints.lineupSize * rules.constraints.maxPlayersPerTeam;
-  if (teamsAvailable >= required) return null;
+  const { lineupSize, maxPlayersPerTeam } = rules.constraints;
+  /* ★ מינימום מועדונים שונים = ceil(גודל / מכסה). הכפל (גודל × מכסה) היה שגוי
+     כשהמכסה גדולה מ-1 (פלייאוף: 11 שחקנים, עד 2 למועדון → 6 מועדונים, לא 22). */
+  if (!Number.isInteger(lineupSize) || lineupSize < 1
+      || !Number.isInteger(maxPlayersPerTeam) || maxPlayersPerTeam < 1) {
+    return {
+      code: ErrorCode.NotEnoughTeams,
+      params: { required: NaN, size: lineupSize, available: teamsAvailable, missing: NaN },
+    };
+  }
+  const required = Math.ceil(lineupSize / maxPlayersPerTeam);
+  if (teamsAvailable * maxPlayersPerTeam >= lineupSize) return null;
   return {
     code: ErrorCode.NotEnoughTeams,
     params: {

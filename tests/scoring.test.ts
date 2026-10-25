@@ -335,3 +335,31 @@ test('דירוג מטפל בשוויון', () => {
   });
   assert.deepEqual(rankGameweek([mk(50,'a'), mk(70,'b'), mk(50,'c')]).map((r) => r.rank), [1, 2, 2]);
 });
+
+/* ── D01: כשירות מועדונים עם מכסה > 1 (פלייאוף) ─────────────────── */
+const capRules = (size: number, max: number) =>
+  ({ ...IL_PREMIER, constraints: { ...IL_PREMIER.constraints, lineupSize: size, maxPlayersPerTeam: max } });
+
+test('D01 T01: 11 שחקנים, מכסה 2, 6 מועדונים → עובר', () => {
+  assert.equal(checkLeagueCapacity(6, capRules(11, 2)), null);
+});
+test('D01 T02: 11 שחקנים, מכסה 2, 5 מועדונים → נכשל, required=6', () => {
+  const i = checkLeagueCapacity(5, capRules(11, 2));
+  assert.ok(i); assert.equal(i!.params.required, 6); assert.equal(i!.params.missing, 1);
+});
+test('D01: טבלת הקבלה 11/1/11, 11/1/10, 5/1/5, 5/2/3', () => {
+  assert.equal(checkLeagueCapacity(11, capRules(11, 1)), null);
+  assert.ok(checkLeagueCapacity(10, capRules(11, 1)));
+  assert.equal(checkLeagueCapacity(5, capRules(5, 1)), null);
+  assert.equal(checkLeagueCapacity(3, capRules(5, 2)), null);
+});
+test('D01: מכסה 0 / גודל לא שלם נדחים', () => {
+  assert.ok(checkLeagueCapacity(20, capRules(11, 0)));
+  assert.ok(checkLeagueCapacity(20, capRules(11.5, 1)));
+});
+test('D01: resolveRules עם מכסה 2 — 6 מועדונים לא הופך להדגמה', () => {
+  const r = resolveRules(6, capRules(11, 2));
+  assert.equal(r.isDemo, false); assert.equal(r.teamsRequired, 6);
+  const d = resolveRules(4, capRules(11, 2));
+  assert.equal(d.isDemo, true); assert.equal(d.rules.constraints.lineupSize, 8);
+});
