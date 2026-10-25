@@ -92,6 +92,10 @@ const CORE = {
   /* ---- מסך בחירת ליגה ---- */
   'gate.title':     { he: 'באיזו ליגה משחקים?', en: 'Pick your league', el: 'Διάλεξε πρωτάθλημα' },
   'gate.sub':       { he: 'כל ליגה היא משחק נפרד: מחזורים, טבלה, דירוג והיסטוריה משלה.', en: 'Each league is its own game: its own rounds, table, ranking and history.', el: 'Κάθε πρωτάθλημα είναι ξεχωριστό παιχνίδι: δικές του αγωνιστικές, βαθμολογία, κατάταξη και ιστορικό.' },
+  'gate.loadFail.title': { he: 'לא הצלחנו לטעון את הליגה', en: "Couldn't load this league", el: 'Δεν φορτώθηκε το πρωτάθλημα' },
+  'gate.loadFail.sub':   { he: 'הליגה שבחרת נשארת כמו שהיא. בדוק חיבור ונסה שוב, או בחר ליגה אחרת.', en: 'Your league choice is kept. Check your connection and retry, or pick another league.', el: 'Η επιλογή σου διατηρείται. Έλεγξε τη σύνδεση και δοκίμασε ξανά, ή διάλεξε άλλο πρωτάθλημα.' },
+  'gate.loadFail.retry': { he: 'נסה שוב', en: 'Retry', el: 'Δοκίμασε ξανά' },
+  'gate.loadFail.other': { he: 'בחר ליגה אחרת', en: 'Choose another league', el: 'Διάλεξε άλλο πρωτάθλημα' },
   'gate.play':      { he: 'כניסה', en: 'Enter', el: 'Είσοδος' },
   'gate.here':      { he: 'אתם כאן', en: "You're here", el: 'Είσαι εδώ' },
   'gate.soon':      { he: 'בקרוב', en: 'Coming soon', el: 'Σύντομα' },
