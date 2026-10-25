@@ -10,6 +10,7 @@
  *   על מסך של השנייה.
  */
 import { supabase } from './supabase.ts';
+import { track } from './analytics.ts';
 import type { Locale } from './i18n/locales.ts';
 
 const KEY = 'ui.league';
@@ -32,6 +33,7 @@ export function markLeagueChosen(): void {
 
 export function chooseLeague(code: string | null, primary: boolean): void {
   markLeagueChosen();
+  track('league_selected', { league_code: code ?? 'primary', source: 'gate' });
   try {
     if (!code || primary) localStorage.removeItem(KEY);
     else localStorage.setItem(KEY, code);
