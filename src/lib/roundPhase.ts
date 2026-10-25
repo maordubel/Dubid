@@ -11,6 +11,7 @@
  */
 import { tr, activeLocale, type DictKey } from './i18n/dict.ts';
 import { INTL_TAG } from './i18n/lazy.ts';
+import { leagueTimezone } from './leagueTz.ts';
 
 export type RoundStep = 'open' | 'locked' | 'live' | 'scoring' | 'published';
 export const STEPS: readonly { id: RoundStep; label: string }[] =
@@ -50,10 +51,9 @@ export interface RoundBrief {
   pointsAreLive: boolean;
 }
 
-const TZ = 'Asia/Jerusalem';
 const fmt = (ms: number) =>
   new Intl.DateTimeFormat(INTL_TAG[activeLocale()], {
-    timeZone: TZ, weekday: 'long', day: 'numeric', month: 'numeric',
+    timeZone: leagueTimezone(), weekday: 'long', day: 'numeric', month: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(new Date(ms));
 

@@ -70,6 +70,7 @@ const FILES = [
   ['50_ops_hardening.sql','★ statement_timeout 60s לפונקציות כבדות + ניקוי התראות מיושנות אוטומטי בכל lifecycle_tick'],
   ['51_postponed_policy.sql','★ משחק שנדחה לא חוסם פרסום: fixture_not_final יורד ל-warn (טריגר)'],
   ['52_club_cap.sql','★ מכסת מועדון לפי מחזור (פלייאוף=2): טריגר במקום UNIQUE, assert_lineup_valid, club_cap, admin_set_club_cap'],
+  ['53_history_by_mode.sql','★ history_summary לפי פורמט: סינון ul.mode, דירוג רשמי, byMode מפוצל'],
 ];
 
 const bar = '=' .repeat(69);

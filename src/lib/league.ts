@@ -12,6 +12,7 @@
 import { supabase } from './supabase.ts';
 import { track } from './analytics.ts';
 import type { Locale } from './i18n/locales.ts';
+import { setLeagueTimezone } from './leagueTz.ts';
 
 const KEY = 'ui.league';
 const CHOSEN = 'ui.league.chosen';   // ★ הבחירה הוצגה פעם אחת — לא מציגים שוב את שער הליגות
@@ -66,4 +67,14 @@ export async function fetchLeagues(): Promise<PublicLeague[]> {
 
 export function leagueName(l: Pick<PublicLeague, 'names'>, locale: Locale): string {
   return l.names?.[locale]?.full ?? l.names?.en?.full ?? l.names?.he?.full ?? '';
+}
+
+/** טוען את אזור הזמן של הליגה שנבחרה (או הראשית). כשל = נשארים על הקיים. */
+export async function primeLeagueTimezone(): Promise<void> {
+  try {
+    const all = await fetchLeagues();
+    const sel = selectedLeague();
+    const l = sel ? all.find((x) => x.code === sel) : all.find((x) => x.primary);
+    if (l) setLeagueTimezone(l.timezone);
+  } catch { /* תצוגה בלבד */ }
 }
