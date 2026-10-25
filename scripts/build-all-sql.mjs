@@ -68,6 +68,7 @@ const FILES = [
   ['49_dnp_autofill.sql','★ שחקן שלא שיחק (ממופה, דף משחק נקלט) מקבל DNP ולא חוסם מחזור'],
   ['49_publish_fixtures.sql','★ דוביד מפרסם את המשחקים ל-core.fixtures (אקוסיסטם 0004) — הרשימה הנייטרלית של כל האפליקציות'],
   ['50_ops_hardening.sql','★ statement_timeout 60s לפונקציות כבדות + ניקוי התראות מיושנות אוטומטי בכל lifecycle_tick'],
+  ['51_postponed_policy.sql','★ משחק שנדחה לא חוסם פרסום: fixture_not_final יורד ל-warn (טריגר)'],
 ];
 
 const bar = '=' .repeat(69);
