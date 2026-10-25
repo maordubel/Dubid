@@ -15,6 +15,7 @@
  * הדפדפן חוסם את הקריאה כ"לא מתוך אינטראקציה".
  */
 import { tr } from './i18n/dict.ts';
+import { track } from './analytics.ts';
 
 
 export interface ShareResult {
@@ -60,10 +61,12 @@ export async function shareCardImage(opts: ShareOptions): Promise<ShareResult> {
   } = opts;
 
   const file = new File([blob], fileName, { type: blob.type || 'image/png' });
+  track('share_started', { surface: 'card', card_type: 'image' });
 
   if (supportsFileShare([file])) {
     try {
       await navigator.share({ files: [file], title, text, url });
+      track('share_api_resolved', { surface: 'native_file' });
       return { method: 'native-file' };
     } catch (error) {
       if ((error as Error)?.name === 'AbortError') return { method: 'cancelled' };
@@ -74,6 +77,7 @@ export async function shareCardImage(opts: ShareOptions): Promise<ShareResult> {
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {
       await navigator.share({ title, text, url });
+      track('share_api_resolved', { surface: 'native_text' });
       return { method: 'native-text' };
     } catch (error) {
       if ((error as Error)?.name === 'AbortError') return { method: 'cancelled' };
@@ -82,6 +86,7 @@ export async function shareCardImage(opts: ShareOptions): Promise<ShareResult> {
 
   try {
     downloadBlob(blob, fileName);
+    track('share_downloaded', { card_type: 'image' });
     await copyToClipboard(url);
     return { method: 'download' };
   } catch (error) {
