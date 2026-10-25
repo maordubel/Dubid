@@ -328,12 +328,14 @@ export function formationForSize(size: number): string {
 }
 
 export function resolveRules(teamsAvailable: number, base: RuleSet = IL_PREMIER): ResolvedRules {
-  const required = base.constraints.lineupSize * base.constraints.maxPlayersPerTeam;
+  /* ★ מינימום מועדונים שונים = ceil(גודל / מכסה), לא גודל × מכסה. */
+  const required = Math.ceil(base.constraints.lineupSize / base.constraints.maxPlayersPerTeam);
   if (teamsAvailable >= required) {
     return { rules: base, isDemo: false, teamsAvailable, teamsRequired: required, missingTeams: 0 };
   }
 
-  const size = Math.max(5, Math.floor(teamsAvailable / base.constraints.maxPlayersPerTeam));
+  const size = Math.max(5, Math.min(base.constraints.lineupSize,
+    teamsAvailable * base.constraints.maxPlayersPerTeam));
   return {
     rules: {
       ...base,
