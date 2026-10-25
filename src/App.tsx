@@ -60,7 +60,7 @@ import {
   GAMEWEEK, GAMEWEEK_DEADLINE, FIRST_KICKOFF, OPPONENT_BY_TEAM,
   FIXTURES, kickoffTimeLabel, localizedRoundLabel,
 } from './data/fixtures.ts';
-import { resolveRules, DUBID_5X5, DUBID_5X5_BUDGET } from './lib/scoring/rules.ts';
+import { resolveRules, IL_PREMIER, DUBID_5X5, DUBID_5X5_BUDGET } from './lib/scoring/rules.ts';
 import { scoreLineup } from './lib/scoring/engine.ts';
 import { buildLeaderboard } from './lib/leaderboard.ts';
 import { describeRound } from './lib/roundPhase.ts';
@@ -82,6 +82,7 @@ import {
 import {
   hydrateLiveData, startLiveDataRealtime, subscribeToLiveData, liveDataVersion, liveDataStatus,
   currentGameweekCode, ruleOverrides,
+  clubCap,
 } from './lib/liveData.ts';
 import { applyOverrides } from './lib/ruleOverrides.ts';
 import { computeGameStatus, type GameStatus } from './lib/gameStatus.ts';
@@ -327,7 +328,10 @@ function MainApp() {
      בלעדיו: האדמין מוסיף שחקן, המערך מתעדכן, ו-`useMemo` עם
      `[]` ממשיך להחזיר את הרשימה מהרינדור הראשון — כלומר בדיוק
      הבאג שתוקן, רק שכבה אחת מעל. */
-  const resolved = useMemo(() => resolveRules(TEAMS.length), [liveVersion]);
+  const cap = clubCap();
+  const resolved = useMemo(
+    () => resolveRules(TEAMS.length, { ...IL_PREMIER, constraints: { ...IL_PREMIER.constraints, maxPlayersPerTeam: cap } }),
+    [liveVersion, cap]);
 
   /**
    * ★★ האיזון מגיע מהשרת ★★
@@ -344,10 +348,13 @@ function MainApp() {
    * שהמעבר לשרת בא לסיים.
    */
   const overrides = ruleOverrides();
+  const withCap = (r: RuleSet): RuleSet =>
+    r.constraints.maxPlayersPerTeam === cap ? r
+      : { ...r, constraints: { ...r.constraints, maxPlayersPerTeam: cap } };
   const fullRules = useMemo(
-    () => applyOverrides(resolved.rules, overrides), [resolved.rules, overrides, liveVersion]);
+    () => withCap(applyOverrides(resolved.rules, overrides)), [resolved.rules, overrides, liveVersion, cap]);
   const fiveRules = useMemo(
-    () => applyOverrides(DUBID_5X5, overrides), [overrides, liveVersion]);
+    () => withCap(applyOverrides(DUBID_5X5, overrides)), [overrides, liveVersion, cap]);
   const rulesByMode: Record<Mode, RuleSet> = { full: fullRules, five: fiveRules };
   const capacityIssue = useMemo(
     () => checkLeagueCapacity(TEAMS.length, { ...fullRules, constraints: { ...fullRules.constraints, lineupSize: 11 } }),

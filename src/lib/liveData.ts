@@ -118,6 +118,8 @@ interface LiveState {
    * לפתוח מחזור חדש בלי פריסה.
    */
   gameweek: string;
+  /** ★ מכסת שחקנים למועדון במחזור הנוכחי (שרת: game.club_cap). 1 = עונה רגילה, 2 = פלייאוף. */
+  clubCap: number;
   /**
    * override-ים של חוקי הניקוד, כפי שהאדמין קבע אותם.
    * מפה ריקה = ברירות המחדל שבקוד. ראו `lib/ruleOverrides.ts`.
@@ -135,6 +137,7 @@ interface LiveState {
 
 const state: LiveState = {
   gameweek: '',
+  clubCap: 1,
   rules: {},
   revision: 0,
   version: 0,
@@ -142,6 +145,11 @@ const state: LiveState = {
   loading: false,
   error: null,
 };
+
+/** מכסת מועדון של המחזור הנוכחי, כפי שהשרת קבע. 1 עד שנטען אחרת. */
+export function clubCap(): number {
+  return state.clubCap;
+}
 
 export function liveDataVersion(): number {
   return state.version;
@@ -413,6 +421,15 @@ export function hydrateLiveData(force = false): Promise<void> {
         if (mine !== generation) return;
         if (!fx.error && fx.data) {
           changed = applyLiveFixtures(fx.data as LiveFixturePayload) || changed;
+        }
+        /* ★ מכסת המועדון נקבעת בשרת לפי המחזור. כשל/פונקציה חסרה → נשארים על 1
+           (ההתנהגות הקיימת); לעולם לא מרחיבים מכסה בגלל שגיאת רשת. */
+        const cap = await supabase.rpc('club_cap', { p_gw_code: target });
+        if (mine !== generation) return;
+        const n = Number(cap.data);
+        if (!cap.error && Number.isInteger(n) && n >= 1 && n <= 3 && n !== state.clubCap) {
+          state.clubCap = n;
+          changed = true;
         }
       }
 
