@@ -67,6 +67,7 @@ const FILES = [
   ['48_league_worlds.sql','★ כל ליגה עולם משלה: זירות פרטיות לפי ליגה + מחירים זמניים לשחקנים בלי דירוג'],
   ['49_dnp_autofill.sql','★ שחקן שלא שיחק (ממופה, דף משחק נקלט) מקבל DNP ולא חוסם מחזור'],
   ['49_publish_fixtures.sql','★ דוביד מפרסם את המשחקים ל-core.fixtures (אקוסיסטם 0004) — הרשימה הנייטרלית של כל האפליקציות'],
+  ['50_ops_hardening.sql','★ statement_timeout 60s לפונקציות כבדות + ניקוי התראות מיושנות אוטומטי בכל lifecycle_tick'],
 ];
 
 const bar = '=' .repeat(69);
