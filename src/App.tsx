@@ -13,6 +13,7 @@ import { tr, activeLocale } from './lib/i18n/dict.ts';
 import { INTL_TAG, splitAt } from './lib/i18n/lazy.ts';
 import { displayName as pickDisplayName } from './lib/i18n/names.ts';
 import { selectedLeague, primeLeagueTimezone } from './lib/league.ts';
+import { track } from './lib/analytics.ts';
 import { LeagueLoadError } from './components/LeagueLoadError.tsx';
 import type { DictKey } from './lib/i18n/dict.ts';
 import { ensureIdentity, storedDisplayName, setDisplayName, subscribeToIdentity, watchAuth,
@@ -1283,13 +1284,18 @@ export function SaveEntryModal({
           setBusy(true);
           setError(null);
           void (async () => {
+            const ctx = { league_code: selectedLeague() ?? 'primary', mode, gameweek_code: gwCode() };
             try {
               await setDisplayName(name);
+              track('lineup_submit_attempted', ctx);
               const saved = await saveEntry(
                 name, gwCode(), mode, userId, lineup, priceById, team.trim());
+              track('lineup_submitted', ctx);   // ★ רק אחרי אישור שרת
               onSaved(saved);
             } catch (err) {
-              setError(errorMessageHe(err instanceof Error ? err.message : 'NETWORK'));
+              const msg = err instanceof Error ? err.message : 'NETWORK';
+              track('lineup_submit_failed', { mode, error_code: msg.replace(/[^A-Za-z0-9_]/g, '_').slice(0, 40) });
+              setError(errorMessageHe(msg));
             } finally {
               setBusy(false);
             }

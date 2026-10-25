@@ -10,6 +10,7 @@
  *   על מסך של השנייה.
  */
 import { supabase } from './supabase.ts';
+import { track } from './analytics.ts';
 import type { Locale } from './i18n/locales.ts';
 import { setLeagueTimezone } from './leagueTz.ts';
 
@@ -33,11 +34,23 @@ export function markLeagueChosen(): void {
 
 export function chooseLeague(code: string | null, primary: boolean): void {
   markLeagueChosen();
+  track('league_selected', { league_code: code ?? 'primary', source: 'gate' });
   try {
     if (!code || primary) localStorage.removeItem(KEY);
     else localStorage.setItem(KEY, code);
   } catch { /* מצב פרטי */ }
   window.location.reload();
+}
+
+export type ReadinessState = 'ready' | 'degraded' | 'blocked' | 'unknown';
+/** כשירות פורמט — מחושב בשרת (game.format_readiness). unknown = הלקוח לא הצליח לקרוא. */
+export interface FormatReadiness {
+  mode: 'five' | 'full';
+  state: ReadinessState;
+  canSubmit: boolean;
+  reasons: string[];
+  checkedAt: string;
+  dataUpdatedAt: string | null;
 }
 
 export interface PublicLeague {
@@ -55,6 +68,7 @@ export interface PublicLeague {
   status?: string | null;
   lockAt?: string | null;
   entrants?: number;
+  formats?: { five: FormatReadiness; full: FormatReadiness } | null;
 }
 
 export async function fetchLeagues(): Promise<PublicLeague[]> {
@@ -75,4 +89,12 @@ export async function primeLeagueTimezone(): Promise<void> {
     const l = sel ? all.find((x) => x.code === sel) : all.find((x) => x.primary);
     if (l) setLeagueTimezone(l.timezone);
   } catch { /* תצוגה בלבד */ }
+}
+
+/** האם הליגה ניתנת להכנסה: יש מחזור, ולא שני הפורמטים חסומים. unknown/חסר = לא חוסמים. */
+export function leagueEnterable(l: Pick<PublicLeague, 'live' | 'currentGameweek' | 'formats'>): boolean {
+  if (l.live === false || !l.currentGameweek) return false;
+  const f = l.formats;
+  if (!f) return true;
+  return !(f.five?.state === 'blocked' && f.full?.state === 'blocked');
 }

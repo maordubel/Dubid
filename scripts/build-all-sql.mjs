@@ -71,6 +71,7 @@ const FILES = [
   ['51_postponed_policy.sql','★ משחק שנדחה לא חוסם פרסום: fixture_not_final יורד ל-warn (טריגר)'],
   ['52_club_cap.sql','★ מכסת מועדון לפי מחזור (פלייאוף=2): טריגר במקום UNIQUE, assert_lineup_valid, club_cap, admin_set_club_cap'],
   ['53_history_by_mode.sql','★ history_summary לפי פורמט: סינון ul.mode, דירוג רשמי, byMode מפוצל'],
+  ['54_format_readiness.sql','★ כשירות ליגה לכל פורמט: formats.{five,full} ב-leagues_public'],
   ['55_arena_season.sql','★ טבלה עונתית רשמית לזירה פרטית: arena_season_table (D11)'],
 ];
 

@@ -36,6 +36,7 @@ import {
 } from './leagues.ts';
 import { JoinError } from './leagues.ts';
 import type { ModeId } from './events/bus.ts';
+import { track } from './analytics.ts';
 import { supabase } from './supabase.ts';
 import { selectedLeague } from './league.ts';
 import { ensureIdentity } from './identity.ts';
@@ -253,6 +254,7 @@ export async function joinByCode(
 
   await hydrateLeagues(true);
   const league = findByCode(norm);
+  if (league) track('arena_joined', { league_code: selectedLeague() ?? 'primary', mode: league.mode, source: 'code' });
   return league ? { ok: true, league } : { ok: false, error: JoinError.NotFound };
 }
 
