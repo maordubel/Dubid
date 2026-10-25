@@ -31,7 +31,7 @@ import { standings, inviteUrl, type MemberGameweek, type StandingRow }
   from '../lib/leagues.ts';
 import {
   createLeague, joinByCode, listMembers, myLeagues,
-  hydrateLeagues, leagueMessageHe,
+  hydrateLeagues, leagueMessageHe, arenaSeason, type SeasonRow,
 } from '../lib/leagueStore.ts';
 import { listEntries, getResults, subscribeToStore } from '../lib/store.ts';
 import { scoreLineup } from '../lib/scoring/engine.ts';
@@ -426,11 +426,50 @@ function ArenaTable({
     },
   ];
 
+  const [view, setView] = useState<'round' | 'season'>('round');
+  const [season, setSeason] = useState<SeasonRow[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void arenaSeason(league.id).then((r) => { if (alive) setSeason(r); });
+    return () => { alive = false; };
+  }, [league.id]);
+  const seasonCols: Column<SeasonRow>[] = [
+    { key: 'rank', header: '#', primary: true, numeric: true, width: '2.5rem',
+      render: (r) => (<span className="flex items-baseline gap-1"><span className="num text-base">{r.rank}</span><Movement value={r.movement} /></span>) },
+    { key: 'name', header: t('board.lb.colPlayer'), primary: true,
+      render: (r) => (<span className="truncate font-bold">{r.displayName}{r.userId === userId ? ` · ${t('arena.you')}` : ''}</span>) },
+    { key: 'played', header: t('arena.season.played'), numeric: true,
+      render: (r) => <span className="num text-[13px] text-chalk-2">{r.played}</span> },
+    { key: 'total', header: t('board.lb.colPts'), primary: true, numeric: true, width: '3.5rem',
+      render: (r) => <span className="num text-base text-gold">{r.total}</span> },
+  ];
+  const showSeason = view === 'season' && season !== null;
+
   return (
     <>
       <InviteCard league={league} origin={origin} memberCount={members.length} />
 
-      <div className="mt-3">
+      {season !== null && (
+        <div role="tablist" className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-night p-1 text-[13px] font-black">
+          {(['round', 'season'] as const).map((v) => (
+            <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}
+                    className={`tap h-9 rounded-lg ${view === v ? 'bg-gold text-night' : 'text-chalk-2'}`}>
+              {t(v === 'round' ? 'arena.view.round' : 'arena.view.season')}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showSeason && (
+        <div className="mt-3">
+          <Table columns={seasonCols} rows={season!} rowKey={(r) => r.userId}
+                 highlight={(r) => r.userId === userId}
+                 caption={t('arena.tableOf', { name: league.name })}
+                 empty={<p className="px-4 py-8 text-center text-[13px] text-chalk-dim">{t('arena.season.empty')}</p>} />
+        </div>
+      )}
+
+      <div className={`mt-3 ${showSeason ? 'hidden' : ''}`}>
         <Table
           columns={columns}
           rows={rows}
@@ -445,7 +484,7 @@ function ArenaTable({
         />
       </div>
 
-      {!results.published && (
+      {!showSeason && !results.published && (
         <p className="mt-2.5 text-center text-[11.5px] text-chalk-dim">
           {t('arena.notScored')}
         </p>

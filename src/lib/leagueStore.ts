@@ -298,3 +298,17 @@ export async function peekByCode(code: string): Promise<LeaguePeek | null> {
     return null;
   }
 }
+
+export interface SeasonRow {
+  userId: string; displayName: string; total: number; played: number;
+  rank: number; previousRank: number | null; movement: number | null; bestRank: number | null;
+}
+
+/** טבלה עונתית רשמית של הזירה (db/55). כשל = null — המסך פשוט לא מציג את הלשונית. */
+export async function arenaSeason(arenaId: string): Promise<SeasonRow[] | null> {
+  try {
+    const { data, error } = await supabase.rpc('arena_season_table', { p_arena_id: arenaId, p_limit: 100, p_offset: 0 });
+    if (error || !Array.isArray(data)) return null;
+    return data as SeasonRow[];
+  } catch { return null; }
+}
