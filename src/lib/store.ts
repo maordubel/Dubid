@@ -1810,14 +1810,18 @@ export interface HistoryRow {
   publishedAt: string | null; lockAt: string | null;
   entries: number; fixtures: number;
   topScore: number | null; myPoints: number | null; myRank: number | null;
+  /** ★ מבט לפי פורמט (p_mode=null): חמישייה והרכב מלא נפרדים, לא מאוחדים. */
+  byMode?: Partial<Record<'five' | 'full', {
+    entries: number; topScore: number | null; myPoints: number | null; myRank: number | null;
+  }>>;
 }
 
 /** זיכרון המחזורים שעברו — נגיש גם לאורח. */
-export async function gameweekHistory(limit = 20): Promise<HistoryRow[]> {
+export async function gameweekHistory(limit = 20, mode: 'five' | 'full' | null = null): Promise<HistoryRow[]> {
   /* ★ ארכיון לפי ליגה: בליגה הראשית אין פרמטר (התנהגות קיימת). */
   const lg = selectedLeague();
   const { data, error } = await supabase.rpc('history_summary', {
-    p_mode: null, p_limit: limit, ...(lg ? { p_league: lg } : {}),
+    p_mode: mode, p_limit: limit, ...(lg ? { p_league: lg } : {}),
   });
   if (error) throw new Error(errorCode(error));
   return (data ?? []) as HistoryRow[];
