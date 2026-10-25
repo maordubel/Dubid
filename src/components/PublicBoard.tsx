@@ -38,6 +38,7 @@ import type { RuleSet } from '../lib/scoring/rules.ts';
 import { TeamCrest } from './TeamCrest.tsx';
 import { NIGHT_PRESS as NP } from '../lib/pressPalette.ts';
 import { useI18n } from '../lib/i18n/index.tsx';
+import { leagueTimezone } from '../lib/leagueTz.ts';
 import { LOCALE_META, type Locale } from '../lib/i18n/locales.ts';
 import { TEAM_BY_ID } from '../data/squads.ts';
 import { localizedRoundLabel } from '../data/fixtures.ts';
@@ -58,7 +59,7 @@ function kickoffLabel(iso: string, locale: Locale): string {
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleString(LOCALE_META[locale].intl, {
     weekday: 'short', day: '2-digit', month: '2-digit',
-    hour: '2-digit', minute: '2-digit',
+    hour: '2-digit', minute: '2-digit', timeZone: leagueTimezone(),
   });
 }
 

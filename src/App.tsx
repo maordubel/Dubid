@@ -12,7 +12,8 @@ import { useI18n } from './lib/i18n/index.tsx';
 import { tr, activeLocale } from './lib/i18n/dict.ts';
 import { INTL_TAG, splitAt } from './lib/i18n/lazy.ts';
 import { displayName as pickDisplayName } from './lib/i18n/names.ts';
-import { chooseLeague, selectedLeague } from './lib/league.ts';
+import { selectedLeague, primeLeagueTimezone } from './lib/league.ts';
+import { LeagueLoadError } from './components/LeagueLoadError.tsx';
 import type { DictKey } from './lib/i18n/dict.ts';
 import { ensureIdentity, storedDisplayName, setDisplayName, subscribeToIdentity, watchAuth,
   finishPendingMerge,
@@ -250,16 +251,19 @@ function MainApp() {
    * הראשונה שהאדמין מחליף מחזור — ואז הוא מה שמונע שני ערוצים
    * חיים במקביל.
    */
-  useEffect(() => {
-    void (async () => {
-      await ensureIdentity();
-      await hydrateLiveData();
-      /* ★ ליגה לא-ראשית שלא נטענה מהשרת: לא מציגים לה את הזרע הישראלי
-         (זה היה נראה כמו ליגה יוונית עם שחקנים ישראלים). חוזרים לראשית. */
-      if (selectedLeague() && !liveDataStatus().fromServer) { chooseLeague(null, true); return; }
-      setBooted(true);
-    })();
-  }, []);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const bootOnce = async (force: boolean) => {
+    await ensureIdentity();
+    await hydrateLiveData(force);
+    await primeLeagueTimezone();
+    /* ★ ליגה לא-ראשית שלא נטענה מהשרת: לא מציגים לה את הזרע הישראלי, וגם
+       **לא מחליפים אותה בשקט** לראשית. מסך כשל עם «נסה שוב» / «בחר ליגה אחרת». */
+    if (selectedLeague() && !liveDataStatus().fromServer) { setLoadFailed(true); return; }
+    setLoadFailed(false);
+    setBooted(true);
+  };
+  useEffect(() => { void bootOnce(false); }, []);
 
   /* דאטת הכדורגל השתנתה (האדמין ערך משהו) → רינדור מחדש. */
   const [liveVersion, setLiveVersion] = useState(0);
@@ -995,7 +999,11 @@ function MainApp() {
       />
     )}
     {/* ★ שער הליגות — אחרי מסך הפתיחה; רק כשיש יותר מליגה אחת. */}
-    {splashGone && <LeagueGateHost />}
+    {(splashGone || loadFailed) && <LeagueGateHost />}
+    {loadFailed && (
+      <LeagueLoadError busy={retrying}
+        onRetry={() => { setRetrying(true); void bootOnce(true).finally(() => setRetrying(false)); }} />
+    )}
     <AppShell
       // רק מסך הבנייה מנהל גובה בעצמו. שאר המסכים נגללים כרגיל.
       // ★ שני המצבים של מסך ההרכב הם עמודה בגובה קבוע.

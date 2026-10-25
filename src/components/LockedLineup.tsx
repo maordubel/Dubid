@@ -46,6 +46,7 @@ import type { PoolPlayer, TeamMeta } from './SquadPicker.tsx';
 import type { Lineup, LineupScore, LineupSlot, Position } from '../lib/scoring/types.ts';
 import { useI18n } from '../lib/i18n/index.tsx';
 import { LOCALE_META } from '../lib/i18n/locales.ts';
+import { leagueTimezone } from '../lib/leagueTz.ts';
 
 export function LockedLineup({
   lineup, pool, teams, score, gameweekLabel, submittedAt, onUnlock, onViewCard,
@@ -92,7 +93,7 @@ export function LockedLineup({
   // ב-`data/fixtures.ts`, ומאותה סיבה.
   const submittedLabel = new Date(submittedAt).toLocaleString(LOCALE_META[locale].intl, {
     day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-    timeZone: 'Asia/Jerusalem',
+    timeZone: leagueTimezone(),
   });
 
   const captain = lineup.slots.find((s) => s.isCaptain);
