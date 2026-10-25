@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import { Logo } from './Logo.tsx';
 import { LanguagePicker } from './LanguagePicker.tsx';
 import {
-  chooseLeague, fetchLeagues, hasChosenLeague, leagueName, markLeagueChosen,
+  chooseLeague, fetchLeagues, hasChosenLeague, leagueEnterable, leagueName, markLeagueChosen,
   selectedLeague, type PublicLeague,
 } from '../lib/league.ts';
 import { useI18n } from '../lib/i18n/index.tsx';
@@ -87,7 +87,12 @@ function Card({ l, active, onPick }: { l: PublicLeague; active: boolean; onPick:
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
 
-  const live = l.live !== false && !!l.currentGameweek;
+  const live = leagueEnterable(l);
+  const fm = l.formats;
+  const formatNote = !live || !fm ? null
+    : fm.five.state === 'blocked' ? t('gate.onlyFull')
+    : fm.full.state === 'blocked' ? t('gate.onlyFive')
+    : (fm.five.state === 'degraded' || fm.full.state === 'degraded') ? t('gate.delayed') : null;
   const accent = ACCENT[l.code] ?? '#D8B25C';
   const st = l.status ?? '';
   const lockMs = l.lockAt ? Date.parse(l.lockAt) - now : NaN;
@@ -138,6 +143,7 @@ function Card({ l, active, onPick }: { l: PublicLeague; active: boolean; onPick:
             {live && l.round ? <b className="text-chalk">{t('gate.round', { n: l.round })}</b> : <span>{t('gate.soonNote')}</span>}
             {live && st === 'open' && Number.isFinite(lockMs) && lockMs > 0
               ? <span className="text-gold-light">{t('gate.locksIn', { t: fmtDur(lockMs, t) })}</span> : null}
+            {formatNote ? <span className="text-amber-300">{formatNote}</span> : null}
             {live && l.entrants ? <span className="text-chalk-dim">{t('gate.entrants', { n: l.entrants })}</span> : null}
           </div>
         </div>
