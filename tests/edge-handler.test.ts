@@ -60,6 +60,7 @@ const ENV: Record<string, string> = {
   SUPABASE_URL: 'https://x.supabase.co',
   SUPABASE_SERVICE_ROLE_KEY: 'service',
   INGEST_TOKEN: 'secret',
+  SOFASCORE_ENABLED: '1',
   SOFASCORE_TOURNAMENT: '266',
   SOFASCORE_SEASON: '96740',
   SCORES365_COMPETITION: '42',

@@ -1596,7 +1596,9 @@ Deno.serve(async (req) => {
   /* ★ ליגה: ללא `league` = הליגה הראשית (ישראל), בדיוק כמו קודם.
      ליגה משנית (יוון) רצה על 365scores בלבד — אין לה מקור ראשי. */
   const league: string | null = typeof body?.league === 'string' && body.league ? body.league : null;
-  const isPrimary = league === null || body?.primary === true;
+  /* ★ sofascore מחזיר 403 מכל ה-Edge (נבדק) — כל טיק נכשל ויצר רעש והתראות.
+     כבוי כברירת מחדל; 365scores הוא המקור. להפעלה חוזרת: SOFASCORE_ENABLED=1. */
+  const isPrimary = Deno.env.get('SOFASCORE_ENABLED') === '1' && (league === null || body?.primary === true);
   const gwPrefix: string = typeof body?.gwPrefix === 'string' && body.gwPrefix ? body.gwPrefix : 'gw-';
   const gwCode = (n: number) => `${gwPrefix}${n}`;
   const leaguePart = league ? { league } : {};
