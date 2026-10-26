@@ -1,6 +1,6 @@
 {
   "$comment": "Dubel Team football ecosystem contract. This file is IDENTICAL in all four repos (fanlife, Offsides, Dubid, The-Worker). Change it in one repo => copy the same bytes to the other three in the same round. Bump version + updated.",
-  "version": 5,
+  "version": 6,
   "updated": "2026-10-26",
   "plan": "Project doc: claude/ecosystem-master-plan.md (claude.ai Project 'Football Master')",
   "supabase": {
@@ -182,6 +182,12 @@
       "to": "any",
       "how": "shared.handoff (?eh=<token>) → handoff_open on landing → handoff_claim once a session exists",
       "status": "live in DB 2026-10-19; wired per app"
+    },
+    {
+      "from": "fanlife",
+      "to": "offsides",
+      "how": "crest images https://offsides.dubelteam.com/logos/<slug>.png, resolved by ecosystem/crests (the one crest library of the universe; owner 26.10.2026). DUBID bundles copies of the same files by slug.",
+      "status": "live"
     }
   ],
   "rules": [
@@ -197,7 +203,8 @@
     "10. The universe map lives in shared.apps / shared.app_moments. A cross-app link carries its moment (campaign '<moment>' or '<moment>-<x>'); a new app or moment is a row, not code.",
     "11. DUBID and OFFSIDES never parse a provider themselves: they read through ecosystem/feed and, once core is shared, through core views only.",
     "12. A club has one exact id across the universe: the core.teams uuid. An app's own name for it (FAN LIFE slug, provider id) is a row in core.external_refs, linked through a provider id, never a name. Ask shared.club_identity(slug).",
-    "13. Fixtures: every app reads core.fixtures (via shared.fixtures) and reacts to core.fixture_signals with its own cursor. core.weekly_matches is DUBID's gameweek schedule, not a shared table. Only core.publish_fixture writes core.fixtures."
+    "13. Fixtures: every app reads core.fixtures (via shared.fixtures) and reacts to core.fixture_signals with its own cursor. core.weekly_matches is DUBID's gameweek schedule, not a shared table. Only core.publish_fixture writes core.fixtures.",
+    "14. Team crests come from one library: OFFSIDES public/logos, resolved with ecosystem/crests/index.mjs (crestSlug/crestUrl, OFFSIDES' guarded matcher). No app builds a second crest set; a name the library cannot match draws the app's own fallback, never a guessed crest. Regenerate ecosystem/crests from OFFSIDES src/lib/logoIndex.js when OFFSIDES adds crests."
   ],
   "sharedApi": {
     "module": "ecosystem/sdk.ts (byte-identical in every repo)",
