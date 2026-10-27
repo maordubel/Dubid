@@ -4,3 +4,4 @@ export * from './derive.ts';
 export * from './sofascore.ts';
 export * from './scores365.ts';
 export * from './reconcile.ts';
+export * from './cache.ts';

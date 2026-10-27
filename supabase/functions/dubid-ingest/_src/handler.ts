@@ -62,11 +62,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createSofascore } from '../../../../ecosystem/feed/sofascore.ts';
 import { createScores365 } from '../../../../ecosystem/feed/scores365.ts';
 import { reconcileFixtures } from '../../../../ecosystem/feed/reconcile.ts';
+import { sharedHttp, supabaseFeedStore } from '../../../../ecosystem/feed/cache.ts';
 import type { Alert, Fixture, RawBlob, Snapshot, SquadMeta } from '../../../../ecosystem/feed/types.ts';
 import { parse365Standings, standingsUrl } from './standings.ts';
 
 /** מזהה בנייה — מופיע ב-ping, כדי לדעת איזו גרסה באמת פרוסה. */
-const BUILD = 'dubid-ingest/4';
+const BUILD = 'dubid-ingest/5';
 
 const CORS = {
   'Access-Control-Allow-Origin': Deno.env.get('APP_ORIGIN') ?? 'https://dubid.dubelteam.com',
@@ -372,7 +373,15 @@ Deno.serve(async (req) => {
   const gwCode = (n: number) => `${gwPrefix}${n}`;
   const leaguePart = league ? { league } : {};
 
-  const http = makeHttp();
+  /* ★ מטמון משותף עם אופסיידס (ecosystem/feed/cache.ts + ecosystem/sql/0005_feed_cache.sql):
+     אותה בקשה נמשכת פעם אחת לשתי האפליקציות בתוך ה-TTL, תקציב בקשות אחד לכל מארח,
+     ובנפילה של המקור — העותק הטוב האחרון. */
+  const sharedDb = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    { db: { schema: 'shared' }, auth: { persistSession: false } },
+  );
+  const http = sharedHttp(makeHttp(), supabaseFeedStore((fn, args) => sharedDb.rpc(fn, args) as any), 'dubid');
   const primary = createSofascore(http, {
     tournamentId: Number(Deno.env.get('SOFASCORE_TOURNAMENT') ?? 266),
     seasonId: Number(Deno.env.get('SOFASCORE_SEASON') ?? 96740),

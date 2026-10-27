@@ -1,6 +1,6 @@
 {
   "$comment": "Dubel Team football ecosystem contract. This file is IDENTICAL in all four repos (fanlife, Offsides, Dubid, The-Worker). Change it in one repo => copy the same bytes to the other three in the same round. Bump version + updated.",
-  "version": 7,
+  "version": 8,
   "updated": "2026-10-27",
   "plan": "Project doc: claude/ecosystem-master-plan.md (claude.ai Project 'Football Master')",
   "supabase": {
@@ -302,6 +302,8 @@
   "feed": {
     "module": "ecosystem/feed/ (byte-identical) — the ONE data-reading engine of DUBID and OFFSIDES (and the hub later): provider adapters sofascore, scores365 (+ api-football, thesportsdb next)",
     "writer": "core.ingest_snapshot (step 3) via edge fn feed-ingest; games react to core.fixture_signals with their own cron",
-    "plan": "Project doc claude/football-data-engine.md"
+    "plan": "Project doc claude/football-data-engine.md",
+    "sharedCache": "ecosystem/feed/cache.ts + ecosystem/sql/0005_feed_cache.sql (v8, 2026-10-27): every free-source request of every app goes through sharedHttp(http, supabaseFeedStore(rpc on schema shared), '<app>'). Same canonical request (sorted params, time zone dropped, language kept) = one fetch per TTL for all apps (core.feed_cache), one claim at a time, one per-host requests/minute budget for all apps together (core.feed_budget: 365scores 90, espn 60, sofascore 20), last good copy when the host fails or the budget is spent. RPCs shared.feed_cache_read/begin/write are service_role only; health: shared.v_feed_cache_health. Wired: dubid-ingest (DUBID), offsides-hyper-responder + offsides-feed-link (OFFSIDES).",
+    "freeSources": "365scores (no key): competitions Ligat Ha'al 42, Toto Cup 546, State Cup 49, Premier League 7, La Liga 11, Super League Greece 84, Champions League 572, Europa League 573, Conference League 7685. /web/game (events, HT stage, lineups), /web/game/stats?games= (team stats incl. corners, shots, possession, offsides, fouls, saves, cards, xG). ESPN site.api (no key) covers UEFA + top leagues but NOT Israel (isr.1 frozen at 2024-25) — cross-check candidate only. football-data.org / API-Football free tiers: not usable for live events."
   }
 }
