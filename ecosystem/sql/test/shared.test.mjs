@@ -14,6 +14,7 @@ const sql = readFileSync(join(here, '..', '0001_shared_identity.sql'), 'utf8')
 const sql2 = readFileSync(join(here, '..', '0002_universe.sql'), 'utf8')
 const sql3 = readFileSync(join(here, '..', '0003_club_ids.sql'), 'utf8')
 const sql4 = readFileSync(join(here, '..', '0004_fixtures.sql'), 'utf8')
+const sql5 = readFileSync(join(here, '..', '0005_feed_cache.sql'), 'utf8')
 const db = new PGlite()
 
 await db.exec(`
@@ -58,6 +59,8 @@ await db.exec(sql3)
 await db.exec(sql3)
 await db.exec(sql4)
 await db.exec(sql4)
+await db.exec(sql5)
+await db.exec(sql5)
 console.log('ran twice: ok')
 
 const A = '00000000-0000-0000-0000-00000000000a'
@@ -201,4 +204,25 @@ r = (await db.query(`select shared.fixture_signals_since(0, 2) j`)).rows[0].j
 assert.equal(r.signals.length, 2); assert.equal(r.cursor, r.signals[1].id)
 await db.query(`select core.unpublish_fixture($1)`, [F]); assert.equal((await kinds()).at(-1), 'removed')
 console.log('fixtures: ok')
+// 0005 · shared feed cache + budget
+const K = 'webws.365scores.com/web/game?appTypeId=5&gameId=1&langId=1'
+const begin = async (app, per = 2) => (await db.query(`select shared.feed_cache_begin($1,'webws.365scores.com',$2,$3) v`, [K, per, app])).rows[0].v
+assert.equal((await db.query(`select shared.feed_cache_read($1) j`, [K])).rows[0].j, null)
+assert.equal(await begin('offsides'), 'fetch')
+assert.equal(await begin('dubid'), 'wait', 'a second app waits while the first refreshes')
+await db.query(`select shared.feed_cache_write($1,'webws.365scores.com','{"game":{"id":1}}'::jsonb,60,'offsides')`, [K])
+r = (await db.query(`select shared.feed_cache_read($1) j`, [K])).rows[0].j
+assert.equal(r.fresh, true); assert.equal(r.payload.game.id, 1)
+await db.exec(`update core.feed_cache set fetched_at = now() - interval '2 minutes'`)
+assert.equal((await db.query(`select shared.feed_cache_read($1) j`, [K])).rows[0].j.fresh, false)
+assert.equal(await begin('dubid'), 'fetch', 'claim released by the write')
+await db.query(`select shared.feed_cache_write($1,'webws.365scores.com','{"game":{"id":1}}'::jsonb,60,'dubid')`, [K])
+await db.exec(`update core.feed_cache set fetched_at = now() - interval '2 minutes'`)
+assert.equal(await begin('offsides'), 'over_budget', 'two apps share one minute budget')
+r = (await db.query(`select * from shared.v_feed_cache_health`)).rows[0]
+assert.equal(Number(r.fetches), 2); assert.equal(Number(r.hits), 1); assert.equal(Number(r.denied_last_hour), 1)
+assert.ok(await denied('anon', `select shared.feed_cache_read('x')`))
+assert.ok(await denied('authenticated', `select shared.feed_cache_begin('x','h',1,'a')`))
+assert.ok(await denied('anon', `select * from core.feed_cache`))
+console.log('feed cache: ok')
 console.log('ALL OK')
