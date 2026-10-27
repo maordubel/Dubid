@@ -101,6 +101,18 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM core.player_match_stats WHERE match_id = v_m AND player_id = pWrong AND goals = 1) THEN RAISE EXCEPTION 'FAIL 9: פורסם שונה'; END IF;
   IF (a->>'statsMoved')::INT <> 1 OR a->'publishedAffected'->>0 <> 't50-1' OR a->'rescore'->0->>'code' <> 't50-2' THEN RAISE EXCEPTION 'FAIL 10: %', a; END IF;
   IF NOT EXISTS (SELECT 1 FROM core.player_match_stats WHERE match_id = v_m2 AND player_id = pMove AND assists = 1) THEN RAISE EXCEPTION 'FAIL 10b: לא פורסם ולא עבר'; END IF;
+  -- db/70: החלטת בעלים — גם מחזור שפורסם מתוקן, ומבוקש ניקוד מחדש
+  a := game.squad_sync_correct_published(v_run);
+  IF (a->>'moved')::INT <> 1 OR a->'rescore'->>0 <> 't50-1' THEN RAISE EXCEPTION 'FAIL 14: %', a; END IF;
+  IF NOT EXISTS (SELECT 1 FROM core.player_match_stats WHERE match_id = v_m AND player_id = pRight AND goals = 1) THEN RAISE EXCEPTION 'FAIL 14b'; END IF;
+  a := game.squad_sync_correct_published(v_run);
+  IF (a->>'moved')::INT <> 0 THEN RAISE EXCEPTION 'FAIL 14c: לא אידמפוטנטי'; END IF;
+  -- תמחור חדש: בלי דקות → נשאר החציון, ולא נופל
+  PERFORM game.squad_sync_price_new(v_run);
+  BEGIN PERFORM game.request_rescore('nope'); RAISE EXCEPTION 'FAIL 15'; EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM = 'FAIL 15' THEN RAISE; END IF; END;
+  IF has_function_privilege('anon', 'game.admin_request_rescore(text)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'game.request_rescore(text)', 'EXECUTE') THEN RAISE EXCEPTION 'FAIL 16'; END IF;
   -- פעמיים = שגיאה
   BEGIN PERFORM game.squad_sync_apply(v_run); RAISE EXCEPTION 'FAIL 11'; EXCEPTION WHEN raise_exception THEN
     IF SQLERRM = 'FAIL 11' THEN RAISE; END IF; END;

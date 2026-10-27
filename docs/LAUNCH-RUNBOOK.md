@@ -133,3 +133,11 @@ on load (`src/lib/league.ts → takeIncomingLeague`) and kept in memory + sessio
 - **שחקן חדש:** לא מדורג; מחיר ודרג = חציון אותה קבוצה+עמדה (לא 1M — שחקן נבחרת ב-1M הוא פרצה). מזהה תצוגה 40,000,000 + athleteId.
 - **ידני (SQL):** `SELECT game.names_fetch('IL_PREMIER');` → כמה שניות → `SELECT game.squad_sync_plan('IL_PREMIER');` → `SELECT game.squad_sync_apply(<runId>);`
 - **להריץ:** אחרי חלון העברות, ובכל פעם שבדוח המיפוי של הקליטה מופיעים "unmapped" רבים.
+
+## תיקון מחזורים שפורסמו + ניקוד מחדש (db/70, 27.10.2026)
+
+- החלטת בעלים: גם מחזור שפורסם מתוקן כשסטטיסטיקה נרשמה לשחקן הלא נכון.
+- `SELECT game.squad_sync_correct_published(<runId>);` — מעביר את השורות לשחקן הנכון (נרשם ב-audit_logs) ומחזיר את המחזורים לניקוד מחדש.
+- `SELECT game.request_rescore('<code>');` — מבקש מ-dubid-ingest (`phase: 'rescore'`) להריץ את המנוע הרשמי. התוצאה ב-`game.rescore_log`. רק `lineup_scores` משתנה; סטטוס ופרסום לא.
+- `SELECT game.squad_sync_price_new(<runId>);` — מחיר/דרג לשחקנים חדשים לפי דירוג הספק (ממוצע משוקלל בדקות, ≥180 דקות) ממופה לאחוזון של אותה עמדה. בלי מספיק דקות — חציון. מחיר נעול (price_locked) לא נוגעים.
+- עמדות: לפי מה שאצלנו (החלטת בעלים) — דוח ההבדלים מהספק הוא מידע בלבד.
