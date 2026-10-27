@@ -153,7 +153,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
         <div>
           <h1 className="font-press text-lg font-black">לוח ניהול</h1>
           <p className="text-xs text-chalk-dim">
-            {GAMEWEEK.label} · {GAMEWEEK.seasonLabel} ·{' '}
+            {GAMEWEEK.label} · <span className="num">{GAMEWEEK.id}</span> ·{' '}
             <span className={results.published ? 'text-gold' : 'text-chalk-dim'}>
               {results.published ? 'התוצאות פורסמו' : 'טיוטה — עוד לא פורסם'}
             </span>
