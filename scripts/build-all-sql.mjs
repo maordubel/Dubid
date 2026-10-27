@@ -84,6 +84,7 @@ const FILES = [
   ['64_audit_quiet.sql','★ היומן רושם שינויים, לא דופק: עדכון זהה לא נרשם; היסטוריית pg_cron נשמרת 7 ימים'],
   ['65_pulse_and_savings.sql','דופק מחזור (FOMO), מערך מוסתר עד נעילה, חיסכון realtime/יומן, בוטים ידניים מפוזרים, דוח אחסון'],
   ['66_honest_counts_next_round.sql','מונים מוגדרים (managers/lineups), next_round באותה עונה'],
+  ['67_player_names_en.sql','שמות שחקנים באנגלית מזוגות עברית/אנגלית של 365scores + דוח חוסרים'],
 ];
 
 const bar = '=' .repeat(69);
