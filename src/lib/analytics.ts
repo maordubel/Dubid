@@ -21,7 +21,6 @@ export const ANALYTICS_EVENTS = {
   share_downloaded:      ['card_type'],
   next_round_submitted:  ['league_code', 'mode'],
   next_round_retry:      ['league_code', 'error_code'],
-  lineup_view_changed:   ['mode', 'view'],
   previous_lineup_previewed: ['league_code', 'mode', 'kept', 'needs'],
   previous_lineup_applied:   ['league_code', 'mode', 'kept', 'needs'],
   previous_lineup_undone:    ['league_code', 'mode'],
