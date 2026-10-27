@@ -44,6 +44,7 @@ import {
 import type { Placement } from '../lib/growth.ts';
 import { BrandWord, HouseAdPreview } from './HouseAds.tsx';
 import { useAdminLeague } from './AdminLeagues.tsx';
+import { leagueTimezone } from '../lib/leagueTz.ts';
 import { globalRuleOverrides as ruleOverrides, currentGameweekCode, liveDataVersion } from '../lib/liveData.ts';
 import { RULE_KEYS, readRule } from '../lib/ruleOverrides.ts';
 import { CONTENT_KEYS } from '../lib/content.ts';
@@ -596,7 +597,7 @@ function FixturePicker({
       </div>
 
       <label className="mt-2 block text-[11px] text-chalk-dim">
-        פתיחה (שעון ישראל)
+        פתיחה (שעון הליגה · {leagueTimezone()})
         <input
           type="datetime-local"
           value={when}
@@ -1358,13 +1359,13 @@ const ACTION_HE: Record<string, string> = {
   admin_upsert_player_stat: 'סטטיסטיקה הוזנה',
 };
 
-/** ★ שעון ישראל, כמו בכל מקום אחר במוצר. */
+/** ★ שעון הליגה שהלוח עובד עליה — אותה שעה שהמשתמשים שלה רואים. */
 function fmt(iso: string | null): string {
   if (!iso) return '—';
   try {
     return new Date(iso).toLocaleString('he-IL', {
       day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-      timeZone: 'Asia/Jerusalem',
+      timeZone: leagueTimezone(),
     });
   } catch { return '—'; }
 }
@@ -1373,7 +1374,7 @@ function fmtShort(iso: string): string {
   try {
     return new Date(iso).toLocaleString('he-IL', {
       day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-      timeZone: 'Asia/Jerusalem',
+      timeZone: leagueTimezone(),
     });
   } catch { return ''; }
 }
