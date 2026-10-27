@@ -82,7 +82,7 @@ BEGIN
      OR (SELECT position::TEXT FROM core.squads WHERE player_id = pDup AND valid_to IS NULL) <> 'GK' THEN RAISE EXCEPTION 'FAIL 6: כפול'; END IF;
   -- חדש: שחקן + סגל + מזהה תצוגה
   SELECT count(*) INTO n FROM core.squads s JOIN core.players p ON p.id = s.player_id
-   WHERE s.team_id = tB AND s.valid_to IS NULL AND p.name_en = 'Brand New' AND s.tier = 5 AND s.fantasy_price = 1 AND s.position = 'FWD';
+   WHERE s.team_id = tB AND s.valid_to IS NULL AND p.name_en = 'Brand New' AND s.tier IS NOT NULL AND s.fantasy_price >= 1 AND s.position = 'FWD';
   IF n <> 1 OR NOT EXISTS (SELECT 1 FROM core.external_refs WHERE provider = 'manual_json' AND external_id = '40000016') THEN RAISE EXCEPTION 'FAIL 7: חדש'; END IF;
   -- מאמן לא נוסף
   IF EXISTS (SELECT 1 FROM core.players WHERE name_en = 'Coach') THEN RAISE EXCEPTION 'FAIL 7b: איש צוות נוסף'; END IF;

@@ -12,7 +12,7 @@
 --      a. קישור קודם (provider 'scores365_athlete')
 --      b. שם זהה (אנגלית בלי סימנים / עברית בלי רווחים-גרשים / אותן מילים בסדר
 --         אחר) — ייחודי בשני הצדדים, בכל הליגה (כך מתגלים מעברים)
---      c. באותה קבוצה: דמיון שם ≥0.5 עם פער ≥0.1, או אותה חולצה+עמדה ודמיון ≥0.15
+--      c. באותה קבוצה: דמיון שם ≥0.5 עם פער ≥0.1, או אותה חולצה+עמדה ודמיון ≥0.1
 --    מה שלא זוהה לא "מנוחש".
 --  ★ מה מתבצע:
 --      link        קישור שחקן↔אתלט (לעתיד: הקליטה לא תסתמך על חולצה)
@@ -21,7 +21,8 @@
 --      shirt       מספר חולצה מהספק
 --      name_en     שם אנגלי חסר
 --      left        לא בסגל הספק → נסגר (valid_to, status='left'). השחקן לא נמחק.
---      new         בסגל הספק ולא אצלנו → שחקן חדש, דרג 5, מחיר 1.0, לא מדורג
+--      new         בסגל הספק ולא אצלנו → שחקן חדש, לא מדורג; מחיר/דרג = חציון אותה קבוצה+עמדה
+--                  (נפילה: חציון העמדה בליגה). לא 1.0 — שחקן נבחרת ב-1M הוא פרצה.
 --      ref_fix     מיפוי קליטה (member id) שמצביע על שחקן אחר → מתוקן, וסטטיסטיקה
 --                  שנרשמה לשחקן הלא נכון עוברת לנכון (רשימת מחזורים לניקוד מחדש)
 --      ref_drop    מיפוי שגוי בלי שחקן נכון אצלנו → מוסר (הקליטה תמפה מחדש)
@@ -158,7 +159,7 @@ BEGIN
        ok AS (SELECT player_id, aid FROM r
                WHERE rp = 1 AND ra = 1
                  AND ((sim >= 0.5 AND sim - COALESCE(next_p, 0) >= 0.1 AND sim - COALESCE(next_a, 0) >= 0.1)
-                      OR (shirt_pos AND sim >= 0.15)))
+                      OR (shirt_pos AND sim >= 0.1)))
   INSERT INTO _link SELECT DISTINCT ON (player_id) player_id, aid, 'similar' FROM ok ON CONFLICT DO NOTHING;
 
   INSERT INTO game.squad_sync_runs (league_code, created_by) VALUES (p_league, COALESCE(auth.uid()::TEXT, 'system'))
@@ -319,7 +320,20 @@ BEGIN
     PERFORM core.provider_link('scores365_athlete', 'player', it.athlete_id, v_pid, jsonb_build_object('run', p_run));
     INSERT INTO core.squads (season_id, team_id, player_id, shirt_number, position, fantasy_price, tier, rated, valid_from, status, value_source, value_at)
     SELECT v_season, it.team_to, v_pid, (it.detail->>'shirt')::SMALLINT, (it.detail->>'position')::core.position,
-           1.0, 5, FALSE, current_date, 'active', 'squad_sync', now()
+           COALESCE(
+             (SELECT round(percentile_cont(0.5) WITHIN GROUP (ORDER BY s.fantasy_price))::NUMERIC FROM core.squads s
+               WHERE s.season_id = v_season AND s.team_id = it.team_to AND s.position = (it.detail->>'position')::core.position
+                 AND s.valid_to IS NULL AND s.fantasy_price IS NOT NULL),
+             (SELECT round(percentile_cont(0.5) WITHIN GROUP (ORDER BY s.fantasy_price))::NUMERIC FROM core.squads s
+               WHERE s.season_id = v_season AND s.position = (it.detail->>'position')::core.position
+                 AND s.valid_to IS NULL AND s.fantasy_price IS NOT NULL),
+             1.0),
+           COALESCE(
+             (SELECT round(percentile_cont(0.5) WITHIN GROUP (ORDER BY s.tier))::SMALLINT FROM core.squads s
+               WHERE s.season_id = v_season AND s.team_id = it.team_to AND s.position = (it.detail->>'position')::core.position
+                 AND s.valid_to IS NULL AND s.tier IS NOT NULL),
+             5),
+           FALSE, current_date, 'active', 'squad_sync', now()
      WHERE NOT EXISTS (SELECT 1 FROM core.squads s WHERE s.season_id = v_season AND s.team_id = it.team_to
                         AND s.player_id = v_pid AND s.valid_to IS NULL);
     UPDATE game.squad_sync_items SET applied = TRUE, player_id = v_pid WHERE run_id = p_run AND seq = it.seq;
