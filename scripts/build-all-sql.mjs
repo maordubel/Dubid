@@ -78,6 +78,7 @@ const FILES = [
   ['58_gameweek_rules.sql','★ חוקי ניקוד מוקפאים לכל מחזור (D02): gameweek_rules, gameweek_rules_for, תיקון חריג מתועד'],
   ['59_recap_by_mode.sql','★ סיכום מחזור לפי פורמט, מקום רשמי ומקום קודם (D12)'],
   ['60_house_players.sql','★ משתתפי בית: 6–13 קבועים בכל ליגה ומצב, הרכב אמין ושונה בכל מחזור'],
+  ['61_next_round.sql','המחזור הבא למסך הבנייה (תצוגה בלבד)'],
 ];
 
 const bar = '=' .repeat(69);

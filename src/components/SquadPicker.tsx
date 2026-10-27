@@ -63,6 +63,8 @@ export interface SquadPickerProps {
   onSubmit: () => void;
   /** קיצור היריבה במחזור הנוכחי, לפי מזהה קבוצה — "נגד מי משחקים" בגיליון הבחירה. */
   opponentShortByTeam?: Record<string, string>;
+  /** ★ U02/M04: שם מלא + בית/חוץ + שעה — לשורות בגיליון הבחירה. */
+  opponentLongByTeam?: Record<string, string>;
   /** מצב 5 על 5: מציג עמודת/תג מחיר ליד כל שחקן, בבורר ובמגרש. */
   pricing?: boolean;
   /**
@@ -83,7 +85,7 @@ export interface SquadPickerProps {
 export function SquadPicker(props: SquadPickerProps) {
   const {
     lineup, pool, teams, rules, onAssign, onClear, onCaptain, onSubmit,
-    opponentShortByTeam, pricing, budget, onVice, onFormation, droppedNames,
+    opponentShortByTeam, opponentLongByTeam, pricing, budget, onVice, onFormation, droppedNames,
     mode = 'full',
   } = props;
   const { t, locale } = useI18n();
@@ -170,6 +172,7 @@ export function SquadPicker(props: SquadPickerProps) {
                 player={pool.find((p) => p.id === slot.playerId)}
                 team={teamById.get(slot.teamId)}
                 pricing={pricing}
+                opponent={slot.teamId ? opponentShortByTeam?.[slot.teamId] : undefined}
                 onPick={() => setPicking(slot)}
                 onClear={() => onClear(slot.slotNo)}
                 onCaptain={() => slot.playerId && onCaptain(slot.playerId)}
@@ -209,7 +212,14 @@ export function SquadPicker(props: SquadPickerProps) {
                      transition-transform duration-200 ease-brand active:scale-[.98]
                      disabled:bg-night-3 disabled:text-chalk-dim"
         >
-          {ready ? t('lineup.picker.lock') : t('lineup.picker.remaining', { n: rules.constraints.lineupSize - filled })}
+          {ready
+            ? t('lineup.picker.lock')
+            : filled < rules.constraints.lineupSize
+              ? t('lineup.picker.remaining', { n: rules.constraints.lineupSize - filled })
+              /* ★ U06: מלא אבל לא מוכן — אומרים מה חסר באמת, לא "0 שחקנים". */
+              : issues[0]?.code === 'captain_missing'
+                ? t('lineup.picker.needCaptain')
+                : t('lineup.picker.fixFirst', { why: formatIssue(issues[0], locale) })}
         </button>
       </div>
 
@@ -245,6 +255,7 @@ export function SquadPicker(props: SquadPickerProps) {
           onClose={() => setPicking(null)}
           onSelect={(p) => { onAssign(picking.slotNo, p); setPicking(null); }}
           opponentShortByTeam={opponentShortByTeam}
+          opponentLongByTeam={opponentLongByTeam}
           pricing={pricing}
           remaining={remaining}
           teams={teams}
@@ -603,12 +614,14 @@ function Row({ label, value, accent = false }: { label: string; value: string; a
  * `TeamCrest` נופל לחולצה רק לשתי הקבוצות שאין להן סמל.
  */
 function SlotCard({
-  slot, player, team, pricing, onPick, onClear, onCaptain, onVice,
+  slot, player, team, pricing, opponent, onPick, onClear, onCaptain, onVice,
 }: {
   slot: LineupSlot;
   player?: PoolPlayer;
   team?: TeamMeta;
   pricing?: boolean;
+  /** ★ U07: היריבה במחזור ("MHA (H)") — נשארת גלויה גם אחרי הבחירה. */
+  opponent?: string;
   onPick: () => void;
   onClear: () => void;
   onCaptain: () => void;
@@ -679,6 +692,17 @@ function SlotCard({
         >
           <TeamCrest teamId={slot.teamId} short={team?.short} size="fluid" />
         </span>
+
+        {/* ★ היריבה בראש הדמות — בלי שורה נוספת, כדי שהמגרש לא יתכווץ. */}
+        {opponent && (
+          <bdi
+            className="absolute top-0 max-w-[150%] truncate rounded-[2px] px-[3px] text-[8px] font-black leading-[1.45]"
+            style={{ background: PRESS.ink, color: PRESS.paper }}
+            title={opponent}
+          >
+            {opponent}
+          </bdi>
+        )}
 
         {/* ★ המחיר יושב על הדמות ולא בשורה משלו.
             שורה שלישית הייתה מוסיפה 17 פיקסלים לכל כרטיס, וזה
@@ -794,7 +818,7 @@ function MarkButton({
 
 function PlayerSheet({
   slot, pool, teamById, teams, lineup, rules, onClose, onSelect,
-  opponentShortByTeam, pricing, remaining,
+  opponentShortByTeam, opponentLongByTeam, pricing, remaining,
 }: {
   slot: LineupSlot;
   pool: PoolPlayer[];
@@ -805,6 +829,7 @@ function PlayerSheet({
   onClose: () => void;
   onSelect: (p: PoolPlayer) => void;
   opponentShortByTeam?: Record<string, string>;
+  opponentLongByTeam?: Record<string, string>;
   pricing?: boolean;
   /** תקציב פנוי. undefined = אין אילוץ תקציב במצב הזה. */
   remaining?: number;
@@ -826,6 +851,17 @@ function PlayerSheet({
     [pool],
   );
 
+  /* ★ U05/M10: החלפה במשבצת מלאה — השחקן שיוצא משחרר את המחיר ואת המועדון
+     שלו **לפני** הבדיקה. בלי זה אי אפשר היה להחליף שחקן בחבר לאותה קבוצה,
+     או בשחקן יקר ממנו ב-1M כשיש 1M פנוי. */
+  const outgoingPrice = slot.playerId ? (pool.find((p) => p.id === slot.playerId)?.price ?? 0) : 0;
+  const budgetForSlot = remaining !== undefined ? remaining + outgoingPrice : undefined;
+  const lineupWithout = useMemo<Lineup>(() => ({
+    ...lineup,
+    slots: lineup.slots.map((s) => (s.slotNo === slot.slotNo
+      ? { ...s, playerId: '', teamId: '', isCaptain: false, isVice: false } : s)),
+  }), [lineup, slot.slotNo]);
+
   const candidates = useMemo(() => {
     const q = query.trim().toLowerCase();
     return pool
@@ -839,11 +875,13 @@ function PlayerSheet({
       // ★ החסימה מגיעה מ-teamBlock, שמחזיר גם *מי* תופס את הקבוצה —
       //   כדי שנוכל לומר "כבר בחרת את אצילי" ולא רק להאפיר בלי הסבר.
       .map((p) => {
-        const block = teamBlock(lineup, p.teamId, rules);
+        const block = p.id === slot.playerId
+          ? { blocked: true as const, occupiedBy: p.id, reasonHe: '', reasonEn: '', reasonEl: '' }
+          : teamBlock(lineupWithout, p.teamId, rules);
         // ★ "יקר מדי" הוא חסימה נפרדת מ"קבוצה תפוסה", ומוצגת אחרת.
         //   מיזוג השתיים היה מסתיר מהמשתמש מה בדיוק הבעיה.
         const tooExpensive =
-          remaining !== undefined && p.price !== undefined && p.price > remaining;
+          budgetForSlot !== undefined && p.price !== undefined && p.price > budgetForSlot + 1e-9;
         return { p, block, tooExpensive };
       })
       // חסומים יורדים לסוף אבל לא נעלמים: משתמש צריך להבין למה, לא לחפש
@@ -863,7 +901,7 @@ function PlayerSheet({
         // שובר שוויון קבוע — הרשימה לא "רוקדת" בין פתיחות.
         return a.p.id.localeCompare(b.p.id);
       });
-  }, [pool, slot.position, query, lineup, rules, teamById, pricing, remaining, browse, openTeam]);
+  }, [pool, slot.position, slot.playerId, query, lineupWithout, rules, teamById, pricing, budgetForSlot, browse, openTeam]);
 
   const available = candidates.filter((c) => !c.block.blocked && !c.tooExpensive).length;
 
@@ -898,7 +936,7 @@ function PlayerSheet({
             {t('lineup.picker.oneTeamNote')}
             {remaining !== undefined && (
               <>
-                {' '}{withNum(t('lineup.picker.leftM'), remaining.toFixed(1), 'text-gold')}
+                {' '}{withNum(t('lineup.picker.leftM'), (budgetForSlot ?? remaining).toFixed(1), 'text-gold')}
               </>
             )}
           </p>
@@ -1027,9 +1065,9 @@ function PlayerSheet({
                           ? t('lineup.picker.alreadyPicked', { name: occupant })
                           : (locale === 'he' ? block.reasonHe : locale === 'el' ? block.reasonEl : block.reasonEn)
                         : tooExpensive
-                          ? t('lineup.picker.short', { n: ((p.price ?? 0) - (remaining ?? 0)).toFixed(1) })
-                          : opponentShortByTeam?.[p.teamId]
-                            ? t('lineup.picker.vs', { opp: opponentShortByTeam[p.teamId] })
+                          ? t('lineup.picker.short', { n: ((p.price ?? 0) - (budgetForSlot ?? 0)).toFixed(1) })
+                          : (opponentLongByTeam?.[p.teamId] || opponentShortByTeam?.[p.teamId])
+                            ? t('lineup.picker.vs', { opp: opponentLongByTeam?.[p.teamId] || opponentShortByTeam![p.teamId] })
                             : team?.name}
                     </span>
                   </span>

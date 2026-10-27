@@ -13,6 +13,25 @@ DELETE FROM game.user_lineups ul USING game.gameweeks g
 DELETE FROM game.house_schedule hs USING game.gameweeks g WHERE g.id = hs.gameweek_id AND g.code = 'gw-2';
 UPDATE game.house_config SET enabled = TRUE, min_per_round = 6, max_per_round = 13;
 
+-- ★ במסד הבדיקות רק 7 מהקבוצות עם סגל משחקות ב-gw-2. משלימים משחקים כך
+--   שכל קבוצה עם סגל משחקת — אחרת הבנייה נאלצת (בצדק) לקחת קבוצה בלי משחק,
+--   והבדיקה תלויה במזל של ה-UUID-ים (כך נכשל CI ב-0feec22).
+DO $$
+DECLARE v_gw UUID; v_season UUID; t UUID[]; i INT := 1;
+BEGIN
+  SELECT id, season_id INTO v_gw, v_season FROM game.gameweeks WHERE code = 'gw-2';
+  SELECT array_agg(team_id ORDER BY team_id) INTO t FROM (
+    SELECT DISTINCT sq.team_id FROM core.squads sq
+     WHERE sq.season_id = v_season AND sq.valid_to IS NULL AND sq.status = 'active'
+       AND NOT EXISTS (SELECT 1 FROM core.weekly_matches m WHERE m.gameweek_id = v_gw
+                         AND sq.team_id IN (m.home_team_id, m.away_team_id))) x;
+  WHILE i + 1 <= COALESCE(array_length(t, 1), 0) LOOP
+    INSERT INTO core.weekly_matches (gameweek_id, home_team_id, away_team_id, kickoff_at, status)
+    VALUES (v_gw, t[i], t[i + 1], now() + INTERVAL '2 days', 'scheduled');
+    i := i + 2;
+  END LOOP;
+END $$;
+
 -- =====================================================================
 -- 1 — סגל: 18 לכל ליגה, שמות אמינים, אף אחד לא "bot"
 -- =====================================================================
@@ -114,12 +133,12 @@ BEGIN
      WHERE ul.mode = 'five' GROUP BY ul.id HAVING sum(s.price) > 15) x;
   IF bad > 0 THEN RAISE EXCEPTION 'FAIL 3d: % חרגו מהתקציב', bad; END IF;
 
-  -- רק קבוצות שמשחקות במחזור (דוביד 5 — במסד הבדיקות יש 7 קבוצות עם סגל במחזור)
+  -- רק קבוצות שמשחקות במחזור
   SELECT count(*) INTO bad FROM game.user_lineup_slots s
     JOIN game.user_lineups ul ON ul.id = s.lineup_id
     JOIN game.house_players hp ON hp.user_id = ul.user_id
     JOIN game.gameweeks g ON g.id = ul.gameweek_id AND g.code = 'gw-2'
-   WHERE ul.mode = 'five' AND NOT EXISTS (SELECT 1 FROM core.weekly_matches m WHERE m.gameweek_id = g.id
+   WHERE NOT EXISTS (SELECT 1 FROM core.weekly_matches m WHERE m.gameweek_id = g.id
                        AND s.team_id IN (m.home_team_id, m.away_team_id));
   IF bad > 0 THEN RAISE EXCEPTION 'FAIL 3e: % שחקנים מקבוצה שלא משחקת', bad; END IF;
 END $$;
@@ -196,4 +215,5 @@ DELETE FROM game.house_schedule hs USING game.gameweeks g WHERE g.id = hs.gamewe
 DELETE FROM game.user_lineups ul USING game.gameweeks g
  WHERE g.id = ul.gameweek_id AND g.code = 'gw-2'
    AND ul.user_id IN (SELECT user_id FROM game.house_players);
+\ir _shared_gameweek.sql
 \echo '  ✓✓ 42 — משתתפי הבית'

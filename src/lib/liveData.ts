@@ -43,6 +43,7 @@
  *   חוסר-העקביות שקשה לאתר: המחיר החדש והשחקן הישן, באותו מסך.
  */
 import { supabase } from './supabase.ts';
+import { codeCandidates, uniqueShorts } from './teamCodes.ts';
 import { selectedLeague } from './league.ts';
 import { displayName } from './i18n/names.ts';
 import { tr } from './i18n/dict.ts';
@@ -238,15 +239,22 @@ function toTier(raw: unknown): 1 | 2 | 3 | 4 | 5 {
 let displayLocale: Locale = 'he';   // ★ שפת הזרע הסטטי — לא קשור לברירת המחדל של הממשק
 let lastSquads: SquadsPayload | null = null;
 
-/** קיצור קבוצה: בעברית כמו בשרת; באנגלית/יוונית — 3 אותיות משם הקבוצה אם הקיצור עברי. */
+/**
+ * קיצור קבוצה: בעברית כמו בשרת; באנגלית/יוונית — קוד של 3 אותיות אם הקיצור עברי.
+ *
+ * ★ U02: קודם זה היה "3 האותיות הראשונות" — וכל ה"הפועל" יצאו HAP וכל ה"מכבי" MAC.
+ *   עכשיו: ראשי תיבות (Hapoel Tel Aviv → HTA, Maccabi Haifa → MHA, Hapoel Beer Sheva → HBS),
+ *   ו-`uniqueShorts` מוודא שאין שני מועדונים עם אותו קוד באותה ליגה.
+ */
 function localizedShort(
   t: { short?: string | null; nameHe: string; nameEn?: string | null; nameEl?: string | null }, l: Locale,
 ): string {
   const base = t.short || t.nameHe;
   if (l === 'he' || !/[\u0590-\u05FF]/.test(base)) return base;
   const nm = (l === 'el' ? t.nameEl : null) || t.nameEn;
-  return nm ? nm.replace(/[^\p{L}]/gu, '').slice(0, 3).toUpperCase() || base : base;
+  return (nm && codeCandidates(nm)[0]) || base;
 }
+
 
 /** צילום הזרע הסטטי כפי שהוא (עברית) — כדי שהחלפת שפה תהיה הפיכה גם בלי שרת. */
 const seedTeams = TEAMS.map((t) => ({ ...t }));
@@ -259,6 +267,8 @@ function relocalizeSeed(): void {
     t.nameHe = displayName({ he: s.nameHe, en: s.nameEn, el: s.nameEl }, displayLocale) || s.nameHe;
     t.short = localizedShort(s, displayLocale);
   });
+  uniqueShorts(TEAMS.map((t, i) => ({ get short() { return t.short; }, set short(v: string) { t.short = v; },
+    nameHe: seedTeams[i]?.nameHe ?? t.nameHe, nameEn: seedTeams[i]?.nameEn, nameEl: seedTeams[i]?.nameEl })), displayLocale);
   seedPlayers.forEach((s, i) => {
     const p = PLAYERS[i];
     if (!p || p.id !== s.id) return;
@@ -294,6 +304,10 @@ export function applyLiveSquads(payload: SquadsPayload): boolean {
     city: t.city,
     stadium: t.stadium,
   }));
+  uniqueShorts(teams.map((tm, i) => ({
+    get short() { return tm.short; }, set short(v: string) { tm.short = v; },
+    nameHe: rawTeams[i].nameHe, nameEn: rawTeams[i].nameEn, nameEl: rawTeams[i].nameEl,
+  })), displayLocale);
 
   const players: PlayerRow[] = rawPlayers.map((p) => ({
     id: p.id,
