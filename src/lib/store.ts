@@ -1371,6 +1371,24 @@ export async function adminStorageReport(): Promise<StorageReport> {
   return data as StorageReport;
 }
 
+/** ★ db/67: שמות שחקנים באנגלית — חוסרים, משיכה מהספק, החלה. אדמין בלבד. */
+export interface NameGaps { league: string; total: number; missing: number; rows: Array<{ playerId: string; nameHe: string; team: string }> }
+export async function adminNameGaps(league: string): Promise<NameGaps> {
+  const { data, error } = await supabase.rpc('admin_name_gaps', { p_league: league });
+  if (error) throw new Error(errorCode(error));
+  return data as NameGaps;
+}
+export async function adminNamesFetch(league: string): Promise<{ ok: boolean; requests?: number; reason?: string }> {
+  const { data, error } = await supabase.rpc('admin_names_fetch', { p_league: league });
+  if (error) throw new Error(errorCode(error));
+  return data as { ok: boolean; requests?: number };
+}
+export async function adminNamesApply(league: string): Promise<{ ok: boolean; filled?: number; gaps?: number; pending?: number; pairs?: number }> {
+  const { data, error } = await supabase.rpc('admin_names_apply', { p_league: league });
+  if (error) throw new Error(errorCode(error));
+  return data as { ok: boolean; filled?: number; gaps?: number; pending?: number };
+}
+
 /** ★ db/62: מצב כל הליגות במבט אחד. אדמין בלבד. */
 export async function adminLeaguesOverview(): Promise<LeagueOverviewRow[]> {
   const { data, error } = await supabase.rpc('admin_leagues_overview');

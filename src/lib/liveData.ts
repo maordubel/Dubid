@@ -47,6 +47,7 @@ import { codeCandidates, uniqueShorts } from './teamCodes.ts';
 import { onRevision } from './revisionBus.ts';
 import { selectedLeague } from './league.ts';
 import { displayName } from './i18n/names.ts';
+import { setPlayerSearch } from './playerNames.ts';
 import { tr } from './i18n/dict.ts';
 import { type Locale } from './i18n/locales.ts';
 import {
@@ -310,6 +311,8 @@ export function applyLiveSquads(payload: SquadsPayload): boolean {
     nameHe: rawTeams[i].nameHe, nameEn: rawTeams[i].nameEn, nameEl: rawTeams[i].nameEl,
   })), displayLocale);
 
+  /* ★ H02: חיפוש לפי כל השמות האמיתיים, לא רק המוצג */
+  for (const p of rawPlayers) setPlayerSearch(p.id, [p.nameHe, p.nameEn, p.nameEl]);
   const players: PlayerRow[] = rawPlayers.map((p) => ({
     id: p.id,
     externalId: p.externalId,

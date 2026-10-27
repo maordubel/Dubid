@@ -10,7 +10,7 @@
  */
 import { useEffect, useState } from 'react';
 import { chooseLeague, fetchLeagues, selectedLeague, type PublicLeague } from '../lib/league.ts';
-import { adminLeaguesOverview, adminStorageReport, errorMessageHe, type LeagueOverviewRow, type StorageReport } from '../lib/store.ts';
+import { adminLeaguesOverview, adminNameGaps, adminNamesApply, adminNamesFetch, adminStorageReport, errorMessageHe, type LeagueOverviewRow, type NameGaps, type StorageReport } from '../lib/store.ts';
 import { LeagueFlag } from './LeagueIdentity.tsx';
 import { Card } from './AdminConsole.tsx';
 
@@ -132,8 +132,60 @@ export function AdminLeaguesOverview() {
         })}
       </div>
       <button type="button" onClick={load} className="tap mt-3 text-[11.5px] font-bold text-gold">רענון</button>
+      {active && <NamesBox league={active} />}
       <StorageBox />
     </Card>
+  );
+}
+
+/**
+ * ★ db/67: שמות שחקנים באנגלית. מקור: זוג עברית/אנגלית של 365scores לאותו אתלט,
+ *   התאמה ייחודית בתוך הקבוצה. מה שלא הותאם — כאן, לתיקון ידני (שחקני סגל).
+ */
+function NamesBox({ league }: { league: string }) {
+  const [g, setG] = useState<NameGaps | null>(null);
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const load = () => adminNameGaps(league).then(setG, () => setG(null));
+  useEffect(() => { void load(); }, [league]);
+  const run = async () => {
+    setBusy(true); setMsg('');
+    try {
+      const f = await adminNamesFetch(league);
+      if (!f.ok) { setMsg(`לא נשלח: ${f.reason ?? ''}`); return; }
+      setMsg(`נשלחו ${f.requests} בקשות לספק… מחכה לתשובות`);
+      await new Promise((r) => setTimeout(r, 8000));
+      const a = await adminNamesApply(league);
+      setMsg(`מולאו ${a.filled ?? 0} · חסרים ${a.gaps ?? '?'}${a.pending ? ` · ${a.pending} תשובות עוד לא הגיעו — לחצו שוב` : ''}`);
+      await load();
+    } catch (e) { setMsg(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')); } finally { setBusy(false); }
+  };
+  if (!g) return null;
+  return (
+    <div className="mt-3 rounded-xl border border-gold/15 bg-night px-3 py-2.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[12px] font-black text-chalk">שמות שחקנים באנגלית · {league}</span>
+        <span className={`num text-[12px] font-black ${g.missing ? 'text-amber-300' : 'text-gold'}`}>
+          {g.total - g.missing} / {g.total}
+        </span>
+      </div>
+      <p className="mt-1 text-[11px] text-chalk-dim">
+        חסר שם אנגלי → המסך האנגלי מציג את השם העברי (אין TBD). המקור: סגלי 365scores בעברית ובאנגלית, התאמה ייחודית בתוך הקבוצה.
+      </p>
+      <button type="button" disabled={busy} onClick={() => void run()}
+              className="tap mt-2 rounded-lg border border-gold/30 px-3 py-1 text-[11.5px] font-bold text-gold disabled:opacity-50">
+        {busy ? 'עובד…' : 'משיכה מהספק והשלמה'}
+      </button>
+      {msg && <p className="mt-1.5 text-[11px] text-chalk-2" role="status">{msg}</p>}
+      {g.missing > 0 && (
+        <details className="mt-2 text-[11px] text-chalk-dim">
+          <summary className="cursor-pointer font-bold text-chalk-2">{g.missing} בלי שם אנגלי</summary>
+          <ul className="mt-1 max-h-48 overflow-y-auto">
+            {g.rows.map((r) => <li key={r.playerId}><bdi>{r.nameHe}</bdi> · {r.team}</li>)}
+          </ul>
+        </details>
+      )}
+    </div>
   );
 }
 

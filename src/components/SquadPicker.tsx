@@ -7,7 +7,10 @@
  * ובגיליון הבחירה שחקנים מקבוצה תפוסה מוצגים נעולים ולא נעלמים —
  * ככה המשתמש מבין למה, ורואה את מי הוא צריך להחליף.
  */
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { track } from '../lib/analytics.ts';
+import { useDialog } from '../lib/useDialog.ts';
+import { matchesPlayer, normSearch } from '../lib/playerNames.ts';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   teamCoverage, validateLineup, formatIssue, teamBlock,
 } from '../lib/scoring/validate.ts';
@@ -93,6 +96,13 @@ export function SquadPicker(props: SquadPickerProps) {
   /** ★ נייד: לחיצה על שחקן שנבחר פותחת פעולות (קפטן/סגן/החלפה/הסרה). */
   const [acting, setActing] = useState<number | null>(null);
   const [sheet, setSheet] = useState<'teams' | 'formation' | 'budget' | null>(null);
+  /** ★ H03: אותה טיוטה, שתי תצוגות. העדפת ממשק בלבד — לא נכנסת להגשה. */
+  const [view, setViewState] = useState<LineupView>(readView);
+  const setView = (v: LineupView) => {
+    setViewState(v);
+    try { localStorage.setItem(VIEW_KEY, v); } catch { /* פרטי/חסום — לא חשוב */ }
+    track('lineup_view_changed', { mode, view: v });
+  };
 
   /** הודעה חולפת אחת. עדיפה על ערימת התראות שדוחפת את המגרש. */
   const notice = droppedNames && droppedNames.length > 0
@@ -143,9 +153,24 @@ export function SquadPicker(props: SquadPickerProps) {
         formation={lineup.formation}
         canChangeFormation={!!onFormation && formationsFor(rules.constraints.lineupSize).length > 1}
         onOpen={setSheet}
+        view={view}
+        onView={setView}
       />
 
-      {/* ---- המגרש — כל מה שנשאר, ובלי גלילה ---- */}
+      {view === 'list' ? (
+        <LineupList
+          lineup={lineup}
+          pool={pool}
+          teamById={teamById}
+          pricing={pricing}
+          opponentLongByTeam={opponentLongByTeam}
+          opponentShortByTeam={opponentShortByTeam}
+          budgetLine={budget !== undefined ? { budget, spent } : undefined}
+          onPick={(sl) => setPicking(sl)}
+          onOpen={(sl) => setActing(sl.slotNo)}
+        />
+      ) : (
+      /* ---- המגרש — כל מה שנשאר, ובלי גלילה ---- */
       <div className="grid min-h-0 flex-1 place-items-center px-2 py-2">
         {/* ★ שוליים של נייר סביב הדשא.
             בכרטיס העיתון המגרש מודפס על הדף, ומה שהופך אותו
@@ -182,6 +207,7 @@ export function SquadPicker(props: SquadPickerProps) {
           }}
         />
       </div>
+      )}
 
       {/* ---- CTA + הודעות ---- */}
       {/*
@@ -305,7 +331,7 @@ export function SquadPicker(props: SquadPickerProps) {
  * האילוץ היחיד שנוכח בכל לחיצה בדוביד 5.
  */
 function ControlBar({
-  coverage, filled, size, formation, canChangeFormation, onOpen,
+  coverage, filled, size, formation, canChangeFormation, onOpen, view, onView,
 }: {
   coverage: ReturnType<typeof teamCoverage>;
   filled: number;
@@ -313,6 +339,8 @@ function ControlBar({
   formation: string;
   canChangeFormation: boolean;
   onOpen: (sheet: 'teams' | 'formation' | 'budget') => void;
+  view: LineupView;
+  onView: (v: LineupView) => void;
 }) {
   const { t } = useI18n();
   const used = coverage.filter((c) => c.filled).length;
@@ -362,8 +390,27 @@ function ControlBar({
           )}
         </button>
 
-        <div className="grid shrink-0 place-items-center rounded-xl bg-night-2 px-3">
-          <span className="num text-sm font-black text-gold" dir="ltr">{filled}/{size}</span>
+        <div className="flex shrink-0 items-center gap-1 rounded-xl bg-night-2 px-1.5">
+          <span className="num px-1 text-sm font-black text-gold" dir="ltr">{filled}/{size}</span>
+          {/* ★ H03: מגרש / רשימה — אותו הרכב */}
+          <span role="group" aria-label={t('lineup.view.label')} className="flex rounded-lg bg-night p-0.5">
+            {(['pitch', 'list'] as const).map((v) => (
+              <button key={v} type="button" onClick={() => onView(v)} aria-pressed={view === v}
+                      aria-label={t(v === 'pitch' ? 'lineup.view.pitch' : 'lineup.view.list')}
+                      title={t(v === 'pitch' ? 'lineup.view.pitch' : 'lineup.view.list')}
+                      className={`grid size-8 place-items-center rounded-md ${view === v ? 'bg-gold text-night' : 'text-chalk-dim'}`}>
+                {v === 'pitch' ? (
+                  <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <rect x="4" y="3" width="16" height="18" rx="1.5" /><path d="M4 12h16" /><circle cx="12" cy="12" r="2.5" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                    <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </span>
         </div>
       </div>
     </div>
@@ -504,6 +551,89 @@ function BudgetHud({
 }
 
 /* ================================================================== */
+/* תצוגת רשימה (H03)                                                   */
+/* ================================================================== */
+
+type LineupView = 'pitch' | 'list';
+const VIEW_KEY = 'dubid.lineupView';
+function readView(): LineupView {
+  try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'pitch'; } catch { return 'pitch'; }
+}
+
+/**
+ * ★ אותו `lineup` בדיוק — אין state משלה. לחיצה על שורה = אותה פעולה כמו
+ *   על הדמות: ריק → בורר, מלא → גיליון הפעולות (קפטן/סגן/החלפה/הסרה).
+ *   שמות מלאים, 14px, בלי גלילה אופקית.
+ */
+function LineupList({
+  lineup, pool, teamById, pricing, opponentLongByTeam, opponentShortByTeam, budgetLine, onPick, onOpen,
+}: {
+  lineup: Lineup;
+  pool: PoolPlayer[];
+  teamById: Map<string, TeamMeta>;
+  pricing?: boolean;
+  opponentLongByTeam?: Record<string, string>;
+  opponentShortByTeam?: Record<string, string>;
+  budgetLine?: { budget: number; spent: number };
+  onPick: (s: LineupSlot) => void;
+  onOpen: (s: LineupSlot) => void;
+}) {
+  const { t } = useI18n();
+  const byId = useMemo(() => new Map(pool.map((p) => [p.id, p])), [pool]);
+  const order: Record<Position, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
+  const slots = [...lineup.slots].sort((a, b) => order[a.position] - order[b.position] || a.slotNo - b.slotNo);
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2" data-lineup-view="list">
+      {budgetLine && (
+        <p className="mb-1.5 text-[12px] text-chalk-dim">
+          {t('lineup.picker.budget')}: <span className="num font-black text-gold" dir="ltr">
+            {budgetLine.spent.toFixed(1)}M / {budgetLine.budget.toFixed(1)}M
+          </span>
+        </p>
+      )}
+      <ul className="mx-auto max-w-xl divide-y divide-white/5 rounded-2xl border border-gold/15 bg-night-2">
+        {slots.map((sl) => {
+          const p = sl.playerId ? byId.get(sl.playerId) : undefined;
+          const team = sl.teamId ? teamById.get(sl.teamId) : undefined;
+          const opp = sl.teamId ? (opponentLongByTeam?.[sl.teamId] || opponentShortByTeam?.[sl.teamId]) : undefined;
+          return (
+            <li key={sl.slotNo}>
+              <button type="button" onClick={() => (p ? onOpen(sl) : onPick(sl))}
+                      className="tap flex w-full items-center gap-3 px-3 py-2.5 text-start">
+                <span className="w-9 shrink-0 text-[12px] font-black text-gold/90">{t(`lineup.posShort.${sl.position}` as DictKey)}</span>
+                {p ? (
+                  <>
+                    <TeamCrest teamId={sl.teamId} short={team?.short} size={26} className="shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        <bdi className="min-w-0 break-words text-[14px] font-black leading-tight text-chalk">{p.name}</bdi>
+                        {sl.isCaptain && <span className="grid size-5 shrink-0 place-items-center rounded-full bg-flare text-[11px] font-black text-white" aria-label={t('lineup.picker.captainBadge')}>C</span>}
+                        {sl.isVice && <span className="grid size-5 shrink-0 place-items-center rounded-full bg-tekhelet text-[11px] font-black text-white" aria-label={t('lineup.picker.viceBadge')}>V</span>}
+                      </span>
+                      <span className="mt-0.5 block text-[12px] leading-snug text-chalk-dim">
+                        <bdi>{team?.short ?? team?.name}</bdi>
+                        {opp && <> · <bdi>{t('lineup.picker.vs', { opp })}</bdi></>}
+                      </span>
+                    </span>
+                    {pricing && p.price !== undefined && (
+                      <span className="num shrink-0 text-[13px] font-black text-gold" dir="ltr">{p.price}M</span>
+                    )}
+                  </>
+                ) : (
+                  <span className="flex-1 text-[14px] font-bold text-chalk-dim">
+                    + {t('lineup.picker.add', { pos: t(POSITION_KEY[sl.position]) })}
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/* ================================================================== */
 /* גיליון בקרה                                                         */
 /* ================================================================== */
 
@@ -511,11 +641,9 @@ function BudgetHud({
 function ControlSheet({
   title, onClose, children,
 }: { title: string; onClose: () => void; children: ReactNode }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const { t } = useI18n();
+  /* ★ H03: פוקוס נכנס, נשאר, חוזר לפותח; Escape סוגר */
+  const ref = useDialog<HTMLDivElement>(onClose);
 
   return (
     <div
@@ -524,15 +652,22 @@ function ControlSheet({
       role="presentation"
     >
       <div
+        ref={ref}
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
         className="max-h-[70dvh] w-full overflow-y-auto rounded-t-3xl bg-night-2 pb-[env(safe-area-inset-bottom)]
-                   motion-safe:animate-slideUp lg:mx-auto lg:mb-8 lg:max-w-lg lg:rounded-3xl"
+                   outline-none motion-safe:animate-slideUp lg:mx-auto lg:mb-8 lg:max-w-lg lg:rounded-3xl"
       >
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-chalk/25" />
-        <h2 className="px-4 pb-1 pt-3 font-press text-base font-black">{title}</h2>
+        <div className="flex items-start justify-between gap-2 px-4 pb-1 pt-3">
+          <h2 className="min-w-0 font-press text-[17px] font-black leading-tight"><bdi>{title}</bdi></h2>
+          <button type="button" onClick={onClose}
+                  className="tap shrink-0 rounded-full px-3 py-1 text-[13px] font-bold text-chalk-dim">
+            {t('round.close')}
+          </button>
+        </div>
         <div className="pb-4">{children}</div>
       </div>
     </div>
@@ -787,15 +922,15 @@ function PlayerActions({
   return (
     <ControlSheet title={player.name} onClose={onClose}>
       <div className="px-4">
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-chalk-dim">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-chalk-dim">
           <span className="flex items-center gap-1.5">
-            <TeamCrest teamId={slot.teamId} short={team?.short} size={18} />
+            <TeamCrest teamId={slot.teamId} short={team?.short} size={20} />
             <bdi className="font-bold text-chalk-2">{team?.name}</bdi>
           </span>
           <span>· {t(POSITION_KEY[slot.position])}</span>
           {pricing && player.price !== undefined && <span className="num text-gold" dir="ltr">· {player.price}M€</span>}
         </p>
-        {opponent && <p className="mt-1 text-[12px] text-chalk-2"><bdi>{t('lineup.picker.vs', { opp: opponent })}</bdi></p>}
+        {opponent && <p className="mt-1 text-[14px] font-bold text-chalk-2"><bdi>{t('lineup.picker.vs', { opp: opponent })}</bdi></p>}
 
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
@@ -864,6 +999,7 @@ function PlayerSheet({
   remaining?: number;
 }) {
   const { t, locale } = useI18n();
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
   const [query, setQuery] = useState('');
   /**
    * ★ שתי דרכים למצוא שחקן, ושתיהן לגיטימיות:
@@ -892,14 +1028,14 @@ function PlayerSheet({
   }), [lineup, slot.slotNo]);
 
   const candidates = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = normSearch(query);
     return pool
       .filter((p) => p.position === slot.position)
       .filter((p) => (browse === 'teams' && openTeam ? p.teamId === openTeam : true))
       .filter((p) => {
         if (!q) return true;
         const team = teamById.get(p.teamId);
-        return p.name.toLowerCase().includes(q) || (team?.name ?? '').toLowerCase().includes(q);
+        return matchesPlayer(p.id, p.name, q) || normSearch(team?.name ?? '').includes(q);
       })
       // ★ החסימה מגיעה מ-teamBlock, שמחזיר גם *מי* תופס את הקבוצה —
       //   כדי שנוכל לומר "כבר בחרת את אצילי" ולא רק להאפיר בלי הסבר.
@@ -941,6 +1077,7 @@ function PlayerSheet({
       role="presentation"
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={t('lineup.picker.pick', { pos: t(POSITION_KEY[slot.position]) })}
@@ -956,12 +1093,16 @@ function PlayerSheet({
             <h2 className="font-press text-lg font-black">
               {t('lineup.picker.pick', { pos: t(POSITION_KEY[slot.position]) })}
             </h2>
-            <span className="text-xs text-chalk-dim">
-              <span dir="ltr" className="num">{available}</span> {t('lineup.picker.available')}
+            <span className="flex items-center gap-2 text-[12px] text-chalk-dim">
+              <span><span dir="ltr" className="num">{available}</span> {t('lineup.picker.available')}</span>
+              <button type="button" onClick={onClose}
+                      className="tap rounded-full px-2.5 py-1 text-[13px] font-bold text-chalk-dim">
+                {t('round.close')}
+              </button>
             </span>
           </div>
 
-          <p className="mt-1 text-[11px] text-chalk-dim">
+          <p className="mt-1 text-[12px] text-chalk-dim">
             {t('lineup.picker.oneTeamNote')}
             {remaining !== undefined && (
               <>
