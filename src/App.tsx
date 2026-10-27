@@ -72,6 +72,7 @@ import { RoundBar, FixturesBoard, FixturesSheet, type RoundUse, type PicksByTeam
 import { timeOnly } from './lib/roundContext.ts';
 import { leagueTimezone } from './lib/leagueTz.ts';
 import { pulseCounts, usePulse } from './lib/pulse.ts';
+import { distinctShortNames } from './lib/playerNames.ts';
 import { pickName, cleanTeamName, TEAM_NAME_MAX } from './lib/teamNames.ts';
 import { NIGHT_PRESS as NP, MISREGISTER } from './lib/pressPalette.ts';
 import {
@@ -404,22 +405,23 @@ function MainApp() {
     () => TEAMS.map((t) => ({ id: t.id, short: t.short, name: t.nameHe })),
     [liveVersion],
   );
-  const pool: PoolPlayer[] = useMemo(
-    () => PLAYERS.map((p) => ({
+  const pool: PoolPlayer[] = useMemo(() => {
+    /* ★ H02: שני "Cohen" במאגר → "N. Cohen" / "O. Cohen", לא שני כרטיסים זהים. */
+    const shorts = distinctShortNames(PLAYERS.map((p) => ({ id: p.id, name: p.nameHe })));
+    return PLAYERS.map((p) => ({
       id: p.id,
       teamId: p.teamId,
       position: p.position,
       name: p.nameHe,
-      nameShort: shortName(p.nameHe),
+      nameShort: shorts.get(p.id) ?? shortName(p.nameHe),
       /* ★ מספר החולצה נדרש לדמות המצוירת על המגרש. הוא כבר
          היה ב-`PLAYERS` ופשוט לא הועבר הלאה. */
       shirt: p.shirt,
       price: p.price,
       /* ★ D09: זמינות — פצוע/מורחק נשאר בחיר (כלל המוצר), אבל מסומן. */
       status: ((st) => (st === 'injured' || st === 'suspended' ? st : undefined))(playerStatus(p.id)),
-    })),
-    [liveVersion],
-  );
+    }));
+  }, [liveVersion]);
   const priceById = useMemo(
     () => new Map(PLAYERS.map((p) => [p.id, p.price])), [liveVersion]);
 

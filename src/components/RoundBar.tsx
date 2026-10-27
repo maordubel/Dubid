@@ -21,6 +21,7 @@ import {
   type NextRound, type NextRoundLoadState, type RoundFixtureLite,
 } from '../lib/roundContext.ts';
 import { track } from '../lib/analytics.ts';
+import { useDialog } from '../lib/useDialog.ts';
 import { selectedLeague } from '../lib/league.ts';
 
 export type RoundUse = 'build' | 'submitted' | 'locked' | 'live' | 'scoring' | 'published';
@@ -71,7 +72,7 @@ export function RoundBar({
       <div className="mx-auto flex max-w-3xl items-stretch gap-2 px-2.5 py-1.5">
         {/* ---- המחזור ---- */}
         <div className="flex min-w-0 shrink-0 flex-col justify-center pe-2.5 [border-inline-end:1px_solid_rgba(216,178,92,.22)]">
-          <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.14em] text-gold/80">
+          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.12em] text-gold/80">
             {use === 'build' ? t('round.building') : t('round.viewing')}
             {entrants !== undefined && entrants > 0 && (
               <span className="normal-case tracking-normal text-flare">· {t('fomo.barIn', { n: entrants })}</span>
@@ -101,17 +102,17 @@ export function RoundBar({
         <div className="flex min-w-0 flex-1 flex-col justify-center">
           {open ? (
             <>
-              <span className="truncate text-[9px] font-black uppercase tracking-[0.12em] text-chalk-dim">
+              <span className="truncate text-[10px] font-black uppercase tracking-[0.1em] text-chalk-dim">
                 {t('round.locks')} · {tzLabel()}
               </span>
-              <span className="flex min-w-0 items-center gap-1.5">
-                <span className="num truncate text-[13px] font-black text-chalk" dir="auto">
+              <span className="flex min-w-0 flex-wrap items-center gap-x-1.5">
+                <span className="num whitespace-nowrap text-[15px] font-black leading-tight text-chalk" dir="auto">
                   {deadlineLabel(deadlineAt)}
                 </span>
                 {cd && (
                   <span
                     role="timer"
-                    className={`num shrink-0 rounded-sm px-1 py-px text-[10px] font-black ${
+                    className={`num shrink-0 rounded-sm px-1 py-px text-[11px] font-black ${
                       urgent ? 'bg-flare text-white' : 'border border-gold/40 text-gold'}`}
                     dir="auto"
                   >
@@ -312,7 +313,7 @@ export function FixturesBoard({
         <div className="mt-1">
           {days.map((list) => (
             <section key={list[0].id} className="mt-2.5">
-              <h3 className="border-b border-gold/20 pb-1 text-[10.5px] font-black uppercase tracking-[0.12em] text-gold/80">
+              <h3 className="border-b border-gold/20 pb-1 text-[11.5px] font-black uppercase tracking-[0.1em] text-gold/80">
                 {dayHeading(list[0].kickoff)}
               </h3>
               <ul>
@@ -363,7 +364,7 @@ function FixtureRow({ f, picks }: { f: RoundFixtureLite; picks: PicksByTeam }) {
             {timeOnly(f.kickoff)}
           </span>
           {status && (
-            <span className={`text-[9px] font-black ${f.status === 'live' ? 'text-flare' : 'text-chalk-dim'}`}>{status}</span>
+            <span className={`text-[10.5px] font-black ${f.status === 'live' ? 'text-flare' : 'text-chalk-dim'}`}>{status}</span>
           )}
         </span>
         <Side teamId={f.awayTeamId} name={away?.nameHe ?? f.awayTeamId} short={away?.short} picks={mineAway} align="start" />
@@ -379,9 +380,10 @@ function Side({
     <span className={`flex min-w-0 items-center gap-1.5 ${align === 'end' ? 'flex-row-reverse text-end' : ''}`}>
       <TeamCrest teamId={teamId} short={short} size={24} className="shrink-0" />
       <span className="min-w-0">
-        <bdi className="block truncate text-[12.5px] font-bold text-chalk">{name}</bdi>
+        {/* ★ H03: שם ארוך נשבר לשתי שורות במקום להיחתך (hover לא קיים בנייד) */}
+        <bdi className="line-clamp-2 break-words text-[13px] font-bold leading-tight text-chalk" title={name}>{name}</bdi>
         {picks.length > 0 && (
-          <bdi className="block truncate text-[10px] font-black text-gold-light">● {picks.join(', ')}</bdi>
+          <bdi className="block truncate text-[11.5px] font-black text-gold-light" title={picks.join(', ')}>● {picks.join(', ')}</bdi>
         )}
       </span>
     </span>
@@ -396,15 +398,12 @@ export function FixturesSheet({
   onClose, ...board
 }: Parameters<typeof FixturesBoard>[0] & { onClose: () => void }) {
   const { t } = useI18n();
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const ref = useDialog<HTMLDivElement>(onClose);
 
   return (
     <div className="fixed inset-0 z-sheet flex items-end bg-night/70 backdrop-blur-sm" onClick={onClose} role="presentation">
       <div
+        ref={ref}
         role="dialog"
         aria-modal="true"
         aria-label={t('round.fixtures')}
