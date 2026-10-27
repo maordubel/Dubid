@@ -951,7 +951,7 @@ function MainApp() {
      * שהמגרש צריך יותר.
      */
     lineup: (
-      <div className="flex h-full min-h-0 flex-col">
+      <div data-no-promo="" className="flex h-full min-h-0 flex-col pt-[env(safe-area-inset-top)] lg:pt-0">
         <ModeSwitch mode={mode} onChange={setMode} />
         {/* ★ U01: לאיזה מחזור בונים, עד מתי, ומה אחריו — תמיד גלוי, לא רק ב-T-12. */}
         <RoundBar
@@ -1134,6 +1134,9 @@ function MainApp() {
        */
       header={
         tab === 'home' ? undefined : (
+          /* ★ נייד: במסך הבנייה הכותרת חוזרת על פס המחזור ושורת הבקרה (ליגה·מחזור·0/11)
+             ולוקחת ~60px מהמגרש — בטלפון נמוך זה מה שגרם לשורות להתנגש. */
+          <div className={tab === 'lineup' ? 'hidden lg:block' : undefined}>
           <AppHeader
             title={t(SCREEN_TITLE[tab] ?? 'lobby.brand')}
             subtitle={
@@ -1154,6 +1157,7 @@ function MainApp() {
               ) : undefined
             }
           />
+          </div>
         )
       }
     >

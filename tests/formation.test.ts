@@ -22,6 +22,9 @@ const MIN_PITCH_FOR_HUD = 260;
 const ALL = [...FORMATIONS_11, ...FORMATIONS_5].map((f) => f.id);
 /** רוחבי מסך אמיתיים, פחות ריפוד של 24 פיקסלים. */
 const WIDTHS = [320, 360, 390, 414, 430, 768, 1024, 1440].map((w) => w - 24);
+/* ★ במסך הבנייה המגרש נגזר מהגובה (fit="height"): בטלפון נמוך הוא צר בהרבה
+   מרוחב המסך. אלה הרוחבות שנמדדו בפועל (iPhone SE / סרגל כתובות פתוח). */
+const NARROW_PITCH = [204, 220, 236, 252, 280];
 
 /* ---------------- פירוק ---------------- */
 
@@ -331,4 +334,20 @@ test('הרצפה הנתמכת אינה מכשיר אמיתי', () => {
      נכנסים (`minPitchWidth`). */
   assert.ok(MIN_PITCH_FOR_HUD >= 252);
   assert.ok(MIN_PITCH_FOR_HUD <= 280);
+});
+
+test('★ 27.10: מגרש צר (טלפון נמוך) — שורות לא חופפות אנכית, השוער לחיץ', () => {
+  for (const id of ALL) {
+    const layout = layoutFormation(id)!;
+    for (const pitchW of NARROW_PITCH) {
+      if (pitchW < minPitchWidth(layout.maxRow)) continue;
+      const pitchH = pitchW * ratioForFormation(id);
+      const ch = cardHeight(cardWidth(pitchW, layout.maxRow, ratioForFormation(id)));
+      const ys = [...new Set(layout.slots.map((s) => s.y))].sort((a, b) => a - b);
+      for (let i = 1; i < ys.length; i++) {
+        const gap = ((ys[i] - ys[i - 1]) / 100) * pitchH;
+        assert.ok(gap >= ch, `${id} @${pitchW}px: מרווח ${gap.toFixed(0)} < כרטיס ${ch}`);
+      }
+    }
+  }
 });

@@ -90,6 +90,8 @@ export function SquadPicker(props: SquadPickerProps) {
   } = props;
   const { t, locale } = useI18n();
   const [picking, setPicking] = useState<LineupSlot | null>(null);
+  /** ★ נייד: לחיצה על שחקן שנבחר פותחת פעולות (קפטן/סגן/החלפה/הסרה). */
+  const [acting, setActing] = useState<number | null>(null);
   const [sheet, setSheet] = useState<'teams' | 'formation' | 'budget' | null>(null);
 
   /** הודעה חולפת אחת. עדיפה על ערימת התראות שדוחפת את המגרש. */
@@ -174,9 +176,7 @@ export function SquadPicker(props: SquadPickerProps) {
                 pricing={pricing}
                 opponent={slot.teamId ? opponentShortByTeam?.[slot.teamId] : undefined}
                 onPick={() => setPicking(slot)}
-                onClear={() => onClear(slot.slotNo)}
-                onCaptain={() => slot.playerId && onCaptain(slot.playerId)}
-                onVice={onVice && slot.playerId ? () => onVice(slot.playerId) : undefined}
+                onOpen={() => setActing(slot.slotNo)}
               />
             );
           }}
@@ -244,6 +244,26 @@ export function SquadPicker(props: SquadPickerProps) {
                         size={rules.constraints.lineupSize} />
         </ControlSheet>
       )}
+
+      {acting !== null && (() => {
+        const sl = lineup.slots.find((x) => x.slotNo === acting);
+        const pl = sl?.playerId ? pool.find((p) => p.id === sl.playerId) : undefined;
+        if (!sl || !pl) return null;
+        return (
+          <PlayerActions
+            slot={sl}
+            player={pl}
+            team={teamById.get(sl.teamId)}
+            opponent={opponentLongByTeam?.[sl.teamId] || opponentShortByTeam?.[sl.teamId]}
+            pricing={pricing}
+            onClose={() => setActing(null)}
+            onCaptain={() => { onCaptain(pl.id); setActing(null); }}
+            onVice={onVice ? () => { onVice(pl.id); setActing(null); } : undefined}
+            onReplace={() => { setActing(null); setPicking(sl); }}
+            onRemove={() => { onClear(sl.slotNo); setActing(null); }}
+          />
+        );
+      })()}
 
       {picking && (
         <PlayerSheet
@@ -614,7 +634,7 @@ function Row({ label, value, accent = false }: { label: string; value: string; a
  * `TeamCrest` נופל לחולצה רק לשתי הקבוצות שאין להן סמל.
  */
 function SlotCard({
-  slot, player, team, pricing, opponent, onPick, onClear, onCaptain, onVice,
+  slot, player, team, pricing, opponent, onPick, onOpen,
 }: {
   slot: LineupSlot;
   player?: PoolPlayer;
@@ -623,9 +643,8 @@ function SlotCard({
   /** ★ U07: היריבה במחזור ("MHA (H)") — נשארת גלויה גם אחרי הבחירה. */
   opponent?: string;
   onPick: () => void;
-  onClear: () => void;
-  onCaptain: () => void;
-  onVice?: () => void;
+  /** ★ לחיצה על שחקן שנבחר → גיליון פעולות (קפטן, סגן, החלפה, הסרה). */
+  onOpen: () => void;
 }) {
   const { t } = useI18n();
   if (!player) {
@@ -674,9 +693,9 @@ function SlotCard({
         על "מאיזו קבוצה" במבט.
       */}
       <button
-        onClick={onPick}
-        aria-label={t('lineup.picker.swap', { name: player.nameShort })}
-        className="relative grid w-[86%] max-w-[62px] place-items-center"
+        onClick={onOpen}
+        aria-label={t('lineup.picker.actionsFor', { name: player.nameShort })}
+        className="tap-none relative grid w-[86%] max-w-[62px] place-items-center"
       >
         <Footballer
           teamId={slot.teamId}
@@ -720,95 +739,105 @@ function SlotCard({
       </button>
 
       {/* לוחית שם — נייר עם קו מתאר, כמו כותרת קטנה בעיתון */}
-      <bdi
+      <button
+        type="button"
+        onClick={onOpen}
+        tabIndex={-1}
+        aria-hidden="true"
         className="w-full truncate rounded-[2px] px-1 py-px text-center text-[9.5px]
                    font-black leading-[1.4]"
         style={{ background: PRESS.paper, color: PRESS.ink, boxShadow: `0 0 0 1.4px ${PRESS.ink}` }}
       >
-        {player.nameShort}
-      </bdi>
+        <bdi>{player.nameShort}</bdi>
+      </button>
 
       {/*
-        ★★ בחירת הקפטן — מה שהיה שבור כאן ★★
+        ★★ קפטן / סגן / הסרה — בגיליון, לא בשורה מתחת לכרטיס ★★
 
-        הכפתורים היו `opacity-0` והופיעו רק ב-hover או ב-active.
-        במובייל אין hover: המשתמש היה צריך **ללחוץ ולהחזיק** על
-        הכרטיס כדי לגלות שיש בכלל אפשרות לבחור קפטן — ואיש לא
-        מנחש לעשות את זה.
-
-        וזו לא פינה קטנה: הקפטן הוא ההחלטה היחידה במשחק שמכפילה
-        ניקוד. משתמש שלא מצא אותה משחק משחק אחר לגמרי.
-
-        עכשיו: הכפתורים **תמיד גלויים**, יושבים מתחת לכרטיס בשורה
-        משלהם, ומסומנים באות. הכרטיס גדל בעשרים פיקסלים — וזה
-        המחיר הנכון עבור ההחלטה החשובה ביותר בהרכב.
+        שורת C·V·✕ הגדילה כל כרטיס ב-20px. בטלפון נמוך השורות התנגשו:
+        הכפתורים של ההגנה ישבו מעל השוער, ולחיצה על השוער (או על ה-C
+        שלו) פגעה בשחקן הגנה. עכשיו הכרטיס קצר, וכל לחיצה עליו פותחת
+        גיליון פעולות עם כפתורים בגודל אגודל. הסימון (C/V) נשאר על הדמות.
       */}
-      <div className="flex w-full items-center justify-center gap-[3px]">
-        <MarkButton
-          label="C"
-          title={cap ? t('lineup.picker.removeCaptain') : t('lineup.picker.captainX3')}
-          active={cap}
-          activeBg={PRESS.red}
-          onClick={onCaptain}
-        />
-        {onVice && (
-          <MarkButton
-            label="V"
-            title={vice ? t('lineup.picker.removeVice') : t('lineup.picker.vice')}
-            active={vice}
-            activeBg="#2F6FA8"
-            onClick={onVice}
-            disabled={cap}
-          />
-        )}
-        <MarkButton
-          label="✕"
-          title={t('lineup.picker.removePlayer')}
-          active={false}
-          activeBg={PRESS.red}
-          onClick={onClear}
-        />
-      </div>
     </div>
   );
 }
 
 /**
- * כפתור סימון קטן שתמיד גלוי.
- *
- * ★ 22 פיקסלים ולא 44: הוא יושב בתוך כרטיס ברוחב 44–76, ושלושה
- *   כפתורים בגודל מגע מלא היו רחבים מהכרטיס עצמו. השורה כולה
- *   מקבלת גובה מגע דרך המרווח שמסביבה, וזה הפשרה הנכונה —
- *   כפתור שאי אפשר למצוא גרוע מכפתור שקצת קטן.
+ * ★ פעולות על שחקן שנבחר — גיליון תחתון עם כפתורים בגודל אגודל.
+ *   מחליף את שורת C·V·✕ הזעירה שישבה מתחת לכל כרטיס ונדרסה בטלפונים נמוכים.
  */
-function MarkButton({
-  label, title, active, activeBg, onClick, disabled = false,
+function PlayerActions({
+  slot, player, team, opponent, pricing, onClose, onCaptain, onVice, onReplace, onRemove,
 }: {
-  label: string;
-  title: string;
-  active: boolean;
-  activeBg: string;
-  onClick: () => void;
-  disabled?: boolean;
+  slot: LineupSlot;
+  player: PoolPlayer;
+  team?: TeamMeta;
+  opponent?: string;
+  pricing?: boolean;
+  onClose: () => void;
+  onCaptain: () => void;
+  onVice?: () => void;
+  onReplace: () => void;
+  onRemove: () => void;
 }) {
+  const { t } = useI18n();
+  const cap = !!slot.isCaptain;
+  const vice = !!slot.isVice;
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={active}
-      aria-label={title}
-      title={title}
-      className="grid h-[18px] flex-1 place-items-center rounded-[2px] text-[9px]
-                 font-black leading-none transition-colors duration-150
-                 disabled:opacity-30"
-      style={{
-        background: active ? activeBg : 'rgba(239,243,230,.86)',
-        color: active ? '#fff' : PRESS.onGrass,
-        boxShadow: `0 0 0 1.2px ${PRESS.ink}`,
-      }}
-    >
-      {label}
-    </button>
+    <ControlSheet title={player.name} onClose={onClose}>
+      <div className="px-4">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-chalk-dim">
+          <span className="flex items-center gap-1.5">
+            <TeamCrest teamId={slot.teamId} short={team?.short} size={18} />
+            <bdi className="font-bold text-chalk-2">{team?.name}</bdi>
+          </span>
+          <span>· {t(POSITION_KEY[slot.position])}</span>
+          {pricing && player.price !== undefined && <span className="num text-gold" dir="ltr">· {player.price}M€</span>}
+        </p>
+        {opponent && <p className="mt-1 text-[12px] text-chalk-2"><bdi>{t('lineup.picker.vs', { opp: opponent })}</bdi></p>}
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onCaptain}
+            aria-pressed={cap}
+            className={`tap flex min-h-[52px] items-center justify-center gap-2 rounded-2xl font-black ${
+              cap ? 'bg-flare text-white' : 'bg-gold text-night'}`}
+          >
+            <span className="grid size-6 place-items-center rounded-full bg-black/20 text-[12px]">C</span>
+            {cap ? t('lineup.picker.removeCaptain') : t('lineup.picker.makeCaptain')}
+          </button>
+          {onVice ? (
+            <button
+              type="button"
+              onClick={onVice}
+              disabled={cap}
+              aria-pressed={vice}
+              className={`tap flex min-h-[52px] items-center justify-center gap-2 rounded-2xl font-black disabled:opacity-35 ${
+                vice ? 'bg-tekhelet text-white' : 'border border-gold/35 text-chalk'}`}
+            >
+              <span className="grid size-6 place-items-center rounded-full bg-black/20 text-[12px]">V</span>
+              {vice ? t('lineup.picker.removeVice') : t('lineup.picker.makeVice')}
+            </button>
+          ) : <span />}
+          <button
+            type="button"
+            onClick={onReplace}
+            className="tap min-h-[48px] rounded-2xl border border-gold/25 text-[13.5px] font-bold text-chalk"
+          >
+            {t('lineup.picker.replace')}
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="tap min-h-[48px] rounded-2xl border border-flare/40 text-[13.5px] font-bold text-flare"
+          >
+            {t('lineup.picker.removePlayer')}
+          </button>
+        </div>
+      </div>
+    </ControlSheet>
   );
 }
 

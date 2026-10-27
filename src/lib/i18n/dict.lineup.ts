@@ -244,4 +244,9 @@ export const DICT_LINEUP = {
   'fomo.modeWith': { he: 'אתם ועוד {n}', en: 'You + {n} others', el: 'Εσύ + {n} ακόμη' },
   'fomo.revealed': { he: '{n} הרכבים נחשפו — מי בחר מה', en: '{n} lineups revealed — see who picked what', el: '{n} ενδεκάδες αποκαλύφθηκαν — δες ποιος διάλεξε τι' },
   'fomo.barIn': { he: '{n} בפנים', en: '{n} in', el: '{n} μέσα' },
+  'lineup.picker.actionsFor': { he: '{name} — קפטן, החלפה או הסרה', en: '{name} — captain, replace or remove', el: '{name} — αρχηγός, αλλαγή ή αφαίρεση' },
+  'lineup.picker.makeCaptain': { he: 'קפטן', en: 'Make captain', el: 'Αρχηγός' },
+  'lineup.picker.makeVice': { he: 'סגן', en: 'Make vice', el: 'Βοηθός' },
+  'lineup.picker.replace': { he: 'החלפת שחקן', en: 'Replace player', el: 'Αλλαγή παίκτη' },
+  'lineup.picker.tapForCaptain': { he: 'לחצו על שחקן כדי לבחור קפטן', en: 'Tap a player to pick your captain', el: 'Πάτα έναν παίκτη για αρχηγό' },
 } as const satisfies Record<string, Entry>;

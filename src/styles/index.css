@@ -443,6 +443,8 @@
 /* ── הבאנר הפנימי של דובל טים (אותו עיצוב כמו FAN LIFE) ── */
 .promo{position:fixed;inset-inline:0;inset-block-end:calc(var(--nav-h, 64px) + env(safe-area-inset-bottom, 0px) + 8px);z-index:45;margin-inline:auto;inline-size:320px;block-size:50px;max-inline-size:calc(100vw - 16px);transform:translateY(160%);opacity:0;pointer-events:none;transition:transform .45s var(--ease),opacity .45s var(--ease)}
 .promo[data-up]{transform:translateY(0);opacity:1;pointer-events:auto}
+/* ★ לא מעל החלטה: במסך בניית ההרכב הבאנר מוסתר (הוא כיסה את כפתור הנעילה). */
+body:has([data-no-promo]) .promo{display:none}
 .promo-link{display:block;inline-size:100%;block-size:100%;border:2px solid var(--ink);background:var(--paper);box-shadow:3px 3px 0 var(--ink);overflow:hidden}
 .promo-link img{display:block;inline-size:100%;block-size:100%;object-fit:cover}
 .promo-x{position:absolute;inset-block-start:-14px;inset-inline-end:-6px;inline-size:44px;block-size:44px;display:grid;place-items:center;background:none;border:0;padding:0;cursor:pointer;font:700 0/0 sans-serif}

@@ -33,7 +33,7 @@ const reduce = () => typeof matchMedia === 'function' && matchMedia('(prefers-re
 /** DUBID is one page: every screen is the same "other" page. */
 const PAGE: Page = pageOf(null, '/dubid');
 /** nothing slides up over a decision */
-const busy = () => !!document.querySelector('dialog[open],[role="dialog"],[aria-modal="true"]');
+const busy = () => !!document.querySelector('dialog[open],[role="dialog"],[aria-modal="true"],[data-no-promo]');
 
 async function loadDoc(): Promise<PromoDoc> {
   try {

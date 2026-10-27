@@ -399,7 +399,7 @@ export function PublicBoard({ rulesByMode, userId }: {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-3">
+    <div className="mx-auto w-full max-w-3xl space-y-3 px-3 pb-6 pt-3">
       {/* ── מאסטהד הליגה: דגל, שם, מחזור, חי ── */}
       <header className="relative overflow-hidden rounded-2xl border px-3 py-3"
               style={{ borderColor: NP.rule, background: `linear-gradient(110deg, #100D0A 55%, ${accent}26)` }}>
