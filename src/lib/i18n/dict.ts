@@ -30,7 +30,7 @@ const CORE = {
 
   /* ---- לובי ---- */
   'lobby.edition':    { he: 'שנה ב׳ · גיליון', en: 'Year 2 · Issue', el: 'Έτος 2 · Τεύχος' },
-  'lobby.entrants':   { he: 'משתתפים', en: 'players', el: 'παίκτες' },
+  'lobby.entrants':   { he: 'מאמנים', en: 'managers', el: 'προπονητές' },
   'lobby.brand':      { he: 'דוביד', en: 'DUBID', el: 'DUBID' },
   'lobby.edition2':   { he: 'מהדורת המחזור', en: 'Gameweek edition', el: 'Έκδοση αγωνιστικής' },
   'lobby.modes.aria': { he: 'בחירת מצב משחק', en: 'Choose a game mode', el: 'Επιλογή τρόπου παιχνιδιού' },
@@ -119,7 +119,8 @@ const CORE = {
   'gate.final':     { he: 'הסתיים', en: 'Final', el: 'Ολοκληρώθηκε' },
   'gate.prep':      { he: 'בהכנה', en: 'Preparing', el: 'Σε προετοιμασία' },
   'gate.locksIn':   { he: 'ננעל בעוד {t}', en: 'Locks in {t}', el: 'Κλειδώνει σε {t}' },
-  'gate.entrants':  { he: '{n} משתתפים', en: '{n} players', el: '{n} παίκτες' },
+  'gate.entrants':  { he: '{n} מאמנים', en: '{n} managers', el: '{n} προπονητές' },
+  'gate.lineups':   { he: '{n} הרכבים', en: '{n} lineups', el: '{n} ενδεκάδες' },
   'gate.close':     { he: 'סגירה', en: 'Close', el: 'Κλείσιμο' },
   'gate.switch':    { he: 'החלפת ליגה', en: 'Switch league', el: 'Αλλαγή πρωταθλήματος' },
   'gate.dur.d':     { he: '{d} י׳ {h} ש׳', en: '{d}d {h}h', el: '{d}μ {h}ω' },

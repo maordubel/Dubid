@@ -71,7 +71,7 @@ import { describeRound } from './lib/roundPhase.ts';
 import { RoundBar, FixturesBoard, FixturesSheet, type RoundUse, type PicksByTeam } from './components/RoundBar.tsx';
 import { timeOnly } from './lib/roundContext.ts';
 import { leagueTimezone } from './lib/leagueTz.ts';
-import { usePulse } from './lib/pulse.ts';
+import { pulseCounts, usePulse } from './lib/pulse.ts';
 import { pickName, cleanTeamName, TEAM_NAME_MAX } from './lib/teamNames.ts';
 import { NIGHT_PRESS as NP, MISREGISTER } from './lib/pressPalette.ts';
 import {
@@ -568,7 +568,7 @@ function MainApp() {
   // ★ מספר המשתתפים מגיע מהשרת (`gameweek_state.entrants`) ולא
   //   מאורך הרשימה: לפני הנעילה `entries` מחזירה רק את ההגשה של
   //   הקורא, ולכן הלובי היה מציג "1 משתתף" גם כשיש חמישים.
-  const entrantCount = gwState?.entrants ?? listEntries(gwCode()).length;
+  const entrantCount = gwState?.managers ?? gwState?.entrants ?? listEntries(gwCode()).length;
 
   /* ★ סדר ההצהרות כאן אינו סגנוני.
      `growthCtx` קורא את שתי ההגשות, ולכן הן חייבות להיות מוצהרות
@@ -614,7 +614,7 @@ function MainApp() {
       recommended: m === 'five' && !entryFull && !entryFive
         && luByMode.five.lineup.slots.every((sl) => !sl.playerId)
         && luByMode.full.lineup.slots.every((sl) => !sl.playerId),
-      entrants: pulse ? (m === 'five' ? pulse.five : pulse.full) : undefined,
+      entrants: pulseCounts(pulse, m)?.managers,
     } as LobbyMode;
   }), [entryByMode, luByMode, rulesByMode, hasRealResults, results, t, entryFull, entryFive, pulse]);
 
@@ -1013,7 +1013,7 @@ function MainApp() {
           saving={!entry ? lu.saving : false}
           savedAt={!entry ? lu.savedAt : null}
           picked={lu.filled}
-          entrants={pulse ? (mode === 'five' ? pulse.five : pulse.full) : undefined}
+          entrants={pulseCounts(pulse, mode)?.managers}
           onOpenFixtures={() => setShowFixtures(true)}
         />
         <div className="flex min-h-0 flex-1">

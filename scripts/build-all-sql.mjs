@@ -83,6 +83,7 @@ const FILES = [
   ['63_readiness_freshness.sql','כשירות: "נתונים באיחור" רק כשהקליטה אמורה לרוץ צפוף'],
   ['64_audit_quiet.sql','★ היומן רושם שינויים, לא דופק: עדכון זהה לא נרשם; היסטוריית pg_cron נשמרת 7 ימים'],
   ['65_pulse_and_savings.sql','דופק מחזור (FOMO), מערך מוסתר עד נעילה, חיסכון realtime/יומן, בוטים ידניים מפוזרים, דוח אחסון'],
+  ['66_honest_counts_next_round.sql','מונים מוגדרים (managers/lineups), next_round באותה עונה'],
 ];
 
 const bar = '=' .repeat(69);

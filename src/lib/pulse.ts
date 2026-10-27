@@ -10,8 +10,15 @@ import { useEffect, useState } from 'react';
 import { supabase } from './supabase.ts';
 import { onRevision } from './revisionBus.ts';
 
+/** ★ db/66: managers = זהויות ייחודיות עם הגשה תקפה; lineups = הגשות (משתמש בשני המצבים = 2). */
+export interface PulseCounts { managers: number; lineups: number }
+
 export interface RoundPulse {
+  schemaVersion?: number;
   code: string;
+  overall?: PulseCounts;
+  byMode?: { five: PulseCounts; full: PulseCounts };
+  window24h?: PulseCounts;
   total: number;
   five: number;
   full: number;
@@ -19,6 +26,21 @@ export interface RoundPulse {
   lastHour: number;
   recent: Array<{ name: string; mode: 'five' | 'full'; at: string }>;
   at: string;
+}
+
+/**
+ * המונה בהגדרה אחת: כולל או לפי מצב. מסד ישן (v1) → הרכבים בלבד, ו-managers
+ * רק לפי מצב (אילוץ הרכב אחד למשתמש למצב) — לא ממציאים ספירת אנשים כוללת.
+ */
+export function pulseCounts(p: RoundPulse | null | undefined, mode?: 'five' | 'full'): PulseCounts | null {
+  if (!p) return null;
+  if (mode) {
+    const v2 = p.byMode?.[mode];
+    if (v2) return v2;
+    const n = mode === 'five' ? p.five : p.full;
+    return { managers: n, lineups: n };
+  }
+  return p.overall ?? null;
 }
 
 const cache = new Map<string, { at: number; value: RoundPulse | null }>();
