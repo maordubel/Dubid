@@ -36,13 +36,18 @@ import {
 import { Leaderboard } from './Leaderboard.tsx';
 import type { RuleSet } from '../lib/scoring/rules.ts';
 import { TeamCrest } from './TeamCrest.tsx';
-import { NIGHT_PRESS as NP } from '../lib/pressPalette.ts';
+import { NIGHT_PRESS as NP, MISREGISTER } from '../lib/pressPalette.ts';
 import { useI18n } from '../lib/i18n/index.tsx';
 import { leagueTimezone } from '../lib/leagueTz.ts';
 import { LOCALE_META, type Locale } from '../lib/i18n/locales.ts';
-import { TEAM_BY_ID } from '../data/squads.ts';
-import { localizedRoundLabel } from '../data/fixtures.ts';
+import { TEAM_BY_ID, PLAYERS } from '../data/squads.ts';
+import { GAMEWEEK, localizedRoundLabel } from '../data/fixtures.ts';
 import type { DictKey } from '../lib/i18n/dict.ts';
+import { displayName } from '../lib/i18n/names.ts';
+import { leagueName, selectedLeague } from '../lib/league.ts';
+import { useLeagues } from './LeagueGate.tsx';
+import { LeagueFlag, leagueAccent } from './LeagueIdentity.tsx';
+import type { I18nNames, LeagueStandings, StandingsRow } from '../lib/store.ts';
 
 /** ממלא {placeholders} בצמתי React — כדי לשמור על עיצוב חלקי משפט. */
 function fill(text: string, parts: Record<string, ReactNode>): ReactNode[] {
@@ -53,6 +58,23 @@ function fill(text: string, parts: Record<string, ReactNode>): ReactNode[] {
 }
 
 /* ------------------------------------------------------------------ */
+
+/** שם קבוצה בשפת המשתמש: הסגל החי → השמות מהשרת → עברית. */
+function teamLabel(code: string, names: I18nNames | undefined, he: string | undefined, locale: Locale): string {
+  const tm = TEAM_BY_ID.get(code);
+  if (tm) return displayName({ he: tm.nameHe, en: tm.nameEn, el: tm.nameEl }, locale);
+  return displayName({ he: names?.he ?? he, en: names?.en, el: names?.el }, locale) || code;
+}
+
+let playerIndex: Map<string, (typeof PLAYERS)[number]> | null = null;
+function playerLabel(code: string, he: string | null, locale: Locale): string {
+  if (!playerIndex || playerIndex.size !== PLAYERS.length) {
+    playerIndex = new Map(PLAYERS.map((p) => [p.id, p]));
+  }
+  const p = playerIndex.get(code);
+  if (p) return displayName({ he: p.nameHe, en: p.nameEn, el: p.nameEl }, locale);
+  return he ?? code;
+}
 
 function kickoffLabel(iso: string, locale: Locale): string {
   const d = new Date(iso);
@@ -74,8 +96,8 @@ const STATUS_KEY: Record<BoardFixture['status'], DictKey | null> = {
 
 function Fixture({ f }: { f: BoardFixture }) {
   const { t, locale } = useI18n();
-  const homeName = TEAM_BY_ID.get(f.home)?.nameHe ?? f.homeNameHe;
-  const awayName = TEAM_BY_ID.get(f.away)?.nameHe ?? f.awayNameHe;
+  const homeName = teamLabel(f.home, f.homeNames, f.homeNameHe, locale);
+  const awayName = teamLabel(f.away, f.awayNames, f.awayNameHe, locale);
   const live = f.status === 'live';
   const done = f.status === 'finished';
   const off = f.status === 'postponed' || f.status === 'abandoned';
@@ -132,7 +154,7 @@ function Fixture({ f }: { f: BoardFixture }) {
 /* ------------------------------------------------------------------ */
 
 function RecapCard({ recap }: { recap: Recap }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   /* ★ מי שלא הגיש מקבל תוכן, לא ריק. */
   if (!recap.hasEntry) {
     if (!recap.top) return null;
@@ -190,7 +212,7 @@ function RecapCard({ recap }: { recap: Recap }) {
           <li key={label} className="flex items-baseline justify-between gap-2 text-[12px]">
             <span className="text-chalk-dim">{label}</span>
             <span className="min-w-0 flex-1 truncate text-end font-bold text-chalk">
-              <bdi>{pick.nameHe ?? pick.player}</bdi>
+              <bdi>{playerLabel(pick.player, pick.nameHe, locale)}</bdi>
             </span>
             <span className="num shrink-0 font-black text-gold">{pick.points}</span>
           </li>
@@ -201,23 +223,116 @@ function RecapCard({ recap }: { recap: Recap }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* המסך                                                                */
+/* טבלת הליגה הרשמית                                                    */
 /* ------------------------------------------------------------------ */
 
+/**
+ * ★ טבלה אמיתית גם בנייד: 5 עמודות שנכנסות ב-360px (מיקום, קבוצה, משחקים,
+ *   הפרש, נקודות). נ-ת-ה מופיע מ-sm. אין גלילה אופקית ואין כרטיסים —
+ *   טבלת ליגה נקראת בעמודות, וזו כל הסיבה שהיא טבלה.
+ */
+function Standings({ st, accent }: { st: LeagueStandings; accent: string }) {
+  const { t, locale } = useI18n();
+  if (st.rows.length === 0) {
+    return (
+      <p className="rounded-2xl border border-gold/12 bg-night-2 px-4 py-8 text-center text-[13px] text-chalk-dim">
+        {t('board.st.none')}
+      </p>
+    );
+  }
+  const updated = st.updatedAt
+    ? new Date(st.updatedAt).toLocaleString(LOCALE_META[locale].intl, {
+        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: leagueTimezone(),
+      })
+    : null;
+  const n = st.rows.length;
+
+  return (
+    <section aria-label={t('board.st.caption')}>
+      <table className="w-full table-fixed border-collapse text-[12.5px]">
+        <caption className="sr-only">{t('board.st.caption')}</caption>
+        <thead>
+          <tr className="border-b text-[10.5px] font-black uppercase tracking-wide text-chalk-dim"
+              style={{ borderColor: NP.rule }}>
+            <th scope="col" className="w-7 py-2 text-center">{t('board.st.pos')}</th>
+            <th scope="col" className="py-2 text-start">{t('board.st.team')}</th>
+            <th scope="col" className="w-8 py-2 text-center">{t('board.st.played')}</th>
+            <th scope="col" className="hidden w-16 py-2 text-center sm:table-cell">{t('board.st.wdl')}</th>
+            <th scope="col" className="w-10 py-2 text-center">{t('board.st.gd')}</th>
+            <th scope="col" className="w-10 py-2 text-center">{t('board.st.pts')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {st.rows.map((r: StandingsRow) => {
+            const name = teamLabel(r.team, r.names, r.names?.he ?? undefined, locale);
+            /* ★ קווי מקום: פסגה ותחתית — בלי לנחש מקומות אירופה/ירידה, שמשתנים לפי ליגה. */
+            const top = r.position === 1;
+            const bottom = r.position === n;
+            return (
+              <tr key={r.team} className="border-b" style={{ borderColor: 'rgba(216,178,92,.10)' }}>
+                <td className="py-2 text-center">
+                  <span className="num inline-grid h-5 min-w-5 place-items-center rounded-sm px-1 text-[11px] font-black"
+                        style={top ? { background: accent, color: '#fff' }
+                             : bottom ? { boxShadow: 'inset 0 0 0 1px rgba(196,52,47,.6)', color: '#E0574F' }
+                             : { color: '#BFB49A' }}>
+                    {r.position}
+                  </span>
+                </td>
+                <td className="py-2">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <TeamCrest teamId={r.team} short={name} size={18} />
+                    <span className="min-w-0 truncate font-bold text-chalk"><bdi>{name}</bdi></span>
+                  </div>
+                </td>
+                <td className="num py-2 text-center text-chalk-2">{r.played}</td>
+                <td className="num hidden py-2 text-center text-chalk-dim sm:table-cell">
+                  {r.won}-{r.drawn}-{r.lost}
+                </td>
+                <td className="num py-2 text-center text-chalk-2">{r.goalDiff > 0 ? `+${r.goalDiff}` : r.goalDiff}</td>
+                <td className="num py-2 text-center text-[14px] font-black text-gold">{r.points}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {updated && (
+        <p className="mt-2 text-[10.5px] text-chalk-dim">{t('board.st.updated', { t: updated })}</p>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* המסך — מרכז הליגה                                                   */
+/* ------------------------------------------------------------------ */
+
+type Section = 'ranking' | 'results' | 'table';
+
+/**
+ * ★ שלושה מדורים, מדור אחד גלוי. הדירוג (התחרות שלנו) ראשון — בשבילו
+ *   באים. התוצאות והטבלה הן העולם האמיתי של אותה ליגה, ורק שלה: המחזור
+ *   נשלח בקוד שלו, כך שמשתמש ביוון לא רואה את ליגת העל.
+ * ★ בזמן מחזור חי, "תוצאות" נפתח ראשון — זה מה שאדם בודק באמצע משחק.
+ */
 export function PublicBoard({ rulesByMode, userId }: {
   rulesByMode: Record<'full' | 'five', RuleSet>;
   userId?: string;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const leagues = useLeagues();
   const [board, setBoard] = useState<Board | null>(null);
   const [recap, setRecap] = useState<Recap | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [section, setSection] = useState<Section | null>(null);
 
   useEffect(() => {
     let alive = true;
+    /* ★ הקוד של המחזור הנוכחי בליגה שנבחרה. ריק (לפני הטעינה החיה) → השרת
+       מחזיר את הליגה הראשית, כמו קודם. */
+    const code = GAMEWEEK.id && GAMEWEEK.id !== 'gw-4' ? GAMEWEEK.id : undefined;
 
     const load = () => {
-      void publicBoard()
+      void publicBoard(code)
         .then(async (b) => {
           if (!alive) return;
           setBoard(b);
@@ -253,36 +368,103 @@ export function PublicBoard({ rulesByMode, userId }: {
   }
 
   const gw = board.gameweek;
+  const code = board.league ?? selectedLeague() ?? leagues.find((l) => l.primary)?.code ?? '';
+  const league = leagues.find((l) => l.code === code);
+  const accent = leagueAccent(code);
+  const active: Section = section ?? (gw?.live ? 'results' : 'ranking');
+  const uncounted = board.fixtures.filter((f) => f.status === 'postponed' || f.status === 'abandoned').length;
+  const standings: LeagueStandings = board.standings ?? { league: code, source: null, updatedAt: null, rows: [] };
+
+  const tabs: Array<[Section, DictKey]> = [
+    ['ranking', 'board.hub.ranking'],
+    ['results', 'board.hub.results'],
+    ['table', 'board.hub.table'],
+  ];
 
   return (
     <div className="space-y-3">
-      {recap && <RecapCard recap={recap} />}
-
-      {/* ★ הטבלה כאן היא טבלת המתמודדים בתחרות שלנו — לא טבלת ליגת העל. */}
-      <section className="-mx-4">
-        <Leaderboard rulesByMode={rulesByMode} userId={userId} />
-      </section>
-      {gw && (
-        <section>
-          <div className="mb-2 flex items-baseline justify-between gap-2">
-            <h3 className="font-press text-base font-black text-chalk">
-              {t('board.pb.results')} · {localizedRoundLabel(gw.label, gw.number)}
-            </h3>
-            {gw.live && (
-              <span className="flex items-center gap-1 text-[11px] font-black text-flare">
-                <span className="inline-block size-1.5 animate-pulse rounded-full bg-flare" />
-                {t('board.pb.liveRound')}
-              </span>
+      {/* ── מאסטהד הליגה: דגל, שם, מחזור, חי ── */}
+      <header className="relative overflow-hidden rounded-2xl border px-3 py-3"
+              style={{ borderColor: NP.rule, background: `linear-gradient(110deg, #100D0A 55%, ${accent}26)` }}>
+        <span aria-hidden="true" className="absolute inset-y-0 start-0 w-[3px]" style={{ background: accent }} />
+        <div className="flex items-center gap-3">
+          <span className="h-[26px] w-[39px] shrink-0 overflow-hidden rounded-[4px] ring-1 ring-white/30">
+            <LeagueFlag country={code} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate font-press text-[19px] font-black leading-tight text-chalk"
+                style={{ textShadow: MISREGISTER }}>
+              {league ? leagueName(league, locale) : ''}
+            </h2>
+            {gw && (
+              <p className="text-[11.5px] font-bold text-chalk-2">
+                {localizedRoundLabel(gw.label, gw.number)}
+                {gw.entries > 0 && <span className="text-chalk-dim"> · {t('gate.entrants', { n: gw.entries })}</span>}
+              </p>
             )}
           </div>
-          <ul className="space-y-1.5">
-            {board.fixtures.map((f) => (
-              <Fixture key={`${f.home}-${f.away}`} f={f} />
-            ))}
-          </ul>
-        </section>
+          {gw?.live && (
+            <span className="flex shrink-0 items-center gap-1 text-[11px] font-black text-flare">
+              <span className="inline-block size-1.5 animate-pulse rounded-full bg-flare" />
+              {t('board.pb.liveRound')}
+            </span>
+          )}
+        </div>
+      </header>
+
+      {/* ── מדורים ── */}
+      <div role="tablist" aria-label={t('board.hub.aria')}
+           className="grid grid-cols-3 gap-1 rounded-xl border p-1" style={{ borderColor: NP.rule }}>
+        {tabs.map(([id, label]) => {
+          const on = id === active;
+          return (
+            <button key={id} type="button" role="tab" aria-selected={on}
+                    onClick={() => setSection(id)}
+                    className={`tap min-h-[44px] rounded-lg text-[13px] font-black transition-colors
+                                ${on ? 'text-night' : 'text-chalk-2 hover:text-chalk'}`}
+                    style={on ? { background: '#D8B25C' } : undefined}>
+              {t(label)}
+            </button>
+          );
+        })}
+      </div>
+
+      {active === 'ranking' && (
+        <div role="tabpanel" className="space-y-3">
+          {recap && <RecapCard recap={recap} />}
+          {/* ★ הטבלה כאן היא טבלת המתמודדים בתחרות שלנו — לא טבלת הליגה. */}
+          <section className="-mx-4">
+            <Leaderboard rulesByMode={rulesByMode} userId={userId} />
+          </section>
+        </div>
       )}
 
+      {active === 'results' && (
+        <div role="tabpanel">
+          {gw && board.fixtures.length > 0 ? (
+            <>
+              <ul className="space-y-1.5">
+                {board.fixtures.map((f) => (
+                  <Fixture key={`${f.home}-${f.away}`} f={f} />
+                ))}
+              </ul>
+              {uncounted > 0 && (
+                <p className="mt-2 text-[11.5px] text-armband">{t('board.hub.uncounted', { n: uncounted })}</p>
+              )}
+            </>
+          ) : (
+            <p className="rounded-2xl border border-gold/12 bg-night-2 px-4 py-8 text-center text-[13px] text-chalk-dim">
+              {t('board.hub.noFixtures')}
+            </p>
+          )}
+        </div>
+      )}
+
+      {active === 'table' && (
+        <div role="tabpanel">
+          <Standings st={standings} accent={accent} />
+        </div>
+      )}
     </div>
   );
 }

@@ -43,7 +43,7 @@ import {
 } from '../lib/identity.ts';
 import type { Placement } from '../lib/growth.ts';
 import { BrandWord, HouseAdPreview } from './HouseAds.tsx';
-import { ruleOverrides, currentGameweekCode, liveDataVersion } from '../lib/liveData.ts';
+import { globalRuleOverrides as ruleOverrides, currentGameweekCode, liveDataVersion } from '../lib/liveData.ts';
 import { RULE_KEYS, readRule } from '../lib/ruleOverrides.ts';
 import { CONTENT_KEYS } from '../lib/content.ts';
 import { resolveRules, DUBID_5X5 } from '../lib/scoring/rules.ts';
@@ -889,15 +889,15 @@ export function AdminRules() {
     <div className="space-y-4">
       <Card
         title="איזון הניקוד"
-        hint="שינוי נשמר מיד ומשפיע על כל המשתמשים. ערך ריק = ברירת המחדל של המשחק."
+        hint="שינוי נשמר מיד וחל על כל מחזור שייפתח מעכשיו. ערך ריק = ברירת המחדל של המשחק."
       >
-        {/* ★ האזהרה הזו חייבת להיות כאן ולא בתיעוד.
-            הדירוג מחושב מחדש מהחוקים הנוכחיים, ולכן שינוי אחרי
-            פרסום משנה מספרים שאנשים כבר ראו. */}
+        {/* ★ D02 (db/58): החוקים מוקפאים לכל מחזור ברגע שהוא נפתח. שינוי כאן
+            לא נוגע במחזור פתוח/חי ולא במחזורים שפורסמו. */}
         <p className="mb-3 rounded-xl border border-armband/30 bg-armband/5 px-3 py-2
                       text-[11.5px] leading-snug text-chalk-2">
-          שינוי אחרי שהתוצאות פורסמו מחשב את הדירוג מחדש — כולל
-          מחזורים שאנשים כבר ראו. עדיף לאזן בין מחזורים.
+          המחזור הפתוח והמחזורים שפורסמו ננעלו על החוקים שהיו בתוקף כשנפתחו.
+          שינוי כאן יחול מהמחזור הבא שייפתח. תיקון חריג למחזור פתוח — רק
+          דרך game.admin_refreeze_gameweek_rules, עם סיבה ביומן.
         </p>
 
         {groups.map(([group, items]) => (

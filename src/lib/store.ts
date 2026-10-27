@@ -1901,9 +1901,11 @@ export async function adminResolveSquadConflict(
  *    והמוצר אמר לו עד היום "אין לך מה לעשות כאן".
  */
 
+export interface I18nNames { he?: string | null; en?: string | null; el?: string | null }
+
 export interface BoardFixture {
-  home: string; homeNameHe: string;
-  away: string; awayNameHe: string;
+  home: string; homeNameHe: string; homeNames?: I18nNames;
+  away: string; awayNameHe: string; awayNames?: I18nNames;
   kickoff: string;
   status: 'scheduled' | 'live' | 'finished' | 'postponed' | 'abandoned';
   homeGoals: number | null;
@@ -1916,7 +1918,21 @@ export interface TableRow {
   goalsFor: number; goalsAgainst: number; goalDiff: number; points: number;
 }
 
+/** טבלת הליגה הרשמית (db/57). rows ריק = אין טבלה רשמית — המסך מסתיר. */
+export interface StandingsRow {
+  position: number; team: string; names: I18nNames; short: string | null;
+  played: number; won: number; drawn: number; lost: number;
+  goalsFor: number; goalsAgainst: number; goalDiff: number; points: number;
+  form: string | null;
+}
+export interface LeagueStandings {
+  league: string; source: string | null; updatedAt: string | null; rows: StandingsRow[];
+}
+
 export interface PublicBoard {
+  /** הליגה של המחזור (db/57). חסר בשרת ישן. */
+  league?: string;
+  standings?: LeagueStandings;
   gameweek: {
     code: string; number: number; label: string | null;
     status: string; lockAt: string; live: boolean; entries: number;

@@ -63,6 +63,7 @@ import { createSofascore } from '../../../../ecosystem/feed/sofascore.ts';
 import { createScores365 } from '../../../../ecosystem/feed/scores365.ts';
 import { reconcileFixtures } from '../../../../ecosystem/feed/reconcile.ts';
 import type { Alert, Fixture, RawBlob, Snapshot, SquadMeta } from '../../../../ecosystem/feed/types.ts';
+import { parse365Standings, standingsUrl } from './standings.ts';
 
 /** מזהה בנייה — מופיע ב-ping, כדי לדעת איזו גרסה באמת פרוסה. */
 const BUILD = 'dubid-ingest/4';
@@ -191,6 +192,7 @@ function browserHeaders(target: string): HeadersInit {
 /** ניסיון יחיד, בלי מראות ובלי ניסיון חוזר. מחזיר גם קוד ומצב. */
 export async function probeOnce(
   url: string,
+  sampleBytes = 220,
 ): Promise<{ url: string; status: number; ok: boolean; sample?: string; error?: string }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 12_000);
@@ -198,7 +200,7 @@ export async function probeOnce(
     const res = await fetch(url, { signal: ctrl.signal, headers: browserHeaders(url) });
     clearTimeout(timer);
     const text = await res.text();
-    return { url, status: res.status, ok: res.ok, sample: text.slice(0, 220) };
+    return { url, status: res.status, ok: res.ok, sample: text.slice(0, sampleBytes) };
   } catch (err) {
     clearTimeout(timer);
     return { url, status: 0, ok: false, error: String(err) };
@@ -350,9 +352,11 @@ Deno.serve(async (req) => {
           `https://webws.365scores.com/web/games/fixtures/?appTypeId=5&langId=2&competitions=${comp}`,
         ];
 
+    /* ★ דגימה ארוכה (עד 60KB) כדי לאמת מבנה תשובה חדש לפני שכותבים לו מתאם. */
+    const sampleBytes = Math.min(Math.max(Number(body?.sampleBytes) || 220, 220), 60_000);
     const results = [];
     for (const u of targets) {
-      results.push(await probeOnce(u));
+      results.push(await probeOnce(u, sampleBytes));
       await sleep(400);
     }
     return json({ ok: true, version: BUILD, probe: results });
@@ -516,6 +520,27 @@ Deno.serve(async (req) => {
           p_dry_run: false,
         });
         done.push({ reprice: priceReport });
+      }
+    }
+
+    /* ── 4c. טבלת הליגה הרשמית ────────────────────────────────
+       ★ בקשה אחת לליגה. המסד מסרב לטבלה חלקית/לא ממופה, כך שמבנה
+         תשובה שהשתנה = אין טבלה במסך, לעולם לא טבלה שגויה. כישלון כאן
+         לא מפיל את הקליטה. */
+    if (league) {
+      try {
+        const comp = Number(body?.competition365 ?? Deno.env.get('SCORES365_COMPETITION') ?? 42);
+        const rows = parse365Standings(await http(standingsUrl(comp)), comp);
+        if (rows.length > 0) {
+          const { data: st, error: stErr } = await supabase.rpc('ingest_set_standings', {
+            p_league: league, p_source: 'scores365', p_rows: rows,
+          });
+          done.push({ standings: stErr ? `error: ${stErr.message}` : st });
+        } else {
+          done.push({ standings: 'no_rows' });
+        }
+      } catch (err) {
+        done.push({ standings: `error: ${String(err)}` });
       }
     }
 

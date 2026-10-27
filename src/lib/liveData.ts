@@ -125,6 +125,11 @@ interface LiveState {
    * מפה ריקה = ברירות המחדל שבקוד. ראו `lib/ruleOverrides.ts`.
    */
   rules: Record<string, number>;
+  /** ★ ה-overrides הגלובליים של היום (לוח הניהול עורך אותם). `rules` = מה שחל
+   *  על המחזור הנוכחי: התמונה המוקפאת שלו (db/58), ואם אין — אלה. */
+  globalRules: Record<string, number>;
+  /** hash החוקים המוקפאים של המחזור הנוכחי; null = אין תמונה. */
+  rulesHash: string | null;
   /** מונה הגרסה של המסד. עולה בכל שינוי דאטה, בכל מקור. */
   revision: number;
   /** מונה מקומי — עולה בכל החלפה בפועל. יעד ל-`useMemo`. */
@@ -139,6 +144,8 @@ const state: LiveState = {
   gameweek: '',
   clubCap: 1,
   rules: {},
+  globalRules: {},
+  rulesHash: null,
   revision: 0,
   version: 0,
   fromServer: false,
@@ -165,9 +172,19 @@ export function currentGameweekCode(): string {
   return state.gameweek;
 }
 
-/** ה-override-ים של חוקי הניקוד. מפה ריקה = ברירות המחדל. */
+/** ה-override-ים שחלים על המחזור הנוכחי (מוקפאים, db/58). מפה ריקה = ברירות המחדל. */
 export function ruleOverrides(): Record<string, number> {
   return state.rules;
+}
+
+/** ה-override-ים הגלובליים של היום — מה שיחול על המחזור **הבא** שייפתח. ללוח הניהול. */
+export function globalRuleOverrides(): Record<string, number> {
+  return state.globalRules;
+}
+
+/** hash החוקים המוקפאים של המחזור הנוכחי (או null). */
+export function frozenRulesHash(): string | null {
+  return state.rulesHash;
 }
 
 export function liveDataStatus(): { fromServer: boolean; loading: boolean; error: string | null } {
@@ -393,7 +410,8 @@ export function hydrateLiveData(force = false): Promise<void> {
       /* ★ חוקי הניקוד לא מפילים כלום אם הם נכשלו: מפה ריקה
          פירושה "ברירות המחדל שבקוד", כלומר המשחק של אתמול. */
       if (!rulesRes.error && rulesRes.data && typeof rulesRes.data === 'object') {
-        state.rules = rulesRes.data as Record<string, number>;
+        state.globalRules = rulesRes.data as Record<string, number>;
+        if (!state.rulesHash) state.rules = state.globalRules;
       }
 
       if (squadsRes.error) throw squadsRes.error;
@@ -429,6 +447,21 @@ export function hydrateLiveData(force = false): Promise<void> {
         const n = Number(cap.data);
         if (!cap.error && Number.isInteger(n) && n >= 1 && n <= 3 && n !== state.clubCap) {
           state.clubCap = n;
+          changed = true;
+        }
+
+        /* ★ D02: החוקים המוקפאים של המחזור (db/58). כך הניקוד הזמני על המסך
+           זהה לניקוד הרשמי, גם אם האדמין שינה איזון אחרי שהמחזור נפתח.
+           אין תמונה / פונקציה חסרה → ה-overrides של היום, כמו קודם. */
+        const fr = await supabase.rpc('gameweek_rules_for', { p_gw_code: target });
+        if (mine !== generation) return;
+        const frozen = !fr.error && fr.data && typeof fr.data === 'object' ? fr.data as { overrides?: unknown; hash?: unknown } : null;
+        const nextRules = frozen && frozen.overrides && typeof frozen.overrides === 'object'
+          ? frozen.overrides as Record<string, number> : state.globalRules;
+        const nextHash = frozen && typeof frozen.hash === 'string' ? frozen.hash : null;
+        if (nextHash !== state.rulesHash || nextRules !== state.rules) {
+          state.rules = nextRules;
+          state.rulesHash = nextHash;
           changed = true;
         }
       }

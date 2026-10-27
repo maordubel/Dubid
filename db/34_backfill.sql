@@ -37,6 +37,8 @@
 
 BEGIN;
 
+/* ★ db/56 מוסיף league_id לטבלת ההחזרה — DROP כדי שהרצה חוזרת של RUN-ALL לא תיפול */
+DROP FUNCTION IF EXISTS game.gameweek_needs_backfill();
 CREATE OR REPLACE FUNCTION game.gameweek_needs_backfill()
 RETURNS TABLE (code TEXT, number INT)
 LANGUAGE sql STABLE
