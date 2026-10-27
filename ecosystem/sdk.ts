@@ -174,6 +174,16 @@ export async function arrived(client: SharedClient | null | undefined, app: AppI
   return { touch: t, claim: c }
 }
 
+/**
+ * What the visit did (contract v9, ecosystem/sql/0006): the target app reports ONE outcome for the newest handoff it
+ * claimed for this person in the last 24 hours — `lineup_submitted`, `arena_joined`, `arena_created`. Only the name of
+ * the outcome is kept. Fire and forget: a visit that cannot be counted is still a good visit.
+ */
+export type Outcome = 'lineup_submitted' | 'arena_joined' | 'arena_created' | 'life_continued' | string
+export function reportOutcome(client: SharedClient | null | undefined, app: AppId, outcome: Outcome) {
+  return call<{ recorded: boolean }>(client, 'handoff_outcome', { p_app: app, p_outcome: outcome })
+}
+
 /** The exact ids of a FAN LIFE club across the universe (core.teams uuid + provider refs). */
 export function clubIdentity(client: SharedClient | null | undefined, slug: string) {
   return call<{ club: string; team_id: string; name_en: string | null; name_he: string | null; refs: Record<string, string> }>(client, 'club_identity', { p_slug: slug })

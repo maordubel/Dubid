@@ -1,6 +1,6 @@
 {
   "$comment": "Dubel Team football ecosystem contract. This file is IDENTICAL in all four repos (fanlife, Offsides, Dubid, The-Worker). Change it in one repo => copy the same bytes to the other three in the same round. Bump version + updated.",
-  "version": 8,
+  "version": 9,
   "updated": "2026-10-27",
   "plan": "Project doc: claude/ecosystem-master-plan.md (claude.ai Project 'Football Master')",
   "supabase": {
@@ -221,12 +221,14 @@
       "shared.club_identity(slug)": "anon — the exact ids of a FAN LIFE club: core.teams uuid + every provider ref (ecosystem/sql/0003_club_ids.sql)",
       "shared.fixtures(club, from, to)": "anon — the neutral fixture list (core.fixtures), optionally for one FAN LIFE club; window ≤120 days (ecosystem/sql/0004_fixtures.sql)",
       "shared.fixture_signals_since(cursor, limit)": "service_role — what changed (created / kickoff_moved / status / score / removed) after a game's own cursor",
-      "core.publish_fixture(...) / core.unpublish_fixture(id)": "service_role — the one write path into core.fixtures; DUBID publishes from a trigger on core.weekly_matches (db/49)"
+      "core.publish_fixture(...) / core.unpublish_fixture(id)": "service_role — the one write path into core.fixtures; DUBID publishes from a trigger on core.weekly_matches (db/49)",
+      "shared.handoff_outcome(app, outcome)": "authenticated — the target app records what the visit did (lineup_submitted / arena_joined / arena_created) on the newest handoff it claimed for this person in 24 h (ecosystem/sql/0006_handoff_outcome.sql, v9)"
     },
     "views": {
       "shared.v_handoff_funnel": "service_role only",
       "shared.v_app_reach": "service_role only",
-      "shared.v_moment_funnel": "service_role only"
+      "shared.v_moment_funnel": "service_role only",
+      "shared.v_handoff_outcome": "service_role only — created / claimed / completed per route, moment and outcome"
     },
     "handoffParam": "eh"
   },

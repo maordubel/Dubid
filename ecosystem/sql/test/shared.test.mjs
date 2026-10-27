@@ -15,6 +15,7 @@ const sql2 = readFileSync(join(here, '..', '0002_universe.sql'), 'utf8')
 const sql3 = readFileSync(join(here, '..', '0003_club_ids.sql'), 'utf8')
 const sql4 = readFileSync(join(here, '..', '0004_fixtures.sql'), 'utf8')
 const sql5 = readFileSync(join(here, '..', '0005_feed_cache.sql'), 'utf8')
+const sql6 = readFileSync(join(here, '..', '0006_handoff_outcome.sql'), 'utf8')
 const db = new PGlite()
 
 await db.exec(`
@@ -225,4 +226,20 @@ assert.ok(await denied('anon', `select shared.feed_cache_read('x')`))
 assert.ok(await denied('authenticated', `select shared.feed_cache_begin('x','h',1,'a')`))
 assert.ok(await denied('anon', `select * from core.feed_cache`))
 console.log('feed cache: ok')
+// 0006 · what the visit did
+await db.exec(sql6)
+await db.exec(sql6) // idempotent
+assert.ok(await denied('anon', `select shared.handoff_outcome('fanlife','lineup_submitted')`))
+assert.equal((await one('authenticated', A, `select shared.handoff_outcome('fanlife','lineup_submitted')`)).error, 'no_handoff')
+assert.equal((await one('authenticated', B, `select shared.handoff_outcome('fanlife','Bad Outcome')`)).error, 'bad_outcome')
+assert.equal((await one('authenticated', B, `select shared.handoff_outcome('nope','lineup_submitted')`)).error, 'bad_app')
+r = await one('authenticated', B, `select shared.handoff_outcome('fanlife','lineup_submitted')`)
+assert.equal(r.ok, true); assert.equal(r.recorded, true)
+r = await one('authenticated', B, `select shared.handoff_outcome('fanlife','arena_joined')`)
+assert.equal(r.recorded, false, 'one outcome per visit: the first stands')
+r = (await db.query(`select outcome, count(*)::int n from shared.handoff where outcome is not null group by 1`)).rows
+assert.deepEqual(r, [{ outcome: 'lineup_submitted', n: 1 }])
+assert.ok(await denied('anon', `select * from shared.v_handoff_outcome`))
+assert.ok(await denied('authenticated', `select * from shared.v_handoff_outcome`))
+console.log('handoff outcome: ok')
 console.log('ALL OK')
