@@ -79,22 +79,27 @@ END $$;
 -- 3. דטרמיניזם — אותו מחזור, אותו הרכב
 -- ---------------------------------------------------------------------
 DO $$
-DECLARE a TEXT; b TEXT;
+DECLARE a TEXT; b TEXT; v_bot UUID;
 BEGIN
+  -- ★ db/60: הבוטים הם משתתפי הבית הקבועים של הליגה.
+  SELECT ul.user_id INTO v_bot FROM game.user_lineups ul
+    JOIN game.house_players hp ON hp.user_id = ul.user_id
+    JOIN game.gameweeks g ON g.id = ul.gameweek_id AND g.code = 'gw-2'
+   WHERE ul.mode = 'full' ORDER BY hp.slot LIMIT 1;
+
   SELECT string_agg(s.player_id::TEXT, ',' ORDER BY s.slot_no) INTO a
     FROM game.user_lineups ul
-    JOIN game.users u ON u.id = ul.user_id
     JOIN game.user_lineup_slots s ON s.lineup_id = ul.id
-   WHERE u.username = 'bot_gw-2_full_1';
+   WHERE ul.user_id = v_bot AND ul.mode = 'full';
 
   PERFORM game.admin_remove_bots('gw-2', 'full');
   PERFORM game.admin_add_bots('gw-2', 'full', 4);
 
   SELECT string_agg(s.player_id::TEXT, ',' ORDER BY s.slot_no) INTO b
     FROM game.user_lineups ul
-    JOIN game.users u ON u.id = ul.user_id
     JOIN game.user_lineup_slots s ON s.lineup_id = ul.id
-   WHERE u.username = 'bot_gw-2_full_1';
+   WHERE ul.user_id = v_bot AND ul.mode = 'full';
+  IF a IS NULL THEN RAISE EXCEPTION 'FAIL 3: לא נמצא הרכב בוט'; END IF;
 
   /* ★ `random()` היה הופך כל הרצה חוזרת לתוצאה אחרת — ואת
      הבדיקה הזו לחסרת ערך. הזרע נגזר מקוד המחזור ומהאינדקס. */

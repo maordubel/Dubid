@@ -77,6 +77,7 @@ const FILES = [
   ['57_league_tables.sql','★ טבלת ליגה רשמית לכל ליגה; league_table רק לראשית; public_board לפי ליגת המחזור'],
   ['58_gameweek_rules.sql','★ חוקי ניקוד מוקפאים לכל מחזור (D02): gameweek_rules, gameweek_rules_for, תיקון חריג מתועד'],
   ['59_recap_by_mode.sql','★ סיכום מחזור לפי פורמט, מקום רשמי ומקום קודם (D12)'],
+  ['60_house_players.sql','★ משתתפי בית: 6–13 קבועים בכל ליגה ומצב, הרכב אמין ושונה בכל מחזור'],
 ];
 
 const bar = '=' .repeat(69);

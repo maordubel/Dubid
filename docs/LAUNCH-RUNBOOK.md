@@ -12,6 +12,8 @@ pg_cron */10  game.ingest_tick()      → לכל ליגה פעילה: המסד �
 pg_cron */5   game.lifecycle_tick()   → draft→open→locked→live→scoring→published
                                          → פרסום: dubid-score-gameweek → publish_scored_gameweek
                                          → :05 — מחזור חופף; השלמה לליגה הנכונה
+pg_cron 2-59/5 game.house_tick()      → משתתפי בית (db/60): מתכנן 6–13 לכל ליגה ומצב
+                                         במחזור פתוח, ומגיש כל אחד בזמן שלו
 ```
 
 **מי בוחר איזה מחזור נסרק:** המסד, לא הספק. המחזור הוותיק ביותר שלא פורסם בכל
@@ -65,4 +67,5 @@ SELECT code, status, is_current, lock_at FROM game.gameweeks
 | בחירת מחזור (db/56) | אין צורך בנסיגה: בלי מחזור פעיל → נופל לספק כמו קודם |
 | טבלת ליגה (db/57) | `DELETE FROM core.league_standings WHERE league_id = …` → המדור מוסתר |
 | חוקים מוקפאים (db/58) | לא מוחקים תמונות. מחזור בלי תמונה ננקד כמו קודם |
+| משתתפי בית (db/60) | `SELECT game.admin_house_set(false);` (או כפתור בלוח הניהול) — מפסיק הגשות חדשות; קיימות נשארות |
 | מסכים | גרסת Vercel קודמת — ה-API תואם לאחור |

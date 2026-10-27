@@ -1533,6 +1533,25 @@ export async function adminAddBots(
   return (data ?? { added: 0, skipped: 0, problems: [] }) as BotResult;
 }
 
+export interface HouseReport {
+  config: { enabled: boolean; min_per_round: number; max_per_round: number; updated_at: string };
+  roster: Record<string, number>;
+  rounds: Array<{ code: string; status: string; mode: 'five' | 'full'; planned: number;
+                  submitted: number; nextDue: string | null; problems: string[] }>;
+}
+
+/** משתתפי הבית (db/60): מצב לכל מחזור פעיל. אדמין בלבד. */
+export async function adminHouseReport(): Promise<HouseReport> {
+  const { data, error } = await supabase.rpc('admin_house_report');
+  if (error) throw new Error(errorCode(error));
+  return data as HouseReport;
+}
+
+export async function adminHouseSet(enabled: boolean): Promise<void> {
+  const { error } = await supabase.rpc('admin_house_set', { p_enabled: enabled });
+  if (error) throw new Error(errorCode(error));
+}
+
 export async function adminRemoveBots(
   gameweekId: string, mode?: 'full' | 'five',
 ): Promise<number> {
