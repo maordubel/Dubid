@@ -107,16 +107,31 @@ export function leagueEnterable(l: Pick<PublicLeague, 'live' | 'currentGameweek'
  * ------------------------------------------------------------------ */
 const INCOMING = 'ui.league.incoming';
 const CODE = /^[A-Z][A-Z0-9_]{1,31}$/;
+/** `?from=fanlife&club=<slug>` — the FAN LIFE club page the visitor came from (back_to_story, ecosystem contract). */
+const BACK = 'ui.fanlife.back';
+const CLUB = /^[a-z0-9][a-z0-9-]{1,59}$/;
+export const FANLIFE_SITE = 'https://fanlife.dubelteam.com';
+/** The club the visitor came from on FAN LIFE this tab, or null. */
+export function backToClub(): string | null {
+  try { const v = sessionStorage.getItem(BACK); return v && CLUB.test(v) ? v : null; } catch { return null; }
+}
+/** `hapoel-tel-aviv` → `Hapoel Tel Aviv` (the slug is the only thing the link carries). */
+export function clubLabel(slug: string): string {
+  return slug.split('-').map((w) => (w === 'aek' ? 'AEK' : w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
+}
 
 /** Read and strip `?league=` before the first render. Never throws. */
 export function takeIncomingLeague(): void {
   try {
     const u = new URL(window.location.href);
     const code = u.searchParams.get('league');
-    if (code === null) return;
-    u.searchParams.delete('league');
+    const from = u.searchParams.get('from');
+    const club = u.searchParams.get('club');
+    if (code === null && from === null && club === null) return;
+    for (const k of ['league', 'from', 'club']) u.searchParams.delete(k);
     window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash);
-    if (CODE.test(code)) sessionStorage.setItem(INCOMING, code);
+    if (code !== null && CODE.test(code)) sessionStorage.setItem(INCOMING, code);
+    if (from === 'fanlife' && club !== null && CLUB.test(club)) sessionStorage.setItem(BACK, club);
   } catch { /* a blocked store simply ignores the link */ }
 }
 export function incomingLeague(): string | null {

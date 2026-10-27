@@ -36,6 +36,7 @@
  * ★ הכתבות עלו מעל העמודות בכוונה: הפעולה קודמת להקשר. משתמש
  *   שנכנס כדי להגיש לא צריך לעבור דרך הטבלה שלו בדרך.
  */
+import { BackToFanLife } from './BackToFanLife.tsx';
 import type { CSSProperties, ReactNode } from 'react';
 import { useI18n } from '../lib/i18n/index.tsx';
 import type { DictKey } from '../lib/i18n/dict.ts';
@@ -162,7 +163,9 @@ export function Lobby({
           ) : null}
         </div>
 
-        <div className="relative z-[2] flex justify-end px-3 pt-1">
+        <div className="relative z-[2] flex items-center justify-between gap-2 px-3 pt-1">
+          <BackToFanLife />
+          <span className="flex-1" />
           <LanguagePicker />
         </div>
 

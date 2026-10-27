@@ -119,6 +119,7 @@ const CORE = {
   'incoming.came':  { he: 'הגעת בשביל {league}', en: 'You came for the {league}', el: 'Ήρθες για το {league}' },
   'incoming.switch':{ he: 'לעבור לליגה הזו', en: 'Switch to it', el: 'Άλλαξε σε αυτό' },
   'incoming.stay':  { he: 'להישאר כאן', en: 'Stay here', el: 'Μείνε εδώ' },
+  'incoming.back':  { he: 'חזרה ל{club} ב-FAN LIFE', en: 'Back to {club} on FAN LIFE', el: 'Πίσω στον {club} στο FAN LIFE' },
 } as const satisfies Record<string, Entry>;
 
 /** המילון המלא = ליבה + מודולי אזור (כל אחד בקובץ משלו כדי למנוע התנגשויות). */
