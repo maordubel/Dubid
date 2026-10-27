@@ -27,13 +27,13 @@ import {
   adminImportFixtures, adminSetRule, adminClearRule,
   adminContentList, adminSetContent, adminDeleteContent,
   adminAnalytics, adminDataQuality, adminAudit,
-  adminAddBots, adminRemoveBots, adminActivity, adminActivityStats,
+  adminAddBots, adminRemoveBots, adminActivity, adminActivityStats, adminHouseReport, adminHouseSet,
   adminAds, adminUpsertAd, adminSetAdEnabled, adminDeleteAd, adminAdStats,
   adminLeads, adminFunnel, adminDaily, adminLeadsCsv,
   finishGameweek, reopenGameweek,
   errorMessageHe,
   type GameweekRow, type ImportReport, type ContentRow,
-  type BotResult, type ActivityRow, type ActivityStats,
+  type BotResult, type HouseReport, type ActivityRow, type ActivityStats,
   type Analytics, type DataIssue, type AuditRow,
   type AdminAd, type AdStats, type LeadRow, type Funnel, type DailyRow,
 } from '../lib/store.ts';
@@ -1549,20 +1549,51 @@ export function HourChart({ data }: { data: Array<{ hour: number; n: number }> }
 
 /**
  * ═══════════════════════════════════════════════════════════════
- * ★ בוטים
+ * ★ משתתפי הבית (db/60)
  * ═══════════════════════════════════════════════════════════════
  *
- * מחזור ראשון עם שני משתתפים אינו תחרות, וטבלה עם שתי שורות
- * אומרת למשתמש החדש "אין כאן אף אחד". בוטים פותרים בעיית השקה
- * אמיתית — ובתנאי אחד: **שהם מסומנים.**
- *
- * הם חוזרים לכל מסך עם `isBot`, ומופיעים בטבלה עם תג "בוט".
- * הסתרה של זה הייתה הופכת כלי לגיטימי להטעיה, ולכן אין כאן
- * מתג "בוטים סמויים" — לא כי שכחנו.
- *
- * ★ והם משחקים לפי אותם חוקים: שחקן אחד מכל קבוצה, גודל הרכב,
- *   ותקציב בדוביד 5. בוט פטור מהתקציב היה מנצח בגלל שהוא בוט.
+ * 18 משתתפים קבועים לכל ליגה; בכל מחזור ומצב 6–13 מהם מגישים לבד
+ * (pg_cron, כל 5 דק׳), בזמנים מפוזרים ולפי אותם חוקים כמו כולם.
+ * הם לא מסומנים בשום מסך — הדגל נשאר רק במסד, והמדדים מנכים אותם.
+ * כאן: מצב, מתג כיבוי, והגשה ידנית מיידית למחזור הנוכחי.
  */
+function HouseStatus() {
+  const [rep, setRep] = useState<HouseReport | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const load = () => { adminHouseReport().then(setRep, (e: Error) => setErr(e.message)); };
+  useEffect(load, []);
+  if (err) return <p className="mb-3 text-[11.5px] text-flare">{err}</p>;
+  if (!rep) return <p className="mb-3 text-[11.5px] text-chalk-dim">טוען…</p>;
+  return (
+    <div className="mb-3 space-y-2 text-[11.5px] text-chalk-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={rep.config.enabled ? 'font-black text-gold-light' : 'font-black text-flare'}>
+          {rep.config.enabled ? 'פעיל' : 'כבוי'}
+        </span>
+        <span className="num">{rep.config.min_per_round}–{rep.config.max_per_round} למחזור</span>
+        <span className="num text-chalk-dim">
+          {Object.entries(rep.roster).map(([k, n]) => `${k} ${n}`).join(' · ')}
+        </span>
+        <button className={`${ghost} py-1`}
+                onClick={() => { void adminHouseSet(!rep.config.enabled).then(load, (e: Error) => setErr(e.message)); }}>
+          {rep.config.enabled ? 'כיבוי' : 'הפעלה'}
+        </button>
+      </div>
+      {rep.rounds.length > 0 && (
+        <ul className="space-y-1">
+          {rep.rounds.map((r) => (
+            <li key={`${r.code}-${r.mode}`} className="num">
+              {r.code} · {r.mode === 'five' ? 'דוביד 5' : 'דוביד 11'} · {r.submitted}/{r.planned}
+              {r.nextDue && r.status === 'open' && ` · הבא ${new Date(r.nextDue).toLocaleString('he-IL', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}`}
+              {r.problems.length > 0 && <span className="text-flare"> · {r.problems.length} תקלות: {r.problems[0]}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function AdminBots({ act: outer }: { act?: ReturnType<typeof useAction> }) {
   /* ★ הקומפוננטה מחזיקה `useAction` משלה כשלא קיבלה אחת.
      היא הייתה תלויה בזו של מסך הפעילות, ולכן לא הייתה יכולה
@@ -1576,9 +1607,10 @@ export function AdminBots({ act: outer }: { act?: ReturnType<typeof useAction> }
 
   return (
     <Card
-      title="הוספת בוטים למחזור"
-      hint="בוט מגיש הרכב בדיוק כמו משתתף רגיל: שם מאמן, שם קבוצה, שחקן אחד מכל קבוצה, ותקציב בדוביד 5. הוא מסומן בתג «בוט» בכל מקום שבו הוא מופיע."
+      title="משתתפי הבית"
+      hint="מצב לכל מחזור, כיבוי, והגשה מיידית למחזור הנוכחי."
     >
+      <HouseStatus />
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={mode}
