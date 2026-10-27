@@ -48,9 +48,13 @@ SELECT code, status, is_current, lock_at FROM game.gameweeks
 | `source_disagreement` | שני מקורות חולקים על תוצאה | לבדוק ידנית; המחזור מחכה |
 | `changed_after_publish` | נתון זז אחרי פרסום | לא משנה ניקוד לבד. תיקון — רק במכוון |
 | `stuck_in_scoring` | 24 שעות ב-scoring | לקרוא את ההתרעה החוסמת שמעליה |
+| באנר Supabase "read-only mode" | תוכנית Free: מסד > 500MB או דיסק > 95% — **אין הגשות, אין קליטה** | `SELECT pg_size_pretty(pg_database_size('postgres'));` אם מתחת ל-500MB: ב-SQL Editor `set session characteristics as transaction read write; set default_transaction_read_only = 'off';` · אחרת לפנות נתונים או לשדרג ל-Pro |
 
 תיקון חוקים חריג למחזור פתוח: `game.admin_refreeze_gameweek_rules(code, reason)` —
 אדמין בלבד, לפני פרסום, נרשם ביומן עם הסיבה.
+
+**לוח הניהול (db/62):** לשונית «ליגות» = מצב ארבע הליגות (אנשים / בית בנפרד). הפס בראש הלוח
+קובע על איזו ליגה עובדים — מחזורים, סגלים, תוצאות ויצירת מחזור (קידומת הליגה).
 
 ## 4. פריסה
 
