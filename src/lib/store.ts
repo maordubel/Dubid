@@ -40,6 +40,7 @@
  * ההרכב. במשחק תחרותי זה בלתי נסלח — ולכן המסך מחכה לתשובה.
  */
 import { selectedLeague } from './league.ts';
+import { onRevision } from './revisionBus.ts';
 import type { Lineup, PlayerPerformance, TeamOutcome } from './scoring/types.ts';
 import { supabase } from './supabase.ts';
 import { hydrateAds } from './adsStore.ts';
@@ -327,7 +328,9 @@ export function hydrate(gameweekId: string, force = false): Promise<void> {
         throw entriesRes.error ?? resultsRes.error;
       }
 
-      snapshot.entries = (entriesRes.data ?? []) as LineupEntry[];
+      /* ★ db/64: לפני הנעילה גם המערך של אחרים מוסתר (null) — נרמול למחרוזת ריקה. */
+      snapshot.entries = ((entriesRes.data ?? []) as LineupEntry[]).map((e) => (
+        e.lineup && e.lineup.formation == null ? { ...e, lineup: { ...e.lineup, formation: '' } } : e));
       const r = normalizeResults(resultsRes.data, gameweekId);
       snapshot.results = { ...snapshot.results, [gameweekId]: r };
       snapshot.gameweek = (stateRes.data ?? null) as GameweekState | null;
@@ -373,23 +376,22 @@ export function startRealtime(gameweekId: string): () => void {
      חיבר אליו גם את `core.player_match_stats` ואת
      `game.user_lineups`. כלומר: כל עדכון תוצאה במהלך המחזור
      מעלה מונה אחד, וכל מכשיר פתוח מרענן — פעם אחת. */
-  const channel = supabase
-    .channel('dubid-live')
-    .on('postgres_changes', { event: '*', schema: 'game', table: 'data_revision' },
-        () => { void hydrate(gameweekId, true); })
-    .on('postgres_changes', { event: '*', schema: 'game', table: 'user_lineups' },
-        () => { void hydrate(gameweekId, true); })
-    .on('postgres_changes', { event: '*', schema: 'game', table: 'gameweeks' },
-        () => { void hydrate(gameweekId, true); })
-    .on('postgres_changes', { event: '*', schema: 'core', table: 'player_match_stats' },
-        () => { void hydrate(gameweekId, true); })
-    .subscribe();
+  /* ★ ערוץ אחד מנותב (lib/revisionBus): רק שינויים שמשנים הגשות/תוצאות/מצב
+     המחזור. סטטיסטיקת שחקנים מושכת רק כשהמחזור נעול/חי/בניקוד — במחזור פתוח
+     היא מגיעה מליגות ומחזורים אחרים ולא משנה כלום על המסך. */
+  const stopRev = onRevision(['user_lineups', 'gameweeks', 'weekly_matches'],
+    () => { void hydrate(gameweekId, true); }, 2500);
+  const stopStats = onRevision(['player_match_stats'], () => {
+    const st = snapshot.gameweek?.status;
+    if (st && ['locked', 'live', 'scoring', 'published'].includes(st)) void hydrate(gameweekId, true);
+  }, 4000);
 
   const stopPoll = startLivePolling(gameweekId);
 
   return () => {
     stopPoll();
-    void supabase.removeChannel(channel);
+    stopRev();
+    stopStats();
   };
 }
 
@@ -1351,6 +1353,20 @@ export interface LeagueOverviewRow {
   lastRun: null | { at: string | null; status: string; gw: string };
 }
 
+export interface StorageReport {
+  databaseBytes: number;
+  quotaBytes: number;
+  tables: Array<{ table: string; bytes: number }>;
+  revision: number;
+}
+
+/** ★ db/64: גודל המסד מול מכסת החינם. */
+export async function adminStorageReport(): Promise<StorageReport> {
+  const { data, error } = await supabase.rpc('admin_storage_report');
+  if (error) throw new Error(errorCode(error));
+  return data as StorageReport;
+}
+
 /** ★ db/62: מצב כל הליגות במבט אחד. אדמין בלבד. */
 export async function adminLeaguesOverview(): Promise<LeagueOverviewRow[]> {
   const { data, error } = await supabase.rpc('admin_leagues_overview');
@@ -1538,6 +1554,9 @@ export async function adminAudit(limit = 40): Promise<AuditRow[]> {
 
 export interface BotResult {
   added: number;
+  /** ★ db/64: מפוזר — עד מתי ייכנסו. */
+  spread?: boolean;
+  until?: string;
   skipped: number;
   problems: Array<{ bot: number; issue: string }>;
 }
@@ -1551,8 +1570,9 @@ export interface BotResult {
 export async function adminAddBots(
   gameweekId: string, mode: 'full' | 'five', count: number,
 ): Promise<BotResult> {
+  // ★ db/64: ברירת המחדל — מפוזר על פני השעות הקרובות, לא באותה שנייה.
   const { data, error } = await supabase.rpc('admin_add_bots', {
-    p_gw_code: gameweekId, p_mode: mode, p_count: count,
+    p_gw_code: gameweekId, p_mode: mode, p_count: count, p_spread: true,
   });
   if (error) throw new Error(errorCode(error));
   await refresh();

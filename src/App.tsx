@@ -70,6 +70,7 @@ import { describeRound } from './lib/roundPhase.ts';
 import { RoundBar, FixturesBoard, FixturesSheet, type RoundUse, type PicksByTeam } from './components/RoundBar.tsx';
 import { timeOnly } from './lib/roundContext.ts';
 import { leagueTimezone } from './lib/leagueTz.ts';
+import { usePulse } from './lib/pulse.ts';
 import { pickName, cleanTeamName, TEAM_NAME_MAX } from './lib/teamNames.ts';
 import { NIGHT_PRESS as NP, MISREGISTER } from './lib/pressPalette.ts';
 import {
@@ -572,6 +573,9 @@ function MainApp() {
    * שני הכרטיסים בלובי. המצב נגזר מאותם מקורות שכבר קיימים —
    * הטיוטה, ההגשה, והתוצאות. אין כאן state חדש.
    */
+  /* ★ FOMO (db/64): כמה כבר בפנים — אותו מקור ללובי, למצבים ולמסך הבנייה. */
+  const pulse = usePulse(gwCode());
+
   const lobbyModes: LobbyMode[] = useMemo(() => (['five', 'full'] as const).map((m) => {
     const e = entryByMode[m];
     const draft = luByMode[m];
@@ -593,8 +597,9 @@ function MainApp() {
       recommended: m === 'five' && !entryFull && !entryFive
         && luByMode.five.lineup.slots.every((sl) => !sl.playerId)
         && luByMode.full.lineup.slots.every((sl) => !sl.playerId),
+      entrants: pulse ? (m === 'five' ? pulse.five : pulse.full) : undefined,
     } as LobbyMode;
-  }), [entryByMode, luByMode, rulesByMode, hasRealResults, results, t, entryFull, entryFive]);
+  }), [entryByMode, luByMode, rulesByMode, hasRealResults, results, t, entryFull, entryFive, pulse]);
 
   /* ★ D07: משתמש חוזר עם טיוטה פתוחה במצב אחד בלבד — זה המצב שנפתח. פעם אחת. */
   const resumed = useRef(false);
@@ -904,6 +909,7 @@ function MainApp() {
         myRank={myStanding.rank}
         myPoints={myStanding.points}
         roundBrief={roundBrief}
+        pulse={pulse}
         fixtures={lobbyFixtures}
         onPlay={goToMode}
         onLeagues={() => setTab('arena')}
@@ -958,6 +964,7 @@ function MainApp() {
           saving={!entry ? lu.saving : false}
           savedAt={!entry ? lu.savedAt : null}
           picked={lu.filled}
+          entrants={pulse ? (mode === 'five' ? pulse.five : pulse.full) : undefined}
           onOpenFixtures={() => setShowFixtures(true)}
         />
         <div className="flex min-h-0 flex-1">

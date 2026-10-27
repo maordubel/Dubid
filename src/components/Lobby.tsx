@@ -60,6 +60,7 @@ import type { RoundBrief } from '../lib/roundPhase.ts';
 import { pressNote } from '../lib/pressNotes.ts';
 import { text as content, hasText } from '../lib/content.ts';
 import { ModeMark } from './ModeMark.tsx';
+import { ago, type RoundPulse } from '../lib/pulse.ts';
 
 export interface LobbyMode {
   id: ModeId;
@@ -75,6 +76,8 @@ export interface LobbyMode {
   size: number;
   /** ★ D07: מומלץ לסיבוב הראשון (משתמש שעוד לא התחיל אף הרכב במחזור). */
   recommended?: boolean;
+  /** ★ FOMO (db/64): כמה כבר הגישו במצב הזה. */
+  entrants?: number;
 }
 
 /** משחק קרוב, כפי שהלובי צריך אותו. בלי תלות במבנה של `data/fixtures`. */
@@ -108,6 +111,8 @@ export interface LobbyProps {
   gameweekNumber?: number;
   /** ★ באיזה שלב המחזור ומה עושים עכשיו (`describeRound`). */
   roundBrief?: RoundBrief;
+  /** ★ FOMO: דופק המחזור (round_pulse). */
+  pulse?: RoundPulse | null;
 }
 
 /* ================================================================== */
@@ -116,7 +121,7 @@ export function Lobby({
   gameweek, nowMs, modes, displayName, entrants, leagueCount,
   myRank, myPoints, fixtures = [],
   onPlay, onLeagues, onLeaderboard, onAccount, identity = null, nudge,
-  gameweekNumber = gameweek.number, roundBrief,
+  gameweekNumber = gameweek.number, roundBrief, pulse = null,
 }: LobbyProps) {
   const { t, locale } = useI18n();
   /**
@@ -222,6 +227,9 @@ export function Lobby({
           published={gameweek.status === GameweekStatus.Published}
           kicker={content('lobby.hero.kicker')}
         />
+
+        {/* ★ FOMO: מי כבר בפנים — מספרים אמיתיים מהשרת, בלי ההרכבים. */}
+        <TheWire pulse={pulse} open={open} nowMs={nowMs} onReveal={onLeaderboard} />
 
         {roundBrief && <RoundTracker brief={roundBrief} />}
 
@@ -624,6 +632,94 @@ function Figure({
  * ★ ואין כאן שום תמונה. הדיאגרמות הן SVG של כמה מאות בתים —
  *   המסך הראשון של המוצר לא מחכה לרשת.
  */
+/* ================================================================== */
+/* מהטלפרינטר — FOMO                                                   */
+/* ================================================================== */
+
+/**
+ * ★ "כמה כבר בפנים" כמברק חדשות: מספר גדול, קצב (24 שעות / שעה), ושלושת
+ *   האחרונים שנעלו. ההרכבים עצמם לא כאן — הם נחשפים רק בנעילה, ואז
+ *   הכתבה מזמינה לראות "מי בחר מה".
+ */
+function TheWire({
+  pulse, open, nowMs, onReveal,
+}: { pulse: RoundPulse | null; open: boolean; nowMs: number; onReveal: () => void }) {
+  const { t, locale } = useI18n();
+  if (!pulse) return null;
+  const intl = locale === 'he' ? 'he-IL' : locale === 'el' ? 'el-GR' : 'en-GB';
+  const modeName = (m: 'five' | 'full') => t(m === 'five' ? 'mode.five.title' : 'mode.full.title');
+
+  if (!open) {
+    if (pulse.total === 0) return null;
+    return (
+      <div className="relative z-[2] px-3 pt-2">
+        <button type="button" onClick={onReveal}
+                className="tap flex w-full items-center justify-between gap-2 px-3 py-2 text-start"
+                style={{ border: `1px solid ${NP.rule}`, background: NP.card }}>
+          <span className="text-[12.5px] font-bold" style={{ color: NP.ink }}>
+            {t('fomo.revealed', { n: pulse.total })}
+          </span>
+          <span aria-hidden="true" style={{ color: NP.gold }}>›</span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <section aria-label={t('fomo.wire')} className="relative z-[2] px-3 pt-2.5">
+      <div className="relative overflow-hidden px-3 pb-2 pt-1.5"
+           style={{ border: `1px solid ${NP.rule}`, background: NP.card }}>
+        <div className="flex items-center gap-1.5">
+          <span aria-hidden="true" className="relative inline-flex size-2">
+            <span className="absolute inline-flex size-full rounded-full opacity-60 motion-safe:animate-ping"
+                  style={{ background: NP.redLight }} />
+            <span className="relative inline-flex size-2 rounded-full" style={{ background: NP.red }} />
+          </span>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: NP.gold }}>
+            {t('fomo.wire')}
+          </span>
+          <span className="flex-1" />
+          <span className="text-[10px] italic" style={{ color: NP.inkFaint }}>{t('fomo.secret')}</span>
+        </div>
+
+        {pulse.total === 0 ? (
+          <p className="pt-1 font-press text-[17px] font-black" style={{ color: NP.ink }}>{t('fomo.first')}</p>
+        ) : (
+          <>
+            <p className="flex flex-wrap items-baseline gap-x-2 pt-0.5">
+              <span className="font-press text-[21px] font-black leading-tight" style={{ color: NP.ink, textShadow: MISREGISTER }}>
+                {pulse.total === 1 ? t('fomo.inOne') : t('fomo.in', { n: pulse.total })}
+              </span>
+              {pulse.last24h > 0 && (
+                <span className="num text-[11.5px] font-bold" style={{ color: NP.redLight }}>
+                  {t('fomo.day', { n: pulse.last24h })}
+                </span>
+              )}
+              {pulse.lastHour > 0 && (
+                <span className="num text-[11.5px]" style={{ color: NP.inkDim }}>· {t('fomo.hour', { n: pulse.lastHour })}</span>
+              )}
+            </p>
+            {pulse.recent.length > 0 && (
+              <ul className="mt-1.5 space-y-[2px]" style={{ borderTop: `1px dotted ${NP.rule}` }}>
+                {pulse.recent.slice(0, 3).map((r, i) => (
+                  <li key={`${r.at}-${i}`} className="flex items-baseline gap-1.5 pt-1 text-[11.5px]">
+                    <span aria-hidden="true" style={{ color: NP.gold }}>▸</span>
+                    <bdi className="min-w-0 truncate font-bold" style={{ color: NP.ink }}>
+                      {t('fomo.locked', { name: r.name, mode: modeName(r.mode) })}
+                    </bdi>
+                    <span className="press-lead" aria-hidden="true" />
+                    <span className="shrink-0 text-[10.5px]" style={{ color: NP.inkFaint }}>{ago(r.at, intl, nowMs)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function ModeArticle({
   mode, open, onPlay,
 }: { mode: LobbyMode; open: boolean; onPlay: () => void }) {
@@ -754,8 +850,10 @@ function statusLine(mode: LobbyMode, open: boolean, tr: (k: DictKey, v?: Record<
       ? tr('status.submittedPtsRank', { pts: mode.points, rank: mode.rank })
       : tr('status.submittedPts', { pts: mode.points });
   }
-  if (mode.state === 'submitted') return tr('status.lineupLocked');
+  const n = mode.entrants ?? 0;
+  if (mode.state === 'submitted') return n > 1 ? tr('fomo.modeWith', { n: n - 1 }) : tr('status.lineupLocked');
   if (!open) return tr('status.closed');
+  if (n > 0) return tr('fomo.modeIn', { n });
   if (mode.state === 'draft') return tr('status.draft', { filled: mode.filled, size: mode.size });
   return tr('status.notStarted');
 }

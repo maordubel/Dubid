@@ -10,7 +10,7 @@
  */
 import { useEffect, useState } from 'react';
 import { chooseLeague, fetchLeagues, selectedLeague, type PublicLeague } from '../lib/league.ts';
-import { adminLeaguesOverview, errorMessageHe, type LeagueOverviewRow } from '../lib/store.ts';
+import { adminLeaguesOverview, adminStorageReport, errorMessageHe, type LeagueOverviewRow, type StorageReport } from '../lib/store.ts';
 import { LeagueFlag } from './LeagueIdentity.tsx';
 import { Card } from './AdminConsole.tsx';
 
@@ -132,7 +132,37 @@ export function AdminLeaguesOverview() {
         })}
       </div>
       <button type="button" onClick={load} className="tap mt-3 text-[11.5px] font-bold text-gold">רענון</button>
+      <StorageBox />
     </Card>
+  );
+}
+
+const mb = (b: number) => `${(b / 1024 / 1024).toFixed(b > 100 * 1024 * 1024 ? 0 : 1)}MB`;
+
+/** ★ db/64: המסד המשותף (DUBID+OFFSIDES+FAN LIFE) מול מכסת החינם — 500MB ואז "קריאה בלבד". */
+function StorageBox() {
+  const [r, setR] = useState<StorageReport | null>(null);
+  useEffect(() => { adminStorageReport().then(setR, () => setR(null)); }, []);
+  if (!r) return null;
+  const pct = Math.round((r.databaseBytes / r.quotaBytes) * 100);
+  return (
+    <div className="mt-3 rounded-xl border border-gold/15 bg-night px-3 py-2.5">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[12px] font-black text-chalk">אחסון המסד המשותף</span>
+        <span className={`num text-[12px] font-black ${pct >= 80 ? 'text-flare' : 'text-gold'}`}>
+          {mb(r.databaseBytes)} / {mb(r.quotaBytes)} · {pct}%
+        </span>
+      </div>
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-night-3">
+        <div className={`h-full ${pct >= 80 ? 'bg-flare' : 'bg-gold'}`} style={{ width: `${Math.min(100, pct)}%` }} />
+      </div>
+      <ul className="mt-2 grid grid-cols-2 gap-x-3 text-[10.5px] text-chalk-dim">
+        {r.tables.slice(0, 6).map((x) => (
+          <li key={x.table} className="flex justify-between gap-2"><bdi className="truncate">{x.table}</bdi><span className="num">{mb(x.bytes)}</span></li>
+        ))}
+      </ul>
+      {pct >= 80 && <p className="mt-2 text-[11px] font-bold text-flare">מעל 500MB המסד עובר ל"קריאה בלבד" — אין הגשות. שדרוג ל-Pro או פינוי.</p>}
+    </div>
   );
 }
 

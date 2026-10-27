@@ -231,4 +231,17 @@ export const DICT_LINEUP = {
   'round.away': { he: 'חוץ', en: 'Away', el: 'Εκτός' },
   'lineup.picker.needCaptain': { he: 'בחרו קפטן (C)', en: 'Choose your captain (C)', el: 'Επιλέξτε αρχηγό (C)' },
   'lineup.picker.fixFirst': { he: 'לתיקון: {why}', en: 'Fix: {why}', el: 'Διόρθωση: {why}' },
+  /* ---- FOMO: דופק המחזור (db/64) ---- */
+  'fomo.wire': { he: 'מהטלפרינטר', en: 'Off the wire', el: 'Από το τηλέτυπο' },
+  'fomo.in': { he: '{n} מאמנים כבר בפנים', en: '{n} managers already in', el: '{n} προπονητές ήδη μέσα' },
+  'fomo.inOne': { he: 'מאמן אחד כבר בפנים', en: '1 manager already in', el: '1 προπονητής ήδη μέσα' },
+  'fomo.day': { he: '+{n} ב-24 השעות האחרונות', en: '+{n} in the last 24h', el: '+{n} τις τελευταίες 24 ώρες' },
+  'fomo.hour': { he: '{n} בשעה האחרונה', en: '{n} in the last hour', el: '{n} την τελευταία ώρα' },
+  'fomo.locked': { he: '{name} נעל {mode}', en: '{name} locked {mode}', el: '{name} κλείδωσε {mode}' },
+  'fomo.secret': { he: 'ההרכבים חסויים עד הנעילה', en: 'Lineups stay secret until the lock', el: 'Οι ενδεκάδες μένουν κρυφές ως το κλείδωμα' },
+  'fomo.first': { he: 'עוד אף אחד לא נעל. תהיו ראשונים.', en: 'Nobody has locked in yet. Be the first.', el: 'Κανείς δεν έχει κλειδώσει ακόμη. Γίνε ο πρώτος.' },
+  'fomo.modeIn': { he: '{n} כבר בפנים · ואתם?', en: '{n} already in · are you?', el: '{n} ήδη μέσα · εσύ;' },
+  'fomo.modeWith': { he: 'אתם ועוד {n}', en: 'You + {n} others', el: 'Εσύ + {n} ακόμη' },
+  'fomo.revealed': { he: '{n} הרכבים נחשפו — מי בחר מה', en: '{n} lineups revealed — see who picked what', el: '{n} ενδεκάδες αποκαλύφθηκαν — δες ποιος διάλεξε τι' },
+  'fomo.barIn': { he: '{n} בפנים', en: '{n} in', el: '{n} μέσα' },
 } as const satisfies Record<string, Entry>;

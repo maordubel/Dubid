@@ -44,6 +44,7 @@
  */
 import { supabase } from './supabase.ts';
 import { codeCandidates, uniqueShorts } from './teamCodes.ts';
+import { onRevision } from './revisionBus.ts';
 import { selectedLeague } from './league.ts';
 import { displayName } from './i18n/names.ts';
 import { tr } from './i18n/dict.ts';
@@ -513,16 +514,11 @@ export function refreshLiveData(): Promise<void> {
  * מכשיר שפתוח מגלה שינוי — פעם אחת.
  */
 export function startLiveDataRealtime(): () => void {
-  const channel = supabase
-    .channel('dubid-data')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'game', table: 'data_revision' },
-      /* ★ בלי פרמטר מחזור: אם האדמין **החליף** את המחזור הפעיל,
-         הרענון חייב לגלות את החדש — לא למשוך שוב את הישן. */
-      () => { void hydrateLiveData(true); },
-    )
-    .subscribe();
-
-  return () => { void supabase.removeChannel(channel); };
+  /* ★ רק מה שמשנה סגלים/לוח/חוקים/תוכן. הגשות וסטטיסטיקה — הכי תכופים —
+     לא מושכים יותר סגל שלם (lib/revisionBus). */
+  return onRevision(
+    ['teams', 'players', 'squads', 'gameweeks', 'weekly_matches', 'mode_config', 'scoring_overrides', 'content'],
+    () => { void hydrateLiveData(true); },
+    5000,
+  );
 }
