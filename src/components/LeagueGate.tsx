@@ -15,54 +15,10 @@ import {
   selectedLeague, type PublicLeague,
 } from '../lib/league.ts';
 import { useI18n } from '../lib/i18n/index.tsx';
+import { LeagueFlag as Flag, leagueAccent } from './LeagueIdentity.tsx';
 
 const OPEN_EVENT = 'dubid:league-gate';
 export const openLeagueGate = () => window.dispatchEvent(new Event(OPEN_EVENT));
-
-/* ───────── דגלים — מצוירים, לא אמוג׳י (ב-Windows אמוג׳י דגל הוא שתי אותיות) ───────── */
-function Flag({ country }: { country: string }) {
-  if (country === 'EN_PL') {
-    return (
-      <svg viewBox="0 0 54 36" className="h-full w-full" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
-        <rect width="54" height="36" fill="#fff" />
-        <rect x="23" width="8" height="36" fill="#CE1124" />
-        <rect y="14" width="54" height="8" fill="#CE1124" />
-      </svg>
-    );
-  }
-  if (country === 'ES_LALIGA') {
-    return (
-      <svg viewBox="0 0 54 36" className="h-full w-full" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
-        <rect width="54" height="36" fill="#AA151B" />
-        <rect y="9" width="54" height="18" fill="#F1BF00" />
-      </svg>
-    );
-  }
-  if (country === 'GR_SUPER') {
-    return (
-      <svg viewBox="0 0 54 36" className="h-full w-full" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
-        <rect width="54" height="36" fill="#0D5EAF" />
-        {[4, 12, 20, 28].map((y) => <rect key={y} x="0" y={y} width="54" height="4" fill="#fff" />)}
-        <rect width="20" height="20" fill="#0D5EAF" />
-        <rect x="8" width="4" height="20" fill="#fff" />
-        <rect y="8" width="20" height="4" fill="#fff" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 54 36" className="h-full w-full" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
-      <rect width="54" height="36" fill="#fff" />
-      <rect y="4" width="54" height="5" fill="#0038B8" />
-      <rect y="27" width="54" height="5" fill="#0038B8" />
-      <g fill="none" stroke="#0038B8" strokeWidth="1.6">
-        <path d="M27 11.5 L35 25 H19 Z" />
-        <path d="M27 24.5 L35 11 H19 Z" />
-      </g>
-    </svg>
-  );
-}
-
-const ACCENT: Record<string, string> = { IL_PREMIER: '#2F6BD8', GR_SUPER: '#1F7BD6', EN_PL: '#7B2CBF', ES_LALIGA: '#E0452B' };
 
 function fmtDur(ms: number, tt: (k: any, v?: any) => string): string {
   const m = Math.max(0, Math.floor(ms / 60000));
@@ -93,7 +49,7 @@ function Card({ l, active, onPick }: { l: PublicLeague; active: boolean; onPick:
     : fm.five.state === 'blocked' ? t('gate.onlyFull')
     : fm.full.state === 'blocked' ? t('gate.onlyFive')
     : (fm.five.state === 'degraded' || fm.full.state === 'degraded') ? t('gate.delayed') : null;
-  const accent = ACCENT[l.code] ?? '#D8B25C';
+  const accent = leagueAccent(l.code);
   const st = l.status ?? '';
   const lockMs = l.lockAt ? Date.parse(l.lockAt) - now : NaN;
   const statusLabel =

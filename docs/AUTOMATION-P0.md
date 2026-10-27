@@ -1,5 +1,7 @@
 # DUBID — Automation P0 (שער פרסום)
 
+> ⚠ **נוהל ההפעלה העדכני: [`docs/LAUNCH-RUNBOOK.md`](LAUNCH-RUNBOOK.md).** המסמך הזה הוא רקע היסטורי; בסתירה — ה-runbook קובע.
+
 ## מה השתנה
 - `db/36_publish_gate.sql`: `game.publish_scored_gameweek` — פרסום אטומי. מסרב (כערך, לא חריגה) אם: כשלי הרכבים, מספר ציונים ≠ מספר הגשות, נתונים זזו (fingerprint), התראות חוסמות, המחזור לא ב-`scoring`.
 - משחק `postponed`/`abandoned` לא חוסם מחזור; הוא מתפרסם בלעדיו.

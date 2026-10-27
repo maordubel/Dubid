@@ -40,6 +40,7 @@ import {
 } from '../lib/formation.ts';
 import type { Position } from '../lib/scoring/types.ts';
 import { PRESS } from '../lib/pressPalette.ts';
+import { tr } from '../lib/i18n/dict.ts';
 
 export interface PitchProps {
   formation: string;
@@ -106,7 +107,7 @@ export function Pitch({
     return (
       <div className="grid place-items-center rounded-3xl border border-gold/15
                       bg-night-2 p-8 text-center text-sm text-chalk-dim">
-        המערך {formation} אינו נתמך.
+        {tr('lineup.badFormation', { f: formation })}
       </div>
     );
   }

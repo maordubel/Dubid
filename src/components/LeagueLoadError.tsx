@@ -10,12 +10,12 @@ import { openLeagueGate } from './LeagueGate.tsx';
 export function LeagueLoadError({ onRetry, busy }: { onRetry: () => void; busy: boolean }) {
   const { t } = useI18n();
   return (
-    <div role="alert" className="fixed inset-0 z-[90] flex flex-col items-center justify-center gap-5 bg-[var(--bg,#0b0b0b)] px-6 text-center">
+    <div role="alert" className="fixed inset-0 z-[90] flex flex-col items-center justify-center gap-5 bg-night text-chalk px-6 text-center">
       <h1 className="text-2xl font-extrabold">{t('gate.loadFail.title')}</h1>
       <p className="max-w-sm text-sm opacity-80">{t('gate.loadFail.sub')}</p>
       <div className="flex w-full max-w-xs flex-col gap-3">
         <button type="button" disabled={busy} onClick={onRetry}
-          className="min-h-[44px] rounded-xl bg-[var(--accent,#c6ff3d)] px-4 font-bold text-black disabled:opacity-60">
+          className="min-h-[44px] rounded-xl bg-gold px-4 font-bold text-night disabled:opacity-60">
           {t('gate.loadFail.retry')}
         </button>
         <button type="button" onClick={openLeagueGate}

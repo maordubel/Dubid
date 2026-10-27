@@ -138,42 +138,57 @@ Deno.serve(async (req) => {
   /* ★ league_id נמצא על game.gameweeks עצמה (db/39). השאילתה הקודמת השתמשה ב-embed
      seasons(leagues(...)) — PostgREST לא מוצא יחס בין סכימות (PGRST200), ולכן כל ניקוד
      אוטומטי החזיר 404 gameweek_not_found. */
+  /* ★ D02 — חוקים מוקפאים למחזור (db/58). המחזור ננקד לפי מה שהיה בתוקף
+     כשנפתח, לא לפי מה שבתוקף היום. אין תמונה (מחזור ישן) → ההתנהגות הקודמת. */
+  const { data: frozen, error: frozenErr } = await supabase
+    .rpc('gameweek_rules_for', { p_gw_code: (gw as any).code });
+  if (frozenErr) {
+    return json({ ok: false, error: 'read_failed', what: 'gameweek_rules', detail: frozenErr.message }, 500);
+  }
+
   const leagueId = (gw as any).league_id;
-  const { data: rulesetRow, error: rulesetErr } = await supabase
-    .from('scoring_rulesets')
-    .select('id, version, rules')
-    .eq('league_id', leagueId)
-    .order('version', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (rulesetErr) {
-    return json({ ok: false, error: 'read_failed', what: 'ruleset', detail: rulesetErr.message }, 500);
+  let rulesetRow: { id: string; version: number; rules: any } | null = null;
+  let rulesHash: string | null = null;
+  const overrides: Record<string, number> = {};
+  const takeOverrides = (src: unknown) => {
+    if (src && typeof src === 'object') {
+      for (const [k, v] of Object.entries(src as Record<string, unknown>)) {
+        const n = Number(v);
+        if (Number.isFinite(n)) overrides[k] = n;
+      }
+    }
+  };
+
+  if (frozen && typeof frozen === 'object') {
+    const f = frozen as any;
+    rulesetRow = f.rulesetId ? { id: f.rulesetId, version: f.rulesetVersion, rules: f.rules ?? {} } : null;
+    rulesHash = typeof f.hash === 'string' ? f.hash : null;
+    takeOverrides(f.overrides);
+  } else {
+    const { data: rsRow, error: rulesetErr } = await supabase
+      .from('scoring_rulesets')
+      .select('id, version, rules')
+      .eq('league_id', leagueId)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (rulesetErr) {
+      return json({ ok: false, error: 'read_failed', what: 'ruleset', detail: rulesetErr.message }, 500);
+    }
+    rulesetRow = rsRow as any;
+
+    /* ★ מקור חוקים אחד, ולא שניים: ה-override-ים של האדמין חלים גם כאן,
+       אחרונים, מעל ה-ruleset. (מחזור בלי תמונה בלבד.) */
+    const { data: overrideRows, error: overridesErr } = await supabase.rpc('scoring_rules');
+    if (overridesErr) {
+      return json({ ok: false, error: 'read_failed', what: 'scoring_rules', detail: overridesErr.message }, 500);
+    }
+    takeOverrides(overrideRows);
   }
 
   const base = rulesetRow
     ? ruleSetFromJson({ ...rulesetRow.rules, version: rulesetRow.version })
     : IL_PREMIER;
-
-  /* ★ מקור חוקים אחד, ולא שניים.
-     הקליינט קורא ל-`game.scoring_rules()` ומחיל את מה שהאדמין
-     שינה. הפונקציה הזו קראה רק את `scoring_rulesets` — טבלה
-     אחרת לגמרי. כלומר האדמין היה משנה את הבישול ל-4, המסך היה
-     מראה 4 והמשתמש היה סופר לפי 4 — והניקוד **הרשמי** היה
-     נשאר 3. שני מספרים על אותו מחזור, ואף שגיאה בשום מקום.
-
-     ה-override-ים מוחלים אחרונים, מעל הגרסה ההיסטורית: הם
-     ה"עכשיו" של האיזון, וה-ruleset הוא הבסיס. */
-  const { data: overrideRows, error: overridesErr } = await supabase.rpc('scoring_rules');
-  if (overridesErr) {
-    return json({ ok: false, error: 'read_failed', what: 'scoring_rules', detail: overridesErr.message }, 500);
-  }
-  const overrides: Record<string, number> = {};
-  if (overrideRows && typeof overrideRows === 'object') {
-    for (const [k, v] of Object.entries(overrideRows as Record<string, unknown>)) {
-      const n = Number(v);
-      if (Number.isFinite(n)) overrides[k] = n;
-    }
-  }
 
   /* ★ חוקים **לכל מצב**, ולא אחד לכולם.
      דוביד 5 חולק את טבלת הניקוד עם דוביד 11 אבל לא את
@@ -342,6 +357,8 @@ Deno.serve(async (req) => {
     byMode: [...byMode.entries()].map(([mode, list]) => ({ mode, count: list.length })),
     failures,
     rulesetVersion: base.version,
+    rulesHash,
+    rulesFrozen: Boolean(frozen),
     top: ranked.slice(0, 3).map(({ rank, entry }) => ({
       rank, lineupId: entry.score.lineupId, total: entry.score.totalPoints,
     })),

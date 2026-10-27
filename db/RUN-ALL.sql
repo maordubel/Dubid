@@ -13278,6 +13278,8 @@ ON CONFLICT (version) DO NOTHING;
 
 BEGIN;
 
+/* ★ db/56 מוסיף league_id לטבלת ההחזרה — DROP כדי שהרצה חוזרת של RUN-ALL לא תיפול */
+DROP FUNCTION IF EXISTS game.gameweek_needs_backfill();
 CREATE OR REPLACE FUNCTION game.gameweek_needs_backfill()
 RETURNS TABLE (code TEXT, number INT)
 LANGUAGE sql STABLE
@@ -13700,6 +13702,8 @@ BEGIN;
 -- ---------------------------------------------------------------------
 --  §1 · תור ההשלמות
 -- ---------------------------------------------------------------------
+/* ★ db/56 מוסיף league_id לטבלת ההחזרה — DROP כדי שהרצה חוזרת של RUN-ALL לא תיפול */
+DROP FUNCTION IF EXISTS game.gameweek_needs_backfill();
 CREATE OR REPLACE FUNCTION game.gameweek_needs_backfill()
 RETURNS TABLE (code TEXT, number INT)
 LANGUAGE sql STABLE
@@ -16999,6 +17003,1081 @@ END;
 $$;
 REVOKE ALL ON FUNCTION game.arena_season_table(UUID, INT, INT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION game.arena_season_table(UUID, INT, INT) TO authenticated;
+
+
+-- =====================================================================
+-- ▼▼▼  56_ingest_targets.sql  —  ★ המסד בוחר מחזור לסריקה לכל ליגה; ליגה מפורשת בכל שליחה; שער כיסוי סטטיסטיקה למשחק
+-- =====================================================================
+
+-- =====================================================================
+--  db/56_ingest_targets.sql · המסד בוחר איזה מחזור נסרק, לא הספק
+--
+--  הבאג (נמצא בייצור, 27.10.2026):
+--   ingest_tick שלחה `phase:auto` בלי מספר מחזור, וה-Edge שאל את 365scores
+--   "מה המחזור הנוכחי". הספק מקדם את המחזור **לפני** שהמשחק האחרון נגמר:
+--    · en-8 — Sunderland–Leeds (25.10 16:30) נסרק לאחרונה ב-18:20 בעודו חי,
+--      ומאז הקליטה עברה ל-en-9. המשחק תקוע 'live' כבר 40 שעות, en-8 לא
+--      מגיע ל-scoring, ולכן en-9 לא נפתח (פתיחה מחכה לפרסום הקודם).
+--    · es-10 — Sevilla–Osasuna, אותו דבר בדיוק.
+--    · gr — הספק תקוע על מחזור 7 (משחק נדחה), כך שמשחקי gr-8 נסרקו רק
+--      בשלב 'fixtures' (בלי סטטיסטיקה). gr-8 פורסם עם סטטיסטיקה ל-4 מתוך 7
+--      משחקים, כי אף שער לא דרש כיסוי למשחק שאין בו שחקן נבחר.
+--   ובנוסף lifecycle_tick שלחה השלמות (backfill) **בלי ליגה** — כלומר
+--   מחזור יווני/אנגלי שנפל היה נסרק כמחזור ישראלי באותו מספר.
+--
+--  התיקון — דטרמיניסטי, בשרת, בלי אדם:
+--   1. game.ingest_target(league): המחזור הוותיק ביותר שלא פורסם (כולל
+--      טיוטה קרובה; מצייני מקום רחוקים לא). מחזור תקוע הוא בדיוק המחזור
+--      הזה, כי הבא לא נפתח לפני שהוא מתפרסם. אין כזה → NULL → ה-Edge
+--      שואל את הספק (אתחול עונה). ingest_overlap_target: מחזור חדש יותר
+--      שכבר רץ בזמן שהפעיל תקוע — נסרק מ-lifecycle_tick בדקות :05.
+--   2. game.ingest_request_body(league, phase, round): גוף בקשה אחד לכל
+--      מקום ששולח ל-Edge — ingest_tick, פרסום, השלמה. ליגה תמיד מפורשת.
+--   3. שער כיסוי: משחק שנגמר ולאחד הצדדים פחות מ-11 שורות סטטיסטיקה →
+--      התרעה חוסמת 'match_stats_missing' — עד 14 שעות מהבעיטה, ואז
+--      יורדת ל-warn (ספק שלא מפרסם סטטיסטיקה למשחק לא יתקע עונה).
+--   4. משחק שסטטוסו לא נסגר 36 שעות אחרי הבעיטה → warn 'stale_match_status'.
+--      לא מנחשים תוצאה; ההתרעה מופיעה במסך הקליטה.
+-- =====================================================================
+SET search_path = game, core, public;
+
+BEGIN;
+
+/* ── 1. גוף בקשה אחד לכל שליחה ל-Edge ─────────────────────────────── */
+CREATE OR REPLACE FUNCTION game.ingest_request_body(
+  p_league_id UUID, p_phase TEXT DEFAULT 'auto', p_round INT DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+  SELECT jsonb_build_object(
+           'phase',          COALESCE(p_phase, 'auto'),
+           'league',         l.code,
+           'competition365', i.competition_365,
+           'gwPrefix',       i.gw_prefix,
+           'primary',        (l.created_at = (SELECT min(created_at) FROM core.leagues)))
+         || CASE WHEN p_round IS NULL THEN '{}'::jsonb
+                 ELSE jsonb_build_object('round', p_round) END
+    FROM core.leagues l
+    JOIN game.ingest_sources i ON i.league_id = l.id
+   WHERE l.id = p_league_id;
+$$;
+REVOKE ALL ON FUNCTION game.ingest_request_body(UUID, TEXT, INT) FROM PUBLIC, anon, authenticated;
+
+/* ── 2. איזה מחזור לסרוק ───────────────────────────────────────────── */
+/* ★ "פעיל" = המחזור הוותיק ביותר שעוד לא פורסם (כולל טיוטה קרובה).
+   מחזור שתקוע עם משחק חי הוא בדיוק המחזור הזה — כי הבא לא נפתח לפני
+   שהוא מתפרסם — ולכן כלל אחד מכסה גם "השלמה" וגם "המחזור הנוכחי".
+   ה-Edge מושך בכל פעימה גם את לוח המחזור הבא (round+1). */
+CREATE OR REPLACE FUNCTION game.ingest_target(p_league_id UUID)
+RETURNS TABLE (code TEXT, number INT, reason TEXT)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+  SELECT g.code, g.number, 'active'::text
+    FROM game.gameweeks g
+   WHERE g.league_id = p_league_id
+     AND g.status IN ('draft','open','locked','live','scoring')
+     AND g.number > COALESCE((SELECT max(p.number) FROM game.gameweeks p
+                               WHERE p.league_id = p_league_id
+                                 AND p.status = 'published'), 0)
+     /* ★ מצייני מקום של קליטה (טיוטה עם דדליין בעוד שנה) אינם מחזור פעיל */
+     AND g.lock_at < now() + INTERVAL '21 days'
+   ORDER BY g.number
+   LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION game.ingest_target(UUID) FROM PUBLIC, anon, authenticated;
+
+/* ★ מחזור חדש יותר שכבר רץ בזמן שהפעיל עוד לא פורסם (פעיל תקוע שבוע) —
+   נסרק בנפרד מתוך lifecycle_tick, בדקות שבהן ingest_tick לא רצה, כדי
+   ששתי קליטות לא יתחרו על אותן שורות. */
+CREATE OR REPLACE FUNCTION game.ingest_overlap_target(p_league_id UUID)
+RETURNS TABLE (code TEXT, number INT)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+  SELECT g.code, g.number
+    FROM game.gameweeks g
+   WHERE g.league_id = p_league_id
+     AND g.status IN ('locked','live','scoring')
+     AND g.number > COALESCE((SELECT t.number FROM game.ingest_target(p_league_id) t), 2147483647)
+     AND EXISTS (
+           SELECT 1 FROM core.weekly_matches m
+            WHERE m.gameweek_id = g.id
+              AND m.kickoff_at <= now()
+              AND m.kickoff_at >  now() - INTERVAL '14 hours')
+   ORDER BY g.number DESC
+   LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION game.ingest_overlap_target(UUID) FROM PUBLIC, anon, authenticated;
+
+/* ── 3. הפעימה: בקשה אחת לכל מקור פעיל, עם מחזור שהמסד בחר ─────────── */
+CREATE OR REPLACE FUNCTION game.ingest_tick(p_origin TEXT DEFAULT 'cron')
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public, extensions
+AS $$
+DECLARE
+  v_url   TEXT;
+  v_token TEXT;
+  v_req   BIGINT;
+  v_reqs  JSONB := '[]'::jsonb;
+  s       RECORD;
+  t       RECORD;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', TRUE);
+
+  IF NOT game.ingest_should_run() THEN
+    RETURN jsonb_build_object('skipped', 'nothing_to_do');
+  END IF;
+
+  SELECT function_url, token INTO v_url, v_token FROM game.ingest_secrets WHERE id;
+  IF v_url IS NULL OR v_token IS NULL THEN
+    RETURN jsonb_build_object('skipped', 'endpoint_not_configured');
+  END IF;
+
+  FOR s IN
+    SELECT l.id, l.code
+      FROM game.ingest_sources i JOIN core.leagues l ON l.id = i.league_id
+     WHERE i.enabled
+     ORDER BY l.created_at, l.code
+  LOOP
+    SELECT * INTO t FROM game.ingest_target(s.id);
+
+    BEGIN
+      SELECT net.http_post(
+               url     := v_url,
+               headers := jsonb_build_object(
+                            'content-type',   'application/json',
+                            'x-ingest-token', v_token),
+               body    := game.ingest_request_body(s.id, 'auto', t.number),
+               timeout_milliseconds := 55000
+             ) INTO v_req;
+    EXCEPTION WHEN undefined_function OR undefined_table OR invalid_schema_name THEN
+      RETURN jsonb_build_object('skipped', 'pg_net_missing');
+    END;
+
+    INSERT INTO game.ingest_dispatches (request_id, origin)
+    VALUES (v_req, COALESCE(p_origin, 'cron'))
+    ON CONFLICT (request_id) DO NOTHING;
+
+    v_reqs := v_reqs || jsonb_build_object(
+      'league', s.code, 'requested', v_req,
+      'gw', t.code, 'round', t.number, 'reason', COALESCE(t.reason, 'provider'));
+  END LOOP;
+
+  RETURN jsonb_build_object('requests', v_reqs, 'at', now());
+END;
+$$;
+REVOKE ALL ON FUNCTION game.ingest_tick(TEXT) FROM PUBLIC, anon, authenticated;
+
+/* ── 4. השלמה (כלל db/36 ללא שינוי) — מחזיר גם את הליגה ──────────────── */
+DROP FUNCTION IF EXISTS game.gameweek_needs_backfill();
+CREATE FUNCTION game.gameweek_needs_backfill()
+RETURNS TABLE (code TEXT, number INT, league_id UUID)
+LANGUAGE sql STABLE
+SET search_path = game, core, public
+AS $$
+  SELECT g.code, g.number, g.league_id
+    FROM game.gameweeks g
+   WHERE g.status NOT IN ('published','archived')
+     AND g.league_id IS NOT NULL
+     AND EXISTS (SELECT 1 FROM core.weekly_matches m WHERE m.gameweek_id = g.id)
+     AND NOT EXISTS (
+           SELECT 1 FROM core.weekly_matches m
+            WHERE m.gameweek_id = g.id
+              AND m.status NOT IN ('finished','postponed','abandoned')
+              AND m.kickoff_at > now() - INTERVAL '3 hours')
+     AND (
+           EXISTS (SELECT 1 FROM core.weekly_matches m
+                    WHERE m.gameweek_id = g.id AND m.status = 'finished'
+                      AND NOT EXISTS (SELECT 1 FROM core.player_match_stats s
+                                       WHERE s.match_id = m.id))
+        OR EXISTS (SELECT 1 FROM core.weekly_matches m
+                    WHERE m.gameweek_id = g.id
+                      AND m.status NOT IN ('finished','postponed','abandoned'))
+         )
+     AND (SELECT count(*) FROM game.audit_logs a
+           WHERE a.action = 'lifecycle_backfill' AND a.entity = 'gameweek'
+             AND a.entity_id = g.code
+             AND a.created_at > now() - INTERVAL '24 hours') < 10
+   ORDER BY g.lock_at, g.number;
+$$;
+COMMENT ON FUNCTION game.gameweek_needs_backfill() IS
+  'מחזורים שיש בהם משחק שנגמר בלי נתונים או משחק עם סטטוס ישן. מחזיר league_id — ההשלמה נשלחת לליגה הנכונה. תקרה: 10 ניסיונות ל-24 שעות.';
+REVOKE ALL ON FUNCTION game.gameweek_needs_backfill() FROM PUBLIC, anon, authenticated;
+
+/* ── 5. מחזור החיים: פרסום והשלמה נשלחים עם הליגה של המחזור ────────── */
+CREATE OR REPLACE FUNCTION game.lifecycle_tick()
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public, extensions
+AS $$
+DECLARE
+  v        JSONB;
+  v_ready  TEXT;
+  v_url    TEXT;
+  v_token  TEXT;
+  v_req    BIGINT;
+  v_gap    TIMESTAMPTZ;
+  v_fill   RECORD;
+  v_gw     RECORD;
+  v_body   JSONB;
+  v_src    RECORD;
+  v_ov     RECORD;
+  v_over   JSONB := '[]'::jsonb;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', TRUE);
+
+  BEGIN PERFORM game.ingest_housekeeping();
+  EXCEPTION WHEN OTHERS THEN NULL; END;
+
+  v := game.auto_advance();
+  v_ready := v->>'readyToPublish';
+
+  SELECT function_url, token INTO v_url, v_token FROM game.ingest_secrets WHERE id;
+  IF v_url IS NULL OR v_token IS NULL THEN
+    RETURN v || jsonb_build_object('dispatch', 'endpoint_not_configured');
+  END IF;
+
+  IF v_ready IS NOT NULL THEN
+    SELECT g.league_id, g.number INTO v_gw FROM game.gameweeks g WHERE g.code = v_ready;
+    v_body := COALESCE(game.ingest_request_body(v_gw.league_id, 'auto', v_gw.number),
+                       jsonb_build_object('phase', 'auto'));
+    BEGIN
+      SELECT net.http_post(
+               url     := v_url,
+               headers := jsonb_build_object('content-type','application/json',
+                                             'x-ingest-token', v_token),
+               body    := v_body,
+               timeout_milliseconds := 55000) INTO v_req;
+    EXCEPTION WHEN undefined_function OR undefined_table OR invalid_schema_name THEN
+      RETURN v || jsonb_build_object('publish', 'pg_net_missing');
+    END;
+
+    INSERT INTO game.ingest_dispatches (request_id, origin)
+    VALUES (v_req, 'lifecycle') ON CONFLICT DO NOTHING;
+
+    RETURN v || jsonb_build_object('publish', jsonb_build_object('requested', v_req, 'gw', v_ready));
+  END IF;
+
+  /* ── מחזור חופף: חדש יותר שכבר רץ בזמן שהפעיל תקוע. רק בדקות :05–:09,
+        כש-ingest_tick (:00, :10 …) לא רצה — שתי קליטות לא מתחרות. ── */
+  IF (extract(minute FROM now())::int % 10) >= 5 THEN
+    FOR v_src IN
+      SELECT i.league_id FROM game.ingest_sources i
+        JOIN core.leagues l ON l.id = i.league_id
+       WHERE i.enabled ORDER BY l.created_at, l.code
+    LOOP
+      SELECT * INTO v_ov FROM game.ingest_overlap_target(v_src.league_id);
+      CONTINUE WHEN v_ov.number IS NULL;
+      BEGIN
+        SELECT net.http_post(
+                 url     := v_url,
+                 headers := jsonb_build_object('content-type','application/json',
+                                               'x-ingest-token', v_token),
+                 body    := game.ingest_request_body(v_src.league_id, 'sweep', v_ov.number),
+                 timeout_milliseconds := 55000) INTO v_req;
+      EXCEPTION WHEN undefined_function OR undefined_table OR invalid_schema_name THEN
+        EXIT;
+      END;
+      INSERT INTO game.ingest_dispatches (request_id, origin)
+      VALUES (v_req, 'overlap') ON CONFLICT DO NOTHING;
+      v_over := v_over || jsonb_build_object('gw', v_ov.code, 'requested', v_req);
+    END LOOP;
+    IF jsonb_array_length(v_over) > 0 THEN
+      v := v || jsonb_build_object('overlap', v_over);
+    END IF;
+  END IF;
+
+  SELECT * INTO v_fill FROM game.gameweek_needs_backfill() LIMIT 1;
+  IF v_fill.code IS NULL THEN
+    RETURN v;
+  END IF;
+
+  SELECT max(requested_at) INTO v_gap
+    FROM game.ingest_dispatches WHERE origin = 'backfill';
+  IF v_gap IS NOT NULL AND v_gap > now() - INTERVAL '30 minutes' THEN
+    RETURN v || jsonb_build_object('backfill',
+             jsonb_build_object('gw', v_fill.code, 'held', 'throttled'));
+  END IF;
+
+  v_body := game.ingest_request_body(v_fill.league_id, 'sweep', v_fill.number);
+  IF v_body IS NULL THEN
+    RETURN v || jsonb_build_object('backfill',
+             jsonb_build_object('gw', v_fill.code, 'held', 'no_ingest_source'));
+  END IF;
+
+  BEGIN
+    SELECT net.http_post(
+             url     := v_url,
+             headers := jsonb_build_object('content-type','application/json',
+                                           'x-ingest-token', v_token),
+             body    := v_body,
+             timeout_milliseconds := 55000) INTO v_req;
+  EXCEPTION WHEN undefined_function OR undefined_table OR invalid_schema_name THEN
+    RETURN v || jsonb_build_object('backfill', 'pg_net_missing');
+  END;
+
+  INSERT INTO game.ingest_dispatches (request_id, origin)
+  VALUES (v_req, 'backfill') ON CONFLICT DO NOTHING;
+
+  INSERT INTO game.audit_logs (actor, action, entity, entity_id, new_value)
+  VALUES (game.actor_label(), 'lifecycle_backfill', 'gameweek', v_fill.code,
+          jsonb_build_object('round', v_fill.number, 'request', v_req));
+
+  RETURN v || jsonb_build_object('backfill',
+           jsonb_build_object('gw', v_fill.code, 'round', v_fill.number,
+                              'requested', v_req));
+END;
+$$;
+REVOKE ALL ON FUNCTION game.lifecycle_tick() FROM PUBLIC, anon, authenticated;
+
+/* ── 6. שער כיסוי: משחק שנגמר בלי סטטיסטיקה לא מתפרסם בשקט ─────────── */
+CREATE OR REPLACE FUNCTION game.ingest_check_match_coverage(p_gw_code TEXT)
+RETURNS INT
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = core, game, public
+AS $$
+DECLARE v_gw UUID; v_block JSONB; v_warn JSONB; v_stale JSONB; v_nb INT;
+BEGIN
+  SELECT id INTO v_gw FROM game.gameweeks WHERE code = p_gw_code;
+  IF v_gw IS NULL THEN RETURN 0; END IF;
+
+  WITH cov AS (
+    SELECT m.id, m.kickoff_at,
+           core.ext_code('team', m.home_team_id) AS home,
+           core.ext_code('team', m.away_team_id) AS away,
+           (SELECT count(*) FROM core.player_match_stats s
+             WHERE s.match_id = m.id AND s.team_id = m.home_team_id) AS h,
+           (SELECT count(*) FROM core.player_match_stats s
+             WHERE s.match_id = m.id AND s.team_id = m.away_team_id) AS a
+      FROM core.weekly_matches m
+     WHERE m.gameweek_id = v_gw AND m.status = 'finished'
+  ), gaps AS (
+    SELECT * FROM cov WHERE h < 11 OR a < 11
+  )
+  SELECT
+    jsonb_agg(jsonb_build_object('home', home, 'away', away, 'homeRows', h, 'awayRows', a)
+              ORDER BY kickoff_at)
+      FILTER (WHERE kickoff_at + INTERVAL '14 hours' > now()),
+    jsonb_agg(jsonb_build_object('home', home, 'away', away, 'homeRows', h, 'awayRows', a)
+              ORDER BY kickoff_at)
+      FILTER (WHERE kickoff_at + INTERVAL '14 hours' <= now())
+    INTO v_block, v_warn
+    FROM gaps;
+
+  v_nb := COALESCE(jsonb_array_length(v_block), 0);
+
+  /* פתוח קודם את מה שכבר לא נכון — הדה-דופ לפי detail, אז ניסוח חדש = שורה חדשה */
+  UPDATE game.ingest_alerts
+     SET cleared_at = now(), cleared_by = 'auto:coverage'
+   WHERE gw_code = p_gw_code AND cleared_at IS NULL
+     AND kind = 'match_stats_missing'
+     AND (   (severity = 'block' AND detail IS DISTINCT FROM jsonb_build_object('matches', v_block))
+          OR (severity = 'warn'  AND detail IS DISTINCT FROM jsonb_build_object('matches', v_warn)));
+
+  IF v_nb > 0 THEN
+    INSERT INTO game.ingest_alerts (gw_code, kind, severity, detail)
+    VALUES (p_gw_code, 'match_stats_missing', 'block', jsonb_build_object('matches', v_block))
+    ON CONFLICT DO NOTHING;
+  END IF;
+  IF v_warn IS NOT NULL THEN
+    INSERT INTO game.ingest_alerts (gw_code, kind, severity, detail)
+    VALUES (p_gw_code, 'match_stats_missing', 'warn', jsonb_build_object('matches', v_warn))
+    ON CONFLICT DO NOTHING;
+  END IF;
+
+  /* משחק שלא נסגר 36 שעות אחרי הבעיטה — לא מנחשים, מתריעים */
+  SELECT jsonb_agg(jsonb_build_object(
+           'home', core.ext_code('team', m.home_team_id),
+           'away', core.ext_code('team', m.away_team_id),
+           'status', m.status, 'kickoff', m.kickoff_at) ORDER BY m.kickoff_at)
+    INTO v_stale
+    FROM core.weekly_matches m
+   WHERE m.gameweek_id = v_gw
+     AND m.status IN ('scheduled','live')
+     AND m.kickoff_at < now() - INTERVAL '36 hours';
+
+  UPDATE game.ingest_alerts
+     SET cleared_at = now(), cleared_by = 'auto:coverage'
+   WHERE gw_code = p_gw_code AND cleared_at IS NULL AND kind = 'stale_match_status'
+     AND detail IS DISTINCT FROM jsonb_build_object('matches', v_stale);
+  IF v_stale IS NOT NULL THEN
+    INSERT INTO game.ingest_alerts (gw_code, kind, severity, detail)
+    VALUES (p_gw_code, 'stale_match_status', 'warn', jsonb_build_object('matches', v_stale))
+    ON CONFLICT DO NOTHING;
+  END IF;
+
+  RETURN v_nb;
+END;
+$$;
+ALTER FUNCTION game.ingest_check_match_coverage(TEXT) SET statement_timeout = '60s';
+REVOKE ALL ON FUNCTION game.ingest_check_match_coverage(TEXT) FROM PUBLIC, anon, authenticated;
+
+/* ingest_check_coverage (db/49) נשארת כפי שהיא, ועוטפים אותה: auto_advance
+   קורא לה בכל בדיקת פרסום, אז השער החדש רץ באותה נקודה בדיוק. */
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                  WHERE n.nspname = 'game' AND p.proname = 'ingest_check_lineup_coverage') THEN
+    ALTER FUNCTION game.ingest_check_coverage(TEXT) RENAME TO ingest_check_lineup_coverage;
+  END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION game.ingest_check_coverage(p_gw_code TEXT)
+RETURNS INT
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = core, game, public
+AS $$
+DECLARE v_n INT;
+BEGIN
+  v_n := game.ingest_check_lineup_coverage(p_gw_code);
+  PERFORM game.ingest_check_match_coverage(p_gw_code);
+  RETURN v_n;
+END;
+$$;
+ALTER FUNCTION game.ingest_check_coverage(TEXT) SET statement_timeout = '60s';
+REVOKE ALL ON FUNCTION game.ingest_check_coverage(TEXT) FROM PUBLIC, anon, authenticated;
+
+/* ── 7. בדיקת בריאות: מה כל ליגה תסרוק בפעימה הבאה ─────────────────── */
+CREATE OR REPLACE FUNCTION game.ingest_targets_report()
+RETURNS JSONB
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+           'league', l.code, 'enabled', i.enabled,
+           'gw', t.code, 'round', t.number, 'reason', COALESCE(t.reason, 'provider'))
+           ORDER BY l.created_at, l.code), '[]'::jsonb)
+    FROM game.ingest_sources i
+    JOIN core.leagues l ON l.id = i.league_id
+    LEFT JOIN LATERAL game.ingest_target(l.id) t ON TRUE;
+$$;
+REVOKE ALL ON FUNCTION game.ingest_targets_report() FROM PUBLIC, anon, authenticated;
+
+COMMIT;
+
+INSERT INTO game.schema_migrations (version, note) VALUES
+  ('56', '★ המסד בוחר מחזור לסריקה לכל ליגה (הוותיק שלא פורסם → ספק); ליגה מפורשת בכל שליחה; שער כיסוי סטטיסטיקה למשחק')
+ON CONFLICT (version) DO NOTHING;
+
+
+-- =====================================================================
+-- ▼▼▼  57_league_tables.sql  —  ★ טבלת ליגה רשמית לכל ליגה; league_table רק לראשית; public_board לפי ליגת המחזור
+-- =====================================================================
+
+-- =====================================================================
+--  db/57_league_tables.sql · טבלת ליגה ותוצאות — לכל ליגה בנפרד
+--
+--  הבאג: game.league_table() צברה את **כל** המשחקים בכל הליגות לטבלה אחת
+--  (ישראל + אנגליה + ספרד + יוון), ו-public_board() בלי קוד החזירה תמיד את
+--  המחזור של הליגה הראשית — גם למשתמש שמשחק ביוון.
+--  ובנוסף: טבלה מחושבת מהמשחקים שלנו חלקית מטבעה — המסד מכיר רק מחזורים
+--  מאז שהליגה חוברה (אנגליה ממחזור 8). "שוחקו: 2" לצד קבוצה שמשחקה 9 היא
+--  טבלה שגויה, לא חסרה.
+--
+--  התיקון:
+--   1. core.league_standings — הטבלה הרשמית של הספק, שורה לכל קבוצה בליגה.
+--      נכתבת רק דרך game.ingest_set_standings (זהות מערכת), שמסרבת לכתוב
+--      טבלה שלא מופתה במלואה. החלפה אטומית של כל שורות הליגה.
+--   2. game.league_standings(p_league) — קריאה ציבורית: {source, updatedAt,
+--      rows[]} עם שמות he/en/el וקוד קבוצה. אין טבלה רשמית → rows ריק
+--      (המסך מסתיר את המדור), לא טבלה מחושבת חלקית.
+--   3. game.league_table() — תואם לאחור, אבל רק הליגה הראשית.
+--   4. game.public_board(code) — בלי קוד = הליגה הראשית (כמו קודם); עם קוד =
+--      הליגה של אותו מחזור. מחזיר גם `league` ו-`standings` של אותה ליגה,
+--      ושמות קבוצה בשלוש שפות.
+-- =====================================================================
+SET search_path = game, core, public;
+
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS core.league_standings (
+  league_id     UUID NOT NULL REFERENCES core.leagues(id) ON DELETE CASCADE,
+  team_id       UUID NOT NULL REFERENCES core.teams(id),
+  position      SMALLINT NOT NULL CHECK (position > 0),
+  played        SMALLINT NOT NULL CHECK (played >= 0),
+  won           SMALLINT NOT NULL CHECK (won >= 0),
+  drawn         SMALLINT NOT NULL CHECK (drawn >= 0),
+  lost          SMALLINT NOT NULL CHECK (lost >= 0),
+  goals_for     SMALLINT NOT NULL CHECK (goals_for >= 0),
+  goals_against SMALLINT NOT NULL CHECK (goals_against >= 0),
+  points        SMALLINT NOT NULL,
+  form          TEXT,
+  source        TEXT NOT NULL,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (league_id, team_id)
+);
+ALTER TABLE core.league_standings ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON core.league_standings FROM PUBLIC, anon, authenticated;
+
+/* ── כתיבה: רק מערכת, רק טבלה שלמה ומופתה ─────────────────────────────── */
+CREATE OR REPLACE FUNCTION game.ingest_set_standings(
+  p_league TEXT, p_source TEXT, p_rows JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+DECLARE
+  v_league UUID; v_total INT; v_mapped INT; v_changed BOOLEAN; v_teams INT;
+BEGIN
+  IF NOT game.can_write_data() THEN RAISE EXCEPTION 'SYSTEM_OR_ADMIN_REQUIRED'; END IF;
+  SELECT id INTO v_league FROM core.leagues WHERE code = p_league;
+  IF v_league IS NULL THEN RETURN jsonb_build_object('ok', FALSE, 'reason', 'unknown_league'); END IF;
+  IF jsonb_typeof(p_rows) <> 'array' OR jsonb_array_length(p_rows) = 0 THEN
+    RETURN jsonb_build_object('ok', FALSE, 'reason', 'empty');
+  END IF;
+
+  DROP TABLE IF EXISTS _st;
+  CREATE TEMP TABLE _st ON COMMIT DROP AS
+  SELECT r.entity_id AS team_id,
+         (x->>'position')::INT     AS position,
+         (x->>'played')::INT       AS played,
+         (x->>'won')::INT          AS won,
+         (x->>'drawn')::INT        AS drawn,
+         (x->>'lost')::INT         AS lost,
+         (x->>'goalsFor')::INT     AS goals_for,
+         (x->>'goalsAgainst')::INT AS goals_against,
+         (x->>'points')::INT       AS points,
+         NULLIF(x->>'form', '')    AS form
+    FROM jsonb_array_elements(p_rows) x
+    LEFT JOIN core.external_refs r
+      ON r.provider = p_source AND r.entity_type = 'team'
+     AND r.external_id = x->>'teamProviderId';
+
+  SELECT count(*), count(team_id) INTO v_total, v_mapped FROM _st;
+
+  /* ★ טבלה חלקית היא טבלה שגויה. כל שורה חייבת להיות ממופה ותקינה. */
+  IF v_mapped < v_total THEN
+    RETURN jsonb_build_object('ok', FALSE, 'reason', 'unmapped', 'rows', v_total, 'mapped', v_mapped);
+  END IF;
+  IF EXISTS (SELECT 1 FROM _st WHERE position IS NULL OR played IS NULL OR points IS NULL
+                                   OR won IS NULL OR drawn IS NULL OR lost IS NULL
+                                   OR goals_for IS NULL OR goals_against IS NULL
+                                   OR won + drawn + lost <> played OR position < 1)
+     OR (SELECT count(DISTINCT team_id) FROM _st) <> v_total
+     OR (SELECT count(DISTINCT position) FROM _st) <> v_total THEN
+    RETURN jsonb_build_object('ok', FALSE, 'reason', 'invalid_rows');
+  END IF;
+
+  /* מספר הקבוצות בעונה הנוכחית של הליגה (אם ידוע) חייב להתאים */
+  SELECT count(DISTINCT sq.team_id) INTO v_teams
+    FROM core.squads sq JOIN core.seasons s ON s.id = sq.season_id
+   WHERE s.league_id = v_league AND s.is_current AND sq.valid_to IS NULL;
+  IF COALESCE(v_teams, 0) > 0 AND v_teams <> v_total THEN
+    RETURN jsonb_build_object('ok', FALSE, 'reason', 'team_count', 'rows', v_total, 'teams', v_teams);
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1 FROM _st n
+     FULL JOIN (SELECT * FROM core.league_standings WHERE league_id = v_league) o
+       ON o.team_id = n.team_id
+     WHERE o.team_id IS NULL OR n.team_id IS NULL
+        OR (o.position, o.played, o.won, o.drawn, o.lost, o.goals_for, o.goals_against, o.points, o.form)
+           IS DISTINCT FROM
+           (n.position, n.played, n.won, n.drawn, n.lost, n.goals_for, n.goals_against, n.points, n.form))
+    INTO v_changed;
+
+  IF NOT v_changed THEN
+    RETURN jsonb_build_object('ok', TRUE, 'changed', FALSE, 'rows', v_total);
+  END IF;
+
+  DELETE FROM core.league_standings WHERE league_id = v_league;
+  INSERT INTO core.league_standings (league_id, team_id, position, played, won, drawn, lost,
+                                     goals_for, goals_against, points, form, source, updated_at)
+  SELECT v_league, team_id, position, played, won, drawn, lost,
+         goals_for, goals_against, points, form, p_source, now()
+    FROM _st;
+
+  RETURN jsonb_build_object('ok', TRUE, 'changed', TRUE, 'rows', v_total);
+END;
+$$;
+ALTER FUNCTION game.ingest_set_standings(TEXT, TEXT, JSONB) SET statement_timeout = '30s';
+REVOKE ALL ON FUNCTION game.ingest_set_standings(TEXT, TEXT, JSONB) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION game.ingest_set_standings(TEXT, TEXT, JSONB) TO service_role;
+
+/* שינוי בטבלה → גרסת הנתונים זזה → מסכים פתוחים מתרעננים (מנגנון db/13) */
+DROP TRIGGER IF EXISTS bump_data_revision ON core.league_standings;
+CREATE TRIGGER bump_data_revision AFTER INSERT OR DELETE OR UPDATE ON core.league_standings
+  FOR EACH STATEMENT EXECUTE FUNCTION game.bump_revision();
+
+/* ── קריאה: הטבלה של ליגה אחת ─────────────────────────────────────────── */
+CREATE OR REPLACE FUNCTION game.league_standings(p_league TEXT DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = core, game, public
+AS $$
+DECLARE v_league core.leagues; v JSONB;
+BEGIN
+  IF p_league IS NULL THEN
+    SELECT * INTO v_league FROM core.leagues ORDER BY created_at, code LIMIT 1;
+  ELSE
+    SELECT * INTO v_league FROM core.leagues WHERE code = p_league;
+  END IF;
+  IF v_league.id IS NULL THEN RAISE EXCEPTION 'NOT_FOUND'; END IF;
+
+  SELECT jsonb_build_object(
+    'league',    v_league.code,
+    'source',    (SELECT max(source) FROM core.league_standings WHERE league_id = v_league.id),
+    'updatedAt', (SELECT max(updated_at) FROM core.league_standings WHERE league_id = v_league.id),
+    'rows', COALESCE(jsonb_agg(jsonb_build_object(
+        'position',     s.position,
+        'team',         core.ext_code('team', s.team_id),
+        'names',        jsonb_build_object('he', t.names #>> '{he,full}',
+                                           'en', t.names #>> '{en,full}',
+                                           'el', t.names #>> '{el,full}'),
+        'short',        t.short_code,
+        'played',       s.played,
+        'won',          s.won,
+        'drawn',        s.drawn,
+        'lost',         s.lost,
+        'goalsFor',     s.goals_for,
+        'goalsAgainst', s.goals_against,
+        'goalDiff',     s.goals_for - s.goals_against,
+        'points',       s.points,
+        'form',         s.form) ORDER BY s.position), '[]'::jsonb))
+    INTO v
+    FROM core.league_standings s
+    JOIN core.teams t ON t.id = s.team_id
+   WHERE s.league_id = v_league.id;
+
+  RETURN v;
+END;
+$$;
+REVOKE ALL ON FUNCTION game.league_standings(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION game.league_standings(TEXT) TO anon, authenticated;
+
+/* ── תאימות לאחור: league_table() — רק הליגה הראשית, לא כל העולם ─────── */
+CREATE OR REPLACE FUNCTION game.league_table()
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = core, game, public
+AS $$
+DECLARE v JSONB; v_league UUID;
+BEGIN
+  SELECT id INTO v_league FROM core.leagues ORDER BY created_at, code LIMIT 1;
+
+  SELECT COALESCE(jsonb_agg(t ORDER BY (t->>'points')::INT DESC,
+                                  (t->>'goalDiff')::INT DESC,
+                                  (t->>'goalsFor')::INT DESC,
+                                  t->>'nameHe'), '[]'::jsonb)
+    INTO v
+  FROM (
+    SELECT jsonb_build_object(
+      'team',     core.ext_code('team', x.team_id),
+      'nameHe',   tm.name_he,
+      'short',    COALESCE(NULLIF(tm.short_code, ''), tm.name_he),
+      'played',   x.played, 'won', x.won, 'drawn', x.drawn, 'lost', x.lost,
+      'goalsFor', x.gf, 'goalsAgainst', x.ga, 'goalDiff', x.gf - x.ga,
+      'points',   x.won * 3 + x.drawn
+    ) AS t
+    FROM (
+      SELECT r.team_id,
+             count(*)                                  AS played,
+             count(*) FILTER (WHERE r.result = 'W')    AS won,
+             count(*) FILTER (WHERE r.result = 'D')    AS drawn,
+             count(*) FILTER (WHERE r.result = 'L')    AS lost,
+             COALESCE(sum(r.goals_for), 0)             AS gf,
+             COALESCE(sum(r.goals_against), 0)         AS ga
+        FROM core.v_team_match_results r
+        JOIN game.gameweeks g ON g.id = r.gameweek_id
+       WHERE g.league_id = v_league
+       GROUP BY r.team_id
+    ) x
+    JOIN core.teams tm ON tm.id = x.team_id
+  ) q;
+
+  RETURN v;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION game.league_table() TO anon, authenticated;
+
+/* ── לוח המחזור — של הליגה של המחזור ───────────────────────────────────── */
+CREATE OR REPLACE FUNCTION game.public_board(p_gw_code TEXT DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = core, game, public
+AS $$
+DECLARE v_gw game.gameweeks; v JSONB; v_league core.leagues;
+BEGIN
+  IF p_gw_code IS NULL THEN
+    SELECT g.* INTO v_gw FROM game.gameweeks g
+      JOIN core.leagues l ON l.id = g.league_id
+     WHERE g.is_current ORDER BY l.created_at, l.code LIMIT 1;
+  ELSE
+    SELECT * INTO v_gw FROM game.gameweeks WHERE code = p_gw_code;
+  END IF;
+
+  IF v_gw.id IS NOT NULL THEN
+    SELECT * INTO v_league FROM core.leagues WHERE id = v_gw.league_id;
+  END IF;
+  IF v_league.id IS NULL THEN
+    SELECT * INTO v_league FROM core.leagues ORDER BY created_at, code LIMIT 1;
+  END IF;
+
+  SELECT jsonb_build_object(
+    'league', v_league.code,
+    'gameweek', CASE WHEN v_gw.id IS NULL THEN NULL ELSE jsonb_build_object(
+      'code',   v_gw.code,
+      'number', v_gw.number,
+      'label',  v_gw.names #>> '{he,full}',
+      'status', v_gw.status,
+      'lockAt', v_gw.lock_at,
+      'live',   (now() >= v_gw.lock_at AND v_gw.status NOT IN ('published','archived')),
+      'entries', (SELECT count(*) FROM game.user_lineups ul
+                   WHERE ul.gameweek_id = v_gw.id
+                     AND ul.status IN ('submitted','locked','scored'))
+    ) END,
+    'fixtures', COALESCE((
+      SELECT jsonb_agg(jsonb_build_object(
+               'home',       core.ext_code('team', m.home_team_id),
+               'homeNameHe', h.name_he,
+               'homeNames',  jsonb_build_object('he', h.names #>> '{he,full}',
+                                                'en', h.names #>> '{en,full}',
+                                                'el', h.names #>> '{el,full}'),
+               'away',       core.ext_code('team', m.away_team_id),
+               'awayNameHe', a.name_he,
+               'awayNames',  jsonb_build_object('he', a.names #>> '{he,full}',
+                                                'en', a.names #>> '{en,full}',
+                                                'el', a.names #>> '{el,full}'),
+               'kickoff',   m.kickoff_at,
+               'status',    m.status,
+               'homeGoals', m.home_goals,
+               'awayGoals', m.away_goals) ORDER BY m.kickoff_at)
+        FROM core.weekly_matches m
+        JOIN core.teams h ON h.id = m.home_team_id
+        JOIN core.teams a ON a.id = m.away_team_id
+       WHERE m.gameweek_id = v_gw.id), '[]'::jsonb),
+    'table', CASE WHEN v_league.id = (SELECT id FROM core.leagues ORDER BY created_at, code LIMIT 1)
+                  THEN game.league_table() ELSE '[]'::jsonb END,
+    'standings', game.league_standings(v_league.code)
+  ) INTO v;
+
+  RETURN v;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION game.public_board(TEXT) TO anon, authenticated;
+
+COMMIT;
+
+INSERT INTO game.schema_migrations (version, note) VALUES
+  ('57', '★ טבלת ליגה רשמית לכל ליגה (league_standings), league_table רק לראשית, public_board לפי ליגת המחזור')
+ON CONFLICT (version) DO NOTHING;
+
+
+-- =====================================================================
+-- ▼▼▼  58_gameweek_rules.sql  —  ★ חוקי ניקוד מוקפאים לכל מחזור (D02): gameweek_rules, gameweek_rules_for, תיקון חריג מתועד
+-- =====================================================================
+
+-- =====================================================================
+--  db/58_gameweek_rules.sql · חוקי הניקוד מוקפאים לכל מחזור (D02 / F09)
+--
+--  הבעיה: dubid-score-gameweek קרא את ה-ruleset בעל הגרסה האחרונה של
+--  הליגה + את ה-overrides **של היום**. שינוי איזון באמצע מחזור (או ניקוד
+--  מחדש של מחזור ישן) היה מנקד הרכבים לפי חוקים שלא היו בתוקף כשהוגשו.
+--  והקליינט הציג ניקוד זמני לפי ה-overrides של היום — שני מספרים לאותו מחזור.
+--
+--  התיקון:
+--   1. game.gameweek_rules — תמונת חוקים אחת לכל מחזור: ruleset (id+גרסה),
+--      ה-overrides שהיו בתוקף, hash דטרמיניסטי של התוכן המנורמל, מקור.
+--   2. טריגר: מחזור שעובר ל-open/locked/live/scoring בלי תמונה → מוקפא עכשיו.
+--      תופס כל נתיב (אוטומטי, אדמין, SQL ידני). לא נדרס לעולם.
+--   3. מחזורים שכבר פעילים מוקפאים במיגרציה עם source='backfill' (החוקים
+--      של היום — לא השתנו מאז שנפתחו). מחזור שפורסם **לא** מקבל תמונה: אין
+--      לנו מידע אמין מה היה בתוקף, ואין מנקדים אותו מחדש.
+--   4. game.gameweek_rules_for(code) — קריאה ציבורית. הניקוד הרשמי והתצוגה
+--      החיה קוראים ממנה; אין תמונה → ההתנהגות הקודמת.
+--   5. תיקון חריג באמצע מחזור: game.admin_refreeze_gameweek_rules(code, reason)
+--      — אדמין בלבד, רק לפני פרסום, נרשם ביומן הביקורת עם הסיבה.
+-- =====================================================================
+SET search_path = game, core, public;
+
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS game.gameweek_rules (
+  gameweek_id     UUID PRIMARY KEY REFERENCES game.gameweeks(id) ON DELETE CASCADE,
+  ruleset_id      UUID REFERENCES game.scoring_rulesets(id),
+  ruleset_version INT,
+  overrides       JSONB NOT NULL DEFAULT '{}'::jsonb,
+  rules_hash      TEXT NOT NULL,
+  source          TEXT NOT NULL CHECK (source IN ('open','backfill','amended')),
+  frozen_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  note            TEXT
+);
+ALTER TABLE game.gameweek_rules ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON game.gameweek_rules FROM PUBLIC, anon, authenticated;
+
+/* hash דטרמיניסטי: jsonb ממיין מפתחות בעצמו, אז ::text יציב לאותו תוכן */
+CREATE OR REPLACE FUNCTION game.rules_hash(p_ruleset_id UUID, p_overrides JSONB)
+RETURNS TEXT
+LANGUAGE sql STABLE
+SET search_path = game, public
+AS $$
+  SELECT md5(jsonb_build_object(
+           'ruleset',   (SELECT jsonb_build_object('version', r.version, 'rules', r.rules)
+                           FROM game.scoring_rulesets r WHERE r.id = p_ruleset_id),
+           'overrides', COALESCE(p_overrides, '{}'::jsonb))::text);
+$$;
+
+CREATE OR REPLACE FUNCTION game.freeze_gameweek_rules(p_gw UUID, p_source TEXT DEFAULT 'open')
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+DECLARE v_league UUID; v_rs game.scoring_rulesets; v_ov JSONB;
+BEGIN
+  SELECT league_id INTO v_league FROM game.gameweeks WHERE id = p_gw;
+  SELECT * INTO v_rs FROM game.scoring_rulesets
+   WHERE league_id IS NOT DISTINCT FROM v_league
+   ORDER BY version DESC LIMIT 1;
+  SELECT COALESCE(jsonb_object_agg(rule_key, points), '{}'::jsonb) INTO v_ov
+    FROM game.scoring_overrides;
+
+  INSERT INTO game.gameweek_rules (gameweek_id, ruleset_id, ruleset_version, overrides, rules_hash, source)
+  VALUES (p_gw, v_rs.id, v_rs.version, v_ov, game.rules_hash(v_rs.id, v_ov), p_source)
+  ON CONFLICT (gameweek_id) DO NOTHING;
+END;
+$$;
+REVOKE ALL ON FUNCTION game.freeze_gameweek_rules(UUID, TEXT) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION game.trg_freeze_gameweek_rules()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+BEGIN
+  IF NEW.status IN ('open','locked','live','scoring')
+     AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM NEW.status) THEN
+    PERFORM game.freeze_gameweek_rules(NEW.id, 'open');
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS freeze_rules ON game.gameweeks;
+CREATE TRIGGER freeze_rules AFTER INSERT OR UPDATE OF status ON game.gameweeks
+  FOR EACH ROW EXECUTE FUNCTION game.trg_freeze_gameweek_rules();
+
+/* מחזורים פעילים היום — מוקפאים עכשיו. פורסמו → לא נוגעים. */
+SELECT game.freeze_gameweek_rules(g.id, 'backfill')
+  FROM game.gameweeks g
+ WHERE g.status IN ('open','locked','live','scoring')
+   AND NOT EXISTS (SELECT 1 FROM game.gameweek_rules r WHERE r.gameweek_id = g.id);
+
+/* ── קריאה ─────────────────────────────────────────────────────────────── */
+CREATE OR REPLACE FUNCTION game.gameweek_rules_for(p_gw_code TEXT)
+RETURNS JSONB
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = game, public
+AS $$
+  SELECT jsonb_build_object(
+           'gw',             g.code,
+           'rulesetId',      r.ruleset_id,
+           'rulesetVersion', r.ruleset_version,
+           'rules',          (SELECT s.rules FROM game.scoring_rulesets s WHERE s.id = r.ruleset_id),
+           'overrides',      r.overrides,
+           'hash',           r.rules_hash,
+           'source',         r.source,
+           'frozenAt',       r.frozen_at)
+    FROM game.gameweeks g
+    JOIN game.gameweek_rules r ON r.gameweek_id = g.id
+   WHERE g.code = p_gw_code;
+$$;
+REVOKE ALL ON FUNCTION game.gameweek_rules_for(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION game.gameweek_rules_for(TEXT) TO anon, authenticated, service_role;
+
+/* ── תיקון חריג: אדמין, לפני פרסום, עם סיבה, ביומן ──────────────────── */
+CREATE OR REPLACE FUNCTION game.admin_refreeze_gameweek_rules(p_gw_code TEXT, p_reason TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+DECLARE v_gw game.gameweeks; v_old JSONB;
+BEGIN
+  IF NOT game.is_admin() THEN RAISE EXCEPTION 'NOT_ADMIN'; END IF;
+  IF COALESCE(length(trim(p_reason)), 0) < 5 THEN RAISE EXCEPTION 'REASON_REQUIRED'; END IF;
+  SELECT * INTO v_gw FROM game.gameweeks WHERE code = p_gw_code;
+  IF v_gw.id IS NULL THEN RAISE EXCEPTION 'NOT_FOUND'; END IF;
+  IF v_gw.status IN ('published','archived') THEN RAISE EXCEPTION 'ALREADY_PUBLISHED'; END IF;
+
+  v_old := game.gameweek_rules_for(p_gw_code);
+  DELETE FROM game.gameweek_rules WHERE gameweek_id = v_gw.id;
+  PERFORM game.freeze_gameweek_rules(v_gw.id, 'amended');
+  UPDATE game.gameweek_rules SET note = p_reason WHERE gameweek_id = v_gw.id;
+
+  INSERT INTO game.audit_logs (actor, action, entity, entity_id, old_value, new_value, reason)
+  VALUES (game.actor_label(), 'refreeze_gameweek_rules', 'gameweek', p_gw_code,
+          v_old, game.gameweek_rules_for(p_gw_code), p_reason);
+
+  RETURN game.gameweek_rules_for(p_gw_code);
+END;
+$$;
+REVOKE ALL ON FUNCTION game.admin_refreeze_gameweek_rules(TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION game.admin_refreeze_gameweek_rules(TEXT, TEXT) TO authenticated;
+
+COMMIT;
+
+INSERT INTO game.schema_migrations (version, note) VALUES
+  ('58', '★ חוקי ניקוד מוקפאים לכל מחזור (gameweek_rules), נקראים בניקוד הרשמי ובתצוגה החיה')
+ON CONFLICT (version) DO NOTHING;
+
+
+-- =====================================================================
+-- ▼▼▼  59_recap_by_mode.sql  —  ★ סיכום מחזור לפי פורמט, מקום רשמי ומקום קודם (D12)
+-- =====================================================================
+
+-- =====================================================================
+--  db/59_recap_by_mode.sql · סיכום מחזור באוכלוסייה מוגדרת (D12)
+--
+--  הבאג: gameweek_recap(code) בלי פורמט דירגה את DUBID 5 ו-DUBID 11 יחד
+--  ("מקום 3 מתוך 40" כשבחמישייה היו 12), בחרה הגשה שרירותית (LIMIT 1) למי
+--  שהגיש בשניהם, וחישבה מקום ב-count(*)+1 — בלי שוברי השוויון של הדירוג
+--  הרשמי. ובנוסף "המוביל" נבחר בלי שוברי שוויון, עם שם עברי קשיח.
+--
+--  התיקון:
+--   · אין p_mode → הפורמט של ההגשה שלך (full לפני five, דטרמיניסטי); אין
+--     הגשה → הפורמט עם יותר הגשות מנוקדות (שוויון → full). תמיד מוחזר 'mode'.
+--   · מקום = lineup_scores.rank (הרשמי); נפילה ל-count+1 רק אם חסר.
+--   · prevRank = המקום הרשמי במחזור הקודם שפורסם, באותה ליגה ובאותו פורמט.
+--   · המוביל = rank 1 הרשמי; שם חסר → NULL (הלקוח מתרגם), לא 'אלמוני'.
+--  חתימה ותבנית תשובה תואמות לאחור (שדות נוספים בלבד).
+-- =====================================================================
+SET search_path = game, core, public;
+
+BEGIN;
+
+CREATE OR REPLACE FUNCTION game.gameweek_recap(p_gw_code TEXT, p_mode TEXT DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = game, core, public
+AS $$
+DECLARE
+  v_gw      game.gameweeks;
+  v_auth    UUID := auth.uid();
+  v_mode    TEXT := p_mode;
+  v_mine    RECORD;
+  v_total   INT;
+  v_rank    INT;
+  v_prev    INT;
+  v_players JSONB;
+  v_best    JSONB;
+  v_worst   JSONB;
+  v_cap     JSONB;
+BEGIN
+  IF p_mode IS NOT NULL AND p_mode NOT IN ('five','full') THEN RAISE EXCEPTION 'BAD_MODE'; END IF;
+  SELECT * INTO v_gw FROM game.gameweeks WHERE code = p_gw_code;
+  IF v_gw.id IS NULL THEN RETURN jsonb_build_object('gw', p_gw_code, 'exists', FALSE); END IF;
+
+  IF v_mode IS NULL THEN
+    SELECT ul.mode INTO v_mode
+      FROM game.lineup_scores ls JOIN game.user_lineups ul ON ul.id = ls.lineup_id
+     WHERE ul.gameweek_id = v_gw.id AND ul.user_id = v_auth
+     ORDER BY (ul.mode = 'full') DESC LIMIT 1;
+  END IF;
+  IF v_mode IS NULL THEN
+    SELECT ul.mode INTO v_mode
+      FROM game.lineup_scores ls JOIN game.user_lineups ul ON ul.id = ls.lineup_id
+     WHERE ul.gameweek_id = v_gw.id
+     GROUP BY ul.mode
+     ORDER BY count(*) DESC, (ul.mode = 'full') DESC LIMIT 1;
+  END IF;
+
+  SELECT count(*) INTO v_total
+    FROM game.lineup_scores ls JOIN game.user_lineups ul ON ul.id = ls.lineup_id
+   WHERE ul.gameweek_id = v_gw.id AND ul.mode = v_mode;
+
+  SELECT ls.total_points, ls.rank, ls.breakdown, ul.mode, ul.team_name
+    INTO v_mine
+    FROM game.lineup_scores ls JOIN game.user_lineups ul ON ul.id = ls.lineup_id
+   WHERE ul.gameweek_id = v_gw.id AND ul.user_id = v_auth AND ul.mode = v_mode
+   LIMIT 1;
+
+  IF v_mine.total_points IS NOT NULL THEN
+    v_rank := v_mine.rank;
+    IF v_rank IS NULL THEN
+      SELECT count(*) + 1 INTO v_rank
+        FROM game.lineup_scores ls JOIN game.user_lineups ul ON ul.id = ls.lineup_id
+       WHERE ul.gameweek_id = v_gw.id AND ul.mode = v_mode
+         AND ls.total_points > v_mine.total_points;
+    END IF;
+
+    SELECT ls.rank INTO v_prev
+      FROM game.lineup_scores ls
+      JOIN game.user_lineups ul ON ul.id = ls.lineup_id
+      JOIN game.gameweeks g ON g.id = ul.gameweek_id
+     WHERE ul.user_id = v_auth AND ul.mode = v_mode
+       AND g.league_id IS NOT DISTINCT FROM v_gw.league_id
+       AND g.status = 'published' AND g.number < v_gw.number
+     ORDER BY g.number DESC LIMIT 1;
+
+    v_players := COALESCE(v_mine.breakdown -> 'players', '[]'::jsonb);
+
+    SELECT jsonb_build_object(
+             'player', e->>'playerId',
+             'nameHe', (SELECT pl.name_he FROM core.players pl
+                         WHERE pl.id = core.player_by_ext(ltrim(e->>'playerId','P'))),
+             'points', (e->>'subtotal')::NUMERIC)
+      INTO v_best
+      FROM jsonb_array_elements(v_players) e
+     ORDER BY (e->>'subtotal')::NUMERIC DESC, e->>'playerId' LIMIT 1;
+
+    SELECT jsonb_build_object(
+             'player', e->>'playerId',
+             'nameHe', (SELECT pl.name_he FROM core.players pl
+                         WHERE pl.id = core.player_by_ext(ltrim(e->>'playerId','P'))),
+             'points', (e->>'subtotal')::NUMERIC)
+      INTO v_worst
+      FROM jsonb_array_elements(v_players) e
+     ORDER BY (e->>'subtotal')::NUMERIC ASC, e->>'playerId' LIMIT 1;
+
+    SELECT jsonb_build_object(
+             'player', e->>'playerId',
+             'nameHe', (SELECT pl.name_he FROM core.players pl
+                         WHERE pl.id = core.player_by_ext(ltrim(e->>'playerId','P'))),
+             'points', (e->>'subtotal')::NUMERIC,
+             'bonus',  (v_mine.breakdown->>'captain')::NUMERIC)
+      INTO v_cap
+      FROM jsonb_array_elements(v_players) e
+     WHERE (e->>'isCaptain')::BOOLEAN LIMIT 1;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'gw',       p_gw_code,
+    'exists',   TRUE,
+    'status',   v_gw.status,
+    'mode',     v_mode,
+    'entries',  v_total,
+    'hasEntry', v_mine.total_points IS NOT NULL,
+    'teamName', v_mine.team_name,
+    'points',   v_mine.total_points,
+    'rank',     v_rank,
+    'prevRank', v_prev,
+    'beatPercent', CASE WHEN v_total > 1 AND v_rank IS NOT NULL
+                        THEN floor((v_total - v_rank) * 100.0 / (v_total - 1))
+                   END,
+    'best',     v_best,
+    'worst',    v_worst,
+    'captain',  v_cap,
+    'top', (SELECT jsonb_build_object(
+                     'name',   COALESCE(NULLIF(btrim(ul.team_name), ''),
+                                        NULLIF(btrim(u.display_name), '')),
+                     'points', ls.total_points)
+              FROM game.lineup_scores ls
+              JOIN game.user_lineups ul ON ul.id = ls.lineup_id
+              JOIN game.users u ON u.id = ul.user_id
+             WHERE ul.gameweek_id = v_gw.id AND ul.mode = v_mode
+             ORDER BY ls.rank NULLS LAST, ls.total_points DESC, ul.submitted_at, ul.id LIMIT 1)
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION game.gameweek_recap(TEXT,TEXT) TO anon, authenticated;
+
+COMMIT;
+
+INSERT INTO game.schema_migrations (version, note) VALUES
+  ('59', '★ סיכום מחזור לפי פורמט, מקום רשמי, מקום קודם, מוביל לפי דירוג רשמי')
+ON CONFLICT (version) DO NOTHING;
 
 
 -- =====================================================================

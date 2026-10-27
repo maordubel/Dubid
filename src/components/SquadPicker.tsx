@@ -37,6 +37,8 @@ export interface PoolPlayer {
   shirt?: number | null;
   form?: number;
   price?: number;
+  /** ★ D09: מצב זמינות מהשרת. undefined = כשיר. */
+  status?: 'injured' | 'suspended';
 }
 
 export interface TeamMeta {
@@ -1015,6 +1017,11 @@ function PlayerSheet({
                         השם הופיע פעמיים בכל שורה ודחק את המידע
                         שבאמת מבדיל — נגד מי משחקים, ולמה חסום. */}
                     <span className="mt-0.5 block truncate text-[11.5px] text-chalk-dim">
+                      {p.status && !block.blocked && (
+                        <span className="me-1.5 rounded-sm bg-flare/15 px-1 py-[1px] text-[10px] font-black uppercase text-flare">
+                          {t(p.status === 'injured' ? 'board.status.injured' : 'board.status.suspended')}
+                        </span>
+                      )}
                       {block.blocked
                         ? occupant
                           ? t('lineup.picker.alreadyPicked', { name: occupant })

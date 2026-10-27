@@ -596,19 +596,46 @@ export async function saveEntry(
       is_bench: !!s.isBench,
     }));
 
-  const { error } = await supabase.rpc('submit_entry', {
-    p_gw_code: gameweekId,
-    p_mode: mode,
-    p_formation: lineup.formation,
-    p_slots: slots,
-    p_display_name: displayName.trim() || null,
-    p_team_name: teamName?.trim() || null,
-  });
-  if (error) throw new Error(errorCode(error));
+  /* ★ D10: הגשה היא הלוך-ושוב אחד עם תקרה. כשל רשת/תקרה אינו "נכשל" —
+     ייתכן שהשרת כבר קיבל. בודקים בשרת לפני שאומרים למשתמש לנסות שוב, וכך
+     אין גם הגשה כפולה וגם לא "נכשל" על הרכב שנקלט. */
+  const sameLineup = (e: LineupEntry | undefined): e is LineupEntry => {
+    if (!e) return false;
+    const want = new Set(slots.map((x) => 'P' + x.ext_player_id));
+    const got = e.lineup.slots.filter((x) => x.playerId).map((x) => x.playerId);
+    return got.length === want.size && got.every((pid) => want.has(pid));
+  };
 
-  await refresh();
+  let rpcError: string | null = null;
+  try {
+    const res = await Promise.race([
+      supabase.rpc('submit_entry', {
+        p_gw_code: gameweekId,
+        p_mode: mode,
+        p_formation: lineup.formation,
+        p_slots: slots,
+        p_display_name: displayName.trim() || null,
+        p_team_name: teamName?.trim() || null,
+      }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 15_000)),
+    ]);
+    if (res.error) rpcError = errorCode(res.error);
+  } catch (err) {
+    rpcError = 'NETWORK';   // תקרה או רשת — בשני המקרים בודקים בשרת
+  }
 
-  const mine = findMyEntry(gameweekId, mode, id.id);
+  if (rpcError && rpcError !== 'NETWORK' && rpcError !== 'OFFLINE') throw new Error(rpcError);
+
+  await refresh().catch(() => undefined);
+  let mine = findMyEntry(gameweekId, mode, id.id);
+  if (rpcError) {
+    if (sameLineup(mine)) return mine;          // השרת קיבל — התשובה רק לא הגיעה
+    throw new Error(rpcError);
+  }
+  if (!mine) {
+    await refresh().catch(() => undefined);
+    mine = findMyEntry(gameweekId, mode, id.id);
+  }
   if (mine) return mine;
 
   // השרת קיבל אבל הרענון לא הספיק. מחזירים ייצוג עקבי כדי שהמסך
@@ -1901,9 +1928,11 @@ export async function adminResolveSquadConflict(
  *    והמוצר אמר לו עד היום "אין לך מה לעשות כאן".
  */
 
+export interface I18nNames { he?: string | null; en?: string | null; el?: string | null }
+
 export interface BoardFixture {
-  home: string; homeNameHe: string;
-  away: string; awayNameHe: string;
+  home: string; homeNameHe: string; homeNames?: I18nNames;
+  away: string; awayNameHe: string; awayNames?: I18nNames;
   kickoff: string;
   status: 'scheduled' | 'live' | 'finished' | 'postponed' | 'abandoned';
   homeGoals: number | null;
@@ -1916,7 +1945,21 @@ export interface TableRow {
   goalsFor: number; goalsAgainst: number; goalDiff: number; points: number;
 }
 
+/** טבלת הליגה הרשמית (db/57). rows ריק = אין טבלה רשמית — המסך מסתיר. */
+export interface StandingsRow {
+  position: number; team: string; names: I18nNames; short: string | null;
+  played: number; won: number; drawn: number; lost: number;
+  goalsFor: number; goalsAgainst: number; goalDiff: number; points: number;
+  form: string | null;
+}
+export interface LeagueStandings {
+  league: string; source: string | null; updatedAt: string | null; rows: StandingsRow[];
+}
+
 export interface PublicBoard {
+  /** הליגה של המחזור (db/57). חסר בשרת ישן. */
+  league?: string;
+  standings?: LeagueStandings;
   gameweek: {
     code: string; number: number; label: string | null;
     status: string; lockAt: string; live: boolean; entries: number;
@@ -1943,11 +1986,13 @@ export interface Recap {
   teamName?: string | null;
   points?: number | null;
   rank?: number | null;
+  /** המקום הרשמי במחזור הקודם שפורסם — אותה ליגה ואותו פורמט (db/59). */
+  prevRank?: number | null;
   beatPercent?: number | null;
   best?: { player: string; nameHe: string | null; points: number } | null;
   worst?: { player: string; nameHe: string | null; points: number } | null;
   captain?: { player: string; nameHe: string | null; points: number } | null;
-  top?: { name: string; points: number } | null;
+  top?: { name: string | null; points: number } | null;
 }
 
 export async function gameweekRecap(gameweekCode: string, mode?: 'five' | 'full'): Promise<Recap> {

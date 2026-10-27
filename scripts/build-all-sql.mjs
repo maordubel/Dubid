@@ -73,6 +73,10 @@ const FILES = [
   ['53_history_by_mode.sql','★ history_summary לפי פורמט: סינון ul.mode, דירוג רשמי, byMode מפוצל'],
   ['54_format_readiness.sql','★ כשירות ליגה לכל פורמט: formats.{five,full} ב-leagues_public'],
   ['55_arena_season.sql','★ טבלה עונתית רשמית לזירה פרטית: arena_season_table (D11)'],
+  ['56_ingest_targets.sql','★ המסד בוחר מחזור לסריקה לכל ליגה; ליגה מפורשת בכל שליחה; שער כיסוי סטטיסטיקה למשחק'],
+  ['57_league_tables.sql','★ טבלת ליגה רשמית לכל ליגה; league_table רק לראשית; public_board לפי ליגת המחזור'],
+  ['58_gameweek_rules.sql','★ חוקי ניקוד מוקפאים לכל מחזור (D02): gameweek_rules, gameweek_rules_for, תיקון חריג מתועד'],
+  ['59_recap_by_mode.sql','★ סיכום מחזור לפי פורמט, מקום רשמי ומקום קודם (D12)'],
 ];
 
 const bar = '=' .repeat(69);
