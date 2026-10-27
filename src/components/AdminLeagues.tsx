@@ -10,7 +10,7 @@
  */
 import { useEffect, useState } from 'react';
 import { chooseLeague, fetchLeagues, selectedLeague, type PublicLeague } from '../lib/league.ts';
-import { adminLeaguesOverview, adminNameGaps, adminNamesApply, adminNamesFetch, adminStorageReport, errorMessageHe, type LeagueOverviewRow, type NameGaps, type StorageReport } from '../lib/store.ts';
+import { adminLeaguesOverview, adminNameGaps, adminNamesApply, adminNamesFetch, adminSquadSyncApply, adminSquadSyncPlan, adminSquadSyncReport, adminStorageReport, errorMessageHe, type LeagueOverviewRow, type NameGaps, type SquadSyncReport, type StorageReport } from '../lib/store.ts';
 import { LeagueFlag } from './LeagueIdentity.tsx';
 import { Card } from './AdminConsole.tsx';
 
@@ -133,6 +133,7 @@ export function AdminLeaguesOverview() {
       </div>
       <button type="button" onClick={load} className="tap mt-3 text-[11.5px] font-bold text-gold">רענון</button>
       {active && <NamesBox league={active} />}
+      {active && <SquadSyncBox league={active} />}
       <StorageBox />
     </Card>
   );
@@ -182,6 +183,90 @@ function NamesBox({ league }: { league: string }) {
           <summary className="cursor-pointer font-bold text-chalk-2">{g.missing} בלי שם אנגלי</summary>
           <ul className="mt-1 max-h-48 overflow-y-auto">
             {g.rows.map((r) => <li key={r.playerId}><bdi>{r.nameHe}</bdi> · {r.team}</li>)}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+const SYNC_KIND_HE: Record<string, string> = {
+  transfer: 'מעבר קבוצה', left: 'עזב (נסגר בסגל)', new: 'שחקן חדש', duplicate: 'שורה כפולה',
+  shirt: 'מספר חולצה', name_en: 'שם אנגלי', ref_fix: 'תיקון מיפוי קליטה', ref_drop: 'מיפוי שגוי הוסר',
+  position: 'עמדה שונה מהספק (דיווח בלבד)',
+};
+
+/**
+ * ★ db/69: יישור הסגל מול סגלי 365scores. שני שלבים: "תכנון" לא משנה כלום ומציג
+ *   מה ישתנה; "ביצוע" מחיל את הריצה האחרונה. עמדות — דיווח בלבד.
+ */
+function SquadSyncBox({ league }: { league: string }) {
+  const [r, setR] = useState<SquadSyncReport | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const load = () => adminSquadSyncReport(league).then(setR, () => setR(null));
+  useEffect(() => { void load(); }, [league]);
+  const plan = async () => {
+    setBusy(true); setMsg('');
+    try {
+      const f = await adminNamesFetch(league);
+      if (!f.ok) { setMsg(`לא נשלח: ${f.reason ?? ''}`); return; }
+      setMsg('מושך סגלים מהספק…');
+      await new Promise((res) => setTimeout(res, 9000));
+      const p = await adminSquadSyncPlan(league);
+      setMsg(p.ok ? `תכנון #${p.runId} מוכן — עברו על הרשימה ואז "ביצוע"` : `לא נוצר: ${p.reason ?? ''}`);
+      await load();
+    } catch (e) { setMsg(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')); } finally { setBusy(false); }
+  };
+  const apply = async () => {
+    if (!r) return;
+    setBusy(true); setMsg('');
+    try {
+      const a = await adminSquadSyncApply(r.runId);
+      setMsg(`בוצע. סטטיסטיקות שהועברו: ${a.statsMoved ?? 0}${a.rescore?.length ? ` · לניקוד מחדש: ${a.rescore.map((g) => g.code).join(', ')}` : ''}`);
+      await load();
+    } catch (e) { setMsg(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')); } finally { setBusy(false); }
+  };
+  const items = r?.summary.applied ?? r?.summary.items ?? {};
+  return (
+    <div className="mt-3 rounded-xl border border-gold/15 bg-night px-3 py-2.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[12px] font-black text-chalk">יישור סגל מול הספק · {league}</span>
+        {r && <span className="text-[11px] text-chalk-dim">#{r.runId} · {r.appliedAt ? 'בוצע' : 'תכנון'}</span>}
+      </div>
+      <p className="mt-1 text-[11px] text-chalk-dim">
+        מעברים, עזיבות, שחקנים חדשים, מספרי חולצה ומיפויי קליטה — מול סגלי 365scores. הרכבים שהוגשו וניקוד שפורסם לא משתנים.
+      </p>
+      {r && (
+        <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-chalk-2">
+          {Object.entries(items).filter(([k]) => k !== 'link').map(([k, n]) => <li key={k}>{SYNC_KIND_HE[k] ?? k}: <span className="num">{n}</span></li>)}
+        </ul>
+      )}
+      <div className="mt-2 flex gap-2">
+        <button type="button" disabled={busy} onClick={() => void plan()}
+                className="tap rounded-lg border border-gold/30 px-3 py-1 text-[11.5px] font-bold text-gold disabled:opacity-50">
+          {busy ? 'עובד…' : 'תכנון (בלי שינוי)'}
+        </button>
+        {r && !r.appliedAt && (
+          <button type="button" disabled={busy} onClick={() => void apply()}
+                  className="tap rounded-lg bg-gold px-3 py-1 text-[11.5px] font-black text-night disabled:opacity-50">
+            ביצוע #{r.runId}
+          </button>
+        )}
+      </div>
+      {msg && <p className="mt-1.5 text-[11px] text-chalk-2" role="status">{msg}</p>}
+      {r && r.items.length > 0 && (
+        <details className="mt-2 text-[11px] text-chalk-dim">
+          <summary className="cursor-pointer font-bold text-chalk-2">פירוט ({r.items.length})</summary>
+          <ul className="mt-1 max-h-64 overflow-y-auto">
+            {r.items.map((i, k) => (
+              <li key={k}>
+                <span className="text-gold/80">{SYNC_KIND_HE[i.kind] ?? i.kind}</span> · <bdi>{i.name ?? String(i.detail.rightName ?? '')}</bdi>
+                {i.from ? <> · {i.from}</> : null}{i.to ? <> → {i.to}</> : null}
+                {i.kind === 'ref_fix' ? <> · <bdi>{String(i.detail.wrongName ?? '')} → {String(i.detail.rightName ?? '')}</bdi></> : null}
+                {i.kind === 'position' ? <> · {String(i.detail.ours)} / ספק {String(i.detail.provider)}</> : null}
+              </li>
+            ))}
           </ul>
         </details>
       )}

@@ -19927,7 +19927,7 @@ COMMIT;
 --      a. קישור קודם (provider 'scores365_athlete')
 --      b. שם זהה (אנגלית בלי סימנים / עברית בלי רווחים-גרשים / אותן מילים בסדר
 --         אחר) — ייחודי בשני הצדדים, בכל הליגה (כך מתגלים מעברים)
---      c. באותה קבוצה: דמיון שם ≥0.5 עם פער ≥0.1, או אותה חולצה+עמדה ודמיון ≥0.1
+--      c. באותה קבוצה: דמיון שם ≥0.5 עם פער ≥0.1, או אותה חולצה+עמדה כזוג יחיד בשני הצדדים
 --    מה שלא זוהה לא "מנוחש".
 --  ★ מה מתבצע:
 --      link        קישור שחקן↔אתלט (לעתיד: הקליטה לא תסתמך על חולצה)
@@ -20069,12 +20069,14 @@ BEGIN
                     row_number() OVER (PARTITION BY player_id ORDER BY sim DESC) AS rp,
                     lead(sim) OVER (PARTITION BY player_id ORDER BY sim DESC) AS next_p,
                     row_number() OVER (PARTITION BY aid ORDER BY sim DESC) AS ra,
-                    lead(sim) OVER (PARTITION BY aid ORDER BY sim DESC) AS next_a
+                    lead(sim) OVER (PARTITION BY aid ORDER BY sim DESC) AS next_a,
+                    count(*) FILTER (WHERE shirt_pos) OVER (PARTITION BY player_id) AS sp_p,
+                    count(*) FILTER (WHERE shirt_pos) OVER (PARTITION BY aid) AS sp_a
                FROM sc),
        ok AS (SELECT player_id, aid FROM r
-               WHERE rp = 1 AND ra = 1
-                 AND ((sim >= 0.5 AND sim - COALESCE(next_p, 0) >= 0.1 AND sim - COALESCE(next_a, 0) >= 0.1)
-                      OR (shirt_pos AND sim >= 0.1)))
+               WHERE (rp = 1 AND ra = 1 AND sim >= 0.5 AND sim - COALESCE(next_p, 0) >= 0.1 AND sim - COALESCE(next_a, 0) >= 0.1)
+                  -- ★ אותה קבוצה+חולצה+עמדה, והזוג היחיד כזה בשני הצדדים ("סמואל סילבה" = "Samu")
+                  OR (shirt_pos AND sp_p = 1 AND sp_a = 1))
   INSERT INTO _link SELECT DISTINCT ON (player_id) player_id, aid, 'similar' FROM ok ON CONFLICT DO NOTHING;
 
   INSERT INTO game.squad_sync_runs (league_code, created_by) VALUES (p_league, COALESCE(auth.uid()::TEXT, 'system'))

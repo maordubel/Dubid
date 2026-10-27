@@ -1389,6 +1389,29 @@ export async function adminNamesApply(league: string): Promise<{ ok: boolean; fi
   return data as { ok: boolean; filled?: number; gaps?: number; pending?: number };
 }
 
+/** ★ db/69: יישור סגל מול הספק — תכנון (בלי שינוי), דוח, ביצוע. אדמין בלבד. */
+export interface SquadSyncReport {
+  runId: number; createdAt: string; appliedAt: string | null;
+  summary: { ok?: boolean; matched?: number; ours?: number; provider?: number; items?: Record<string, number>;
+             applied?: Record<string, number>; statsMoved?: number; rescore?: Array<{ code: string; status: string }>; reason?: string };
+  items: Array<{ kind: string; applied: boolean; name: string | null; from: string | null; to: string | null; detail: Record<string, unknown> }>;
+}
+export async function adminSquadSyncPlan(league: string): Promise<SquadSyncReport['summary'] & { runId?: number }> {
+  const { data, error } = await supabase.rpc('admin_squad_sync_plan', { p_league: league });
+  if (error) throw new Error(errorCode(error));
+  return data as SquadSyncReport['summary'] & { runId?: number };
+}
+export async function adminSquadSyncApply(runId: number): Promise<SquadSyncReport['summary']> {
+  const { data, error } = await supabase.rpc('admin_squad_sync_apply', { p_run: runId });
+  if (error) throw new Error(errorCode(error));
+  return data as SquadSyncReport['summary'];
+}
+export async function adminSquadSyncReport(league: string): Promise<SquadSyncReport | null> {
+  const { data, error } = await supabase.rpc('admin_squad_sync_report', { p_league: league });
+  if (error) throw new Error(errorCode(error));
+  return (data ?? null) as SquadSyncReport | null;
+}
+
 /** ★ db/62: מצב כל הליגות במבט אחד. אדמין בלבד. */
 export async function adminLeaguesOverview(): Promise<LeagueOverviewRow[]> {
   const { data, error } = await supabase.rpc('admin_leagues_overview');
