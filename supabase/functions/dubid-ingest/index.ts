@@ -1333,6 +1333,8 @@ export const DEFAULT_POLICY: CachePolicy = {
   ttl(url, p) {
     const path = url.pathname;
     if (url.host.includes('365scores')) {
+      // Sportradar play-by-play relayed by 365scores (timed corners / offsides)
+      if (url.host.startsWith('sportradarpbp.')) return /isfinished=true/i.test(url.search) ? 6 * 3600 : 60;
       if (/\/game\/stats\/?$/.test(path)) {
         const g = Array.isArray(p?.games) ? p.games[0] : null;
         return finished365(g) ? 6 * 3600 : live365(g) ? 45 : 300;
