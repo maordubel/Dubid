@@ -957,6 +957,7 @@ function MainApp() {
           fixturesCount={FIXTURES.length}
           saving={!entry ? lu.saving : false}
           savedAt={!entry ? lu.savedAt : null}
+          picked={lu.filled}
           onOpenFixtures={() => setShowFixtures(true)}
         />
         <div className="flex min-h-0 flex-1">

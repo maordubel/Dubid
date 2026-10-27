@@ -696,7 +696,7 @@ function SlotCard({
         {/* ★ היריבה בראש הדמות — בלי שורה נוספת, כדי שהמגרש לא יתכווץ. */}
         {opponent && (
           <bdi
-            className="absolute top-0 max-w-[150%] truncate rounded-[2px] px-[3px] text-[8px] font-black leading-[1.45]"
+            className="absolute top-0 z-20 max-w-[150%] truncate rounded-[2px] px-[3px] text-[8px] font-black leading-[1.45] shadow-[0_1px_3px_rgba(0,0,0,.5)]"
             style={{ background: PRESS.ink, color: PRESS.paper }}
             title={opponent}
           >

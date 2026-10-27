@@ -43,6 +43,7 @@ import {
 } from '../lib/identity.ts';
 import type { Placement } from '../lib/growth.ts';
 import { BrandWord, HouseAdPreview } from './HouseAds.tsx';
+import { useAdminLeague } from './AdminLeagues.tsx';
 import { globalRuleOverrides as ruleOverrides, currentGameweekCode, liveDataVersion } from '../lib/liveData.ts';
 import { RULE_KEYS, readRule } from '../lib/ruleOverrides.ts';
 import { CONTENT_KEYS } from '../lib/content.ts';
@@ -139,13 +140,20 @@ export function AdminGameweeks() {
   const [err, setErr] = useState<string | null>(null);
   const act = useAction();
 
+  /* ★ db/62: רק המחזורים של הליגה שהלוח עובד עליה. קודם הרשימה ערבבה את
+     ארבע הליגות, ו"המחזור הבא" חושב מהמספר הגבוה בכולן. */
+  const { code: league } = useAdminLeague();
   const load = () => {
     gameweeksList()
-      .then((r) => { setRows(r); setErr(null); })
+      .then((all) => {
+        const r = league ? all.filter((g) => !g.league || g.league === league) : all;
+        setRows(r.map((g) => ({ ...g, label: g.label.replace(/^\[[A-Z0-9_]+\]\s*/, '') })));
+        setErr(null);
+      })
       .catch((e: unknown) =>
         setErr(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')));
   };
-  useEffect(load, []);
+  useEffect(load, [league]);
   useEffect(() => { if (act.done && !act.bad) load(); }, [act.done, act.bad]);
 
   const next = useMemo(
@@ -454,7 +462,7 @@ function NewGameweek({ next, act }: { next: number; act: ReturnType<typeof useAc
   return (
     <Card
       title="מחזור חדש"
-      hint="המזהה נגזר מהמספר (gw-3). הדדליין נקבע אוטומטית מהמשחק המוקדם ביותר, אחרי שקולטים לוח."
+      hint="נוצר בליגה שהלוח עובד עליה (בחירה בראש הלוח), והמזהה לפי הקידומת שלה: gw-3 · gr-3 · en-3 · es-3. בדרך כלל הקליטה יוצרת מחזורים לבד. הדדליין נקבע אוטומטית מהמשחק המוקדם ביותר."
     >
       <div className="flex flex-wrap items-center gap-2">
         <input
@@ -889,7 +897,7 @@ export function AdminRules() {
     <div className="space-y-4">
       <Card
         title="איזון הניקוד"
-        hint="שינוי נשמר מיד וחל על כל מחזור שייפתח מעכשיו. ערך ריק = ברירת המחדל של המשחק."
+        hint="שינוי נשמר מיד וחל על כל מחזור שייפתח מעכשיו — בכל ארבע הליגות (מחזור פתוח מוקפא על החוקים שלו). ערך ריק = ברירת המחדל של המשחק."
       >
         {/* ★ D02 (db/58): החוקים מוקפאים לכל מחזור ברגע שהוא נפתח. שינוי כאן
             לא נוגע במחזור פתוח/חי ולא במחזורים שפורסמו. */}

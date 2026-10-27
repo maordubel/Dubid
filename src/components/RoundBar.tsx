@@ -30,7 +30,7 @@ export type PicksByTeam = Record<string, string[]>;
 /* ================================================================== */
 
 export function RoundBar({
-  use, roundNumber, roundCode, deadlineAt, nowMs, fixturesCount, saving, savedAt, onOpenFixtures,
+  use, roundNumber, roundCode, deadlineAt, nowMs, fixturesCount, saving, savedAt, picked = 0, onOpenFixtures,
 }: {
   use: RoundUse;
   roundNumber: number;
@@ -40,6 +40,8 @@ export function RoundBar({
   fixturesCount: number;
   saving?: boolean;
   savedAt?: number | null;
+  /** כמה שחקנים בטיוטה — "נשמר" מוצג רק כשיש מה לשמור. */
+  picked?: number;
   onOpenFixtures: () => void;
 }) {
   const { t } = useI18n();
@@ -65,7 +67,7 @@ export function RoundBar({
         <div className="flex min-w-0 shrink-0 flex-col justify-center pe-2.5 [border-inline-end:1px_solid_rgba(216,178,92,.22)]">
           <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.14em] text-gold/80">
             {use === 'build' ? t('round.building') : t('round.viewing')}
-            {use === 'build' && (saving || savedAt) && (
+            {use === 'build' && picked > 0 && (saving || savedAt) && (
               <span aria-live="polite" className="normal-case tracking-normal text-chalk-dim">
                 · {saving ? t('round.saving') : t('round.saved')}
               </span>
