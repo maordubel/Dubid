@@ -31,6 +31,7 @@ const CORE = {
   /* ---- לובי ---- */
   'lobby.edition':    { he: 'שנה ב׳ · גיליון', en: 'Year 2 · Issue', el: 'Έτος 2 · Τεύχος' },
   'lobby.entrants':   { he: 'מאמנים', en: 'managers', el: 'προπονητές' },
+  'lobby.entrantsOne': { he: 'מאמן', en: 'manager', el: 'προπονητής' },
   'lobby.brand':      { he: 'דוביד', en: 'DUBID', el: 'DUBID' },
   'lobby.edition2':   { he: 'מהדורת המחזור', en: 'Gameweek edition', el: 'Έκδοση αγωνιστικής' },
   'lobby.modes.aria': { he: 'בחירת מצב משחק', en: 'Choose a game mode', el: 'Επιλογή τρόπου παιχνιδιού' },
@@ -120,6 +121,7 @@ const CORE = {
   'gate.prep':      { he: 'בהכנה', en: 'Preparing', el: 'Σε προετοιμασία' },
   'gate.locksIn':   { he: 'ננעל בעוד {t}', en: 'Locks in {t}', el: 'Κλειδώνει σε {t}' },
   'gate.entrants':  { he: '{n} מאמנים', en: '{n} managers', el: '{n} προπονητές' },
+  'gate.entrantsOne': { he: 'מאמן אחד', en: '1 manager', el: '1 προπονητής' },
   'gate.lineups':   { he: '{n} הרכבים', en: '{n} lineups', el: '{n} ενδεκάδες' },
   'gate.close':     { he: 'סגירה', en: 'Close', el: 'Κλείσιμο' },
   'gate.switch':    { he: 'החלפת ליגה', en: 'Switch league', el: 'Αλλαγή πρωταθλήματος' },

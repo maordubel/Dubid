@@ -165,7 +165,7 @@ export function Lobby({
           </span>
           {entrants ? (
             <span className="press-folio">
-              <b className="num" style={{ color: NP.ink }}>{entrants}</b> {t('lobby.entrants')}
+              <b className="num" style={{ color: NP.ink }}>{entrants}</b> {t(entrants === 1 ? 'lobby.entrantsOne' : 'lobby.entrants')}
             </span>
           ) : null}
         </div>
@@ -861,9 +861,9 @@ function statusLine(mode: LobbyMode, open: boolean, tr: (k: DictKey, v?: Record<
       : tr('status.submittedPts', { pts: mode.points });
   }
   const n = mode.entrants ?? 0;
-  if (mode.state === 'submitted') return n > 1 ? tr('fomo.modeWith', { n: n - 1 }) : tr('status.lineupLocked');
+  if (mode.state === 'submitted') return n > 2 ? tr('fomo.modeWith', { n: n - 1 }) : n === 2 ? tr('fomo.modeWithOne') : tr('status.lineupLocked');
   if (!open) return tr('status.closed');
-  if (n > 0) return tr('fomo.modeIn', { n });
+  if (n > 0) return n === 1 ? tr('fomo.modeInOne') : tr('fomo.modeIn', { n });
   if (mode.state === 'draft') return tr('status.draft', { filled: mode.filled, size: mode.size });
   return tr('status.notStarted');
 }

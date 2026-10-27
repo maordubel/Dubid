@@ -1014,6 +1014,9 @@ function MainApp() {
           fixturesCount={FIXTURES.length}
           saving={!entry ? lu.saving : false}
           savedAt={!entry ? lu.savedAt : null}
+          saved={!entry ? lu.savedCurrent : false}
+          saveError={!entry ? lu.saveError : false}
+          onRetrySave={lu.retrySave}
           picked={lu.filled}
           entrants={pulseCounts(pulse, mode)?.managers}
           onOpenFixtures={() => setShowFixtures(true)}
@@ -1080,6 +1083,9 @@ function MainApp() {
               pricing={mode === 'five'}
               budget={mode === 'five' ? DUBID_5X5_BUDGET : undefined}
               mode={mode}
+              /* ★ H04: העתקה לטיוטה בלבד — רק כשאפשר לערוך ויש זהות */
+              copyFromGw={!entry && userId && roundUse === 'build' ? gwCode() : undefined}
+              onReplaceDraft={lu.replaceDraft}
             />
             </div>
           </div>

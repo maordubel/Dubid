@@ -34,7 +34,8 @@ export type PicksByTeam = Record<string, string[]>;
 /* ================================================================== */
 
 export function RoundBar({
-  use, roundNumber, roundCode, deadlineAt, nowMs, fixturesCount, saving, savedAt, picked = 0, entrants, onOpenFixtures,
+  use, roundNumber, roundCode, deadlineAt, nowMs, fixturesCount, saving, savedAt, saved, saveError, onRetrySave,
+  picked = 0, entrants, onOpenFixtures,
 }: {
   use: RoundUse;
   roundNumber: number;
@@ -44,6 +45,10 @@ export function RoundBar({
   fixturesCount: number;
   saving?: boolean;
   savedAt?: number | null;
+  /** ★ H04: הגרסה הנוכחית של הטיוטה אושרה (לא "נשמר פעם"). */
+  saved?: boolean;
+  saveError?: boolean;
+  onRetrySave?: () => void;
   /** כמה שחקנים בטיוטה — "נשמר" מוצג רק כשיש מה לשמור. */
   picked?: number;
   /** ★ FOMO: כמה כבר הגישו במצב הזה. */
@@ -75,15 +80,20 @@ export function RoundBar({
           <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.12em] text-gold/80">
             {use === 'build' ? t('round.building') : t('round.viewing')}
             {entrants !== undefined && entrants > 0 && (
-              <span className="normal-case tracking-normal text-flare">· {t('fomo.barIn', { n: entrants })}</span>
+              <span className="normal-case tracking-normal text-flare">· {entrants === 1 ? t('fomo.barInOne') : t('fomo.barIn', { n: entrants })}</span>
             )}
-            {use === 'build' && picked > 0 && (saving || savedAt) && (
+            {use === 'build' && picked > 0 && saveError ? (
+              <button type="button" onClick={onRetrySave} aria-live="assertive"
+                      className="normal-case tracking-normal text-flare underline">
+                {t('round.saveFailed')}
+              </button>
+            ) : use === 'build' && picked > 0 && (saving || (saved ?? !!savedAt)) ? (
               <span aria-live="polite" title={saving ? t('round.saving') : t('round.saved')}
                     aria-label={saving ? t('round.saving') : t('round.saved')}
                     className="normal-case tracking-normal text-chalk-dim">
                 {saving ? '…' : '✓'}
               </span>
-            )}
+            ) : null}
           </span>
           <span className="flex items-baseline gap-1.5">
             <span className="font-press text-[17px] font-black leading-tight text-chalk">
