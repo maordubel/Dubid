@@ -1387,8 +1387,10 @@ export function sharedHttp(inner: Http, store: FeedStore, app: string, policy: C
 
     if (verdict !== 'fetch') {
       const usable = prev && prev.age_s <= policy.staleMaxSec ? prev.payload : null;
+      // someone else is refreshing this exact key right now: a recent copy is good enough
+      if (verdict === 'wait' && usable !== null) return usable;
       if (verdict === 'wait') {
-        // someone else is refreshing this exact key right now: give them a moment
+        // nothing to fall back on: give them a moment
         for (let i = 0; i < 4; i++) {
           await cacheSleep(700);
           try {
