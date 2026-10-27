@@ -102,13 +102,6 @@ export function SquadPicker(props: SquadPickerProps) {
   /** ★ נייד: לחיצה על שחקן שנבחר פותחת פעולות (קפטן/סגן/החלפה/הסרה). */
   const [acting, setActing] = useState<number | null>(null);
   const [sheet, setSheet] = useState<'teams' | 'formation' | 'budget' | null>(null);
-  /** ★ H03: אותה טיוטה, שתי תצוגות. העדפת ממשק בלבד — לא נכנסת להגשה. */
-  const [view, setViewState] = useState<LineupView>(readView);
-  const setView = (v: LineupView) => {
-    setViewState(v);
-    try { localStorage.setItem(VIEW_KEY, v); } catch { /* פרטי/חסום — לא חשוב */ }
-    track('lineup_view_changed', { mode, view: v });
-  };
 
   /** הודעה חולפת אחת. עדיפה על ערימת התראות שדוחפת את המגרש. */
   const notice = droppedNames && droppedNames.length > 0
@@ -171,24 +164,9 @@ export function SquadPicker(props: SquadPickerProps) {
         formation={lineup.formation}
         canChangeFormation={!!onFormation && formationsFor(rules.constraints.lineupSize).length > 1}
         onOpen={setSheet}
-        view={view}
-        onView={setView}
       />
 
-      {view === 'list' ? (
-        <LineupList
-          lineup={lineup}
-          pool={pool}
-          teamById={teamById}
-          pricing={pricing}
-          opponentLongByTeam={opponentLongByTeam}
-          opponentShortByTeam={opponentShortByTeam}
-          budgetLine={budget !== undefined ? { budget, spent } : undefined}
-          onPick={(sl) => setPicking(sl)}
-          onOpen={(sl) => setActing(sl.slotNo)}
-        />
-      ) : (
-      /* ---- המגרש — כל מה שנשאר, ובלי גלילה ---- */
+      {/* ---- המגרש — כל מה שנשאר, ובלי גלילה ---- */}
       <div className="grid min-h-0 flex-1 place-items-center px-2 py-2">
         {/* ★ שוליים של נייר סביב הדשא.
             בכרטיס העיתון המגרש מודפס על הדף, ומה שהופך אותו
@@ -225,7 +203,6 @@ export function SquadPicker(props: SquadPickerProps) {
           }}
         />
       </div>
-      )}
 
       {/* ---- CTA + הודעות ---- */}
       {/*
@@ -382,7 +359,7 @@ export function SquadPicker(props: SquadPickerProps) {
  * האילוץ היחיד שנוכח בכל לחיצה בדוביד 5.
  */
 function ControlBar({
-  coverage, filled, size, formation, canChangeFormation, onOpen, view, onView,
+  coverage, filled, size, formation, canChangeFormation, onOpen,
 }: {
   coverage: ReturnType<typeof teamCoverage>;
   filled: number;
@@ -390,8 +367,6 @@ function ControlBar({
   formation: string;
   canChangeFormation: boolean;
   onOpen: (sheet: 'teams' | 'formation' | 'budget') => void;
-  view: LineupView;
-  onView: (v: LineupView) => void;
 }) {
   const { t } = useI18n();
   const used = coverage.filter((c) => c.filled).length;
@@ -441,27 +416,8 @@ function ControlBar({
           )}
         </button>
 
-        <div className="flex shrink-0 items-center gap-1 rounded-xl bg-night-2 px-1.5">
-          <span className="num px-1 text-sm font-black text-gold" dir="ltr">{filled}/{size}</span>
-          {/* ★ H03: מגרש / רשימה — אותו הרכב */}
-          <span role="group" aria-label={t('lineup.view.label')} className="flex rounded-lg bg-night p-0.5">
-            {(['pitch', 'list'] as const).map((v) => (
-              <button key={v} type="button" onClick={() => onView(v)} aria-pressed={view === v}
-                      aria-label={t(v === 'pitch' ? 'lineup.view.pitch' : 'lineup.view.list')}
-                      title={t(v === 'pitch' ? 'lineup.view.pitch' : 'lineup.view.list')}
-                      className={`grid size-8 place-items-center rounded-md ${view === v ? 'bg-gold text-night' : 'text-chalk-dim'}`}>
-                {v === 'pitch' ? (
-                  <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                    <rect x="4" y="3" width="16" height="18" rx="1.5" /><path d="M4 12h16" /><circle cx="12" cy="12" r="2.5" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                    <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />
-                  </svg>
-                )}
-              </button>
-            ))}
-          </span>
+        <div className="grid shrink-0 place-items-center rounded-xl bg-night-2 px-3">
+          <span className="num text-sm font-black text-gold" dir="ltr">{filled}/{size}</span>
         </div>
       </div>
     </div>
@@ -711,89 +667,6 @@ function CopySheet({
         )}
       </div>
     </ControlSheet>
-  );
-}
-
-/* ================================================================== */
-/* תצוגת רשימה (H03)                                                   */
-/* ================================================================== */
-
-type LineupView = 'pitch' | 'list';
-const VIEW_KEY = 'dubid.lineupView';
-function readView(): LineupView {
-  try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'pitch'; } catch { return 'pitch'; }
-}
-
-/**
- * ★ אותו `lineup` בדיוק — אין state משלה. לחיצה על שורה = אותה פעולה כמו
- *   על הדמות: ריק → בורר, מלא → גיליון הפעולות (קפטן/סגן/החלפה/הסרה).
- *   שמות מלאים, 14px, בלי גלילה אופקית.
- */
-function LineupList({
-  lineup, pool, teamById, pricing, opponentLongByTeam, opponentShortByTeam, budgetLine, onPick, onOpen,
-}: {
-  lineup: Lineup;
-  pool: PoolPlayer[];
-  teamById: Map<string, TeamMeta>;
-  pricing?: boolean;
-  opponentLongByTeam?: Record<string, string>;
-  opponentShortByTeam?: Record<string, string>;
-  budgetLine?: { budget: number; spent: number };
-  onPick: (s: LineupSlot) => void;
-  onOpen: (s: LineupSlot) => void;
-}) {
-  const { t } = useI18n();
-  const byId = useMemo(() => new Map(pool.map((p) => [p.id, p])), [pool]);
-  const order: Record<Position, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
-  const slots = [...lineup.slots].sort((a, b) => order[a.position] - order[b.position] || a.slotNo - b.slotNo);
-  return (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2" data-lineup-view="list">
-      {budgetLine && (
-        <p className="mb-1.5 text-[12px] text-chalk-dim">
-          {t('lineup.picker.budget')}: <span className="num font-black text-gold" dir="ltr">
-            {budgetLine.spent.toFixed(1)}M / {budgetLine.budget.toFixed(1)}M
-          </span>
-        </p>
-      )}
-      <ul className="mx-auto max-w-xl divide-y divide-white/5 rounded-2xl border border-gold/15 bg-night-2">
-        {slots.map((sl) => {
-          const p = sl.playerId ? byId.get(sl.playerId) : undefined;
-          const team = sl.teamId ? teamById.get(sl.teamId) : undefined;
-          const opp = sl.teamId ? (opponentLongByTeam?.[sl.teamId] || opponentShortByTeam?.[sl.teamId]) : undefined;
-          return (
-            <li key={sl.slotNo}>
-              <button type="button" onClick={() => (p ? onOpen(sl) : onPick(sl))}
-                      className="tap flex w-full items-center gap-3 px-3 py-2.5 text-start">
-                <span className="w-9 shrink-0 text-[12px] font-black text-gold/90">{t(`lineup.posShort.${sl.position}` as DictKey)}</span>
-                {p ? (
-                  <>
-                    <TeamCrest teamId={sl.teamId} short={team?.short} size={26} className="shrink-0" />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5">
-                        <bdi className="min-w-0 break-words text-[14px] font-black leading-tight text-chalk">{p.name}</bdi>
-                        {sl.isCaptain && <span className="grid size-5 shrink-0 place-items-center rounded-full bg-flare text-[11px] font-black text-white" aria-label={t('lineup.picker.captainBadge')}>C</span>}
-                        {sl.isVice && <span className="grid size-5 shrink-0 place-items-center rounded-full bg-tekhelet text-[11px] font-black text-white" aria-label={t('lineup.picker.viceBadge')}>V</span>}
-                      </span>
-                      <span className="mt-0.5 block text-[12px] leading-snug text-chalk-dim">
-                        <bdi>{team?.short ?? team?.name}</bdi>
-                        {opp && <> · <bdi>{t('lineup.picker.vs', { opp })}</bdi></>}
-                      </span>
-                    </span>
-                    {pricing && p.price !== undefined && (
-                      <span className="num shrink-0 text-[13px] font-black text-gold" dir="ltr">{p.price}M</span>
-                    )}
-                  </>
-                ) : (
-                  <span className="flex-1 text-[14px] font-bold text-chalk-dim">
-                    + {t('lineup.picker.add', { pos: t(POSITION_KEY[sl.position]) })}
-                  </span>
-                )}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
   );
 }
 
