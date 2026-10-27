@@ -1,5 +1,5 @@
 -- =====================================================================
---  db/64_pulse_and_savings.sql — דופק המחזור (FOMO) + חיסכון לתוכנית החינם
+--  db/65_pulse_and_savings.sql — דופק המחזור (FOMO) + חיסכון לתוכנית החינם
 -- =====================================================================
 --  1. `game.round_pulse(code)` — כמה כבר בפנים (לפי מצב), כמה ב-24 שעות ובשעה
 --     האחרונה, ומי האחרונים שנעלו. בלי הרכבים — אלה נחשפים רק בנעילה.
@@ -194,7 +194,7 @@ $$;
 GRANT EXECUTE ON FUNCTION game.admin_storage_report() TO authenticated;
 
 INSERT INTO game.schema_migrations (version, note) VALUES
-  ('64', 'דופק מחזור (FOMO), מערך מוסתר עד נעילה, חיסכון realtime/יומן, בוטים ידניים מפוזרים, דוח אחסון')
+  ('65', 'דופק מחזור (FOMO), מערך מוסתר עד נעילה, חיסכון realtime/יומן, בוטים ידניים מפוזרים, דוח אחסון')
 ON CONFLICT (version) DO NOTHING;
 
 COMMIT;

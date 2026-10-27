@@ -231,7 +231,7 @@ export const DICT_LINEUP = {
   'round.away': { he: 'חוץ', en: 'Away', el: 'Εκτός' },
   'lineup.picker.needCaptain': { he: 'בחרו קפטן (C)', en: 'Choose your captain (C)', el: 'Επιλέξτε αρχηγό (C)' },
   'lineup.picker.fixFirst': { he: 'לתיקון: {why}', en: 'Fix: {why}', el: 'Διόρθωση: {why}' },
-  /* ---- FOMO: דופק המחזור (db/64) ---- */
+  /* ---- FOMO: דופק המחזור (db/65) ---- */
   'fomo.wire': { he: 'מהטלפרינטר', en: 'Off the wire', el: 'Από το τηλέτυπο' },
   'fomo.in': { he: '{n} מאמנים כבר בפנים', en: '{n} managers already in', el: '{n} προπονητές ήδη μέσα' },
   'fomo.inOne': { he: 'מאמן אחד כבר בפנים', en: '1 manager already in', el: '1 προπονητής ήδη μέσα' },

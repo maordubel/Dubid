@@ -18338,6 +18338,7 @@ DECLARE
   v_best    DOUBLE PRECISION;
   v_sc      DOUBLE PRECISION;
   v_pass    INT;
+  v_need0   JSONB;
   r         RECORD;
   i         INT;
   v_order   INT;
@@ -18383,9 +18384,14 @@ BEGIN
   SELECT COALESCE(min(GREATEST(COALESCE(fantasy_price, 1), 0)), 0) INTO v_minp
     FROM core.squads WHERE season_id = g.season_id AND valid_to IS NULL AND status = 'active';
 
-  /* שני מעברים: לפי הטעם, ואם התקציב חנק — מהזול. */
-  FOR v_pass IN 1..2 LOOP
+  /* שלושה מעברים, כל אחד מאפס: לפי הטעם · מהזול, רק קבוצות שמשחקות במחזור ·
+     ורק אם גם זה לא סוגר הרכב — מהזול, גם מקבוצה בלי משחק. בחירה חמדנית שנחנקה
+     בתקציב באמצע לא ממשיכה מהמקום שבו נתקעה: היא מתחילה מחדש בדרך זולה יותר. */
+  v_need0 := v_need;
+  FOR v_pass IN 1..3 LOOP
     EXIT WHEN array_length(v_pid, 1) = v_size;
+    v_teams := '{}'; v_pid := '{}'; v_tid := '{}'; v_pos := '{}'; v_price := '{}'; v_q := '{}';
+    v_spent := 0; v_need := v_need0;
     FOR r IN
   WITH fx AS (
     SELECT home_team_id AS t FROM core.weekly_matches
@@ -18452,6 +18458,7 @@ BEGIN
     LOOP
       EXIT WHEN COALESCE(array_length(v_pid, 1), 0) = v_size;
       CONTINUE WHEN r.team_id = ANY (v_teams) OR r.player_id = ANY (v_pid);
+      CONTINUE WHEN v_pass < 3 AND r.score < -1;   -- קבוצה בלי משחק במחזור: רק במעבר האחרון
       CONTINUE WHEN COALESCE((v_need->>r.position)::INT, 0) <= 0;
       v_left := v_size - COALESCE(array_length(v_pid, 1), 0);
       CONTINUE WHEN v_budget IS NOT NULL AND v_spent + r.price + (v_left - 1) * v_minp > v_budget;
@@ -19095,11 +19102,85 @@ ON CONFLICT (version) DO NOTHING;
 
 
 -- =====================================================================
--- ▼▼▼  64_pulse_and_savings.sql  —  דופק מחזור (FOMO), מערך מוסתר עד נעילה, חיסכון realtime/יומן, בוטים ידניים מפוזרים, דוח אחסון
+-- ▼▼▼  64_audit_quiet.sql  —  ★ היומן רושם שינויים, לא דופק: עדכון זהה לא נרשם; היסטוריית pg_cron נשמרת 7 ימים
+-- =====================================================================
+
+/* =====================================================================
+ * 64 · The audit log records changes, not heartbeats (27.10.2026)
+ *
+ * The ingest rewrites every player_match_stats and weekly_matches row it
+ * reads, every few minutes, with the same values (only updated_at moves).
+ * game.audit_row wrote a full before/after copy of each: 512,776 rows and
+ * 874 MB in ten days, 99% of them identical apart from the timestamp, and
+ * the shared project's disk was about to run out.
+ *
+ * Now:
+ *  · an UPDATE whose row is the same apart from updated_at is not logged —
+ *    a change made by anyone (an admin, the SQL Editor, the ingest) still is;
+ *  · the rows of that kind already written are removed (run once, idempotent);
+ *  · pg_cron keeps 7 days of its own run history (cron.job_run_details grew
+ *    without limit too). Every app's jobs still run; only their old receipts go.
+ *
+ * Idempotent: safe to run again.
+ * ===================================================================== */
+
+CREATE OR REPLACE FUNCTION game.audit_row()
+RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = game, public
+AS $$
+BEGIN
+  -- a row rewritten with the same values is not a change: nothing to record
+  IF TG_OP = 'UPDATE' AND (to_jsonb(OLD) - 'updated_at') = (to_jsonb(NEW) - 'updated_at') THEN
+    RETURN NEW;
+  END IF;
+  -- ★ כישלון ברישום לא מבטל את הפעולה. אדמין שלא יכול לפרסם
+  --   תוצאות כי היומן נכשל הוא תקלה גרועה יותר משורה חסרה.
+  BEGIN
+    INSERT INTO game.audit_logs (actor, entity, entity_id, action, old_value, new_value)
+    VALUES (
+      COALESCE(auth.uid()::TEXT, 'system'),
+      TG_TABLE_NAME,
+      CASE
+        WHEN TG_OP = 'DELETE' THEN COALESCE(to_jsonb(OLD)->>'id', to_jsonb(OLD)->>'key')
+        ELSE COALESCE(to_jsonb(NEW)->>'id', to_jsonb(NEW)->>'key')
+      END,
+      lower(TG_OP),
+      CASE WHEN TG_OP = 'INSERT' THEN NULL ELSE to_jsonb(OLD) END,
+      CASE WHEN TG_OP = 'DELETE' THEN NULL ELSE to_jsonb(NEW) END
+    );
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+
+-- the heartbeats already written: an update whose before and after differ only in updated_at
+DELETE FROM game.audit_logs
+ WHERE action = 'update'
+   AND old_value IS NOT NULL AND new_value IS NOT NULL
+   AND (old_value - 'updated_at') = (new_value - 'updated_at');
+
+-- pg_cron's own receipts: seven days are enough to see what ran and what failed
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
+    PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'ecosystem:cron-history';
+    PERFORM cron.schedule('ecosystem:cron-history', '17 3 * * *',
+      $q$DELETE FROM cron.job_run_details WHERE end_time < now() - interval '7 days'$q$);
+    DELETE FROM cron.job_run_details WHERE end_time < now() - interval '7 days';
+  END IF;
+END $$;
+
+
+-- =====================================================================
+-- ▼▼▼  65_pulse_and_savings.sql  —  דופק מחזור (FOMO), מערך מוסתר עד נעילה, חיסכון realtime/יומן, בוטים ידניים מפוזרים, דוח אחסון
 -- =====================================================================
 
 -- =====================================================================
---  db/64_pulse_and_savings.sql — דופק המחזור (FOMO) + חיסכון לתוכנית החינם
+--  db/65_pulse_and_savings.sql — דופק המחזור (FOMO) + חיסכון לתוכנית החינם
 -- =====================================================================
 --  1. `game.round_pulse(code)` — כמה כבר בפנים (לפי מצב), כמה ב-24 שעות ובשעה
 --     האחרונה, ומי האחרונים שנעלו. בלי הרכבים — אלה נחשפים רק בנעילה.
@@ -19294,7 +19375,7 @@ $$;
 GRANT EXECUTE ON FUNCTION game.admin_storage_report() TO authenticated;
 
 INSERT INTO game.schema_migrations (version, note) VALUES
-  ('64', 'דופק מחזור (FOMO), מערך מוסתר עד נעילה, חיסכון realtime/יומן, בוטים ידניים מפוזרים, דוח אחסון')
+  ('65', 'דופק מחזור (FOMO), מערך מוסתר עד נעילה, חיסכון realtime/יומן, בוטים ידניים מפוזרים, דוח אחסון')
 ON CONFLICT (version) DO NOTHING;
 
 COMMIT;

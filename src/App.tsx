@@ -573,7 +573,7 @@ function MainApp() {
    * שני הכרטיסים בלובי. המצב נגזר מאותם מקורות שכבר קיימים —
    * הטיוטה, ההגשה, והתוצאות. אין כאן state חדש.
    */
-  /* ★ FOMO (db/64): כמה כבר בפנים — אותו מקור ללובי, למצבים ולמסך הבנייה. */
+  /* ★ FOMO (db/65): כמה כבר בפנים — אותו מקור ללובי, למצבים ולמסך הבנייה. */
   const pulse = usePulse(gwCode());
 
   const lobbyModes: LobbyMode[] = useMemo(() => (['five', 'full'] as const).map((m) => {

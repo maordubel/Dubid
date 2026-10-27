@@ -76,7 +76,7 @@ export interface LobbyMode {
   size: number;
   /** ★ D07: מומלץ לסיבוב הראשון (משתמש שעוד לא התחיל אף הרכב במחזור). */
   recommended?: boolean;
-  /** ★ FOMO (db/64): כמה כבר הגישו במצב הזה. */
+  /** ★ FOMO (db/65): כמה כבר הגישו במצב הזה. */
   entrants?: number;
 }
 

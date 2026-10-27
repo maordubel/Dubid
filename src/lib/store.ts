@@ -328,7 +328,7 @@ export function hydrate(gameweekId: string, force = false): Promise<void> {
         throw entriesRes.error ?? resultsRes.error;
       }
 
-      /* ★ db/64: לפני הנעילה גם המערך של אחרים מוסתר (null) — נרמול למחרוזת ריקה. */
+      /* ★ db/65: לפני הנעילה גם המערך של אחרים מוסתר (null) — נרמול למחרוזת ריקה. */
       snapshot.entries = ((entriesRes.data ?? []) as LineupEntry[]).map((e) => (
         e.lineup && e.lineup.formation == null ? { ...e, lineup: { ...e.lineup, formation: '' } } : e));
       const r = normalizeResults(resultsRes.data, gameweekId);
@@ -1360,7 +1360,7 @@ export interface StorageReport {
   revision: number;
 }
 
-/** ★ db/64: גודל המסד מול מכסת החינם. */
+/** ★ db/65: גודל המסד מול מכסת החינם. */
 export async function adminStorageReport(): Promise<StorageReport> {
   const { data, error } = await supabase.rpc('admin_storage_report');
   if (error) throw new Error(errorCode(error));
@@ -1554,7 +1554,7 @@ export async function adminAudit(limit = 40): Promise<AuditRow[]> {
 
 export interface BotResult {
   added: number;
-  /** ★ db/64: מפוזר — עד מתי ייכנסו. */
+  /** ★ db/65: מפוזר — עד מתי ייכנסו. */
   spread?: boolean;
   until?: string;
   skipped: number;
@@ -1570,7 +1570,7 @@ export interface BotResult {
 export async function adminAddBots(
   gameweekId: string, mode: 'full' | 'five', count: number,
 ): Promise<BotResult> {
-  // ★ db/64: ברירת המחדל — מפוזר על פני השעות הקרובות, לא באותה שנייה.
+  // ★ db/65: ברירת המחדל — מפוזר על פני השעות הקרובות, לא באותה שנייה.
   const { data, error } = await supabase.rpc('admin_add_bots', {
     p_gw_code: gameweekId, p_mode: mode, p_count: count, p_spread: true,
   });

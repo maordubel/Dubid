@@ -139,7 +139,7 @@ export function AdminLeaguesOverview() {
 
 const mb = (b: number) => `${(b / 1024 / 1024).toFixed(b > 100 * 1024 * 1024 ? 0 : 1)}MB`;
 
-/** ★ db/64: המסד המשותף (DUBID+OFFSIDES+FAN LIFE) מול מכסת החינם — 500MB ואז "קריאה בלבד". */
+/** ★ db/65: המסד המשותף (DUBID+OFFSIDES+FAN LIFE) מול מכסת החינם — 500MB ואז "קריאה בלבד". */
 function StorageBox() {
   const [r, setR] = useState<StorageReport | null>(null);
   useEffect(() => { adminStorageReport().then(setR, () => setR(null)); }, []);
