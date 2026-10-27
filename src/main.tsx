@@ -8,6 +8,8 @@ import { purgeLocalGameData } from './lib/store.ts';
 import { startClockSync } from './lib/serverTime.ts';
 import { fetchServerTime } from './lib/supabase.ts';
 import { bootEcosystem } from './lib/ecosystem.ts';
+import { takeIncomingLeague } from './lib/league.ts';
+import { IncomingLeague } from './components/IncomingLeague.tsx';
 import './styles/index.css';
 
 /* ★ לפני שהאפליקציה עולה: מוחקים כל שריד של דאטת משחק מהמכשיר.
@@ -20,6 +22,9 @@ import './styles/index.css';
 purgeLocalGameData();
 
 /* Shared layer: count a landing handoff (?eh=), then touch/claim once per identity. Never blocks. */
+/* Connected Football: a FAN LIFE card may name a league (?league=). Taken off the address before anything renders. */
+takeIncomingLeague();
+
 bootEcosystem();
 
 /* ★ בדיקת יכולת אחת, פעם אחת, לפני הרינדור הראשון.
@@ -59,6 +64,7 @@ createRoot(root).render(
     <I18nProvider>
       <App />
       <PromoBanner />
+      <IncomingLeague />
     </I18nProvider>
   </StrictMode>,
 );
