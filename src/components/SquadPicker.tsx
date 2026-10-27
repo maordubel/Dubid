@@ -192,14 +192,6 @@ export function SquadPicker(props: SquadPickerProps) {
         בדיוק מעל הכפתור, בלי מספרים.
       */}
       <div className="relative shrink-0 border-t border-gold/15 bg-night/95 px-4 pb-3 pt-2.5 backdrop-blur">
-        {!notice && filled > 0 && filled < rules.constraints.lineupSize
-          && !lineup.slots.some((x) => x.isCaptain) && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-full z-10 px-4 pb-2">
-            <p role="status" className="mx-auto w-fit rounded-full bg-night-2/95 px-3 py-1 text-center text-[11px] font-bold text-gold-light shadow-lg">
-              {t('lineup.picker.tapForCaptain')}
-            </p>
-          </div>
-        )}
         {(notice || (!ready && filled === rules.constraints.lineupSize)) && (
           <div className="pointer-events-none absolute inset-x-0 bottom-full z-10 px-4 pb-2">
             <p
@@ -802,8 +794,8 @@ function PlayerActions({
           </span>
           <span>· {t(POSITION_KEY[slot.position])}</span>
           {pricing && player.price !== undefined && <span className="num text-gold" dir="ltr">· {player.price}M€</span>}
-          {opponent && <bdi>· {t('lineup.picker.vs', { opp: opponent })}</bdi>}
         </p>
+        {opponent && <p className="mt-1 text-[12px] text-chalk-2"><bdi>{t('lineup.picker.vs', { opp: opponent })}</bdi></p>}
 
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
