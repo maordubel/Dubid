@@ -1,5 +1,5 @@
 /* =====================================================================
- * 61 · The audit log records changes, not heartbeats (27.10.2026)
+ * 64 · The audit log records changes, not heartbeats (27.10.2026)
  *
  * The ingest rewrites every player_match_stats and weekly_matches row it
  * reads, every few minutes, with the same values (only updated_at moves).

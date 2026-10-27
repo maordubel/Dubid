@@ -849,7 +849,8 @@ export interface AdminTeamSquad {
 }
 
 export async function fetchAdminSquads(): Promise<AdminTeamSquad[]> {
-  const { data, error } = await supabase.rpc('admin_squads');
+  // ★ db/62: הסגלים של הליגה שהלוח עובד עליה (בלי בחירה — הראשית, כמו קודם).
+  const { data, error } = await supabase.rpc('admin_squads', { p_league: selectedLeague() });
   if (error) throw new Error(errorCode(error));
   return (data ?? []) as AdminTeamSquad[];
 }
@@ -1279,6 +1280,8 @@ export async function runHealthChecks(): Promise<HealthCheck[]> {
 
 export interface GameweekRow {
   code: string;
+  /** קוד הליגה (db/34+). */
+  league?: string;
   number: number;
   label: string;
   status: string;
@@ -1334,6 +1337,27 @@ export async function reopenGameweek(gameweekId: string): Promise<void> {
   await setPublished(gameweekId, false);
 }
 
+export interface LeagueOverviewRow {
+  league: string;
+  name: string;
+  ingest: boolean;
+  round: null | {
+    code: string; number: number; status: string; lockAt: string;
+    fixtures: number; fixturesFinal: number;
+    entries: { fiveHuman: number; fiveHouse: number; fullHuman: number; fullHouse: number };
+    housePlanned: number; alertsBlock: number; alertsWarn: number;
+  };
+  standings: { rows: number; updatedAt: string | null };
+  lastRun: null | { at: string | null; status: string; gw: string };
+}
+
+/** ★ db/62: מצב כל הליגות במבט אחד. אדמין בלבד. */
+export async function adminLeaguesOverview(): Promise<LeagueOverviewRow[]> {
+  const { data, error } = await supabase.rpc('admin_leagues_overview');
+  if (error) throw new Error(errorCode(error));
+  return (data ?? []) as LeagueOverviewRow[];
+}
+
 export async function gameweeksList(): Promise<GameweekRow[]> {
   const { data, error } = await supabase.rpc('gameweeks_list');
   if (error) throw new Error(errorCode(error));
@@ -1351,6 +1375,8 @@ export async function adminCreateGameweek(input: {
     p_lock_at: input.lockAt ?? null,
     p_label: input.label?.trim() || null,
     p_make_current: !!input.makeCurrent,
+    // ★ db/62: המחזור נוצר בליגה שהלוח עובד עליה, עם הקידומת שלה (gr-/en-/es-).
+    p_league: selectedLeague(),
   });
   if (error) throw new Error(errorCode(error));
   await Promise.all([refresh(), refreshLiveData()]);

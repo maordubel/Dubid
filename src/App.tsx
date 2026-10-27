@@ -67,6 +67,9 @@ import { resolveRules, IL_PREMIER, DUBID_5X5, DUBID_5X5_BUDGET } from './lib/sco
 import { scoreLineup } from './lib/scoring/engine.ts';
 import { buildLeaderboard } from './lib/leaderboard.ts';
 import { describeRound } from './lib/roundPhase.ts';
+import { RoundBar, FixturesBoard, FixturesSheet, type RoundUse, type PicksByTeam } from './components/RoundBar.tsx';
+import { timeOnly } from './lib/roundContext.ts';
+import { leagueTimezone } from './lib/leagueTz.ts';
 import { pickName, cleanTeamName, TEAM_NAME_MAX } from './lib/teamNames.ts';
 import { NIGHT_PRESS as NP, MISREGISTER } from './lib/pressPalette.ts';
 import {
@@ -416,6 +419,21 @@ function MainApp() {
     return map;
   }, [liveVersion, locale]);
 
+  /** ★ U02/M04: בגיליון הבחירה — שם מלא של היריבה, בית/חוץ ושעת הפתיחה. */
+  const opponentLongByTeam: Record<string, string> = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const tm of TEAMS) {
+      const opp = OPPONENT_BY_TEAM[tm.id];
+      if (!opp) continue;
+      const o = TEAM_BY_ID.get(opp.opponentId);
+      const day = new Date(opp.fixture.kickoff).toLocaleDateString(
+        locale === 'he' ? 'he-IL' : locale === 'el' ? 'el-GR' : 'en-GB',
+        { weekday: 'short', timeZone: leagueTimezone() });
+      map[tm.id] = `${o?.nameHe ?? o?.short ?? ''} (${tr(opp.isHome ? 'lineup.picker.home' : 'lineup.picker.away')}) · ${day} ${timeOnly(opp.fixture.kickoff)}`;
+    }
+    return map;
+  }, [liveVersion, locale]);
+
   /**
    * ★ מי אני.
    *
@@ -672,6 +690,22 @@ function MainApp() {
 
   const entry = entryByMode[mode];
 
+  /** ★ U01: מצב המחזור כפי שמסך הבנייה מציג אותו. */
+  const roundUse: RoundUse = roundBrief.step === 'open'
+    ? (entry ? 'submitted' : 'build')
+    : roundBrief.step;
+
+  /** השחקנים שלי (טיוטה או הגשה) לפי קבוצה — לסימון בלוח המשחקים. */
+  const myPicksByTeam: PicksByTeam = useMemo(() => {
+    const out: PicksByTeam = {};
+    for (const sl of (entry ? entry.lineup : lu.lineup).slots) {
+      if (!sl.playerId || !sl.teamId) continue;
+      const nm = pool.find((p) => p.id === sl.playerId)?.nameShort ?? '';
+      (out[sl.teamId] ??= []).push(nm);
+    }
+    return out;
+  }, [entry, lu.lineup, pool]);
+
   const statusByMode: Record<Mode, GameStatus> = {
     full: computeGameStatus({
       hasSubmission: !!entryFull, resultsPublished: results.published,
@@ -729,6 +763,7 @@ function MainApp() {
   };
 
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showFixtures, setShowFixtures] = useState(false);
 
   /**
    * ★ כרטיס ה"הנה ההרכב שלי" — מופיע פעם אחת, מיד אחרי ההגשה.
@@ -912,6 +947,21 @@ function MainApp() {
     lineup: (
       <div className="flex h-full min-h-0 flex-col">
         <ModeSwitch mode={mode} onChange={setMode} />
+        {/* ★ U01: לאיזה מחזור בונים, עד מתי, ומה אחריו — תמיד גלוי, לא רק ב-T-12. */}
+        <RoundBar
+          use={roundUse}
+          roundNumber={lobbyGameweek.number}
+          roundCode={gwCode()}
+          deadlineAt={lobbyGameweek.deadlineAt}
+          nowMs={nowMs}
+          fixturesCount={FIXTURES.length}
+          saving={!entry ? lu.saving : false}
+          savedAt={!entry ? lu.savedAt : null}
+          picked={lu.filled}
+          onOpenFixtures={() => setShowFixtures(true)}
+        />
+        <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {entry ? (
           <LockedLineup
             lineup={entry.lineup}
@@ -968,12 +1018,24 @@ function MainApp() {
                 .filter((n): n is string => !!n)}
               onSubmit={() => { if (!overBudget) setShowSaveModal(true); }}
               opponentShortByTeam={opponentShortByTeam}
+              opponentLongByTeam={opponentLongByTeam}
               pricing={mode === 'five'}
               budget={mode === 'five' ? DUBID_5X5_BUDGET : undefined}
               mode={mode}
             />
             </div>
           </div>
+        )}
+        </div>
+        {/* ★ דסקטופ: יש מקום — הלוח עומד לצד המגרש, בלי ללחוץ. */}
+        <aside aria-label={t('round.fixtures')}
+               className="hidden w-[22rem] shrink-0 overflow-y-auto overscroll-contain border-s border-gold/15 py-3 lg:block">
+          <FixturesBoard roundNumber={lobbyGameweek.number} roundCode={gwCode()} fixtures={FIXTURES} picks={myPicksByTeam} />
+        </aside>
+        </div>
+        {showFixtures && (
+          <FixturesSheet roundNumber={lobbyGameweek.number} roundCode={gwCode()} fixtures={FIXTURES}
+                         picks={myPicksByTeam} onClose={() => setShowFixtures(false)} />
         )}
         {showSaveModal && (
           <SaveEntryModal

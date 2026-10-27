@@ -30,6 +30,7 @@ import {
   AdminBots, AdminAds, AdminFunnel,
 } from './AdminConsole.tsx';
 import { AdminIngest } from './AdminIngest.tsx';
+import { AdminLeagueBar, AdminLeaguesOverview } from './AdminLeagues.tsx';
 import { LogoMark } from './Logo.tsx';
 import { resolveGate, type AdminGate } from '../lib/adminGate.ts';
 import { ensureIdentity } from '../lib/identity.ts';
@@ -97,9 +98,9 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
    * לפעמים, והשאר נדיר.
    */
   const [section, setSection] = useState<
-    'results' | 'ingest' | 'gameweeks' | 'gameweek' | 'squads' | 'rules' | 'content'
+    'leagues' | 'results' | 'ingest' | 'gameweeks' | 'gameweek' | 'squads' | 'rules' | 'content'
     | 'activity' | 'bots' | 'ads' | 'funnel' | 'stats'
-  >('results');
+  >('leagues');
 
   useEffect(() => subscribeToStore(() => forceTick((n) => n + 1)), []);
 
@@ -152,7 +153,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
         <div>
           <h1 className="font-press text-lg font-black">לוח ניהול</h1>
           <p className="text-xs text-chalk-dim">
-            {GAMEWEEK.label} · {GAMEWEEK.seasonLabel} ·{' '}
+            {GAMEWEEK.label} · <span className="num">{GAMEWEEK.id}</span> ·{' '}
             <span className={results.published ? 'text-gold' : 'text-chalk-dim'}>
               {results.published ? 'התוצאות פורסמו' : 'טיוטה — עוד לא פורסם'}
             </span>
@@ -214,6 +215,9 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
         </p>
       </div>
 
+      {/* ★ db/62: על איזו ליגה הלוח עובד — תמיד גלוי, ומעבר בלחיצה. */}
+      <AdminLeagueBar />
+
       <div className="mx-auto max-w-3xl px-4 py-5">
         {/* ★ גלילה אופקית: שבע לשוניות לא נכנסות לרוחב טלפון,
             והצטמצמות הייתה הופכת כל תווית לשתי אותיות. */}
@@ -234,7 +238,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
               קולטת לבד, זו הלשונית שפותחים כששואלים "למה
               המחזור לא התפרסם" — והיא צריכה להיות מתחת לאצבע,
               לא בסוף גלילה אופקית. */}
-          {([['results', 'תוצאות'], ['ingest', 'קליטה'], ['gameweeks', 'מחזורים'], ['activity', 'פעילות'],
+          {([['leagues', 'ליגות'], ['results', 'תוצאות'], ['ingest', 'קליטה'], ['gameweeks', 'מחזורים'], ['activity', 'פעילות'],
              ['bots', 'בוטים'], ['ads', 'פרסום'], ['funnel', 'משפך'],
              ['gameweek', 'המחזור'], ['squads', 'סגלים'], ['rules', 'חוקים'],
              ['content', 'תוכן'], ['stats', 'ניתוח']] as const)
@@ -253,6 +257,7 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
             ))}
         </div>
 
+        {section === 'leagues' && <AdminLeaguesOverview />}
         {section === 'ingest' && <AdminIngest />}
         {section === 'squads' && <AdminSquads />}
         {section === 'gameweeks' && <AdminGameweeks />}

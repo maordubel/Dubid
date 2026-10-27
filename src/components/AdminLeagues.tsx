@@ -1,0 +1,138 @@
+/**
+ * components/AdminLeagues.tsx — לוח הניהול וארבע הליגות (db/62).
+ *
+ * ★ עד כאן הלוח עבד בשקט על "הליגה שהדפדפן בחר" — בלי לומר איזו, ובלי דרך
+ *   לעבור. מחזור, סגלים, תוצאות ובוטים נגעו בליגה אחת בלי שהאדמין ידע איזו.
+ * ★ עכשיו:
+ *   · `AdminLeagueBar` — בראש הלוח: על איזו ליגה עובדים, ומעבר בלחיצה.
+ *   · `AdminLeaguesOverview` — כל הליגות במבט אחד: מחזור, נעילה, משחקים,
+ *     הגשות (אנשים / בית בנפרד), התראות קליטה, טבלה, ריצה אחרונה.
+ */
+import { useEffect, useState } from 'react';
+import { chooseLeague, fetchLeagues, selectedLeague, type PublicLeague } from '../lib/league.ts';
+import { adminLeaguesOverview, errorMessageHe, type LeagueOverviewRow } from '../lib/store.ts';
+import { LeagueFlag } from './LeagueIdentity.tsx';
+import { Card } from './AdminConsole.tsx';
+
+/** קוד הליגה שהלוח עובד עליה: הבחירה המקומית, או הראשית. */
+export function useAdminLeague(): { code: string | null; leagues: PublicLeague[] } {
+  const [leagues, setLeagues] = useState<PublicLeague[]>([]);
+  useEffect(() => { void fetchLeagues().then(setLeagues); }, []);
+  const code = selectedLeague() ?? leagues.find((l) => l.primary)?.code ?? null;
+  return { code, leagues };
+}
+
+const HE_NAME: Record<string, string> = {
+  IL_PREMIER: 'ליגת העל', GR_SUPER: 'יוון', EN_PL: 'אנגליה', ES_LALIGA: 'ספרד',
+};
+
+function Flag({ code }: { code: string }) {
+  return (
+    <span className="inline-block h-[14px] w-[21px] shrink-0 overflow-hidden rounded-[2px] ring-1 ring-white/25 align-middle">
+      <LeagueFlag country={code} />
+    </span>
+  );
+}
+
+export function AdminLeagueBar() {
+  const { code, leagues } = useAdminLeague();
+  if (leagues.length < 2) return null;
+  return (
+    <div className="px-4 pt-3" style={{ direction: 'rtl' }}>
+      <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gold/20 bg-night-2 p-1.5">
+        <span className="px-1.5 text-[11px] font-black text-chalk-dim">הלוח עובד על:</span>
+        {leagues.map((l) => {
+          const on = l.code === code;
+          return (
+            <button
+              key={l.code}
+              type="button"
+              aria-pressed={on}
+              onClick={() => { if (!on) chooseLeague(l.code, Boolean(l.primary)); }}
+              className={`tap flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-black ${
+                on ? 'bg-gradient-to-b from-gold-light to-gold text-gold-ink' : 'text-chalk-2'}`}
+            >
+              <Flag code={l.code} />
+              {HE_NAME[l.code] ?? l.code}
+              <span className="num text-[10.5px] opacity-75">{l.currentGameweek ?? ''}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const STATUS_HE: Record<string, string> = {
+  draft: 'טיוטה', open: 'פתוח להגשה', locked: 'נעול', live: 'חי', scoring: 'בניקוד', published: 'פורסם', archived: 'בארכיון',
+};
+
+const fmt = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('he-IL', {
+  weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+}) : '—');
+
+export function AdminLeaguesOverview() {
+  const [rows, setRows] = useState<LeagueOverviewRow[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const { code: active, leagues } = useAdminLeague();
+
+  const load = () => {
+    adminLeaguesOverview().then((r) => { setRows(r); setErr(null); },
+      (e: unknown) => setErr(errorMessageHe(e instanceof Error ? e.message : 'NETWORK')));
+  };
+  useEffect(load, []);
+
+  return (
+    <Card title="כל הליגות" hint="מצב המחזור בכל ליגה. «בית» = משתתפי הבית; נספרים בנפרד ואינם במדדי האנשים.">
+      {err && <p className="text-[12px] text-flare">{err}</p>}
+      {!rows && !err && <p className="text-[12px] text-chalk-dim">טוען…</p>}
+      <div className="grid gap-2 sm:grid-cols-2">
+        {rows?.map((r) => {
+          const g = r.round;
+          const e = g?.entries;
+          const lg = leagues.find((l) => l.code === r.league);
+          return (
+            <div key={r.league}
+                 className={`rounded-xl border px-3 py-2.5 ${r.league === active ? 'border-gold/55 bg-gold/5' : 'border-gold/12 bg-night'}`}>
+              <div className="flex items-center gap-2">
+                <Flag code={r.league} />
+                <span className="text-[13px] font-black text-chalk">{HE_NAME[r.league] ?? r.name}</span>
+                {g && <span className="num text-[11px] text-chalk-dim">{g.code}</span>}
+                {g && (
+                  <span className="rounded-full bg-night-3 px-2 py-0.5 text-[10px] text-chalk-2">{STATUS_HE[g.status] ?? g.status}</span>
+                )}
+                {!r.ingest && <span className="rounded-full bg-flare/15 px-2 py-0.5 text-[10px] font-black text-flare">קליטה כבויה</span>}
+              </div>
+              {g ? (
+                <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
+                  <dt className="text-chalk-dim">נעילה</dt><dd className="num text-chalk">{fmt(g.lockAt)}</dd>
+                  <dt className="text-chalk-dim">משחקים</dt><dd className="num text-chalk">{g.fixturesFinal}/{g.fixtures} הסתיימו</dd>
+                  <dt className="text-chalk-dim">דוביד 5</dt><dd className="num text-chalk">{e?.fiveHuman ?? 0} אנשים · {e?.fiveHouse ?? 0} בית</dd>
+                  <dt className="text-chalk-dim">דוביד 11</dt><dd className="num text-chalk">{e?.fullHuman ?? 0} אנשים · {e?.fullHouse ?? 0} בית</dd>
+                  <dt className="text-chalk-dim">התראות</dt>
+                  <dd className={`num ${g.alertsBlock ? 'font-black text-flare' : 'text-chalk'}`}>
+                    {g.alertsBlock} חוסמות · {g.alertsWarn} אזהרות
+                  </dd>
+                  <dt className="text-chalk-dim">טבלה רשמית</dt>
+                  <dd className="num text-chalk">{r.standings.rows ? `${r.standings.rows} קבוצות · ${fmt(r.standings.updatedAt)}` : '—'}</dd>
+                  <dt className="text-chalk-dim">קליטה אחרונה</dt>
+                  <dd className="num text-chalk">{r.lastRun ? `${fmt(r.lastRun.at)} · ${r.lastRun.status}` : '—'}</dd>
+                </dl>
+              ) : (
+                <p className="mt-1.5 text-[11px] text-chalk-dim">אין מחזור</p>
+              )}
+              {r.league !== active && lg && (
+                <button type="button" onClick={() => chooseLeague(lg.code, Boolean(lg.primary))}
+                        className="tap mt-2 rounded-lg border border-gold/25 px-3 py-1 text-[11.5px] font-bold text-chalk-2">
+                  לעבוד על הליגה הזו
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <button type="button" onClick={load} className="tap mt-3 text-[11.5px] font-bold text-gold">רענון</button>
+    </Card>
+  );
+}
+
