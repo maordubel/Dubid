@@ -9,13 +9,13 @@ DO $$
 DECLARE
   v_l UUID; v_s UUID; tA UUID; tB UUID;
   pKeep UUID; pMove UUID; pGone UUID; pDup UUID; pWrong UUID; pRight UUID;
-  r JSONB; a JSONB; v_run BIGINT; v_m UUID; v_gw UUID; n INT;
+  r JSONB; a JSONB; v_run BIGINT; v_m UUID; v_gw UUID; n INT; v_m2 UUID; v_gw2 UUID;
 BEGIN
-  DELETE FROM game.gameweeks WHERE code = 't50-1';
+  DELETE FROM game.gameweeks WHERE code IN ('t50-1', 't50-2');
   DELETE FROM core.leagues WHERE code = 'T50_LG';
   DELETE FROM game.name_fetch_requests WHERE league_code = 'T50_LG';
   DELETE FROM net._http_response WHERE id BETWEEN 9500001 AND 9500004;
-  DELETE FROM core.external_refs WHERE external_id IN ('m500','m501') OR (provider = 'scores365' AND entity_type = 'match' AND external_id = 'g500');
+  DELETE FROM core.external_refs WHERE external_id IN ('m500','m501','g501') OR (provider = 'scores365' AND entity_type = 'match' AND external_id = 'g500');
 
   INSERT INTO core.leagues (code, country_code, names) VALUES ('T50_LG', 'IL', '{"he":{"full":"ט"},"en":{"full":"T"}}') RETURNING id INTO v_l;
   INSERT INTO core.seasons (league_id, label, starts_on, ends_on, is_current) VALUES (v_l, 'T50', current_date - 30, current_date + 300, TRUE) RETURNING id INTO v_s;
@@ -56,6 +56,15 @@ BEGIN
   INSERT INTO core.ingest_raw (source, kind, external_id, payload, sha256)
   VALUES ('scores365', 'game', 'g500', '{"game":{"homeCompetitor":{"id":"cA"},"awayCompetitor":{"id":"cB"},"members":[{"id":"m500","athleteId":"15","name":"Right Guy"}]}}', 't50');
   INSERT INTO core.player_match_stats (match_id, player_id, team_id, minutes, goals) VALUES (v_m, pWrong, tB, 90, 1);
+  -- מחזור פתוח/חי: member m501 (athlete 12 = Mover) מופה בטעות לסדריק → כאן הסטטיסטיקה כן עוברת
+  INSERT INTO game.gameweeks (season_id, number, code, lock_at, status) VALUES (v_s, 2, 't50-2', now() - INTERVAL '1 hour', 'live') RETURNING id INTO v_gw2;
+  INSERT INTO core.weekly_matches (gameweek_id, home_team_id, away_team_id, kickoff_at, status)
+  VALUES (v_gw2, tB, tA, now() - INTERVAL '1 hour', 'live') RETURNING id INTO v_m2;
+  INSERT INTO core.external_refs (provider, entity_type, external_id, entity_id) VALUES ('scores365', 'match', 'g501', v_m2);
+  INSERT INTO core.external_refs (provider, entity_type, external_id, entity_id, payload) VALUES ('scores365', 'player', 'm501', pKeep, '{"matchedBy":"shirt"}');
+  INSERT INTO core.ingest_raw (source, kind, external_id, payload, sha256)
+  VALUES ('scores365', 'game', 'g501', '{"game":{"homeCompetitor":{"id":"cB"},"awayCompetitor":{"id":"cA"},"members":[{"id":"m501","athleteId":"12","name":"Mover Man"}]}}', 't50b');
+  INSERT INTO core.player_match_stats (match_id, player_id, team_id, minutes, assists) VALUES (v_m2, pKeep, tA, 45, 1);
 
   -- תכנון: לא משנה כלום
   r := game.squad_sync_plan('T50_LG', 1);
@@ -63,7 +72,7 @@ BEGIN
   v_run := (r->>'runId')::BIGINT;
   IF (SELECT count(*) FROM core.squads WHERE season_id = v_s AND valid_to IS NULL) <> 7 THEN RAISE EXCEPTION 'FAIL 1: plan כתב לסגל'; END IF;
   IF (r #>> '{items,transfer}')::INT <> 1 OR (r #>> '{items,left}')::INT <> 1 OR (r #>> '{items,new}')::INT <> 1
-     OR (r #>> '{items,duplicate}')::INT <> 1 OR (r #>> '{items,ref_fix}')::INT <> 1 THEN RAISE EXCEPTION 'FAIL 2: %', r; END IF;
+     OR (r #>> '{items,duplicate}')::INT <> 1 OR (r #>> '{items,ref_fix}')::INT <> 2 THEN RAISE EXCEPTION 'FAIL 2: %', r; END IF;
   IF (r->>'matched')::INT <> 5 THEN RAISE EXCEPTION 'FAIL 2b: התאמות %', r; END IF;
 
   a := game.squad_sync_apply(v_run);
@@ -88,9 +97,10 @@ BEGIN
   IF EXISTS (SELECT 1 FROM core.players WHERE name_en = 'Coach') THEN RAISE EXCEPTION 'FAIL 7b: איש צוות נוסף'; END IF;
   -- המיפוי תוקן והסטטיסטיקה עברה לשחקן הנכון; מחזור לניקוד מחדש מדווח
   IF (SELECT entity_id FROM core.external_refs WHERE provider = 'scores365' AND entity_type = 'player' AND external_id = 'm500') <> pRight THEN RAISE EXCEPTION 'FAIL 8: ref'; END IF;
-  IF NOT EXISTS (SELECT 1 FROM core.player_match_stats WHERE match_id = v_m AND player_id = pRight AND goals = 1)
-     OR EXISTS (SELECT 1 FROM core.player_match_stats WHERE match_id = v_m AND player_id = pWrong) THEN RAISE EXCEPTION 'FAIL 9: stats'; END IF;
-  IF (a->>'statsMoved')::INT <> 1 OR a->'rescore'->0->>'code' <> 't50-1' THEN RAISE EXCEPTION 'FAIL 10: %', a; END IF;
+  -- מחזור שפורסם: הסטטיסטיקה לא זזה (תוצאה רשמית), ומדווחת להחלטה
+  IF NOT EXISTS (SELECT 1 FROM core.player_match_stats WHERE match_id = v_m AND player_id = pWrong AND goals = 1) THEN RAISE EXCEPTION 'FAIL 9: פורסם שונה'; END IF;
+  IF (a->>'statsMoved')::INT <> 1 OR a->'publishedAffected'->>0 <> 't50-1' OR a->'rescore'->0->>'code' <> 't50-2' THEN RAISE EXCEPTION 'FAIL 10: %', a; END IF;
+  IF NOT EXISTS (SELECT 1 FROM core.player_match_stats WHERE match_id = v_m2 AND player_id = pMove AND assists = 1) THEN RAISE EXCEPTION 'FAIL 10b: לא פורסם ולא עבר'; END IF;
   -- פעמיים = שגיאה
   BEGIN PERFORM game.squad_sync_apply(v_run); RAISE EXCEPTION 'FAIL 11'; EXCEPTION WHEN raise_exception THEN
     IF SQLERRM = 'FAIL 11' THEN RAISE; END IF; END;
@@ -101,13 +111,13 @@ BEGIN
   IF has_function_privilege('anon', 'game.admin_squad_sync_plan(text)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'game.squad_sync_apply(bigint)', 'EXECUTE') THEN RAISE EXCEPTION 'FAIL 13'; END IF;
 
-  DELETE FROM core.player_match_stats WHERE match_id = v_m;
-  DELETE FROM core.external_refs WHERE external_id IN ('m500', 'g500', '40000016') OR (provider = 'scores365_athlete' AND external_id IN ('11','12','13','14','15','16'));
+  DELETE FROM core.player_match_stats WHERE match_id IN (v_m, v_m2);
+  DELETE FROM core.external_refs WHERE external_id IN ('m500', 'g500', 'm501', 'g501', '40000016') OR (provider = 'scores365_athlete' AND external_id IN ('11','12','13','14','15','16'));
   DELETE FROM game.name_fetch_requests WHERE league_code = 'T50_LG';
   DELETE FROM net._http_response WHERE id BETWEEN 9500001 AND 9500004;
   DELETE FROM core.players WHERE id IN (SELECT player_id FROM core.squads WHERE season_id = v_s);
-  DELETE FROM core.weekly_matches WHERE id = v_m;
-  DELETE FROM game.gameweeks WHERE id = v_gw;
+  DELETE FROM core.weekly_matches WHERE id IN (v_m, v_m2);
+  DELETE FROM game.gameweeks WHERE id IN (v_gw, v_gw2);
   DELETE FROM core.leagues WHERE id = v_l;
   DELETE FROM core.teams WHERE id IN (tA, tB);
 END $$;

@@ -23,8 +23,8 @@
 --      left        לא בסגל הספק → נסגר (valid_to, status='left'). השחקן לא נמחק.
 --      new         בסגל הספק ולא אצלנו → שחקן חדש, לא מדורג; מחיר/דרג = חציון אותה קבוצה+עמדה
 --                  (נפילה: חציון העמדה בליגה). לא 1.0 — שחקן נבחרת ב-1M הוא פרצה.
---      ref_fix     מיפוי קליטה (member id) שמצביע על שחקן אחר → מתוקן, וסטטיסטיקה
---                  שנרשמה לשחקן הלא נכון עוברת לנכון (רשימת מחזורים לניקוד מחדש)
+--      ref_fix     מיפוי קליטה (member id) שמצביע על שחקן אחר → מתוקן. סטטיסטיקה עוברת
+--                  לשחקן הנכון רק במחזורים שלא פורסמו; מחזור שפורסם מדווח (publishedAffected)
 --      ref_drop    מיפוי שגוי בלי שחקן נכון אצלנו → מוסר (הקליטה תמפה מחדש)
 --      position    עמדה שונה מהספק — **דיווח בלבד** (עמדה היא החלטת משחק)
 --  ★ לא נוגע: הרכבים שהוגשו, ניקוד שפורסם, מחירים/דרגים קיימים, מחיקת שחקנים.
@@ -298,7 +298,7 @@ AS $$
 DECLARE
   v_r game.squad_sync_runs; v_season UUID; it RECORD; v_pid UUID; v_ext TEXT; v_old core.squads;
   v_actor TEXT := COALESCE(auth.uid()::TEXT, 'system:squad_sync');
-  v_moved INT := 0; v_n INT; v_gws JSONB; v_matches UUID[];
+  v_moved INT := 0; v_n INT; v_gws JSONB; v_matches UUID[]; i INT;
 BEGIN
   SELECT * INTO v_r FROM game.squad_sync_runs WHERE id = p_run FOR UPDATE;
   IF v_r.id IS NULL THEN RAISE EXCEPTION 'RUN_NOT_FOUND'; END IF;
@@ -393,9 +393,11 @@ BEGIN
     VALUES (v_actor, 'player', it.player_id::TEXT, 'name_en_fill', it.detail, 'db/69 run ' || p_run);
   END LOOP;
 
-  -- 7. ref_fix — מיפוי הקליטה + סטטיסטיקה שנרשמה לשחקן הלא נכון
-  DROP TABLE IF EXISTS _gw;
-  CREATE TEMP TABLE _gw (gameweek_id UUID PRIMARY KEY) ON COMMIT DROP;
+  -- 7. ref_fix — מיפוי הקליטה. סטטיסטיקה: רק במחזורים שלא פורסמו (פורסם = תוצאה רשמית;
+  --    תיקון שלו הוא החלטת בעלים — נרשם ב-publishedAffected ולא נוגעים).
+  DROP TABLE IF EXISTS _gw, _mv;
+  CREATE TEMP TABLE _gw (gameweek_id UUID PRIMARY KEY, published BOOLEAN) ON COMMIT DROP;
+  CREATE TEMP TABLE _mv (match_id UUID, wrong UUID, right_p UUID, done BOOLEAN DEFAULT FALSE) ON COMMIT DROP;
   FOR it IN SELECT * FROM game.squad_sync_items WHERE run_id = p_run AND kind = 'ref_fix' ORDER BY seq LOOP
     v_pid := COALESCE(it.player_id,
                       (SELECT entity_id FROM core.external_refs WHERE provider = 'scores365_athlete' AND entity_type = 'player' AND external_id = it.athlete_id));
@@ -405,29 +407,41 @@ BEGIN
            payload = COALESCE(payload, '{}'::jsonb) || jsonb_build_object('matchedBy', 'squad_sync', 'run', p_run, 'previous', it.detail->>'wrongPlayer')
      WHERE provider = 'scores365' AND entity_type = 'player' AND external_id = it.detail->>'member';
 
-    -- המשחקים שבהם ה-member שיחק (לפי הגולמי) → שורות הסטטיסטיקה של השחקן הלא נכון עוברות
     SELECT array_agg(DISTINCT xm.entity_id) INTO v_matches
       FROM core.ingest_raw r
       JOIN core.external_refs xm ON xm.provider = 'scores365' AND xm.entity_type = 'match' AND xm.external_id = r.external_id
      WHERE r.kind = 'game' AND r.source = 'scores365'
        AND EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(r.payload #> '{game,members}', '[]'::jsonb)) m WHERE m->>'id' = it.detail->>'member');
     IF v_matches IS NOT NULL THEN
-      INSERT INTO _gw SELECT DISTINCT wm.gameweek_id FROM core.weekly_matches wm
-       WHERE wm.id = ANY (v_matches) AND EXISTS (SELECT 1 FROM core.player_match_stats s WHERE s.match_id = wm.id AND s.player_id = (it.detail->>'wrongPlayer')::UUID)
+      INSERT INTO _gw
+      SELECT DISTINCT wm.gameweek_id, g.status IN ('published','archived')
+        FROM core.weekly_matches wm JOIN game.gameweeks g ON g.id = wm.gameweek_id
+       WHERE wm.id = ANY (v_matches)
+         AND EXISTS (SELECT 1 FROM core.player_match_stats s WHERE s.match_id = wm.id AND s.player_id = (it.detail->>'wrongPlayer')::UUID)
       ON CONFLICT DO NOTHING;
-      UPDATE core.player_match_stats s SET player_id = v_pid, updated_at = now()
-       WHERE s.match_id = ANY (v_matches) AND s.player_id = (it.detail->>'wrongPlayer')::UUID
-         AND NOT EXISTS (SELECT 1 FROM core.player_match_stats s2 WHERE s2.match_id = s.match_id AND s2.player_id = v_pid);
-      GET DIAGNOSTICS v_n = ROW_COUNT;
-      v_moved := v_moved + v_n;
+      INSERT INTO _mv (match_id, wrong, right_p)
+      SELECT wm.id, (it.detail->>'wrongPlayer')::UUID, v_pid
+        FROM core.weekly_matches wm JOIN game.gameweeks g ON g.id = wm.gameweek_id
+       WHERE wm.id = ANY (v_matches) AND g.status NOT IN ('published','archived');
     END IF;
-    UPDATE game.squad_sync_items SET applied = TRUE, player_id = v_pid, detail = detail || jsonb_build_object('statsMoved', COALESCE(v_n, 0))
-     WHERE run_id = p_run AND seq = it.seq;
+    UPDATE game.squad_sync_items SET applied = TRUE, player_id = v_pid WHERE run_id = p_run AND seq = it.seq;
     INSERT INTO game.audit_logs (actor, entity, entity_id, action, old_value, new_value, reason)
     VALUES (v_actor, 'player_ref', it.detail->>'member', 'squad_sync_ref_fix',
             jsonb_build_object('player', it.detail->>'wrongPlayer', 'name', it.detail->>'wrongName'),
-            jsonb_build_object('player', v_pid, 'name', it.detail->>'rightName', 'statsMoved', COALESCE(v_n, 0)), 'db/69 run ' || p_run);
-    v_n := 0;
+            jsonb_build_object('player', v_pid, 'name', it.detail->>'rightName'), 'db/69 run ' || p_run);
+  END LOOP;
+  -- ★ כמה סבבים: A→B חסום כל עוד ל-B יש שורה שעוד צריכה לעבור ל-C
+  FOR i IN 1..10 LOOP
+    WITH m AS (
+      UPDATE core.player_match_stats s SET player_id = mv.right_p, updated_at = now()
+        FROM _mv mv
+       WHERE NOT mv.done AND s.match_id = mv.match_id AND s.player_id = mv.wrong
+         AND NOT EXISTS (SELECT 1 FROM core.player_match_stats s2 WHERE s2.match_id = s.match_id AND s2.player_id = mv.right_p)
+      RETURNING mv.match_id, mv.wrong)
+    UPDATE _mv SET done = TRUE FROM m WHERE _mv.match_id = m.match_id AND _mv.wrong = m.wrong;
+    GET DIAGNOSTICS v_n = ROW_COUNT;
+    EXIT WHEN v_n = 0;
+    v_moved := v_moved + v_n;
   END LOOP;
 
   -- 8. ref_drop — מיפוי שגוי בלי שחקן נכון: מוסר (נשמר ביומן), הקליטה תמפה מחדש לפי שם
@@ -440,13 +454,15 @@ BEGIN
   END LOOP;
 
   SELECT COALESCE(jsonb_agg(jsonb_build_object('code', g.code, 'status', g.status) ORDER BY g.lock_at), '[]'::jsonb) INTO v_gws
-    FROM _gw JOIN game.gameweeks g ON g.id = _gw.gameweek_id;
+    FROM _gw JOIN game.gameweeks g ON g.id = _gw.gameweek_id WHERE NOT _gw.published;
 
   UPDATE game.squad_sync_runs
      SET applied_at = now(),
          summary = summary || jsonb_build_object('applied', (SELECT jsonb_object_agg(kind, n) FROM (
                      SELECT kind, count(*) n FROM game.squad_sync_items WHERE run_id = p_run AND applied GROUP BY 1) z),
-                   'statsMoved', v_moved, 'rescore', v_gws)
+                   'statsMoved', v_moved, 'rescore', v_gws,
+                   'publishedAffected', (SELECT COALESCE(jsonb_agg(g.code ORDER BY g.lock_at), '[]'::jsonb)
+                                           FROM _gw JOIN game.gameweeks g ON g.id = _gw.gameweek_id WHERE _gw.published))
    WHERE id = p_run;
   PERFORM game.bump_revision_manual('squads');
   RETURN (SELECT summary FROM game.squad_sync_runs WHERE id = p_run);
