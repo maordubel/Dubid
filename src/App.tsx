@@ -7,7 +7,7 @@
  * שיתחבר API כדורגל. שני החלקים חיים עכשיו באותו קוד, אותו מנוע ניקוד,
  * אותה שפת עיצוב — לא שתי אפליקציות מודבקות זו לזו.
  */
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useI18n } from './lib/i18n/index.tsx';
 import { tr, activeLocale } from './lib/i18n/dict.ts';
 import { INTL_TAG, splitAt } from './lib/i18n/lazy.ts';
@@ -15,6 +15,7 @@ import { displayName as pickDisplayName } from './lib/i18n/names.ts';
 import { selectedLeague, primeLeagueTimezone } from './lib/league.ts';
 import { track } from './lib/analytics.ts';
 import { LeagueLoadError } from './components/LeagueLoadError.tsx';
+import { InviteSheet } from './components/InviteSheet.tsx';
 import type { DictKey } from './lib/i18n/dict.ts';
 import { ensureIdentity, storedDisplayName, setDisplayName, subscribeToIdentity, watchAuth,
   finishPendingMerge,
@@ -27,7 +28,7 @@ import { Arena } from './components/Arena.tsx';
 import { DubelCredit } from './components/DubelCredit.tsx';
 import { ShadesDivider } from './components/Shades.tsx';
 import { DUBID_URL } from './lib/growth.ts';
-import { GameweekStatus, type Gameweek } from './lib/gameweek.ts';
+import { GameweekStatus, isSubmissionOpen, type Gameweek } from './lib/gameweek.ts';
 import { serverNow } from './lib/serverTime.ts';
 import { SquadPicker, type PoolPlayer, type TeamMeta } from './components/SquadPicker.tsx';
 import { ShareCard } from './components/ShareCard.tsx';
@@ -83,7 +84,7 @@ import {
 } from './lib/store.ts';
 import {
   hydrateLiveData, startLiveDataRealtime, subscribeToLiveData, liveDataVersion, liveDataStatus,
-  currentGameweekCode, ruleOverrides,
+  currentGameweekCode, ruleOverrides, playerStatus,
   clubCap,
 } from './lib/liveData.ts';
 import { applyOverrides } from './lib/ruleOverrides.ts';
@@ -255,9 +256,21 @@ function MainApp() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const bootOnce = async (force: boolean) => {
-    await ensureIdentity();
-    await hydrateLiveData(force);
-    await primeLeagueTimezone();
+    /* ★ D07: עלייה שנכשלה (זהות/רשת) לא משאירה את המסך תקוע לנצח — מסך כשל
+       עם «נסה שוב». תקרה של 15 שניות: רשת תלויה אינה "עדיין טוען". */
+    try {
+      await Promise.race([
+        (async () => {
+          await ensureIdentity();
+          await hydrateLiveData(force);
+          await primeLeagueTimezone();
+        })(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('BOOT_TIMEOUT')), 15_000)),
+      ]);
+    } catch {
+      setLoadFailed(true);
+      return;
+    }
     /* ★ ליגה לא-ראשית שלא נטענה מהשרת: לא מציגים לה את הזרע הישראלי, וגם
        **לא מחליפים אותה בשקט** לראשית. מסך כשל עם «נסה שוב» / «בחר ליגה אחרת». */
     if (selectedLeague() && !liveDataStatus().fromServer) { setLoadFailed(true); return; }
@@ -381,6 +394,8 @@ function MainApp() {
          היה ב-`PLAYERS` ופשוט לא הועבר הלאה. */
       shirt: p.shirt,
       price: p.price,
+      /* ★ D09: זמינות — פצוע/מורחק נשאר בחיר (כלל המוצר), אבל מסומן. */
+      status: ((st) => (st === 'injured' || st === 'suspended' ? st : undefined))(playerStatus(p.id)),
     })),
     [liveVersion],
   );
@@ -392,10 +407,14 @@ function MainApp() {
     const map: Record<string, string> = {};
     for (const t of TEAMS) {
       const opp = OPPONENT_BY_TEAM[t.id];
-      if (opp) map[t.id] = TEAM_BY_ID.get(opp.opponentId)?.short ?? '';
+      /* ★ D09: בית/חוץ ליד היריבה — "נגד מכבי (ב)" אומר יותר מ"נגד מכבי". */
+      if (opp) {
+        const short = TEAM_BY_ID.get(opp.opponentId)?.short ?? '';
+        map[t.id] = short ? `${short} (${tr(opp.isHome ? 'lineup.picker.home' : 'lineup.picker.away')})` : '';
+      }
     }
     return map;
-  }, [liveVersion]);
+  }, [liveVersion, locale]);
 
   /**
    * ★ מי אני.
@@ -552,8 +571,22 @@ function MainApp() {
         : undefined,
       filled,
       size,
+      /* ★ D07: מי שעוד לא התחיל אף הרכב במחזור — DUBID 5 מומלץ לסיבוב הראשון. */
+      recommended: m === 'five' && !entryFull && !entryFive
+        && luByMode.five.lineup.slots.every((sl) => !sl.playerId)
+        && luByMode.full.lineup.slots.every((sl) => !sl.playerId),
     } as LobbyMode;
-  }), [entryByMode, luByMode, rulesByMode, hasRealResults, results, t]);
+  }), [entryByMode, luByMode, rulesByMode, hasRealResults, results, t, entryFull, entryFive]);
+
+  /* ★ D07: משתמש חוזר עם טיוטה פתוחה במצב אחד בלבד — זה המצב שנפתח. פעם אחת. */
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (resumed.current || !booted || !luByMode.full.hydrated || !luByMode.five.hydrated) return;
+    const started = (['five', 'full'] as const).filter((m) =>
+      !entryByMode[m] && luByMode[m].lineup.slots.some((sl) => sl.playerId));
+    if (started.length === 1) setMode(started[0]);
+    resumed.current = true;
+  }, [booted, entryByMode, luByMode]);
 
   /**
    * ★ המדדים בפס העליון של הלובי.
@@ -816,6 +849,9 @@ function MainApp() {
 
   const goToMode = (m: Mode) => {
     setMode(m);
+    /* ★ D08: מחזור נעול בלי הגשה — אין מה לבנות; המחזור עצמו (תוצאות,
+       דירוג, טבלה) הוא המקום. */
+    if (!entryByMode[m] && !isSubmissionOpen(lobbyGameweek, nowMs)) { setTab('leaderboard'); return; }
     setTab(statusByMode[m] === 'finished' ? 'card' : 'lineup');
   };
 
@@ -1001,6 +1037,9 @@ function MainApp() {
     )}
     {/* ★ שער הליגות — אחרי מסך הפתיחה; רק כשיש יותר מליגה אחת. */}
     {(splashGone || loadFailed) && <LeagueGateHost />}
+    {/* ★ D07/D13: קישור הזמנה `/l/CODE` — תצוגה מקדימה מהשרת, ואז הצטרפות. */}
+    <InviteSheet ready={booted && splashGone} userId={userId} displayName={displayName ?? ''}
+                 onJoined={(m) => { setMode(m); setTab('arena'); }} />
     {loadFailed && (
       <LeagueLoadError busy={retrying}
         onRetry={() => { setRetrying(true); void bootOnce(true).finally(() => setRetrying(false)); }} />

@@ -9,6 +9,7 @@ import { startClockSync } from './lib/serverTime.ts';
 import { fetchServerTime } from './lib/supabase.ts';
 import { bootEcosystem } from './lib/ecosystem.ts';
 import './styles/index.css';
+import { captureInviteFromUrl } from './lib/invite.ts';
 
 /* ★ לפני שהאפליקציה עולה: מוחקים כל שריד של דאטת משחק מהמכשיר.
    מהסבב הזה **שום** נתון של המשחק לא נשמר מקומית — לא הגשות,
@@ -18,6 +19,9 @@ import './styles/index.css';
 
    ⚠ סשן ההזדהות (`sb-*`) לא נמחק — הוא הזהות, לא הדאטה. */
 purgeLocalGameData();
+
+/* קישור הזמנה `/l/CODE` נקלט לפני הרינדור, והנתיב מנוקה (lib/invite.ts). */
+captureInviteFromUrl();
 
 /* Shared layer: count a landing handoff (?eh=), then touch/claim once per identity. Never blocks. */
 bootEcosystem();

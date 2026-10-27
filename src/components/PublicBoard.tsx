@@ -41,7 +41,7 @@ import { useI18n } from '../lib/i18n/index.tsx';
 import { leagueTimezone } from '../lib/leagueTz.ts';
 import { LOCALE_META, type Locale } from '../lib/i18n/locales.ts';
 import { TEAM_BY_ID, PLAYERS } from '../data/squads.ts';
-import { GAMEWEEK, localizedRoundLabel } from '../data/fixtures.ts';
+import { GAMEWEEK } from '../data/fixtures.ts';
 import type { DictKey } from '../lib/i18n/dict.ts';
 import { displayName } from '../lib/i18n/names.ts';
 import { leagueName, selectedLeague } from '../lib/league.ts';
@@ -164,7 +164,7 @@ function RecapCard({ recap }: { recap: Recap }) {
         <p className="mt-1.5 text-[12.5px] leading-snug text-chalk-2">
           {fill(t('board.pb.recapLine', { n: '{n}', name: '{name}', pts: '{pts}' }), {
             n: <span className="num font-black text-gold">{recap.entries}</span>,
-            name: <b className="text-chalk">{recap.top.name}</b>,
+            name: <b className="text-chalk">{recap.top.name ?? t('board.pb.anon')}</b>,
             pts: <span className="num font-black text-gold">{recap.top.points}</span>,
           })}
         </p>
@@ -175,9 +175,15 @@ function RecapCard({ recap }: { recap: Recap }) {
     );
   }
 
+  /* ★ מספר חסר הוא '—', לא 0: אפס נראה כמו כישלון שלא קרה. */
+  const move = recap.rank && recap.prevRank ? recap.prevRank - recap.rank : null;
+  const modeName = recap.mode ? t(recap.mode === 'full' ? 'mode.full.title' : 'mode.five.title') : null;
   const cells: Array<[string, string, string | null]> = [
-    [t('board.pb.yourScore'), String(recap.points ?? 0), null],
-    [t('lobby.rank'), recap.rank ? `#${recap.rank}` : '—', t('board.pb.outOf', { n: recap.entries })],
+    [t('board.pb.yourScore'), recap.points !== null && recap.points !== undefined ? String(recap.points) : '—', modeName],
+    [t('lobby.rank'), recap.rank ? `#${recap.rank}` : '—',
+     move === null || move === 0 ? t('board.pb.outOf', { n: recap.entries })
+       : move > 0 ? `▲ ${move} · ${t('board.pb.outOf', { n: recap.entries })}`
+       : `▼ ${-move} · ${t('board.pb.outOf', { n: recap.entries })}`],
     [t('board.pb.youBeat'), recap.beatPercent !== null && recap.beatPercent !== undefined
       ? `${recap.beatPercent}%` : '—', t('board.pb.ofPlayers')],
   ];
@@ -398,7 +404,7 @@ export function PublicBoard({ rulesByMode, userId }: {
             </h2>
             {gw && (
               <p className="text-[11.5px] font-bold text-chalk-2">
-                {localizedRoundLabel(gw.label, gw.number)}
+                {t('board.hub.round', { n: gw.number })}
                 {gw.entries > 0 && <span className="text-chalk-dim"> · {t('gate.entrants', { n: gw.entries })}</span>}
               </p>
             )}

@@ -72,6 +72,8 @@ export interface LobbyMode {
   rank?: number;
   filled: number;
   size: number;
+  /** ★ D07: מומלץ לסיבוב הראשון (משתמש שעוד לא התחיל אף הרכב במחזור). */
+  recommended?: boolean;
 }
 
 /** משחק קרוב, כפי שהלובי צריך אותו. בלי תלות במבנה של `data/fixtures`. */
@@ -624,7 +626,6 @@ function ModeArticle({
 }: { mode: LobbyMode; open: boolean; onPlay: () => void }) {
   const { t: tr, locale } = useI18n();
   const t = modeTheme(mode.id);
-  const done = mode.state === 'submitted' || mode.state === 'scored';
   const five = mode.id === 'five';
 
   return (
@@ -698,6 +699,12 @@ function ModeArticle({
         <span className="flex items-start gap-2">
           <ModeMark mode={mode.id} size={22} weight={2.8} />
           <span className="min-w-0 flex-1 text-[12.5px] leading-snug" style={{ color: NP.inkDim }}>
+            {mode.recommended && (
+              <span className="mb-1 block w-fit -rotate-1 px-1.5 py-[1px] text-[10px] font-black uppercase tracking-wider"
+                    style={{ background: NP.red, color: NP.paper }}>
+                {tr('lobby.recommended')}
+              </span>
+            )}
             {(locale === 'he' && content(`mode.${mode.id}.tagline`)) || mode.tagline}
           </span>
         </span>
@@ -717,12 +724,24 @@ function ModeArticle({
                 "להמשיך" הוא ניווט; "שחק עכשיו" אומר שיש כאן
                 משחק. זה המסך הראשון, ולרוב האנשים שמגיעים אליו
                 עדיין לא ברור מה בדיוק קורה כאן. */}
-            {done ? tr('lobby.view') : open ? tr('lobby.playNow') : tr('lobby.locked')}
+            {tr(ctaKey(mode, open), { filled: mode.filled, size: mode.size })}
           </span>
         </span>
       </span>
     </button>
   );
+}
+
+/**
+ * ★ D08: פעולה אחת ברורה לכל מצב. "שחק עכשיו" לכולם אמר את אותו דבר למי
+ *   שלא התחיל, למי שחסר לו שחקן אחד ולמי שכבר הגיש.
+ */
+function ctaKey(mode: LobbyMode, open: boolean): DictKey {
+  if (mode.state === 'scored') return 'lobby.cta.recap';
+  if (mode.state === 'submitted') return open ? 'lobby.cta.review' : 'lobby.cta.follow';
+  if (!open) return 'lobby.cta.watch';
+  if (mode.state === 'draft') return mode.filled >= mode.size ? 'lobby.cta.submit' : 'lobby.cta.continue';
+  return mode.id === 'five' ? 'lobby.cta.build5' : 'lobby.cta.build11';
 }
 
 /** שורת המצב. קצרה בכוונה — היא יושבת ליד כפתור, לא לבד. */

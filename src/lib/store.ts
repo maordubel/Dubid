@@ -596,19 +596,46 @@ export async function saveEntry(
       is_bench: !!s.isBench,
     }));
 
-  const { error } = await supabase.rpc('submit_entry', {
-    p_gw_code: gameweekId,
-    p_mode: mode,
-    p_formation: lineup.formation,
-    p_slots: slots,
-    p_display_name: displayName.trim() || null,
-    p_team_name: teamName?.trim() || null,
-  });
-  if (error) throw new Error(errorCode(error));
+  /* ★ D10: הגשה היא הלוך-ושוב אחד עם תקרה. כשל רשת/תקרה אינו "נכשל" —
+     ייתכן שהשרת כבר קיבל. בודקים בשרת לפני שאומרים למשתמש לנסות שוב, וכך
+     אין גם הגשה כפולה וגם לא "נכשל" על הרכב שנקלט. */
+  const sameLineup = (e: LineupEntry | undefined): e is LineupEntry => {
+    if (!e) return false;
+    const want = new Set(slots.map((x) => 'P' + x.ext_player_id));
+    const got = e.lineup.slots.filter((x) => x.playerId).map((x) => x.playerId);
+    return got.length === want.size && got.every((pid) => want.has(pid));
+  };
 
-  await refresh();
+  let rpcError: string | null = null;
+  try {
+    const res = await Promise.race([
+      supabase.rpc('submit_entry', {
+        p_gw_code: gameweekId,
+        p_mode: mode,
+        p_formation: lineup.formation,
+        p_slots: slots,
+        p_display_name: displayName.trim() || null,
+        p_team_name: teamName?.trim() || null,
+      }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 15_000)),
+    ]);
+    if (res.error) rpcError = errorCode(res.error);
+  } catch (err) {
+    rpcError = 'NETWORK';   // תקרה או רשת — בשני המקרים בודקים בשרת
+  }
 
-  const mine = findMyEntry(gameweekId, mode, id.id);
+  if (rpcError && rpcError !== 'NETWORK' && rpcError !== 'OFFLINE') throw new Error(rpcError);
+
+  await refresh().catch(() => undefined);
+  let mine = findMyEntry(gameweekId, mode, id.id);
+  if (rpcError) {
+    if (sameLineup(mine)) return mine;          // השרת קיבל — התשובה רק לא הגיעה
+    throw new Error(rpcError);
+  }
+  if (!mine) {
+    await refresh().catch(() => undefined);
+    mine = findMyEntry(gameweekId, mode, id.id);
+  }
   if (mine) return mine;
 
   // השרת קיבל אבל הרענון לא הספיק. מחזירים ייצוג עקבי כדי שהמסך
@@ -1959,11 +1986,13 @@ export interface Recap {
   teamName?: string | null;
   points?: number | null;
   rank?: number | null;
+  /** המקום הרשמי במחזור הקודם שפורסם — אותה ליגה ואותו פורמט (db/59). */
+  prevRank?: number | null;
   beatPercent?: number | null;
   best?: { player: string; nameHe: string | null; points: number } | null;
   worst?: { player: string; nameHe: string | null; points: number } | null;
   captain?: { player: string; nameHe: string | null; points: number } | null;
-  top?: { name: string; points: number } | null;
+  top?: { name: string | null; points: number } | null;
 }
 
 export async function gameweekRecap(gameweekCode: string, mode?: 'five' | 'full'): Promise<Recap> {
