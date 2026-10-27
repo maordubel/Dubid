@@ -18338,6 +18338,7 @@ DECLARE
   v_best    DOUBLE PRECISION;
   v_sc      DOUBLE PRECISION;
   v_pass    INT;
+  v_need0   JSONB;
   r         RECORD;
   i         INT;
   v_order   INT;
@@ -18383,9 +18384,14 @@ BEGIN
   SELECT COALESCE(min(GREATEST(COALESCE(fantasy_price, 1), 0)), 0) INTO v_minp
     FROM core.squads WHERE season_id = g.season_id AND valid_to IS NULL AND status = 'active';
 
-  /* שני מעברים: לפי הטעם, ואם התקציב חנק — מהזול. */
-  FOR v_pass IN 1..2 LOOP
+  /* שלושה מעברים, כל אחד מאפס: לפי הטעם · מהזול, רק קבוצות שמשחקות במחזור ·
+     ורק אם גם זה לא סוגר הרכב — מהזול, גם מקבוצה בלי משחק. בחירה חמדנית שנחנקה
+     בתקציב באמצע לא ממשיכה מהמקום שבו נתקעה: היא מתחילה מחדש בדרך זולה יותר. */
+  v_need0 := v_need;
+  FOR v_pass IN 1..3 LOOP
     EXIT WHEN array_length(v_pid, 1) = v_size;
+    v_teams := '{}'; v_pid := '{}'; v_tid := '{}'; v_pos := '{}'; v_price := '{}'; v_q := '{}';
+    v_spent := 0; v_need := v_need0;
     FOR r IN
   WITH fx AS (
     SELECT home_team_id AS t FROM core.weekly_matches
@@ -18452,6 +18458,7 @@ BEGIN
     LOOP
       EXIT WHEN COALESCE(array_length(v_pid, 1), 0) = v_size;
       CONTINUE WHEN r.team_id = ANY (v_teams) OR r.player_id = ANY (v_pid);
+      CONTINUE WHEN v_pass < 3 AND r.score < -1;   -- קבוצה בלי משחק במחזור: רק במעבר האחרון
       CONTINUE WHEN COALESCE((v_need->>r.position)::INT, 0) <= 0;
       v_left := v_size - COALESCE(array_length(v_pid, 1), 0);
       CONTINUE WHEN v_budget IS NOT NULL AND v_spent + r.price + (v_left - 1) * v_minp > v_budget;
