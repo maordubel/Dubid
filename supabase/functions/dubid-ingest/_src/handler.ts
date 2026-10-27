@@ -67,7 +67,7 @@ import type { Alert, Fixture, RawBlob, Snapshot, SquadMeta } from '../../../../e
 import { parse365Standings, standingsUrl } from './standings.ts';
 
 /** מזהה בנייה — מופיע ב-ping, כדי לדעת איזו גרסה באמת פרוסה. */
-const BUILD = 'dubid-ingest/5';
+const BUILD = 'dubid-ingest/6';
 
 const CORS = {
   'Access-Control-Allow-Origin': Deno.env.get('APP_ORIGIN') ?? 'https://dubid.dubelteam.com',
@@ -335,6 +335,29 @@ Deno.serve(async (req) => {
    * לגעת במחזור. `urls` בגוף הבקשה מאפשר לבדוק כתובת חדשה
    * בלי פריסה מחדש.
    */
+  /**
+   * ★ ניקוד מחדש של מחזור — `phase: 'rescore'`, `gameweekCode`.
+   *   אחרי תיקון נתונים (db/69/70: סטטיסטיקה שנרשמה לשחקן הלא נכון).
+   *   מריץ את אותו מנוע רשמי (`dubid-score-gameweek`) ומחזיר את הדוח.
+   *   לא משנה סטטוס מחזור או פרסום — רק `lineup_scores`.
+   */
+  if ((phase as string) === 'rescore') {
+    const code = typeof body?.gameweekCode === 'string' ? body.gameweekCode : '';
+    const { data: gw } = await supabase.from('gameweeks').select('id, code, status').eq('code', code).maybeSingle();
+    if (!gw?.id) return json({ ok: false, error: 'gameweek_not_found', code }, 404);
+    const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/dubid-score-gameweek`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+      body: JSON.stringify({ gameweekId: gw.id }),
+    });
+    let report: any = null;
+    try { report = await res.json(); } catch { /* נבדק */ }
+    await supabase.rpc('rescore_record', {
+      p_gw_code: code, p_ok: res.ok && !!report?.ok, p_report: report ?? { status: res.status },
+    });
+    return json({ ok: res.ok && !!report?.ok, code, status: res.status, scored: report?.scored ?? null, failures: report?.failures ?? null });
+  }
+
   if (phase === 'probe') {
     const t = Deno.env.get('SOFASCORE_TOURNAMENT') ?? '266';
     const se = Deno.env.get('SOFASCORE_SEASON') ?? '96740';
