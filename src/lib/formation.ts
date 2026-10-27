@@ -92,14 +92,14 @@ export function ratioForFormation(formation: string): number {
 }
 
 /** השוער למטה, במרכז. 90 ולא 96 — לכרטיס יש חצי גובה מתחת למרכז. */
-const GK_Y = 90;
+const GK_Y = 91;
 
 /**
  * הגבולות שבין הם נפרשות שורות השדה.
  * 72 משאיר מרווח מהשוער; 14 משאיר מקום לכרטיס מעל קו ההתקפה.
  */
 const FIELD_TOP = 14;
-const FIELD_BOTTOM = 72;
+const FIELD_BOTTOM = 71;
 
 /** גובה השורה ה-i מתוך n שורות שדה. */
 function rowY(i: number, n: number): number {
@@ -228,13 +228,15 @@ export function positionCounts(formation: string): Record<Position, number> | nu
  *
  * 1.7 הוא זה עם שוליים.
  */
-export const CARD_ASPECT = 1.55;
+/* ★ 27.10: שורת C·V·✕ ירדה מהכרטיס (גיליון פעולות במקומה) — הכרטיס הוא
+   דמות (0.86w) + לוחית שם (~15px). ב-w=40: 0.86·40+4+15 ≈ 53.4 → 1.34. */
+export const CARD_ASPECT = 1.36;
 
 export function cardHeight(width: number): number {
   return Math.round(width * CARD_ASPECT);
 }
 
-export const MIN_CARD = 44;
+export const MIN_CARD = 40;
 export const MAX_CARD = 76;
 export const GUTTER_PX = 6;
 const GUTTER = GUTTER_PX;
