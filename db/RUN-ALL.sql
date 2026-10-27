@@ -20584,18 +20584,36 @@ BEGIN
   SELECT se.id INTO v_season FROM core.seasons se JOIN core.leagues l ON l.id = se.league_id
     JOIN game.squad_sync_runs r ON r.league_code = l.code WHERE r.id = p_run AND se.is_current;
 
-  -- מדד: דירוג ספק ממוצע משוקלל בדקות, לשחקנים פעילים עם מספיק דקות
+  -- מדד: דירוג הספק (ranking) ממוצע משוקלל בדקות, מתוך משחקי העונה הגולמיים של הספק.
+  -- ★ מאותו מקור לכל השחקנים (גם מי שעוד לא היה ממופה אצלנו) — השוואה הוגנת.
   DROP TABLE IF EXISTS _idx;
   CREATE TEMP TABLE _idx ON COMMIT DROP AS
-  SELECT sq.player_id, sq.position, sq.fantasy_price, sq.tier,
-         sum(s.minutes) AS mins,
-         sum((s.extra->>'providerRating')::NUMERIC * s.minutes) / NULLIF(sum(s.minutes) FILTER (WHERE s.extra ? 'providerRating'), 0) AS idx
-    FROM core.squads sq
-    JOIN core.player_match_stats s ON s.player_id = sq.player_id
-    JOIN core.weekly_matches wm ON wm.id = s.match_id
-    JOIN game.gameweeks g ON g.id = wm.gameweek_id AND g.season_id = v_season
-   WHERE sq.season_id = v_season AND sq.valid_to IS NULL AND s.minutes > 0
-   GROUP BY 1, 2, 3, 4;
+  WITH g AS (
+    SELECT DISTINCT ON (r.external_id) r.payload
+      FROM core.ingest_raw r
+      JOIN core.external_refs xm ON xm.provider = 'scores365' AND xm.entity_type = 'match' AND xm.external_id = r.external_id
+      JOIN core.weekly_matches wm ON wm.id = xm.entity_id
+      JOIN game.gameweeks gw ON gw.id = wm.gameweek_id AND gw.season_id = v_season
+     WHERE r.kind = 'game' AND r.source = 'scores365'
+     ORDER BY r.external_id, r.fetched_at DESC),
+  mem AS (SELECT DISTINCT m->>'id' AS mid, m->>'athleteId' AS aid
+            FROM g CROSS JOIN LATERAL jsonb_array_elements(COALESCE(g.payload #> '{game,members}', '[]'::jsonb)) m),
+  lu AS (SELECT l->>'id' AS mid, NULLIF(l->>'ranking', '')::NUMERIC AS rating,
+                (SELECT NULLIF(regexp_replace(st->>'value', '[^0-9]', '', 'g'), '')::INT
+                   FROM jsonb_array_elements(COALESCE(l->'stats', '[]'::jsonb)) st WHERE (st->>'type') = '30' LIMIT 1) AS mins
+           FROM g CROSS JOIN LATERAL (
+             SELECT * FROM jsonb_array_elements(COALESCE(g.payload #> '{game,homeCompetitor,lineups,members}', '[]'::jsonb))
+             UNION ALL
+             SELECT * FROM jsonb_array_elements(COALESCE(g.payload #> '{game,awayCompetitor,lineups,members}', '[]'::jsonb))) AS x(l))
+  SELECT x.entity_id AS player_id, sq.position, sq.fantasy_price, sq.tier, sq.value_source,
+         sum(lu.mins) AS mins,
+         sum(lu.rating * lu.mins) / NULLIF(sum(lu.mins) FILTER (WHERE lu.rating IS NOT NULL), 0) AS idx
+    FROM lu
+    JOIN mem ON mem.mid = lu.mid
+    JOIN core.external_refs x ON x.provider = 'scores365_athlete' AND x.entity_type = 'player' AND x.external_id = mem.aid
+    JOIN core.squads sq ON sq.player_id = x.entity_id AND sq.season_id = v_season AND sq.valid_to IS NULL
+   WHERE lu.mins > 0 AND lu.rating IS NOT NULL
+   GROUP BY 1, 2, 3, 4, 5;
 
   FOR it IN SELECT * FROM game.squad_sync_items WHERE run_id = p_run AND kind = 'new' AND applied AND player_id IS NOT NULL LOOP
     SELECT * INTO v_old FROM core.squads WHERE season_id = v_season AND player_id = it.player_id AND valid_to IS NULL LIMIT 1;
