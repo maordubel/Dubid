@@ -129,21 +129,37 @@ export function useLineup(formation: string, rules: RuleSet, meta: {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  /**
+   * ★ H04 §7.6: "נשמר" מתייחס לגרסה **הנוכחית**. כל שינוי מקבל מספר גרסה;
+   *   "Draft saved" רק כשהגרסה האחרונה אושרה. כשל → saveError + retrySave.
+   *   savedAt ישן אינו אישור לשינוי חדש.
+   */
+  const rev = useRef(0);
+  const [currentRev, setCurrentRev] = useState(0);
+  const [savedRev, setSavedRev] = useState(0);
+  const [saveError, setSaveError] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     if (!loaded.current) return;
+    const r = ++rev.current;
+    setCurrentRev(r);
+    setSaveError(false);
 
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       setSaving(true);
       void pushDraft(meta.gameweekId, meta.mode, lineup).then((ok) => {
         setSaving(false);
-        if (ok) setSavedAt(Date.now());
+        if (ok) { setSavedAt(Date.now()); setSavedRev((v) => Math.max(v, r)); }
+        else if (r === rev.current) setSaveError(true);
       });
     }, SAVE_DELAY_MS);
 
     return () => { if (timer.current) clearTimeout(timer.current); };
-  }, [lineup, meta.gameweekId, meta.mode]);
+  }, [lineup, meta.gameweekId, meta.mode, retryTick]);
+
+  const retrySave = useCallback(() => setRetryTick((n) => n + 1), []);
 
   /**
    * ★ שמירה מיידית ביציאה מהדף.
@@ -213,6 +229,15 @@ export function useLineup(formation: string, rules: RuleSet, meta: {
     });
   }, []);
 
+  /**
+   * ★ H04: החלפת הטיוטה כולה בפעולה אחת (העתקת מחזור קודם / Undo).
+   *   לא reset + assign-ים — אחרת נשמר הרכב ביניים. המזהים נשארים של היעד.
+   */
+  const replaceDraft = useCallback((next: Lineup) => {
+    setLineup({ ...next, lineupId: meta.lineupId, userId: meta.userId, gameweekId: meta.gameweekId,
+      slots: next.slots.map((s) => ({ ...s })) });
+  }, [meta.lineupId, meta.userId, meta.gameweekId]);
+
   const reset = useCallback(() => {
     setLineup(createEmptyLineup(formation, {
       lineupId: meta.lineupId, userId: meta.userId, gameweekId: meta.gameweekId,
@@ -241,11 +266,13 @@ export function useLineup(formation: string, rules: RuleSet, meta: {
   const filled = lineup.slots.filter((s) => s.playerId).length;
 
   return {
-    lineup, assign, clear, setCaptain, setVice, reset, setFormation, lastDropped,
+    lineup, assign, clear, setCaptain, setVice, reset, setFormation, lastDropped, replaceDraft,
     issues, usedTeams, filled,
     isComplete: issues.length === 0,
     /** מצב הסנכרון — למסך שרוצה להראות "נשמר". */
     saving, savedAt, hydrated,
+    /** ★ H04: הגרסה הנוכחית אושרה בשרת / השמירה האחרונה נכשלה. */
+    savedCurrent: savedRev === currentRev && currentRev > 0, saveError, retrySave,
     /** `true` = הטיוטה לא נקראה. עריכה עלולה לדרוס. */
     loadFailed,
   };

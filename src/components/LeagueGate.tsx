@@ -101,7 +101,7 @@ function Card({ l, active, onPick }: { l: PublicLeague; active: boolean; onPick:
               ? <span className="text-gold-light">{t('gate.locksIn', { t: fmtDur(lockMs, t) })}</span> : null}
             {formatNote ? <span className="text-amber-300">{formatNote}</span> : null}
             {/* ★ H01: מאמנים ייחודיים כשהשרת יודע; אחרת — הגשות, בתווית הנכונה. */}
-            {live && (l.managers ?? 0) > 0 ? <span className="text-chalk-dim">{t('gate.entrants', { n: l.managers! })}</span>
+            {live && (l.managers ?? 0) > 0 ? <span className="text-chalk-dim">{l.managers === 1 ? t('gate.entrantsOne') : t('gate.entrants', { n: l.managers! })}</span>
               : live && l.entrants ? <span className="text-chalk-dim">{t('gate.lineups', { n: l.entrants })}</span> : null}
           </div>
         </div>

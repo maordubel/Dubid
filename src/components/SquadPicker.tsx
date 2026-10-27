@@ -7,10 +7,12 @@
  * ובגיליון הבחירה שחקנים מקבוצה תפוסה מוצגים נעולים ולא נעלמים —
  * ככה המשתמש מבין למה, ורואה את מי הוא צריך להחליף.
  */
+import { fetchPreviousLineup, planCopy, type PoolInfo, type PreviousLoad } from '../lib/previousLineup.ts';
+import { selectedLeague } from '../lib/league.ts';
 import { track } from '../lib/analytics.ts';
 import { useDialog } from '../lib/useDialog.ts';
 import { matchesPlayer, normSearch } from '../lib/playerNames.ts';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   teamCoverage, validateLineup, formatIssue, teamBlock,
 } from '../lib/scoring/validate.ts';
@@ -83,13 +85,17 @@ export interface SquadPickerProps {
   droppedNames?: string[];
   /** מצב המשחק. קובע את פס הזהות בקצה המגרש ואת נוסח הטקטיקה. */
   mode?: 'five' | 'full';
+  /** ★ H04: "Use last round's lineup" — קוד מחזור היעד; בלי → הכפתור לא מוצג. */
+  copyFromGw?: string;
+  /** ★ H04: החלפת הטיוטה כולה בפעולה אחת (העתקה / Undo). */
+  onReplaceDraft?: (l: Lineup) => void;
 }
 
 export function SquadPicker(props: SquadPickerProps) {
   const {
     lineup, pool, teams, rules, onAssign, onClear, onCaptain, onSubmit,
     opponentShortByTeam, opponentLongByTeam, pricing, budget, onVice, onFormation, droppedNames,
-    mode = 'full',
+    mode = 'full', copyFromGw, onReplaceDraft,
   } = props;
   const { t, locale } = useI18n();
   const [picking, setPicking] = useState<LineupSlot | null>(null);
@@ -122,7 +128,19 @@ export function SquadPicker(props: SquadPickerProps) {
   const filled = lineup.slots.filter((s) => s.playerId).length;
   const issues = useMemo(() => validateLineup(lineup, rules), [lineup, rules]);
   const theme = modeTheme(mode);
-  const ready = issues.length === 0;
+  /* ★ H04: חריגה מהתקציב (למשל אחרי העתקה במחירים של היום) חוסמת גם כאן */
+  const over = remaining !== undefined && remaining < -1e-9 ? -remaining : 0;
+  const ready = issues.length === 0 && over === 0;
+  /* ★ H04: העתקה + Undo */
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [undo, setUndo] = useState<Lineup | null>(null);
+  useEffect(() => {
+    if (!undo) return;
+    const id = setTimeout(() => setUndo(null), 15_000);
+    return () => clearTimeout(id);
+  }, [undo]);
+  const poolInfo = useMemo(() => new Map(pool.map((p) => [p.id, {
+    id: p.id, teamId: p.teamId, position: p.position, price: p.price, name: p.name, status: p.status }])), [pool]);
 
   const coverage = useMemo(
     () => teamCoverage(lineup, teams.map((t) => t.id), rules),
@@ -218,7 +236,18 @@ export function SquadPicker(props: SquadPickerProps) {
         בדיוק מעל הכפתור, בלי מספרים.
       */}
       <div className="relative shrink-0 border-t border-gold/15 bg-night/95 px-4 pb-3 pt-2.5 backdrop-blur">
-        {(notice || (!ready && filled === rules.constraints.lineupSize)) && (
+        {undo && onReplaceDraft && (
+          <div className="absolute inset-x-0 bottom-full z-10 px-4 pb-2">
+            <p role="status" className="mx-auto flex max-w-sm items-center justify-between gap-2 rounded-xl bg-armband/95 px-3 py-2 text-[13px] font-bold text-night shadow-lg">
+              <span>{t('copy.done')}</span>
+              <button type="button" className="tap shrink-0 rounded-full bg-night px-3 py-1 text-[12.5px] font-black text-chalk"
+                      onClick={() => { onReplaceDraft(undo); setUndo(null); track('previous_lineup_undone', { league_code: selectedLeague(), mode }); }}>
+                {t('copy.undo')}
+              </button>
+            </p>
+          </div>
+        )}
+        {!undo && (notice || (!ready && filled === rules.constraints.lineupSize)) && (
           <div className="pointer-events-none absolute inset-x-0 bottom-full z-10 px-4 pb-2">
             <p
               role={notice ? 'status' : 'alert'}
@@ -227,9 +256,12 @@ export function SquadPicker(props: SquadPickerProps) {
                             notice ? 'bg-armband/90 text-night' : 'bg-flare/90 text-white'
                           }`}
             >
-              {notice ?? formatIssue(issues[0], locale)}
+              {notice ?? (issues[0] ? formatIssue(issues[0], locale) : t('lineup.picker.overBudget', { m: over.toFixed(1) }))}
             </p>
           </div>
+        )}
+        {copyFromGw && onReplaceDraft && filled < rules.constraints.lineupSize && !undo && (
+          <CopyLastButton gwCode={copyFromGw} mode={mode} onOpen={() => setCopyOpen(true)} />
         )}
         <button
           onClick={onSubmit}
@@ -245,7 +277,9 @@ export function SquadPicker(props: SquadPickerProps) {
               /* ★ U06: מלא אבל לא מוכן — אומרים מה חסר באמת, לא "0 שחקנים". */
               : issues[0]?.code === 'captain_missing'
                 ? t('lineup.picker.needCaptain')
-                : t('lineup.picker.fixFirst', { why: formatIssue(issues[0], locale) })}
+                : issues[0]
+                  ? t('lineup.picker.fixFirst', { why: formatIssue(issues[0], locale) })
+                  : t('lineup.picker.overBudget', { m: over.toFixed(1) })}
         </button>
       </div>
 
@@ -290,6 +324,23 @@ export function SquadPicker(props: SquadPickerProps) {
           />
         );
       })()}
+
+      {copyOpen && copyFromGw && onReplaceDraft && (
+        <CopySheet
+          gwCode={copyFromGw}
+          mode={mode}
+          lineup={lineup}
+          pool={poolInfo}
+          rules={rules}
+          budget={budget}
+          onClose={() => setCopyOpen(false)}
+          onApply={(next) => {
+            setUndo(lineup);
+            onReplaceDraft(next);
+            setCopyOpen(false);
+          }}
+        />
+      )}
 
       {picking && (
         <PlayerSheet
@@ -547,6 +598,119 @@ function BudgetHud({
             : withNum(t('lineup.picker.outOf'), `${budget}M`)}
       </span>
     </button>
+  );
+}
+
+/* ================================================================== */
+/* העתקת ההרכב הקודם (H04)                                             */
+/* ================================================================== */
+
+const prevCache = new Map<string, Promise<PreviousLoad>>();
+function usePrevious(gwCode: string, mode: 'five' | 'full', bump = 0): PreviousLoad | null {
+  const [st, setSt] = useState<PreviousLoad | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const key = `${gwCode}|${mode}`;
+    if (bump) prevCache.delete(key);
+    let p = prevCache.get(key);
+    if (!p) { p = fetchPreviousLineup(gwCode, mode); prevCache.set(key, p); }
+    void p.then((v) => { if (v.status === 'error') prevCache.delete(key); if (alive) setSt(v); });
+    return () => { alive = false; };
+  }, [gwCode, mode, bump]);
+  return st;
+}
+
+/** כפתור משני מעל ה-CTA — רק כשיש מקור. אין מקור → לא מוצג (אין מה ללחוץ). */
+function CopyLastButton({ gwCode, mode, onOpen }: { gwCode: string; mode: 'five' | 'full'; onOpen: () => void }) {
+  const { t } = useI18n();
+  const st = usePrevious(gwCode, mode);
+  if (!st || st.status !== 'ready') return null;
+  return (
+    <button type="button" onClick={onOpen}
+            className="tap mb-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-gold/30 py-2 text-[13.5px] font-black text-gold">
+      <span aria-hidden="true">↺</span> {t('copy.cta', { n: st.data.sourceNumber })}
+    </button>
+  );
+}
+
+function CopySheet({
+  gwCode, mode, lineup, pool, rules, budget, onClose, onApply,
+}: {
+  gwCode: string;
+  mode: 'five' | 'full';
+  lineup: Lineup;
+  pool: ReadonlyMap<string, PoolInfo>;
+  rules: RuleSet;
+  budget?: number;
+  onClose: () => void;
+  onApply: (l: Lineup) => void;
+}) {
+  const { t } = useI18n();
+  const [bump, setBump] = useState(0);
+  const st = usePrevious(gwCode, mode, bump);
+  const plan = useMemo(() => (st?.status === 'ready'
+    ? planCopy(st.data, { lineupId: lineup.lineupId, userId: lineup.userId, gameweekId: lineup.gameweekId,
+                          currentFormation: lineup.formation }, pool, rules, budget)
+    : null), [st, lineup.lineupId, lineup.userId, lineup.gameweekId, lineup.formation, pool, rules, budget]);
+  const existing = lineup.slots.filter((s) => s.playerId).length;
+  useEffect(() => {
+    if (plan) track('previous_lineup_previewed', { league_code: selectedLeague(), mode, kept: plan.kept, needs: plan.needs.length });
+  }, [plan, mode]);
+
+  const needText = (n: ReturnType<typeof planCopy>['needs'][number]) => {
+    switch (n.reason) {
+      case 'gone': return t('copy.need.gone');
+      case 'position': return t('copy.need.position', { name: n.name ?? '' });
+      case 'club': return t('copy.need.club', { names: n.detail ?? '' });
+      case 'captain': return t('copy.need.captain');
+      case 'vice': return t('copy.need.vice');
+      case 'budget': return t('copy.need.budget', { m: n.detail ?? '' });
+      case 'formation': return t('copy.need.formation', { f: n.detail ?? '' });
+    }
+  };
+
+  return (
+    <ControlSheet title={t('copy.title')} onClose={onClose}>
+      <div className="px-4">
+        {!st && <p className="text-[14px] text-chalk-dim">…</p>}
+        {st?.status === 'none' && <p className="text-[14px] text-chalk-dim">{t('copy.none')}</p>}
+        {st?.status === 'error' && (
+          <p className="flex items-center gap-2 text-[14px] text-amber-300" role="alert">
+            {t('copy.error')}
+            <button type="button" onClick={() => setBump((n) => n + 1)} className="tap rounded-full border border-gold/40 px-3 py-1 text-[12.5px] font-black text-gold">
+              {t('copy.retry')}
+            </button>
+          </p>
+        )}
+        {st?.status === 'ready' && plan && (
+          <>
+            <p className="text-[14px] font-bold text-chalk">{t('copy.source', { n: st.data.sourceNumber })}</p>
+            <p className="mt-0.5 text-[14px] text-chalk-2">
+              {t('copy.kept', { k: plan.kept, x: plan.size - plan.kept })}
+            </p>
+            {(plan.needs.length > 0 || plan.warnings.length > 0) && (
+              <ul className="mt-2 space-y-1 text-[13px]">
+                {plan.needs.map((n, i) => <li key={`n${i}`} className="text-amber-300">• <bdi>{needText(n)}</bdi></li>)}
+                {plan.warnings.map((w) => (
+                  <li key={`w${w.playerId}`} className="text-chalk-dim">• <bdi>{t('copy.warn', { name: w.name, status: t(w.status === 'injured' ? 'copy.injured' : 'copy.suspended') })}</bdi></li>
+                ))}
+              </ul>
+            )}
+            {existing > 0 && <p className="mt-2 text-[13px] font-bold text-flare">{t('copy.replaceWarn', { n: existing })}</p>}
+            <div className="mt-3 grid grid-cols-2 gap-2 pb-1">
+              <button type="button" onClick={onClose} className="tap min-h-[48px] rounded-2xl border border-gold/25 text-[14px] font-bold text-chalk">
+                {t('copy.cancel')}
+              </button>
+              <button type="button"
+                      onClick={() => { track('previous_lineup_applied', { league_code: selectedLeague(), mode, kept: plan.kept, needs: plan.needs.length }); onApply(plan.lineup); }}
+                      className="tap min-h-[48px] rounded-2xl bg-gold text-[14px] font-black text-night">
+                {t('copy.apply')}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </ControlSheet>
   );
 }
 
