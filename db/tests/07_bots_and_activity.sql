@@ -34,7 +34,7 @@ SELECT game.admin_set_deadline('gw-2', now() + interval '2 days');
 DO $$
 DECLARE r JSONB; n INT; bad INT;
 BEGIN
-  r := game.admin_add_bots('gw-2', 'full', 4);
+  r := game.admin_add_bots('gw-2', 'full', 4, FALSE);
 
   IF (r->>'added')::INT <> 4 THEN
     RAISE EXCEPTION 'FAIL 1: נוספו % בוטים במקום 4 (%)', r->>'added', r;
@@ -68,10 +68,15 @@ END $$;
 DO $$
 DECLARE r JSONB;
 BEGIN
-  r := game.admin_add_bots('gw-2', 'full', 4);
-  IF (r->>'added')::INT <> 0 OR (r->>'skipped')::INT <> 4 THEN
+  /* ★ db/64: "הוסף עוד 4" — הרצה חוזרת מוסיפה **אחרים**, אף פעם לא את אותו
+     משתתף פעמיים באותו מחזור ומצב. */
+  r := game.admin_add_bots('gw-2', 'full', 4, FALSE);
+  IF EXISTS (SELECT 1 FROM game.user_lineups ul JOIN game.gameweeks g ON g.id = ul.gameweek_id AND g.code = 'gw-2'
+              GROUP BY ul.user_id, ul.mode HAVING count(*) > 1) THEN
     RAISE EXCEPTION 'FAIL 2: הרצה חוזרת יצרה בוטים כפולים (%)', r;
   END IF;
+  PERFORM game.admin_remove_bots('gw-2', 'full');
+  PERFORM game.admin_add_bots('gw-2', 'full', 4, FALSE);
 END $$;
 \echo '  ✓ 2  הרצה חוזרת מדלגת — אין בוטים כפולים'
 
@@ -93,7 +98,7 @@ BEGIN
    WHERE ul.user_id = v_bot AND ul.mode = 'full';
 
   PERFORM game.admin_remove_bots('gw-2', 'full');
-  PERFORM game.admin_add_bots('gw-2', 'full', 4);
+  PERFORM game.admin_add_bots('gw-2', 'full', 4, FALSE);
 
   SELECT string_agg(s.player_id::TEXT, ',' ORDER BY s.slot_no) INTO b
     FROM game.user_lineups ul
@@ -115,7 +120,7 @@ END $$;
 DO $$
 DECLARE r JSONB; over INT;
 BEGIN
-  r := game.admin_add_bots('gw-2', 'five', 3);
+  r := game.admin_add_bots('gw-2', 'five', 3, FALSE);
   IF (r->>'added')::INT < 1 THEN
     RAISE EXCEPTION 'FAIL 4: לא נוסף אף בוט לדוביד 5 (%)', r;
   END IF;
@@ -254,7 +259,7 @@ BEGIN
   END;
 
   BEGIN
-    PERFORM game.admin_add_bots('gw-2', 'full', 1);
+    PERFORM game.admin_add_bots('gw-2', 'full', 1, FALSE);
     RAISE EXCEPTION 'FAIL 8a: משתמש רגיל הוסיף בוטים';
   EXCEPTION WHEN raise_exception THEN
     IF SQLERRM NOT LIKE '%ADMIN_REQUIRED%' THEN RAISE; END IF;

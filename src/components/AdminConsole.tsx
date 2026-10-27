@@ -1617,7 +1617,7 @@ export function AdminBots({ act: outer }: { act?: ReturnType<typeof useAction> }
   return (
     <Card
       title="משתתפי הבית"
-      hint="מצב לכל מחזור, כיבוי, והגשה מיידית למחזור הנוכחי."
+      hint="מצב לכל מחזור, כיבוי, והוספת משתתפים למחזור הנוכחי — נכנסים בהדרגה בשעות הקרובות, לא באותה שנייה."
     >
       <HouseStatus />
       <div className="flex flex-wrap items-center gap-2">
@@ -1650,7 +1650,9 @@ export function AdminBots({ act: outer }: { act?: ReturnType<typeof useAction> }
           onClick={() => act.run(async () => {
             const r = await adminAddBots(gw, mode, count);
             setReport(r);
-            const bits = [`נוספו ${r.added}`];
+            const bits = [r.spread
+              ? `${r.added} ייכנסו בהדרגה עד ${r.until ? new Date(r.until).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : ''}`
+              : `נוספו ${r.added}`];
             if (r.skipped) bits.push(`${r.skipped} כבר היו`);
             if (r.problems.length) bits.push(`${r.problems.length} נדחו`);
             return bits.join(' · ');

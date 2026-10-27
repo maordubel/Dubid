@@ -27,6 +27,7 @@
  * ששאר המוצר משתמש בו. גלילה אופקית בטבלת ליגה בנייד היא הדרך
  * להבטיח שאיש לא יראה את עמודת הנקודות.
  */
+import { onRevision } from '../lib/revisionBus.ts';
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 
 import {
@@ -362,10 +363,14 @@ export function PublicBoard({ rulesByMode, userId }: {
 
     /* ★ רענון כל 60 שניות, ורק כשהטאב גלוי — אותו כלל של שאר
        המוצר. מסך פתוח בטאב אחורי במשך יום הוא בקשה על כלום. */
+    /* ★ חיסכון: טעינה כשמשהו רלוונטי באמת השתנה (תוצאות, טבלה, מחזור) —
+       דרך הערוץ המנותב, מרוסן — ורשת ביטחון של 5 דקות. קודם: כל 60 שניות,
+       גם כשהמחזור פתוח ואין שום משחק. */
+    const stopRev = onRevision(['weekly_matches', 'player_match_stats', 'league_standings', 'gameweeks'], load, 8000);
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') load();
-    }, 60_000);
-    return () => { alive = false; clearInterval(id); };
+    }, 5 * 60_000);
+    return () => { alive = false; clearInterval(id); stopRev(); };
   }, []);
 
   if (err) {
