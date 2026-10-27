@@ -29,6 +29,7 @@
 import { TEAM_BY_ID } from './squads.ts';
 import { tr, activeLocale } from '../lib/i18n/dict.ts';
 import { LOCALE_META } from '../lib/i18n/locales.ts';
+import { leagueTimezone } from '../lib/leagueTz.ts';
 
 export interface Fixture {
   id: string;
@@ -107,15 +108,24 @@ function withLiveDay(f: Fixture): Fixture {
 
 export const FIXTURES: Fixture[] = FIXTURE_SEED.map(withLiveDay);
 
+/** כל המשחקים של קבוצה במחזור, לפי זמן. בדרך כלל אחד. */
+export const FIXTURES_BY_TEAM: Record<string, Fixture[]> = {};
+
 /** מפה: מזהה קבוצה → היריבה שלה במחזור הנוכחי (או null אם אין לה משחק). */
 export const OPPONENT_BY_TEAM: Record<string, { opponentId: string; isHome: boolean; fixture: Fixture } | undefined> = {};
 
 /** בונה מחדש את מפת היריבות מ-`FIXTURES`. נקראת בטעינה ובכל עדכון. */
 function rebuildOpponents() {
   for (const k of Object.keys(OPPONENT_BY_TEAM)) delete OPPONENT_BY_TEAM[k];
-  for (const f of FIXTURES) {
-    OPPONENT_BY_TEAM[f.homeTeamId] = { opponentId: f.awayTeamId, isHome: true, fixture: f };
-    OPPONENT_BY_TEAM[f.awayTeamId] = { opponentId: f.homeTeamId, isHome: false, fixture: f };
+  for (const k of Object.keys(FIXTURES_BY_TEAM)) delete FIXTURES_BY_TEAM[k];
+  /* ★ קבוצה עם שני משחקים במחזור: המפה הישנה שמרה את האחרון שנקרא.
+     עכשיו — כולם ב-FIXTURES_BY_TEAM, והיריבה "הראשית" היא המשחק המוקדם. */
+  const byTime = [...FIXTURES].sort((a, b) => a.kickoff.localeCompare(b.kickoff));
+  for (const f of byTime) {
+    (FIXTURES_BY_TEAM[f.homeTeamId] ??= []).push(f);
+    (FIXTURES_BY_TEAM[f.awayTeamId] ??= []).push(f);
+    OPPONENT_BY_TEAM[f.homeTeamId] ??= { opponentId: f.awayTeamId, isHome: true, fixture: f };
+    OPPONENT_BY_TEAM[f.awayTeamId] ??= { opponentId: f.homeTeamId, isHome: false, fixture: f };
   }
 }
 rebuildOpponents();
@@ -140,13 +150,14 @@ export function fixtureLabel(f: Fixture): string {
  *   מחזירה UTC (`…Z`). בלי `timeZone` מפורש, אותו משחק היה
  *   מוצג בשעה אחרת לכל משתמש.
  */
-const LEAGUE_TZ = 'Asia/Jerusalem';
+/* ★ מאז ריבוי הליגות — אזור הזמן של הליגה הנבחרת (lib/leagueTz). */
+const tzNow = () => leagueTimezone();
 
 export function kickoffTimeLabel(iso: string, confirmed = true): string {
   if (!confirmed) return tr('board.fx.timeTbd');
   const l = activeLocale();
   return new Date(iso).toLocaleTimeString(LOCALE_META[l].intl, {
-    hour: '2-digit', minute: '2-digit', timeZone: LEAGUE_TZ,
+    hour: '2-digit', minute: '2-digit', timeZone: tzNow(),
     ...(l === 'he' ? {} : { hourCycle: 'h23' as const }),
   });
 }
@@ -192,8 +203,8 @@ export function leagueLocalToIso(local: string): string {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local)) return '';
   const naive = Date.parse(`${local}:00Z`);
   if (Number.isNaN(naive)) return '';
-  let off = tzOffsetMinutes(naive, LEAGUE_TZ);
-  off = tzOffsetMinutes(naive - off * 60000, LEAGUE_TZ);
+  let off = tzOffsetMinutes(naive, tzNow());
+  off = tzOffsetMinutes(naive - off * 60000, tzNow());
   const sign = off >= 0 ? '+' : '-';
   const abs = Math.abs(off);
   const hh = String(Math.floor(abs / 60)).padStart(2, '0');
@@ -203,7 +214,7 @@ export function leagueLocalToIso(local: string): string {
 
 export function kickoffDateLabel(iso: string): string {
   return new Date(iso).toLocaleDateString(LOCALE_META[activeLocale()].intl, {
-    day: '2-digit', month: '2-digit', timeZone: LEAGUE_TZ,
+    day: '2-digit', month: '2-digit', timeZone: tzNow(),
   });
 }
 
@@ -211,7 +222,7 @@ export function kickoffDateLabel(iso: string): string {
 function dayLabelOf(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString(LOCALE_META[activeLocale()].intl, {
-      weekday: 'long', timeZone: LEAGUE_TZ,
+      weekday: 'long', timeZone: tzNow(),
     }).replace(/^יום\s+/, '');
   } catch {
     return '';
@@ -303,7 +314,16 @@ export function applyLiveFixtures(payload: LiveFixturePayload): boolean {
 
   /* ⚠ הלוח עצמו — כאן כן יוצאים. תשובה בלי משחקים לא מוחקת
      לוח קיים: מסך בלי לוח נראה כמו מוצר שבור. */
-  if (raw.length === 0) return touched;
+  if (raw.length === 0) {
+    /* ★ M07: מחזור **אחר** בלי לוח — לא משאירים את הלוח של המחזור הקודם
+       (היריבות במגרש היו של השבוע שעבר). אותו מחזור בלי תשובה — נשאר. */
+    if (touched && FIXTURES.length > 0) {
+      FIXTURES.splice(0, FIXTURES.length);
+      rebuildOpponents();
+      fixtureStatusById.clear();
+    }
+    return touched;
+  }
 
   const next: Fixture[] = raw.map((f) => withLiveDay({
     id: f.id,
