@@ -20633,7 +20633,7 @@ BEGIN
       INTO v_price, v_tier
       FROM core.squads sq
      WHERE sq.season_id = v_season AND sq.valid_to IS NULL AND sq.position = v_pos
-       AND sq.fantasy_price IS NOT NULL AND sq.tier IS NOT NULL AND COALESCE(sq.value_source, '') <> 'squad_sync';
+       AND sq.fantasy_price IS NOT NULL AND sq.tier IS NOT NULL AND COALESCE(sq.value_source, '') NOT LIKE 'squad_sync%';
     IF v_price IS NULL THEN CONTINUE; END IF;
     UPDATE core.squads SET fantasy_price = v_price, tier = v_tier, value_source = 'squad_sync_perf', value_at = now()
      WHERE id = v_old.id;
