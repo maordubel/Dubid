@@ -73,3 +73,22 @@ SELECT code, status, is_current, lock_at FROM game.gameweeks
 | חוקים מוקפאים (db/58) | לא מוחקים תמונות. מחזור בלי תמונה ננקד כמו קודם |
 | משתתפי בית (db/60) | `SELECT game.admin_house_set(false);` (או כפתור בלוח הניהול) — מפסיק הגשות חדשות; קיימות נשארות |
 | מסכים | גרסת Vercel קודמת — ה-API תואם לאחור |
+
+## Connected Football — links from FAN LIFE (27.10.2026)
+
+FAN LIFE sends players here as
+`/?league=<CODE>&format=<five|full|any>&gw=<gameweekId>&from=fanlife&club=<slug>&lang=<en|he|el>&src=<hub|club|gate>`
+(+ `eh=` handoff token). Old links with only `league/from/club` still work. All params are stripped from the address
+on load (`src/lib/league.ts → takeIncomingLeague`) and kept in memory + sessionStorage for the tab.
+
+- **League** is decided before live data hydrates (`resolveIncoming`, boot waits ≤2.5 s). If `leagues_public` fails,
+  the intent is kept and the visitor sees "We couldn't load the league you came for · Try again" — it is never read as
+  "no such league". A first visit switches (one reload); a player of another league is asked.
+- **format/gw** (`planLanding`): `five`/`full` open that builder; a format that cannot submit lands on the open one
+  with one line; a `gw` that is no longer current lands on the current round with one line ("Round N is now open/locked").
+  These never fail a landing.
+- **Back link** (Lobby): `fanlife.dubelteam.com/clubs/<club>?lang=<lang>`, or the FAN LIFE home for `src=hub` / no club.
+- **Outcome**: after a confirmed line-up DUBID calls `shared.handoff_outcome('dubid','lineup_submitted')`
+  (ecosystem/sql/0006, contract v9 — applied centrally, not from this repo). Fire-and-forget; a missing function or
+  no handoff is harmless. Read it in `shared.v_handoff_outcome` (service role).
+- No admin control is needed: nothing here writes DUBID tables; the switch-off is FAN LIFE not sending the params.

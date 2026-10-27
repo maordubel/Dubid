@@ -5,7 +5,7 @@
  * Every call is fire-and-forget: the SDK never throws, and nothing here awaits
  * on the render path.
  */
-import { arrived, createHandoff, receiveHandoff, type AppId, type SharedClient } from '../../ecosystem/sdk.ts';
+import { arrived, createHandoff, receiveHandoff, reportOutcome, type AppId, type Outcome, type SharedClient } from '../../ecosystem/sdk.ts';
 import { supabase } from './supabase.ts';
 import { subscribeToIdentity } from './identity.ts';
 
@@ -25,6 +25,14 @@ export function bootEcosystem(): void {
     arrivedFor = id.id;
     void arrived(client, 'dubid').catch(() => {});
   });
+}
+
+/**
+ * What the visit did (contract v9, ecosystem/sql/0006): DUBID reports ONE outcome on the newest handoff it claimed
+ * for this person. Fire and forget — never awaited by the UI, never throws into it.
+ */
+export function reportDubidOutcome(outcome: Outcome): void {
+  try { void Promise.resolve(reportOutcome(client, 'dubid', outcome)).catch(() => {}); } catch { /* never into the UI */ }
 }
 
 const HOSTS: Record<string, AppId> = {

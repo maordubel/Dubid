@@ -128,7 +128,17 @@ const CORE = {
   'incoming.came':  { he: 'הגעת בשביל {league}', en: 'You came for the {league}', el: 'Ήρθες για το {league}' },
   'incoming.switch':{ he: 'לעבור לליגה הזו', en: 'Switch to it', el: 'Άλλαξε σε αυτό' },
   'incoming.stay':  { he: 'להישאר כאן', en: 'Stay here', el: 'Μείνε εδώ' },
-  'incoming.back':  { he: 'חזרה ל{club} ב-FAN LIFE', en: 'Back to {club} on FAN LIFE', el: 'Πίσω στον {club} στο FAN LIFE' },
+  'incoming.back':  { he: 'חזרה ל{club} · FAN LIFE', en: 'Back to {club} · FAN LIFE', el: 'Πίσω στον {club} · FAN LIFE' },
+  'incoming.backHub': { he: 'חזרה ל-FAN LIFE', en: 'Back to FAN LIFE', el: 'Πίσω στο FAN LIFE' },
+  'incoming.failed':  { he: 'לא הצלחנו לטעון את הליגה שביקשת.', en: "We couldn't load the league you came for.", el: 'Δεν φορτώσαμε το πρωτάθλημα που ζήτησες.' },
+  'incoming.retry':   { he: 'לנסות שוב', en: 'Try again', el: 'Ξανά' },
+  'incoming.dismiss': { he: 'לא עכשיו', en: 'Not now', el: 'Όχι τώρα' },
+  'landing.formatSwitched': { he: '{wanted} סגור למחזור הזה — פתחנו את {open}.', en: '{wanted} is closed for this round — you’re on {open}.', el: 'Το {wanted} έκλεισε για αυτόν τον γύρο — είσαι στο {open}.' },
+  'landing.formatClosed':   { he: 'ההרכבים למחזור הזה סגורים.', en: 'Line-ups for this round are closed.', el: 'Οι συνθέσεις για αυτόν τον γύρο έκλεισαν.' },
+  'landing.roundOpen':      { he: 'מחזור {n} פתוח עכשיו.', en: 'Round {n} is now open.', el: 'Ο γύρος {n} είναι πλέον ανοιχτός.' },
+  'landing.roundLocked':    { he: 'מחזור {n} כבר נעול.', en: 'Round {n} is now locked.', el: 'Ο γύρος {n} είναι πλέον κλειδωμένος.' },
+  'landing.roundChanged':   { he: 'המחזור התחלף מאז הכרטיס — זה המחזור הנוכחי.', en: 'The round has changed since that card — this is the current one.', el: 'Ο γύρος άλλαξε από την κάρτα — αυτός είναι ο τρέχων.' },
+  'landing.close':          { he: 'סגור', en: 'Close', el: 'Κλείσιμο' },
 } as const satisfies Record<string, Entry>;
 
 /** המילון המלא = ליבה + מודולי אזור (כל אחד בקובץ משלו כדי למנוע התנגשויות). */

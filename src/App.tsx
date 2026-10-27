@@ -12,7 +12,8 @@ import { useI18n } from './lib/i18n/index.tsx';
 import { tr, activeLocale } from './lib/i18n/dict.ts';
 import { INTL_TAG, splitAt } from './lib/i18n/lazy.ts';
 import { displayName as pickDisplayName } from './lib/i18n/names.ts';
-import { selectedLeague, primeLeagueTimezone } from './lib/league.ts';
+import { selectedLeague, primeLeagueTimezone, waitForIncoming, incomingState, subscribeIncoming, incomingLanding, clearIncomingLanding, knownLeagues, fetchLeaguesResult, planLanding, type IncomingState, type LandingNote } from './lib/league.ts';
+import { reportDubidOutcome } from './lib/ecosystem.ts';
 import { track } from './lib/analytics.ts';
 import { LeagueLoadError } from './components/LeagueLoadError.tsx';
 import { InviteSheet } from './components/InviteSheet.tsx';
@@ -215,6 +216,16 @@ export function App() {
  *   מעודכן ממילא. הפונקציה הזו קיימת כדי שאף מסך לא יקרא
  *   קבוע ישירות — וכך אין מקום שנשאר מאחור.
  */
+/** CF-04: one short line per landing note, in the visitor's language. */
+function landingNoteText(n: LandingNote): string {
+  switch (n.key) {
+    case 'landing.formatSwitched': return tr(n.key, { wanted: tr(`mode.${n.wanted}.title`), open: tr(`mode.${n.open}.title`) });
+    case 'landing.roundOpen':
+    case 'landing.roundLocked': return tr(n.key, { n: n.round });
+    default: return tr(n.key);
+  }
+}
+
 function gwCode(): string {
   return currentGameweekCode() || GAMEWEEK.id;
 }
@@ -262,10 +273,15 @@ function MainApp() {
   const bootOnce = async (force: boolean) => {
     /* ★ D07: עלייה שנכשלה (זהות/רשת) לא משאירה את המסך תקוע לנצח — מסך כשל
        עם «נסה שוב». תקרה של 15 שניות: רשת תלויה אינה "עדיין טוען". */
+    /* ★ CF-07: a FAN LIFE link that names a league is decided BEFORE another league's data is hydrated —
+       with a short ceiling, so a hung read never holds the app (the retry stays on screen). */
+    let switching = false;
     try {
       await Promise.race([
         (async () => {
+          const incoming = waitForIncoming(2500);
           await ensureIdentity();
+          if ((await incoming).kind === 'switching') { switching = true; return; }
           await hydrateLiveData(force);
           await primeLeagueTimezone();
         })(),
@@ -275,6 +291,7 @@ function MainApp() {
       setLoadFailed(true);
       return;
     }
+    if (switching) return;   // the page reloads into the league the link named
     /* ★ ליגה לא-ראשית שלא נטענה מהשרת: לא מציגים לה את הזרע הישראלי, וגם
        **לא מחליפים אותה בשקט** לראשית. מסך כשל עם «נסה שוב» / «בחר ליגה אחרת». */
     if (selectedLeague() && !liveDataStatus().fromServer) { setLoadFailed(true); return; }
@@ -895,6 +912,38 @@ function MainApp() {
     setTab(statusByMode[m] === 'finished' ? 'card' : 'lineup');
   };
 
+  /**
+   * ★ CF-04 (Connected Football): a FAN LIFE card may name a format (`format=five|full|any`) and a round (`gw=`).
+   *   Applied once, after the boot, and only once the league question is settled (no switch pending, no ask open).
+   *   Never a reason to fail the landing: an unknown/closed format or a changed round lands on what is open now,
+   *   with one short line saying so.
+   */
+  const [incoming, setIncoming] = useState<IncomingState>(incomingState());
+  useEffect(() => subscribeIncoming(() => setIncoming(incomingState())), []);
+  const [landingNotes, setLandingNotes] = useState<string[]>([]);
+  const landed = useRef(false);
+  useEffect(() => {
+    if (landed.current || !booted) return;
+    const landing = incomingLanding();
+    if (!landing) { landed.current = true; return; }
+    if (incoming.kind !== 'none') return;   // a switch, a question or a retry is still open
+    landed.current = true;
+    resumed.current = true;                  // the card's format wins over "resume the draft"
+    void (async () => {
+      let all = knownLeagues();
+      if (!all) { const r = await fetchLeaguesResult(); all = r.ok ? r.leagues : null; }
+      const sel = selectedLeague();
+      const active = all ? (all.find((x) => (sel ? x.code === sel : x.primary)) ?? null) : null;
+      clearIncomingLanding();
+      if (landing.league && active && landing.league !== active.code) return;   // the card was about another league
+      const plan = planLanding(landing, active ?? {
+        currentGameweek: currentGameweekCode() || null, round: lobbyGameweek.number, status: lobbyGameweek.status, formats: null,
+      });
+      if (plan.mode) goToMode(plan.mode);
+      setLandingNotes(plan.notes.map(landingNoteText));
+    })();
+  }, [booted, incoming]);
+
   const screens: Record<string, ReactNode> = {
     // ★ הלובי החליף את HomeScreen. הוא לא "עוד מסך בית" — הוא
     //   נקודת ההחלטה: שעון, שני מצבים, וכל השאר בשקט מתחת.
@@ -1109,6 +1158,13 @@ function MainApp() {
     {/* ★ D07/D13: קישור הזמנה `/l/CODE` — תצוגה מקדימה מהשרת, ואז הצטרפות. */}
     <InviteSheet ready={booted && splashGone} userId={userId} displayName={displayName ?? ''}
                  onJoined={(m) => { setMode(m); setTab('arena'); }} />
+    {landingNotes.length > 0 && (
+      <div role="status" className="landing-note"
+        style={{ position: 'fixed', insetInline: 12, insetBlockStart: 'calc(env(safe-area-inset-top, 0px) + 10px)', zIndex: 69, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', padding: '8px 12px', background: 'var(--ink, #111)', color: 'var(--paper, #fff)', maxWidth: 460, marginInline: 'auto', borderRadius: 12 }}>
+        <span>{landingNotes.join(' ')}</span>
+        <button type="button" style={{ minHeight: 44, minWidth: 44 }} aria-label={t('landing.close')} onClick={() => setLandingNotes([])}>✕</button>
+      </div>
+    )}
     {loadFailed && (
       <LeagueLoadError busy={retrying}
         onRetry={() => { setRetrying(true); void bootOnce(true).finally(() => setRetrying(false)); }} />
@@ -1403,6 +1459,7 @@ export function SaveEntryModal({
               const saved = await saveEntry(
                 name, gwCode(), mode, userId, lineup, priceById, team.trim());
               track('lineup_submitted', ctx);   // ★ רק אחרי אישור שרת
+              reportDubidOutcome('lineup_submitted');   // shared layer (contract v9): fire-and-forget
               onSaved(saved);
             } catch (err) {
               const msg = err instanceof Error ? err.message : 'NETWORK';
