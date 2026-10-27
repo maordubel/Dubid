@@ -294,7 +294,13 @@ function Standings({ st, accent }: { st: LeagueStandings; accent: string }) {
                 <td className="num hidden py-2 text-center text-chalk-dim sm:table-cell">
                   {r.won}-{r.drawn}-{r.lost}
                 </td>
-                <td className="num py-2 text-center text-chalk-2">{r.goalDiff > 0 ? `+${r.goalDiff}` : r.goalDiff}</td>
+                {/* ★ הסימן בגופן רגיל: ב-Anton ה-"+" דק עד שהוא נקרא כ-"−" — הפרש חיובי נראה שלילי. */}
+                <td className={`py-2 text-center ${r.goalDiff < 0 ? 'text-flare/80' : 'text-chalk-2'}`}>
+                  <span dir="ltr" className="inline-flex items-baseline">
+                    {r.goalDiff !== 0 && <span className="font-sans font-bold">{r.goalDiff > 0 ? '+' : '−'}</span>}
+                    <span className="num">{Math.abs(r.goalDiff)}</span>
+                  </span>
+                </td>
                 <td className="num py-2 text-center text-[14px] font-black text-gold">{r.points}</td>
               </tr>
             );
@@ -388,7 +394,7 @@ export function PublicBoard({ rulesByMode, userId }: {
   ];
 
   return (
-    <div className="space-y-3">
+    <div className="mx-auto w-full max-w-3xl space-y-3">
       {/* ── מאסטהד הליגה: דגל, שם, מחזור, חי ── */}
       <header className="relative overflow-hidden rounded-2xl border px-3 py-3"
               style={{ borderColor: NP.rule, background: `linear-gradient(110deg, #100D0A 55%, ${accent}26)` }}>
