@@ -1083,8 +1083,8 @@ function MainApp() {
               pricing={mode === 'five'}
               budget={mode === 'five' ? DUBID_5X5_BUDGET : undefined}
               mode={mode}
-              /* ★ H04: העתקה לטיוטה בלבד — רק כשאפשר לערוך ויש זהות */
-              copyFromGw={!entry && userId && roundUse === 'build' ? gwCode() : undefined}
+              /* ★ H04: העתקה מהמחזור הקודם — כבויה: בלי שינוי בלוח המגרש (החלטת בעלים 27.10).
+                 להפעלה: copyFromGw={!entry && userId && roundUse === 'build' ? gwCode() : undefined} */
               onReplaceDraft={lu.replaceDraft}
             />
             </div>
