@@ -416,7 +416,7 @@ export function PublicBoard({ rulesByMode, userId }: {
             {gw && (
               <p className="text-[11.5px] font-bold text-chalk-2">
                 {t('board.hub.round', { n: gw.number })}
-                {gw.entries > 0 && <span className="text-chalk-dim"> · {t('gate.entrants', { n: gw.entries })}</span>}
+                {gw.entries > 0 && <span className="text-chalk-dim"> · {t('gate.lineups', { n: gw.entries })}</span>}
               </p>
             )}
           </div>

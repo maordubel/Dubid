@@ -60,7 +60,7 @@ import type { RoundBrief } from '../lib/roundPhase.ts';
 import { pressNote } from '../lib/pressNotes.ts';
 import { text as content, hasText } from '../lib/content.ts';
 import { ModeMark } from './ModeMark.tsx';
-import { ago, type RoundPulse } from '../lib/pulse.ts';
+import { ago, pulseCounts, type RoundPulse } from '../lib/pulse.ts';
 
 export interface LobbyMode {
   id: ModeId;
@@ -688,8 +688,18 @@ function TheWire({
           <>
             <p className="flex flex-wrap items-baseline gap-x-2 pt-0.5">
               <span className="font-press text-[21px] font-black leading-tight" style={{ color: NP.ink, textShadow: MISREGISTER }}>
-                {pulse.total === 1 ? t('fomo.inOne') : t('fomo.in', { n: pulse.total })}
+                {(() => {
+                  /* ★ H01: מאמנים = ייחודיים; הרכבים = הגשות. v1 → רק הרכבים. */
+                  const c = pulseCounts(pulse);
+                  if (!c) return pulse.total === 1 ? t('fomo.lineupsOne') : t('fomo.lineups', { n: pulse.total });
+                  return c.managers === 1 ? t('fomo.inOne') : t('fomo.in', { n: c.managers });
+                })()}
               </span>
+              {pulseCounts(pulse) && pulse.total !== pulseCounts(pulse)!.managers && (
+                <span className="num text-[11.5px] font-bold" style={{ color: NP.inkDim }}>
+                  {t('fomo.lineups', { n: pulse.total })}
+                </span>
+              )}
               {pulse.last24h > 0 && (
                 <span className="num text-[11.5px] font-bold" style={{ color: NP.redLight }}>
                   {t('fomo.day', { n: pulse.last24h })}

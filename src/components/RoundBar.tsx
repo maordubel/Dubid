@@ -16,9 +16,12 @@ import { fixtureStatus, type Fixture } from '../data/fixtures.ts';
 import { TeamCrest } from './TeamCrest.tsx';
 import { useI18n } from '../lib/i18n/index.tsx';
 import {
-  countdownShort, dayHeading, dayKey, deadlineLabel, fetchNextRound, timeOnly, tzLabel,
-  type NextRound, type RoundFixtureLite,
+  countdownShort, dayHeading, dayKey, deadlineLabel, loadNextRound, NEXT_ROUND_TTL_MS, peekNextRound,
+  retainNextRoundBus, timeOnly, tzLabel, watchNextRound,
+  type NextRound, type NextRoundLoadState, type RoundFixtureLite,
 } from '../lib/roundContext.ts';
+import { track } from '../lib/analytics.ts';
+import { selectedLeague } from '../lib/league.ts';
 
 export type RoundUse = 'build' | 'submitted' | 'locked' | 'live' | 'scoring' | 'published';
 
@@ -51,7 +54,8 @@ export function RoundBar({
   const cd = countdownShort(left);
   const urgent = left > 0 && left < 24 * 3600_000;
   const open = use === 'build' || use === 'submitted';
-  const next = useNextRound(open ? '' : roundCode);
+  const nextSt = useNextRound(open ? '' : roundCode, true);
+  const next = nextData(nextSt);
 
   const stateChip: Record<RoundUse, string | null> = {
     build: null,
@@ -127,6 +131,13 @@ export function RoundBar({
                   : t('round.nextOpens', { c: roundNumber })}
               </span>
             </>
+          ) : nextSt.status === 'loading' ? (
+            <span className="truncate text-[11.5px] text-chalk-dim">{t('round.nextLoading')}</span>
+          ) : nextSt.status === 'error' ? (
+            <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-chalk-dim">
+              <span className="truncate">{t('round.nextError')}</span>
+              <RetryButton code={roundCode} st={nextSt} />
+            </span>
           ) : (
             <span className="truncate text-[11.5px] text-chalk-dim">{t('round.nextTba')}</span>
           )}
@@ -152,15 +163,59 @@ export function RoundBar({
 /* המחזור הבא                                                          */
 /* ================================================================== */
 
-function useNextRound(code: string): NextRound | null {
-  const [next, setNext] = useState<NextRound | null>(null);
+const hidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
+
+/** הנתון להצגה: טרי, או ישן אחרי כשל (מסומן). */
+function nextData(st: NextRoundLoadState): NextRound | null {
+  return st.status === 'ready' ? st.data : st.status === 'error' ? st.cached ?? null : null;
+}
+
+/**
+ * ★ H05: `live` = התצוגה העתידית גלויה עכשיו → רענון שקט לכל היותר פעם ב-TTL,
+ *   רק בטאב גלוי, וחזרה לטאב מרעננת אם פג התוקף. לא גלוי → טעינה אחת (ומטמון).
+ *   שינוי מחזור/לוח מבטל את המטמון דרך ערוץ אחד (retainNextRoundBus).
+ *   תשובה למחזור הקודם (החלפת ליגה באמצע) לא נוגעת במסך — `alive` + מפתח.
+ */
+function useNextRound(code: string, live: boolean): NextRoundLoadState {
+  const [st, setSt] = useState<NextRoundLoadState>(() => (code ? peekNextRound(code) : { status: 'empty', checkedAt: 0 }));
   useEffect(() => {
+    if (!code) { setSt({ status: 'empty', checkedAt: Date.now() }); return; }
     let alive = true;
-    setNext(null);
-    if (code) void fetchNextRound(code).then((n) => { if (alive) setNext(n); });
-    return () => { alive = false; };
-  }, [code]);
-  return next;
+    setSt(peekNextRound(code));
+    const apply = (s: NextRoundLoadState) => {
+      if (!alive) return;
+      setSt(s);
+      if (live && s.status === 'ready' && s.stale && !hidden()) void loadNextRound(code);
+    };
+    const unwatch = watchNextRound(code, apply);
+    const release = retainNextRoundBus();
+    void loadNextRound(code).then(apply);
+    const id = live ? setInterval(() => { if (!hidden()) void loadNextRound(code); }, NEXT_ROUND_TTL_MS) : null;
+    const onVis = () => { if (live && !hidden()) void loadNextRound(code); };
+    if (live) document.addEventListener('visibilitychange', onVis);
+    return () => {
+      alive = false; unwatch(); release();
+      if (id) clearInterval(id);
+      if (live) document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [code, live]);
+  return st;
+}
+
+function RetryButton({ code, st }: { code: string; st: NextRoundLoadState }) {
+  const { t } = useI18n();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        track('next_round_retry', { league_code: selectedLeague(), error_code: st.status === 'error' ? st.errorCode : 'none' });
+        void loadNextRound(code, true);
+      }}
+      className="tap shrink-0 rounded-full border border-gold/40 px-2 py-0.5 text-[11px] font-black text-gold"
+    >
+      {t('round.retry')}
+    </button>
+  );
 }
 
 /* ================================================================== */
@@ -179,7 +234,8 @@ export function FixturesBoard({
   const { t } = useI18n();
   const [tab, setTab] = useState<'this' | 'next'>('this');
   const [mine, setMine] = useState(false);
-  const next = useNextRound(roundCode);
+  const nextSt = useNextRound(roundCode, tab === 'next');
+  const next = nextData(nextSt);
 
   const myCount = Object.values(picks).reduce((n, a) => n + a.length, 0);
 
@@ -210,8 +266,11 @@ export function FixturesBoard({
       {/* לשוניות: המחזור הזה / הבא */}
       <div className="flex items-center gap-1.5">
         <Seg active={tab === 'this'} onClick={() => setTab('this')}>{t('round.thisRound', { n: roundNumber })}</Seg>
-        {next && (
-          <Seg active={tab === 'next'} onClick={() => setTab('next')}>{t('round.nextTab', { n: next.number })}</Seg>
+        {/* ★ כשל זמני לא מעלים את הלשונית לתמיד */}
+        {(next || nextSt.status === 'error') && (
+          <Seg active={tab === 'next'} onClick={() => setTab('next')}>
+            {next ? t('round.nextTab', { n: next.number }) : t('round.next')}
+          </Seg>
         )}
         {tab === 'this' && (
           <button
@@ -226,15 +285,28 @@ export function FixturesBoard({
         )}
       </div>
 
-      <p className="mt-2 text-[10.5px] text-chalk-dim">
+      <p className="mt-2 text-[12px] text-chalk-dim">
         {tab === 'next' && next
           ? <>{t('round.previewNote')}{next.lockAt ? <> · {t('round.nextLocks', { when: deadlineLabel(next.lockAt) })}</> : null}</>
           : tzLabel()}
       </p>
+      {tab === 'next' && nextSt.status === 'error' && (
+        <p className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-amber-300" role="status">
+          {nextSt.cached && nextSt.cachedAt
+            ? t('round.nextStale', { t: timeOnly(new Date(nextSt.cachedAt).toISOString()) })
+            : t('round.nextError')}
+          <RetryButton code={roundCode} st={nextSt} />
+        </p>
+      )}
 
       {days.length === 0 ? (
-        <p className="py-6 text-center text-[12.5px] text-chalk-dim">
-          {tab === 'this' && mine ? t('round.noMine') : t('round.noFixtures')}
+        <p className="py-6 text-center text-[13px] text-chalk-dim">
+          {tab === 'this' && mine ? t('round.noMine')
+            : tab === 'next' && nextSt.status === 'loading' ? t('round.nextLoading')
+            : tab === 'next' && nextSt.status === 'empty' ? t('round.nextTba')
+            : tab === 'next' && nextSt.status === 'error' && !next ? ''
+            : tab === 'next' && next ? t('round.fixturesTba')
+            : t('round.noFixtures')}
         </p>
       ) : (
         <div className="mt-1">

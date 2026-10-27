@@ -920,7 +920,7 @@ function AdminGameweek() {
         </div>
         <p className="mt-2 text-[11px] text-chalk-dim">
           כרגע: <span className="font-bold text-chalk">{gw.status}</span>
-          {' · '}משתתפים: <span className="num">{gw.entrants}</span>
+          {' · '}מאמנים ייחודיים: <span className="num">{gw.entrants}</span>
         </p>
       </div>
 

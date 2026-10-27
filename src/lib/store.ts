@@ -163,7 +163,11 @@ export interface GameweekState {
   status: string;
   lockAt: string;
   firstKickoffAt: string;
+  /** distinct user_id עם הגשה — זהה ל-managers (db/66). */
   entrants: number;
+  /** ★ db/66: מאמנים ייחודיים / הגשות. */
+  managers?: number;
+  lineups?: number;
   /** ★ שדות ההתקדמות מ-`db/24`. אופציונליים — מסד ישן לא מחזיר אותם. */
   locked?: boolean;
   published?: boolean;

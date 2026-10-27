@@ -67,7 +67,11 @@ export interface PublicLeague {
   round?: number | null;
   status?: string | null;
   lockAt?: string | null;
+  /** הגשות (לא אנשים). */
   entrants?: number;
+  /** ★ db/66: מאמנים ייחודיים / הגשות. */
+  managers?: number;
+  lineups?: number;
   formats?: { five: FormatReadiness; full: FormatReadiness } | null;
 }
 

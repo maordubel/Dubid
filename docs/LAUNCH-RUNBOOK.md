@@ -92,3 +92,19 @@ on load (`src/lib/league.ts → takeIncomingLeague`) and kept in memory + sessio
   (ecosystem/sql/0006, contract v9 — applied centrally, not from this repo). Fire-and-forget; a missing function or
   no handoff is harmless. Read it in `shared.v_handoff_outcome` (service role).
 - No admin control is needed: nothing here writes DUBID tables; the switch-off is FAN LIFE not sending the params.
+
+## מונים והמחזור הבא (db/66, 27.10.2026)
+
+**הגדרות (אחידות בכל המסכים ובשלוש השפות):**
+- **managers / מאמנים** — זהויות ייחודיות (`user_id`) עם הגשה תקפה במחזור.
+- **lineups / הרכבים** — שורות הגשה תקפות (מי שהגיש בשני המצבים = 2).
+- הגשה תקפה = `status IN ('submitted','locked','scored')`; טיוטה לא נספרת; הגשה שנמשכה יוצאת מהמונה.
+- ★ החלטת בעלים: בציבור כל המשתתפים נספרים ומוצגים אותו דבר. הפיצול אנושי/בית — רק באדמין (מבט-על הליגות, דוח משתתפי בית).
+
+**מקורות:** `round_pulse` (v2: `overall`, `byMode`, `window24h`; שדות v1 נשמרו), `gameweek_state.managers/lineups`, `leagues_public.managers/lineups`. פונקציית העזר `round_counts` סגורה ל-anon.
+
+**המחזור הבא:** `next_round` מחזיר רק מאותה עונה; סוף עונה = "Next round not announced yet". הלקוח (`roundContext.ts`) שומר תוצאה 60 שניות, בקשה אחת לכל מחזור, מתבטל כש-`gameweeks`/`weekly_matches` משתנים, ומבחין בין loading / empty / error. אחרי כשל מוצג הנתון הקודם עם "Could not refresh"; אחרי 5 דקות — רק שגיאה + Retry.
+
+**בדיקה:** `SELECT game.round_pulse('<code>')->'overall';` מול `SELECT count(DISTINCT user_id), count(*) FROM game.user_lineups WHERE gameweek_id=… AND status<>'draft';`
+
+**נסיגה:** הלקוח הקודם עובד מול db/66 (השדות הישנים קיימים). להחזרת next_round לגרסה הקודמת — להריץ מחדש את db/61.

@@ -273,7 +273,7 @@ export const DICT_ACCOUNT = {
   'share.reveal.formation':{ he: 'מערך {f}', en: 'Formation {f}', el: 'Σύστημα {f}' },
   'share.reveal.budget':   { he: 'תקציב {n}M', en: 'Budget {n}M', el: 'Προϋπολογισμός {n}M' },
   'share.reveal.lock':     { he: 'נעילה {at}', en: 'Locks {at}', el: 'Κλείδωμα {at}' },
-  'share.reveal.entrants': { he: '{n} משתתפים', en: '{n} players', el: '{n} παίκτες' },
+  'share.reveal.entrants': { he: '{n} מאמנים', en: '{n} managers', el: '{n} προπονητές' },
   'share.reveal.cta':      { he: 'חושב שאתה מבין יותר?', en: 'Think you know better?', el: 'Νομίζεις ότι ξέρεις καλύτερα;' },
   'share.reveal.text':     {
     he: 'סגרתי הרכב ל{gw} · {mode}.{cap} אתם הייתם בוחרים אחרת? 👇',
