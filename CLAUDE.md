@@ -6,7 +6,7 @@ DUBID is the before-the-round companion of the FAN LIFE universe: a gameweek fan
 
 Maor Harel owns every app here and works alone, with Claude as the whole engineering team. These are his standing decisions; each has a reason, and the reason tells you what to do in a case the line does not name.
 
-- **He does not use a terminal.** Do every step yourself: branch, pull request, CI, merge, migration, deploy, check on production. He authorised Claude to merge. Whatever only he can do becomes a click-only step (a page to open, a button, a value to paste) listed at the end of the report. Never a command.
+- **Every action is done the most efficient and correct way, without his involvement.** Choose the best route for the job (CLI, API, connector, script, browser) and carry it through yourself: branch, pull request, CI, merge, migration, deploy, check on production. He authorised Claude to merge. Never hand him a step you can do, and never pick a slower route because it is the one a person would click through. Only what truly needs him (an approval, a secret only he holds, a login) reaches him, reduced to the shortest possible step and listed at the end of the report.
 - **No ZIP when you can merge.** Deliver through the repository.
 - **Reports are short and businesslike**, outcome first, no tour of the steps. He writes in Hebrew, so answer in Hebrew. Product copy, marketing and code are English unless this file says otherwise.
 - **Free tiers only.** Say so before a limit is near; never adopt a paid service without his yes.
