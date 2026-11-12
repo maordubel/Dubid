@@ -5,6 +5,7 @@ Byte-identical in every repo (fanlife, Dubid, Offsides, The-Worker, FuckYou). Ow
 | path | what |
 |---|---|
 | `contract.json` | who owns what: apps, roles, schemas, prefixes, moments, rules |
+| `capabilities.json` | every reusable engine: owner, path, status, who uses it and who could. Read before designing a feature; add a row when one ships |
 | `sdk.ts` | the one client for schema `shared`: touch, handoff (leads), universe, club ids, SSO storage |
 | `test/sso.test.mjs` | proves the SSO cookie is byte-compatible with @supabase/ssr |
 | `feed/` | the one football data-reading engine (provider adapters) |
