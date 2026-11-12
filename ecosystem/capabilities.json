@@ -1,0 +1,61 @@
+{
+  "$comment": "Every reusable engine of the FAN LIFE universe. IDENTICAL in every repo (fanlife, Offsides, Dubid, The-Worker, FuckYou), like contract.json. Read it before designing a feature: if the engine exists, reuse it through its owner, never fork it. A pull request that ships a reusable engine adds or refreshes its row here and copies the same bytes to the other repos in the same round.",
+  "version": 1,
+  "updated": "2026-11-12",
+  "howToReuse": {
+    "same-repo": "Import it.",
+    "data": "Read through schema shared/core views and RPCs (contract rules 1, 8, 13). Never read another app's tables.",
+    "link": "createHandoff() from ecosystem/sdk.ts with the contract moment; the target reports shared.handoff_outcome.",
+    "value": "shared.grant_reward only (contract rule 2).",
+    "code-in-another-repo": "Ask the owner repo to expose it (route, RPC, published file under ecosystem/). Copying source across repos is a fork and is not allowed; ecosystem/ is the only folder that is the same bytes everywhere."
+  },
+  "capabilities": [
+    {"id": "contract", "owner": "ecosystem", "path": "ecosystem/contract.json", "what": "Who owns which schema, prefix, domain and moment; rules 1-14.", "status": "live", "consumers": "all"},
+    {"id": "sdk", "owner": "ecosystem", "path": "ecosystem/sdk.ts", "what": "The one client for schema shared: touch, handoff, outcome, universe, club ids, SSO storage.", "status": "live", "consumers": "all"},
+    {"id": "feed", "owner": "ecosystem", "path": "ecosystem/feed/", "what": "The one football provider reader (365scores, Sofascore adapters, reconcile, cache).", "status": "live", "consumers": "dubid, offsides, fanlife"},
+    {"id": "crests", "owner": "offsides", "path": "ecosystem/crests/index.mjs", "source": "Offsides public/logos + src/lib/logoIndex.js", "what": "The one crest library: crestSlug/crestUrl with OFFSIDES' guarded matcher.", "status": "live", "consumers": "fanlife, dubid, marketing"},
+    {"id": "fixtures", "owner": "ecosystem", "path": "core.fixtures via shared.fixtures; core.fixture_signals", "what": "Neutral fixture list and kickoff/full-time signals, one cursor per app.", "status": "live", "consumers": "all", "gap": "offsides.matches has no core_fixture_id yet, so the hub cannot point at 'the arena of this match'."},
+    {"id": "club-identity", "owner": "ecosystem", "path": "shared.club_identity(slug)", "what": "One exact club id across apps (core.teams uuid) from any app's own slug.", "status": "live", "consumers": "all"},
+    {"id": "handoff", "owner": "ecosystem", "path": "shared.handoff / shared.handoff_outcome / shared.v_handoff_outcome", "what": "Cross-app leads with a moment, an open, a claim and an outcome: the funnel of the universe.", "status": "live", "consumers": "all", "gap": "Only FAN LIFE creates handoffs today; DUBID and OFFSIDES create none."},
+    {"id": "rewards", "owner": "ecosystem", "path": "shared.grant_reward -> shared.reward_grants", "what": "The only way value crosses apps.", "status": "live, unused", "consumers": "dubid, offsides", "gap": "FAN LIFE is not an allowed source yet."},
+    {"id": "sso", "owner": "ecosystem", "path": "ecosystem/sdk.ts ssoStorage / ssoCookieDomain", "what": "One account, one cookie on .dubelteam.com.", "status": "live", "consumers": "fanlife, dubid, offsides, theworker"},
+
+    {"id": "kit-engine", "owner": "fanlife", "path": "lib/kit/", "what": "Eight-layer drawn shirt per season with sourced maker, sponsor and era crest. The canonical kit engine.", "status": "live", "consumers": "fanlife, theworker", "couldUse": "offsides shop ('wear the 1996 shirt'), dubid Jersey.tsx, marketing art"},
+    {"id": "sourced-trivia", "owner": "fanlife", "path": "lib/trivia/", "what": "Question bank forged from each club's sourced records, four levels, English.", "status": "live", "consumers": "fanlife gates, marketing quiz slots", "couldUse": "offsides half-time overlay, telegram bot"},
+    {"id": "rotation", "owner": "fanlife", "path": "lib/rotation/", "what": "Seeded daily/weekly round: everyone gets the same deal, a week is a rotation not a pool.", "status": "live", "consumers": "fanlife gates", "couldUse": "any daily challenge in any app"},
+    {"id": "share-cards", "owner": "fanlife", "path": "lib/share/ ; lib/og/", "what": "Story and OG cards with safe zones, drawn from a result.", "status": "live", "consumers": "fanlife, marketing", "couldUse": "result cards for companions through a route"},
+    {"id": "draft-core", "owner": "fanlife", "path": "lib/draft-core/", "what": "One draft core behind Legends Manager and Royal Rumble.", "status": "live", "consumers": "fanlife"},
+    {"id": "universe-hub", "owner": "fanlife", "path": "lib/universe/hub.ts ; components/universe/DiscoveryUnit.tsx", "what": "The hub's single decision on which companion to offer, when, to whom; one discovery unit with snooze and real deadlines.", "status": "live", "consumers": "fanlife hub, club pages, advertising desk"},
+    {"id": "round-lock", "owner": "fanlife", "path": "lib/promo/roundLock.ts ; GET /api/promo/public", "what": "Countdown to DUBID's round lock; public promo feed (CORS *).", "status": "live", "consumers": "fanlife, dubid"},
+    {"id": "final-whistle", "owner": "fanlife", "path": "lib/final-whistle/", "what": "Full-time card and destination after a match.", "status": "live", "consumers": "fanlife, dubid announce"},
+    {"id": "marketing-machine", "owner": "fanlife", "path": "lib/marketing/ ; schema marketing ; pg_cron marketing:tick", "what": "The one social publisher: plan, live slots, Telegram delivery, Meta publishing.", "status": "live", "consumers": "fanlife, dubid, offsides (as subjects)", "couldUse": "dubid announce queue, takemeout events, offsides match_story as sources. offsides fb-post duplicates this and should retire."},
+    {"id": "video-engine", "owner": "fanlife", "path": "scripts/football-stories/", "what": "Film and Shorts production (club documentaries, I WAS THERE vlog, CLASSIFIED), narrator, thumbnails; runs in GitHub Actions.", "status": "live", "consumers": "fanlife YouTube"},
+    {"id": "telegram-miniapp", "owner": "fanlife", "path": "app/telegram/ ; lib/telegram/", "what": "A Telegram mini app per club and the owner's delivery bot.", "status": "live", "consumers": "fanlife", "couldUse": "one reminder channel for every app while push has no key"},
+    {"id": "away-days", "owner": "fanlife", "path": "lib/away-days/", "what": "Verified grounds journey and 'I was there' records.", "status": "live", "consumers": "fanlife", "couldUse": "takemeout city cards, GENERATIONS posts"},
+    {"id": "research-desk", "owner": "fanlife", "path": "lib/research/ ; research-staging/ ; club-packs/", "what": "Sourced club archive, staged research and the owner's one-click approval that opens a club.", "status": "live", "consumers": "fanlife, theworker"},
+    {"id": "durable-store", "owner": "fanlife", "path": "public.worker_fanlife_files via durable()", "what": "Server-only file store with etag compare-and-swap; reads never take a screen down.", "status": "live", "consumers": "fanlife"},
+
+    {"id": "life-runtime", "owner": "theworker", "path": "lib/life/", "what": "LIFE, the supporter life-simulation runtime. Upstream of FAN LIFE's LIFE.", "status": "live", "consumers": "theworker, fanlife"},
+    {"id": "football-3d", "owner": "theworker", "path": "lib/life/football/", "what": "three.js football engine (pitch, bodies, captured motion).", "status": "live", "consumers": "theworker, fanlife", "couldUse": "gate 8 goal replay, Shorts of historic goals"},
+
+    {"id": "season-data", "owner": "dubid", "path": "core.* (players, squads, player_match_stats) ; src/lib/ingest/", "what": "Real current-season data for the leagues DUBID runs (IL, GR, EN, ES).", "status": "live", "consumers": "dubid", "couldUse": "fanlife 'this season' mode in Legends Manager / Royal Rumble / trivia"},
+    {"id": "scoring", "owner": "dubid", "path": "src/lib/scoring/ ; edge dubid-score-gameweek", "what": "Gameweek scoring engine, DUBID 5 and DUBID 11.", "status": "live", "consumers": "dubid"},
+    {"id": "gameweek-state", "owner": "dubid", "path": "RPC game.current_gameweek / game.gameweek_state", "what": "Which round is open and when it locks, readable with the anon key.", "status": "live", "consumers": "fanlife"},
+    {"id": "gameweek-story", "owner": "dubid", "path": "src/components/GameweekStory.tsx ; src/lib/story.ts", "what": "End-of-round story of a manager's week.", "status": "live", "consumers": "dubid", "couldUse": "automatic end-of-round carousel in the marketing machine"},
+    {"id": "announce-queue", "owner": "dubid", "path": "scripts/announce/", "what": "Queue of round announcements.", "status": "live", "consumers": "dubid", "couldUse": "a source for the marketing machine"},
+
+    {"id": "live-arenas", "owner": "offsides", "path": "offsides.matches / offsides.arenas ; edge match-autopilot", "what": "Live prediction arenas per match, auto-settled.", "status": "live", "consumers": "offsides, fanlife (JOIN/START decision), marketing live slots"},
+    {"id": "momentum", "owner": "offsides", "path": "src/lib/momentum.js ; edge momentum-odds", "what": "Live momentum game during a match.", "status": "live", "consumers": "offsides"},
+    {"id": "challenge-bank", "owner": "offsides", "path": "src/lib/questions.js ; src/screens/UndertakerScreen.jsx", "what": "Challenge question bank behind Undertaker and Momentum, with answer statistics.", "status": "live", "consumers": "offsides", "couldUse": "'Nerds only' posts from the most-failed questions"},
+    {"id": "match-story", "owner": "offsides", "path": "offsides.match_story ; offsides.match_stat_snapshots", "what": "The story of a match from live statistics.", "status": "live", "consumers": "offsides", "couldUse": "results stories and Shorts in the marketing machine"},
+    {"id": "halftime-overlay", "owner": "offsides", "path": "src/components/HtIntervalOverlay.jsx", "what": "The 15-minute half-time surface.", "status": "live", "consumers": "offsides", "couldUse": "three sourced FAN LIFE trivia questions on the two clubs on the pitch"},
+    {"id": "push", "owner": "offsides", "path": "src/lib/onesignal.js ; notification_outbox", "what": "OneSignal web push.", "status": "waiting for ONESIGNAL_REST_KEY", "consumers": "offsides", "couldUse": "one push channel for the universe, a label per app"},
+    {"id": "kit-creator", "owner": "offsides", "path": "src/lib/jersey.js ; src/screens/KitCreatorScreen.jsx", "what": "Cosmetic shirt creator in the shop.", "status": "live", "consumers": "offsides", "note": "Second kit engine; converge on fanlife kit-engine."},
+    {"id": "story-art", "owner": "offsides", "path": "src/lib/storyArt.js", "what": "Canvas share art for arena invites and result stories.", "status": "live", "consumers": "offsides"},
+    {"id": "back-to-fanlife", "owner": "offsides", "path": "src/lib/fanlifeBack.js ; src/lib/ecosystem.js", "what": "The way back to the hub after a handoff, and outcome reporting.", "status": "live", "consumers": "offsides"},
+
+    {"id": "anonymous-wall", "owner": "fuckyou", "path": "fy_* RPCs (fy_add, fy_vote, fy_report, fy_lookup)", "what": "Anonymous wall with rate limits and report-based moderation. Own Supabase project, nothing on Football Master.", "status": "live", "consumers": "fuckyou", "couldUse": "a temporary derby wall opened from core.fixtures"},
+    {"id": "wall-cards", "owner": "fuckyou", "path": "src/app/n/[id]/story ; src/lib/og.tsx", "what": "Story and OG card per entry.", "status": "live", "consumers": "fuckyou"},
+    {"id": "daily-bot", "owner": "fuckyou", "path": "src/lib/bot/ ; src/app/api/bot/", "what": "Daily bot that keeps the wall alive.", "status": "live", "consumers": "fuckyou"}
+  ]
+}

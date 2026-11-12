@@ -10,6 +10,7 @@ The source of truth is `ecosystem/contract.json` in this repo (identical in ever
 
 ## Before the change
 1. Read `ecosystem/contract.json`. Identify which app this repo is, and which schemas/prefixes it owns.
+   Read `ecosystem/capabilities.json` too: if the engine you are about to build is listed, reuse it through its owner instead of building it again.
 2. Classify the change:
    - **Local**: only objects this app owns. Proceed.
    - **Shared**: `core`, `shared`, auth settings, domains, or the contract itself. This is an every-repo change.
@@ -25,6 +26,7 @@ The source of truth is `ecosystem/contract.json` in this repo (identical in ever
 ## After the change
 - If it was Shared: update `contract.json` (bump `version`, `updated`) and apply the identical file to every other repo in the same round.
 - If a new cross-app link was added, record it under `crossAppLinks`.
+- If the change shipped something another app could reuse, add or refresh its row in `ecosystem/capabilities.json` (same bytes in every repo).
 - Report in the final message: which apps are affected and whether the others needed a change.
 
 ## The universe and the data engine
